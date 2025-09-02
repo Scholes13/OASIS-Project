@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom responsive utilities */
+@layer components {
+    /* Sidebar responsive utilities */
+    .sidebar-transition {
+        @apply transition-all duration-300 ease-in-out;
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 1023px) {
+        .mobile-optimized {
+            @apply text-sm;
+        }
+        
+        .mobile-padding {
+            @apply px-3 py-2;
+        }
+    }
+    
+    /* High DPI screen optimizations */
+    @media (min-resolution: 192dpi) {
+        .high-dpi-text {
+            @apply text-[13px] leading-5;
+        }
+    }
+    
+    /* Large screen optimizations (24"-27" monitors) */
+    @media (min-width: 1920px) {
+        .large-screen-container {
+            @apply max-w-8xl mx-auto;
+        }
+        
+        .large-screen-text {
+            @apply text-base leading-6;
+        }
+    }
+    
+    /* Medium screen optimizations (14"-16" laptops) */
+    @media (min-width: 1024px) and (max-width: 1599px) {
+        .medium-screen-text {
+            @apply text-sm leading-5;
+        }
+        
+        .medium-screen-padding {
+            @apply px-4 py-3;
+        }
+    }
+    
+    /* Prevent zoom issues */
+    .zoom-stable {
+        @apply transform-gpu;
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+    
+    /* Gradient utilities for sidebar */
+    .sidebar-gradient {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+    }
+    
+    .sidebar-gradient-light {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%);
+    }
+}
+
+/* Global font optimizations */
+@layer base {
+    html {
+        @apply h-full;
+        /* Prevent zoom on mobile */
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+    }
+    
+    body {
+        @apply font-inter antialiased;
+        /* Better font rendering */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        /* Consistent line height across devices */
+        line-height: 1.5;
+    }
+    
+    /* Improved focus states */
+    *:focus {
+        @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+    }
+    
+    /* Better button states */
+    button:disabled {
+        @apply opacity-50 cursor-not-allowed;
+    }
+}
+
+/* Animation utilities */
+@layer utilities {
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    .animate-slide-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(0); }
+    }
+}

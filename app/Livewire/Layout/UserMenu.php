@@ -8,11 +8,7 @@ use App\Livewire\Actions\Logout;
 
 class UserMenu extends Component
 {
-    public function logout(Logout $logout): void
-    {
-        $logout();
-        $this->redirect('/', navigate: true);
-    }
+    // Logout method removed - now using standard form POST to logout route
     
     public function render()
     {

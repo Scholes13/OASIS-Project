@@ -1,11 +1,13 @@
-<div class="relative" x-data="{ open: false }">
+<div class="relative" 
+     x-data="{ open: false }" 
+     x-on:click.away="open = false"
+     wire:key="bu-switcher-{{ $currentBusinessUnit['id'] ?? 'none' }}-{{ auth()->id() }}">
     @if(count($availableBusinessUnits) > 1)
         <!-- Business Unit Switcher Button -->
         <button 
             type="button" 
-            x-on:click="open = !open"
-            x-on:click.away="open = false"
-            class="relative flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200">
+            x-on:click.stop="open = !open"
+            class="relative flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200 z-10">
             
             <!-- Current Business Unit Info -->
             <div class="flex items-center space-x-2">
@@ -38,7 +40,7 @@
              x-transition:leave="transition ease-in duration-75"
              x-transition:leave-start="transform opacity-100 scale-100"
              x-transition:leave-end="transform opacity-0 scale-95"
-             class="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+             class="absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
              style="display: none;">
              
             <div class="px-4 py-3 border-b border-gray-200">

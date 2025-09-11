@@ -9,6 +9,45 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property int $business_unit_id
+ * @property string $code
+ * @property string $name
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Position> $activePositions
+ * @property-read int|null $active_positions_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $activeUsers
+ * @property-read int|null $active_users_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BusinessUnit $businessUnit
+ * @property-read string $full_name
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberSequence> $numberSequences
+ * @property-read int|null $number_sequences_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Position> $positions
+ * @property-read int|null $positions_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserBusinessUnit> $userBusinessUnits
+ * @property-read int|null $user_business_units_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
+ * @property-read int|null $users_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department active()
+ * @method static \Database\Factories\DepartmentFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department forBusinessUnit($businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class Department extends Model
 {
     use HasFactory, LogsActivity;

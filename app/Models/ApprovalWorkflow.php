@@ -7,6 +7,44 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $description
+ * @property int $business_unit_id
+ * @property string $module_type
+ * @property array<array-key, mixed> $approval_steps
+ * @property bool $is_sequential
+ * @property bool $is_default
+ * @property bool $is_active
+ * @property array<array-key, mixed>|null $conditions
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BusinessUnit $businessUnit
+ * @property-read int $steps_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow default()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow forBusinessUnit($businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow forModule($moduleType)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereApprovalSteps($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereConditions($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereIsDefault($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereIsSequential($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereModuleType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class ApprovalWorkflow extends Model
 {
     use LogsActivity;

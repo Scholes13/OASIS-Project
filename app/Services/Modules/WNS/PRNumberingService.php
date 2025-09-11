@@ -37,8 +37,18 @@ class PRNumberingService
         
         // Get user's department
         $department = $user->primaryDepartment;
+        
+        // For super admins, allow using any department in WNS if they don't have a WNS department
         if (!$department || $department->business_unit_id !== $businessUnit->id) {
-            throw new \Exception('User must belong to WNS business unit');
+            if ($user->global_role === 'super_admin') {
+                // Use a default department from WNS for super admins
+                $department = $businessUnit->activeDepartments()->first();
+                if (!$department) {
+                    throw new \Exception('No active departments found in WNS business unit');
+                }
+            } else {
+                throw new \Exception('User must belong to WNS business unit');
+            }
         }
         
         // Ensure PR numbering module exists
@@ -290,7 +300,7 @@ class PRNumberingService
         }
         
         if ($month) {
-            $query->whereMonth('date_of_request', $month);
+            $query->whereRaw("strftime('%m', date_of_request) = ?", [str_pad($month, 2, '0', STR_PAD_LEFT)]);
         }
         
         $prStats = [
@@ -335,8 +345,8 @@ class PRNumberingService
         
         for ($month = 1; $month <= 12; $month++) {
             $count = PurchaseRequest::where('business_unit_id', $businessUnit->id)
-                ->whereYear('date_of_request', $year)
-                ->whereMonth('date_of_request', $month)
+                ->whereRaw("strftime('%Y', date_of_request) = ?", [$year])
+                ->whereRaw("strftime('%m', date_of_request) = ?", [str_pad($month, 2, '0', STR_PAD_LEFT)])
                 ->count();
                 
             $monthlyData[] = [

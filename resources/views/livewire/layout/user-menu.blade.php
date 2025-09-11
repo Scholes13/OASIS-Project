@@ -1,10 +1,9 @@
-<div class="relative" x-data="{ open: false }">
+<div class="relative" x-data="{ open: false, loggingOut: false }" x-on:click.away="open = false">
     <!-- Profile Button -->
     <button 
         type="button" 
-        x-on:click="open = !open"
-        x-on:click.away="open = false"
-        class="relative flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 hover:ring-2 hover:ring-indigo-300">
+        x-on:click.stop="open = !open"
+        class="relative flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 hover:ring-2 hover:ring-indigo-300 z-10">
         <span class="sr-only">Open user menu</span>
         <div class="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
             <span class="text-sm font-bold text-white">
@@ -21,7 +20,7 @@
          x-transition:leave="transition ease-in duration-75"
          x-transition:leave-start="transform opacity-100 scale-100"
          x-transition:leave-end="transform opacity-0 scale-95"
-         class="absolute right-0 z-10 mt-2 w-72 origin-top-right rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+         class="absolute right-0 z-50 mt-2 w-72 origin-top-right rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
          style="display: none;">
          
         <!-- User Info Section -->
@@ -65,23 +64,17 @@
                 Your Profile
             </a>
             
-            <a href="#" 
-               x-on:click="open = false"
-               class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors duration-200">
-                <svg class="mr-3 h-4 w-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                Settings
-            </a>
-            
-            <a href="#" 
+            <a href="https://request.werkudara.com" 
+               target="_blank"
                x-on:click="open = false"
                class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors duration-200">
                 <svg class="mr-3 h-4 w-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 Help & Support
+                <svg class="ml-1 h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
             </a>
         </div>
         
@@ -90,15 +83,61 @@
         
         <!-- Logout -->
         <div class="py-1">
-            <button 
-                wire:click="logout"
-                x-on:click="open = false"
-                class="group flex w-full items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 hover:text-red-900 transition-colors duration-200">
-                <svg class="mr-3 h-4 w-4 text-red-500 group-hover:text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                </svg>
-                Sign Out
-            </button>
+            <form method="POST" action="{{ route('logout') }}" class="w-full" 
+                  x-on:submit.prevent="
+                      loggingOut = true; 
+                      open = false;
+                      
+                      // Create and show loading overlay
+                      const overlay = document.createElement('div');
+                      overlay.id = 'logout-overlay';
+                      overlay.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm';
+                      overlay.innerHTML = `
+                          <div class='bg-white rounded-lg shadow-xl p-6 flex items-center space-x-4'>
+                              <svg class='animate-spin h-6 w-6 text-indigo-600' fill='none' viewBox='0 0 24 24'>
+                                  <circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
+                                  <path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+                              </svg>
+                              <span class='text-gray-700 font-medium'>Signing out...</span>
+                          </div>
+                      `;
+                      document.body.appendChild(overlay);
+                      
+                      // Submit form after showing animation
+                      setTimeout(() => { $el.submit(); }, 500);
+                  ">
+                @csrf
+                <button 
+                    type="submit"
+                    x-bind:disabled="loggingOut"
+                    class="group flex w-full items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 hover:text-red-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    
+                    <!-- Loading spinner (shown when logging out) -->
+                    <svg x-show="loggingOut" 
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="mr-3 h-4 w-4 text-red-500 animate-spin" 
+                         fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    
+                    <!-- Normal logout icon (hidden when logging out) -->
+                    <svg x-show="!loggingOut" 
+                         class="mr-3 h-4 w-4 text-red-500 group-hover:text-red-700" 
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                    
+                    <!-- Text that changes based on state -->
+                    <span x-show="!loggingOut">Sign Out</span>
+                    <span x-show="loggingOut" 
+                          x-transition:enter="transition ease-out duration-200"
+                          x-transition:enter-start="opacity-0"
+                          x-transition:enter-end="opacity-100">Signing Out...</span>
+                </button>
+            </form>
         </div>
     </div>
 </div>

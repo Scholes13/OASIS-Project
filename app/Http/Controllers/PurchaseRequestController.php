@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\QrCodeService;
 
 class PurchaseRequestController extends Controller
 {
@@ -24,28 +26,87 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Display a listing of user's purchase requests
+     * Display a listing of purchase requests and reservations based on user hierarchy
      */
     public function index()
     {
-        $purchaseRequests = PurchaseRequest::with(['department', 'items'])
-            ->byUser(Auth::id())
-            ->where('business_unit_id', session('current_business_unit_id'))
-            ->latest('created_at')
-            ->paginate(15);
+        $user = Auth::user();
+        $accessLevel = $user->getAccessLevel();
+        
+        // Get Purchase Requests
+        $prQuery = PurchaseRequest::with(['department', 'user', 'items'])
+            ->where('business_unit_id', session('current_business_unit_id'));
 
-        return view('purchase-requests.index', compact('purchaseRequests'));
+        // Get PR Number Reservations
+        $reservationQuery = \App\Models\PrNumberReservation::with(['businessUnit', 'department', 'user', 'purchaseRequest'])
+            ->where('business_unit_id', session('current_business_unit_id'));
+
+        // Apply hierarchy-based filtering to both queries
+        switch ($accessLevel) {
+            case 'super_admin':
+            case 'director':
+                // Can see all PRs and reservations in the business unit
+                break;
+                
+            case 'department_head':
+                // Department head can see all PRs and reservations in their department
+                $prQuery->where('department_id', $user->primary_department_id);
+                $reservationQuery->where('department_id', $user->primary_department_id);
+                break;
+                
+            case 'team_leader':
+                // Team leader can see their own + subordinates' PRs and reservations
+                $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
+                $subordinateIds[] = $user->id; // Include own items
+                $prQuery->whereIn('user_id', $subordinateIds);
+                $reservationQuery->whereIn('user_id', $subordinateIds);
+                break;
+                
+            case 'staff':
+            default:
+                // Staff can only see their own PRs and reservations
+                $prQuery->byUser($user->id);
+                $reservationQuery->byUser($user->id);
+                break;
+        }
+
+        $purchaseRequests = $prQuery->latest('created_at')->get();
+        $reservations = $reservationQuery->latest('reserved_at')->get();
+
+        return view('purchase-requests.index', compact('purchaseRequests', 'reservations'));
     }
 
     /**
-     * Display all purchase requests (for managers/admins)
+     * Display all purchase requests (for managers/admins with proper hierarchy)
      */
     public function all()
     {
-        $purchaseRequests = PurchaseRequest::with(['department', 'user', 'items'])
-            ->where('business_unit_id', session('current_business_unit_id'))
-            ->latest('created_at')
-            ->paginate(20);
+        $user = Auth::user();
+        $accessLevel = $user->getAccessLevel();
+        
+        // Only allow certain access levels to view "all" PRs
+        if (!in_array($accessLevel, ['super_admin', 'director', 'department_head'])) {
+            return redirect()->route('purchase-requests.index')
+                ->with('error', 'You do not have permission to view all purchase requests.');
+        }
+        
+        $query = PurchaseRequest::with(['department', 'user', 'items'])
+            ->where('business_unit_id', session('current_business_unit_id'));
+
+        // Apply hierarchy-based filtering even for "all" view
+        switch ($accessLevel) {
+            case 'super_admin':
+            case 'director':
+                // Can see all PRs in the business unit
+                break;
+                
+            case 'department_head':
+                // Department head can see all PRs in their department
+                $query->where('department_id', $user->primary_department_id);
+                break;
+        }
+
+        $purchaseRequests = $query->latest('created_at')->paginate(20);
 
         return view('purchase-requests.all', compact('purchaseRequests'));
     }
@@ -72,6 +133,7 @@ class PurchaseRequestController extends Controller
             'keperluan' => 'required|string|max:500',
             'used_for' => 'required|string|max:1000',
             'date_of_request' => 'required|date',
+            'designated_date' => 'nullable|date|after_or_equal:date_of_request',
             'items' => 'required|array|min:1',
             'items.*.item_name' => 'required|string|max:255',
             'items.*.brand_name' => 'nullable|string|max:255',
@@ -103,6 +165,7 @@ class PurchaseRequestController extends Controller
                 'keperluan' => $request->keperluan,
                 'used_for' => $request->used_for,
                 'date_of_request' => $request->date_of_request,
+                'designated_date' => $request->designated_date,
                 'status' => 'draft',
                 'currency' => $request->items[0]['currency'], // Use first item's currency
                 'last_modified_by' => Auth::id(),
@@ -319,5 +382,74 @@ class PurchaseRequestController extends Controller
         return redirect()
             ->route('purchase-requests.index')
             ->with('success', 'Purchase request has been deleted.');
+    }
+
+    /**
+     * Generate PDF view for purchase request
+     */
+    public function pdf(PurchaseRequest $purchaseRequest)
+    {
+        // Load relationships needed for PDF
+        $purchaseRequest->load([
+            'user',
+            'department',
+            'businessUnit',
+            'items',
+            'approvals.approver'
+        ]);
+
+        // Generate QR codes for PDF
+        $qrCodeService = new QrCodeService();
+        $qrCodes = $this->generateQrCodesForPdf($purchaseRequest, $qrCodeService);
+
+        return view('purchase-requests.pdf-simple', compact('purchaseRequest', 'qrCodes'));
+    }
+
+    /**
+     * Download PDF for purchase request
+     */
+    public function downloadPdf(PurchaseRequest $purchaseRequest)
+    {
+        // Load relationships needed for PDF
+        $purchaseRequest->load([
+            'user',
+            'department',
+            'businessUnit',
+            'items',
+            'approvals.approver'
+        ]);
+
+        // Generate QR codes for PDF
+        $qrCodeService = new QrCodeService();
+        $qrCodes = $this->generateQrCodesForPdf($purchaseRequest, $qrCodeService);
+
+        // Generate PDF using DomPDF
+        $pdf = Pdf::loadView('purchase-requests.pdf-simple', compact('purchaseRequest', 'qrCodes'));
+        $pdf->setPaper('A4', 'landscape');
+        
+        // Clean filename by removing invalid characters
+        $cleanPrNumber = preg_replace('/[\/\\\\:*?"<>|]/', '-', $purchaseRequest->pr_number);
+        $filename = 'PR-' . $cleanPrNumber . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Generate QR codes for PDF
+     */
+    protected function generateQrCodesForPdf(PurchaseRequest $purchaseRequest, QrCodeService $qrCodeService): array
+    {
+        $qrCodes = [];
+
+        // Generate QR code for requestor
+        $qrCodes['requestor'] = $qrCodeService->generateRequestorQrCodeDataUrl($purchaseRequest);
+
+        // Generate QR codes for each approval
+        $qrCodes['approvals'] = [];
+        foreach ($purchaseRequest->approvals as $approval) {
+            $qrCodes['approvals'][$approval->id] = $qrCodeService->generateApproverQrCodeDataUrl($approval);
+        }
+
+        return $qrCodes;
     }
 }

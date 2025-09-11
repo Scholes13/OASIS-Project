@@ -8,6 +8,38 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property int $business_unit_id
+ * @property string $module_code
+ * @property string $module_name
+ * @property string $format_pattern
+ * @property array<array-key, mixed>|null $config
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BusinessUnit $businessUnit
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberSequence> $numberSequences
+ * @property-read int|null $number_sequences_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule byCode($moduleCode)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule forBusinessUnit($businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereConfig($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereFormatPattern($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereModuleCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereModuleName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class NumberingModule extends Model
 {
     use LogsActivity;

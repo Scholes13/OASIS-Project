@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-gray-50">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'NumberSys') }}</title>
@@ -33,7 +33,8 @@
                 class="fixed inset-0 z-50 lg:hidden" 
                 role="dialog" 
                 aria-modal="true"
-                style="display: none;">
+                style="display: none !important;"
+                x-cloak>
                 <!-- Background overlay -->
                 <div class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" @click="sidebarOpen = false"></div>
                 
@@ -46,7 +47,8 @@
                         x-transition:enter-end="translate-x-0"
                         x-transition:leave="transition ease-in-out duration-300 transform"
                         x-transition:leave-start="translate-x-0"
-                        x-transition:leave-end="-translate-x-full">
+                        x-transition:leave-end="-translate-x-full"
+                        wire:key="mobile-sidebar-{{ auth()->id() }}-{{ session('current_user_role') }}">
                         <livewire:layout.sidebar />
                     </div>
                 </div>
@@ -54,16 +56,18 @@
 
             <!-- Desktop sidebar -->
             <div 
-                class="hidden lg:flex lg:flex-shrink-0 transition-all duration-300 ease-in-out"
-                :class="sidebarMinimized ? 'lg:w-16' : 'lg:w-72'">
-                <livewire:layout.sidebar />
+                class="hidden lg:flex lg:flex-shrink-0 smooth-transition"
+                :class="sidebarMinimized ? 'lg:w-16' : ''">
+                <div class="fluid-sidebar" wire:key="desktop-sidebar-{{ auth()->id() }}-{{ session('current_user_role') }}">
+                    <livewire:layout.sidebar />
+                </div>
             </div>
 
             <!-- Main content area -->
             <div class="flex-1 flex flex-col overflow-hidden">
                 <!-- Top navigation bar -->
                 <header class="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
-                    <div class="flex h-16 items-center gap-x-4 px-4 sm:gap-x-6 sm:px-6 lg:px-8">
+                    <div class="fluid-header px-4 sm:px-6 lg:px-8">
                                             <!-- Mobile menu button -->
                         <button 
                             type="button" 
@@ -90,11 +94,14 @@
                             </svg>
                         </button>
 
+                        <!-- Spacer between toggle and content -->
+                        <div class="hidden lg:block w-px h-6 bg-gray-200 mx-4"></div>
+
                     <!-- Page title and breadcrumbs -->
-                    <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-                        <div class="flex flex-1 items-center">
+                    <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 min-w-0">
+                        <div class="flex flex-1 items-center min-w-0">
                             @if (isset($header))
-                                <div class="flex items-center space-x-4">
+                                <div class="w-full min-w-0">
                                     @if (isset($breadcrumbs))
                                         <nav class="flex" aria-label="Breadcrumb">
                                             <ol class="flex items-center space-x-2">
@@ -111,10 +118,14 @@
                         <!-- Right side of top nav -->
                         <div class="flex items-center gap-x-4 lg:gap-x-6">
                             <!-- Business Unit Switcher -->
-                            <livewire:components.business-unit-switcher />
+                            <div wire:key="business-unit-switcher-{{ auth()->id() }}-{{ session('current_business_unit_id', 'none') }}">
+                                <livewire:components.business-unit-switcher />
+                            </div>
                             
                             <!-- Profile dropdown -->
-                            <livewire:layout.user-menu />
+                            <div wire:key="user-menu-{{ auth()->id() }}">
+                                <livewire:layout.user-menu />
+                            </div>
                         </div>
                         </div>
                     </div>
@@ -122,8 +133,8 @@
 
                 <!-- Main content with proper scrolling -->
                 <main class="flex-1 overflow-y-auto bg-gray-50">
-                    <div class="py-6">
-                        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div class="content-spacing">
+                        <div class="fluid-container">
                             <!-- Flash messages -->
                             @if (session('success'))
                                 <div class="mb-6 rounded-lg bg-green-50 p-4 border border-green-200 shadow-sm">

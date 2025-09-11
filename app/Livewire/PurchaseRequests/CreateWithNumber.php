@@ -70,10 +70,19 @@ class CreateWithNumber extends Component
 
     public function mount()
     {
+        \Illuminate\Support\Facades\Log::info('=== CreateWithNumber mount START ===');
+        
         // Get number details from session
         $numberDetails = session('pr_number_details');
         
+        \Illuminate\Support\Facades\Log::info('=== Session data ===', [
+            'pr_number_details' => $numberDetails,
+            'session_id' => session()->getId(),
+            'all_session' => session()->all()
+        ]);
+        
         if (!$numberDetails) {
+            \Illuminate\Support\Facades\Log::error('=== No PR number details in session ===');
             session()->flash('error', 'No PR number found. Please generate a PR number first.');
             return $this->redirect(route('purchase-requests.request-number'));
         }
@@ -81,6 +90,11 @@ class CreateWithNumber extends Component
         $this->numberDetails = $numberDetails;
         $this->prNumber = $numberDetails['formatted_number'] ?? null;
         $this->sequenceId = $numberDetails['sequence_id'] ?? null;
+        
+        \Illuminate\Support\Facades\Log::info('=== Number details loaded ===', [
+            'prNumber' => $this->prNumber,
+            'sequenceId' => $this->sequenceId
+        ]);
         
         // Pre-fill from number request
         $this->keperluan = $numberDetails['purpose'] ?? '';
@@ -92,6 +106,8 @@ class CreateWithNumber extends Component
         $this->loadDepartments();
         $this->loadApprovers();
         $this->addItem();
+        
+        \Illuminate\Support\Facades\Log::info('=== CreateWithNumber mount END ===');
     }
 
     public function loadDepartments()
@@ -219,6 +235,15 @@ class CreateWithNumber extends Component
             // Update total amount
             $purchaseRequest->updateTotalAmount();
 
+            // Mark PR number reservation as used
+            $reservationId = session('pr_number_details.reservation_id');
+            if ($reservationId) {
+                $reservation = \App\Models\PrNumberReservation::find($reservationId);
+                if ($reservation) {
+                    $reservation->markAsUsed($purchaseRequest->id);
+                }
+            }
+
             DB::commit();
 
             // Clear session data
@@ -284,6 +309,15 @@ class CreateWithNumber extends Component
             
             // Create manual approval workflow
             $this->createManualApprovalWorkflow($purchaseRequest);
+
+            // Mark PR number reservation as used
+            $reservationId = session('pr_number_details.reservation_id');
+            if ($reservationId) {
+                $reservation = \App\Models\PrNumberReservation::find($reservationId);
+                if ($reservation) {
+                    $reservation->markAsUsed($purchaseRequest->id);
+                }
+            }
 
             DB::commit();
 

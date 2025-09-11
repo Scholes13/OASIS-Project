@@ -8,6 +8,51 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property int $purchase_request_id
+ * @property int $item_order
+ * @property string $item_name
+ * @property string|null $brand_name
+ * @property int $expense_department_id
+ * @property string|null $item_description
+ * @property string|null $supplier_name
+ * @property numeric $quantity
+ * @property string $unit
+ * @property numeric $unit_price
+ * @property string $currency
+ * @property numeric $total_price
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read Department $expenseDepartment
+ * @property-read string $formatted_quantity
+ * @property-read string $formatted_total_price
+ * @property-read string $formatted_unit_price
+ * @property-read \App\Models\Modules\WNS\PurchaseRequest $purchaseRequest
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem forPurchaseRequest($purchaseRequestId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem ordered()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereBrandName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereCurrency($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereExpenseDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereItemDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereItemName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereItemOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem wherePurchaseRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereQuantity($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereSupplierName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereTotalPrice($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUnit($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUnitPrice($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class PrItem extends Model
 {
     use LogsActivity;

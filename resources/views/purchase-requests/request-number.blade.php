@@ -49,9 +49,9 @@
     </x-slot>
 
     <!-- Step Progress Indicator -->
-    <div class="max-w-6xl mx-auto mb-8">
+    <div class="mx-2 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between max-w-md mx-auto">
                 <!-- Step 1 - Current -->
                 <div class="flex items-center">
                     <div class="flex items-center justify-center w-8 h-8 bg-indigo-600 text-white rounded-full text-sm font-medium">
@@ -83,7 +83,7 @@
     </div>
 
     <!-- PR Number Request Form -->
-    <div class="max-w-6xl mx-auto">
+    <div class="mx-2">
         <livewire:purchase-requests.request-number />
     </div>
 </x-app-layout>

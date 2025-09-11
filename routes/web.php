@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\UserController;
+
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
 
@@ -13,6 +13,9 @@ use App\Http\Controllers\Admin\DepartmentController;
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
+
+// Public routes (no authentication required)
+Route::get('/purchase-requests/{pr}/public', [ApprovalController::class, 'publicView'])->name('purchase-requests.public');
 
 // Dashboard with enhanced middleware
 Route::get('dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])
@@ -24,22 +27,23 @@ Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
+// Force refresh session (for debugging)
+Route::get('refresh-session', function () {
+    session()->flush();
+    Auth::logout();
+    return redirect()->route('login')->with('message', 'Session cleared. Please login again.');
+})->middleware(['auth'])->name('refresh-session');
+
 // Purchase Request Routes
 Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(function () {
     // Purchase Request Management
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
         Route::get('/', [PurchaseRequestController::class, 'index'])->name('index');
         
-        // Separated PR Flow Routes
-        Route::get('/request-number', function () {
+        // Create PR Route
+        Route::get('/create', function () {
             return view('purchase-requests.request-number');
         })->name('request-number');
-        Route::get('/create-with-number', function () {
-            return view('purchase-requests.create-with-number');
-        })->name('create-with-number');
-        
-        // Legacy single-step route (still available)
-        Route::get('/create', [PurchaseRequestController::class, 'create'])->name('create');
         
         Route::post('/', [PurchaseRequestController::class, 'store'])->name('store');
         Route::get('/{purchaseRequest}', [PurchaseRequestController::class, 'show'])->name('show');
@@ -48,6 +52,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::delete('/{purchaseRequest}', [PurchaseRequestController::class, 'destroy'])->name('destroy');
         Route::post('/{purchaseRequest}/submit', [PurchaseRequestController::class, 'submit'])->name('submit');
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
+        Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
+        Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestController::class, 'downloadPdf'])->name('download-pdf');
         Route::get('/all/list', [PurchaseRequestController::class, 'all'])->name('all');
     });
     
@@ -55,9 +61,15 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     Route::prefix('approvals')->name('approvals.')->group(function () {
         Route::get('/', [ApprovalController::class, 'index'])->name('index');
         Route::get('/{prApproval}', [ApprovalController::class, 'show'])->name('show');
-        Route::post('/process', [ApprovalController::class, 'process'])->name('process');
-        Route::post('/{prApproval}/approve', [ApprovalController::class, 'approve'])->name('approve');
-        Route::post('/{prApproval}/reject', [ApprovalController::class, 'reject'])->name('reject');
+        Route::post('/{prApproval}/process', [ApprovalController::class, 'process'])->name('process');
+        Route::get('/{prApproval}/qr-code', [ApprovalController::class, 'generateQrCode'])->name('qr-code');
+    });
+    
+    // PR Number Reservations Routes
+    Route::prefix('pr-numbers')->name('pr-numbers.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PrNumberReservationController::class, 'index'])->name('index');
+        Route::get('/{reservation}/continue', [\App\Http\Controllers\PrNumberReservationController::class, 'continueToForm'])->name('continue');
+        Route::post('/{reservation}/void', [\App\Http\Controllers\PrNumberReservationController::class, 'void'])->name('void');
     });
     
     // Reports Routes (placeholder)

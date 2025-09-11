@@ -14,6 +14,73 @@ use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property string $phone_number
+ * @property int|null $primary_department_id
+ * @property int|null $primary_position_id
+ * @property int|null $supervisor_id
+ * @property string $global_role
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property string $password
+ * @property string|null $remember_token
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserBusinessUnit> $activeBusinessUnits
+ * @property-read int|null $active_business_units_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, User> $activeSubordinates
+ * @property-read int|null $active_subordinates_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserBusinessUnit> $businessUnits
+ * @property-read int|null $business_units_count
+ * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
+ * @property-read int|null $notifications_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PrApproval> $pendingApprovals
+ * @property-read int|null $pending_approvals_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Permission\Models\Permission> $permissions
+ * @property-read int|null $permissions_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PrApproval> $prApprovals
+ * @property-read int|null $pr_approvals_count
+ * @property-read \App\Models\Department|null $primaryDepartment
+ * @property-read \App\Models\Position|null $primaryPosition
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PurchaseRequest> $purchaseRequests
+ * @property-read int|null $purchase_requests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Permission\Models\Role> $roles
+ * @property-read int|null $roles_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, User> $subordinates
+ * @property-read int|null $subordinates_count
+ * @property-read User|null $supervisor
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User active()
+ * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User inDepartment($departmentId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User permission($permissions, $without = false)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User role($roles, $guard = null, $without = false)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereGlobalRole($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePhoneNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePrimaryDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePrimaryPositionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereSupervisorId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User withGlobalRole($role)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutPermission($permissions)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutRole($roles, $guard = null)
+ * @mixin \Eloquent
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -138,6 +205,14 @@ class User extends Authenticatable
     public function prApprovals(): HasMany
     {
         return $this->hasMany(PrApproval::class, 'approver_id');
+    }
+
+    /**
+     * Alias for prApprovals for consistency
+     */
+    public function approvals(): HasMany
+    {
+        return $this->prApprovals();
     }
 
     /**
@@ -369,12 +444,12 @@ class User extends Authenticatable
      */
     public function getRoleInBusinessUnit($businessUnitId): ?string
     {
-        $assignment = $this->businessUnits()
-            ->where('business_unit_id', $businessUnitId)
-            ->where('is_active', true)
-            ->first();
-
-        return $assignment?->role;
+        // Since role field was removed, return access level based on position
+        if ($this->canAccessBusinessUnit($businessUnitId)) {
+            return $this->getAccessLevel();
+        }
+        
+        return null;
     }
 
     /**

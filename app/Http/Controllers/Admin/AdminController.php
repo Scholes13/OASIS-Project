@@ -21,36 +21,36 @@ class AdminController extends Controller
     {
         // System overview statistics
         $stats = [
-            'total_users' => User::where('is_active', true)->count(),
-            'total_business_units' => BusinessUnit::where('is_active', true)->count(),
-            'total_departments' => Department::where('is_active', true)->count(),
+            'total_users' => User::count(),
+            'active_users' => User::where('is_active', true)->count(),
+            'super_admins' => User::where('global_role', 'super_admin')->count(),
+            'total_business_units' => BusinessUnit::count(),
+            'active_business_units' => BusinessUnit::where('is_active', true)->count(),
+            'total_departments' => Department::count(),
+            'total_assignments' => \App\Models\UserBusinessUnit::where('is_active', true)->count(),
             'total_purchase_requests' => PurchaseRequest::count(),
             'pending_approvals' => PrApproval::where('status', 'pending')->count(),
             'active_sequences' => NumberSequence::where('is_active', true)->count(),
         ];
 
-        // Recent activity
-        $recentPRs = PurchaseRequest::with(['user', 'department'])
+        // Recent users
+        $recentUsers = User::with(['activeBusinessUnits.businessUnit'])
             ->latest()
             ->limit(5)
             ->get();
 
-        $recentApprovals = PrApproval::with(['purchaseRequest', 'approver'])
-            ->whereIn('status', ['approved', 'rejected'])
-            ->latest('responded_at')
-            ->limit(5)
-            ->get();
-
-        // Business unit breakdown
+        // Business unit breakdown with user count
         $businessUnitStats = BusinessUnit::where('is_active', true)
-            ->withCount(['departments', 'users'])
+            ->withCount(['userBusinessUnits as user_count' => function ($query) {
+                $query->where('is_active', true);
+            }])
             ->get();
 
-        // Monthly PR trends
+        // Monthly PR trends (SQLite compatible)
         $monthlyPRs = DB::table('purchase_requests')
-            ->select(DB::raw('MONTH(created_at) as month'), DB::raw('COUNT(*) as count'))
-            ->whereYear('created_at', now()->year)
-            ->groupBy(DB::raw('MONTH(created_at)'))
+            ->select(DB::raw("CAST(strftime('%m', created_at) AS INTEGER) as month"), DB::raw('COUNT(*) as count'))
+            ->whereRaw("strftime('%Y', created_at) = ?", [now()->year])
+            ->groupBy(DB::raw("strftime('%m', created_at)"))
             ->orderBy('month')
             ->get()
             ->mapWithKeys(function ($item) {
@@ -59,8 +59,7 @@ class AdminController extends Controller
 
         return view('admin.dashboard', compact(
             'stats', 
-            'recentPRs', 
-            'recentApprovals', 
+            'recentUsers', 
             'businessUnitStats', 
             'monthlyPRs'
         ));

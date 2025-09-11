@@ -13,6 +13,80 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Carbon\Carbon;
 
+/**
+ * @property int $id
+ * @property string $pr_number
+ * @property int $business_unit_id
+ * @property int $department_id
+ * @property int $user_id
+ * @property int $sequence_id
+ * @property string $used_for
+ * @property \Illuminate\Support\Carbon $date_of_request
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $submitted_at
+ * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property \Illuminate\Support\Carbon|null $rejected_at
+ * @property \Illuminate\Support\Carbon|null $voided_at
+ * @property array<array-key, mixed>|null $approval_workflow
+ * @property bool $is_sequential_approval
+ * @property numeric $total_amount
+ * @property string $currency
+ * @property array<array-key, mixed>|null $edit_history
+ * @property int|null $last_modified_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $keperluan
+ * @property \Illuminate\Support\Carbon|null $expected_date
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PrApproval> $approvals
+ * @property-read int|null $approvals_count
+ * @property-read BusinessUnit $businessUnit
+ * @property-read Department $department
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PrItem> $items
+ * @property-read int|null $items_count
+ * @property-read User|null $lastModifiedBy
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PrApproval> $pendingApprovals
+ * @property-read int|null $pending_approvals_count
+ * @property-read NumberSequence $sequence
+ * @property-read User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest approved()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest byDepartment($departmentId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest byUser($userId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest dateRange($startDate, $endDate)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest draft()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest rejected()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest submitted()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest voided()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereApprovalWorkflow($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereApprovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereCurrency($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereDateOfRequest($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereEditHistory($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereExpectedDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereIsSequentialApproval($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereKeperluan($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereLastModifiedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest wherePrNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereRejectedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereSequenceId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereSubmittedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereTotalAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereUsedFor($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereVoidedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest withStatus($status)
+ * @mixin \Eloquent
+ */
 class PurchaseRequest extends Model
 {
     use LogsActivity;

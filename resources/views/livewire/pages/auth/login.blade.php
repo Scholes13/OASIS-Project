@@ -17,13 +17,15 @@ new #[Layout('layouts.guest')] class extends Component
     {
         $this->loading = true;
         
-        $this->validate();
-
-        $this->form->authenticate();
-
-        Session::regenerate();
-
-        $this->redirectIntended(default: route('dashboard', absolute: false));
+        try {
+            $this->validate();
+            $this->form->authenticate();
+            Session::regenerate();
+            $this->redirectIntended(default: route('dashboard', absolute: false));
+        } catch (\Exception $e) {
+            $this->loading = false;
+            throw $e;
+        }
     }
     
     public function updatedForm()
@@ -32,7 +34,19 @@ new #[Layout('layouts.guest')] class extends Component
     }
 }; ?>
 
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8" 
+     x-data="{ 
+         loggingIn: false,
+         hideOverlay() {
+             this.loggingIn = false;
+             const overlay = document.getElementById('login-overlay');
+             if (overlay) {
+                 overlay.remove();
+             }
+         }
+     }"
+     x-on:livewire:load="hideOverlay()">
+
     <div class="max-w-md w-full space-y-8">
         
         <!-- Logo & Header -->
@@ -77,7 +91,36 @@ new #[Layout('layouts.guest')] class extends Component
                 </div>
             @endif
 
-            <form wire:submit="login" class="space-y-6">
+            <form wire:submit="login" class="space-y-6" 
+                  x-data="{ 
+                      showOverlay() {
+                          loggingIn = true;
+                          
+                          // Create and show loading overlay
+                          const overlay = document.createElement('div');
+                          overlay.id = 'login-overlay';
+                          overlay.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm';
+                          overlay.innerHTML = `
+                              <div class='bg-white rounded-lg shadow-xl p-6 flex items-center space-x-4'>
+                                  <svg class='animate-spin h-6 w-6 text-indigo-600' fill='none' viewBox='0 0 24 24'>
+                                      <circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
+                                      <path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+                                  </svg>
+                                  <span class='text-gray-700 font-medium'>Signing in...</span>
+                              </div>
+                          `;
+                          document.body.appendChild(overlay);
+                      },
+                      hideOverlay() {
+                          loggingIn = false;
+                          const overlay = document.getElementById('login-overlay');
+                          if (overlay) {
+                              overlay.remove();
+                          }
+                      }
+                  }"
+                  x-on:submit="showOverlay()">
+
                 
                 <!-- Email Input -->
                 <div class="space-y-2">
@@ -96,8 +139,7 @@ new #[Layout('layouts.guest')] class extends Component
                                required 
                                autofocus
                                autocomplete="username"
-                               wire:loading.attr="disabled"
-                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gray-50/50 focus:bg-white disabled:opacity-50"
+                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gray-50/50 focus:bg-white"
                                placeholder="Enter your email address">
                     </div>
                     @error('form.email') 
@@ -126,8 +168,7 @@ new #[Layout('layouts.guest')] class extends Component
                                type="password" 
                                required 
                                autocomplete="current-password"
-                               wire:loading.attr="disabled"
-                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gray-50/50 focus:bg-white disabled:opacity-50"
+                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gray-50/50 focus:bg-white"
                                placeholder="Enter your password">
                     </div>
                     @error('form.password') 
@@ -164,27 +205,13 @@ new #[Layout('layouts.guest')] class extends Component
                 </div>
                 
                 <!-- Login Button -->
-                <div class="space-y-4">
+                <div class="space-y-4 flex flex-col items-center">
                     <button type="submit" 
-                            wire:loading.attr="disabled"
-                            wire:target="login"
-                            class="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                        
-                        <!-- Loading State -->
-                        <span wire:loading.remove wire:target="login" class="flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-                            </svg>
-                            Sign In to Dashboard
-                        </span>
-                        
-                        <span wire:loading wire:target="login" class="flex items-center">
-                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Signing in...
-                        </span>
+                            class="inline-flex justify-center items-center py-3 px-6 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
+                        <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span class="whitespace-nowrap">Sign In</span>
                     </button>
                     
                     <!-- System Admin Note -->
@@ -205,3 +232,33 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('livewire:init', () => {
+    // Listen for Livewire events to hide overlay
+    Livewire.on('hideOverlay', () => {
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    });
+    
+    // Hide overlay when component updates (including errors)
+    Livewire.hook('morph.updated', ({ component }) => {
+        if (component.name === 'pages.auth.login') {
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+    });
+    
+    // Hide overlay on any error
+    Livewire.hook('request.exception', () => {
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    });
+});
+</script>

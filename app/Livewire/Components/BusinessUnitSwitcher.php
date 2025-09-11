@@ -9,10 +9,24 @@ class BusinessUnitSwitcher extends Component
 {
     public $currentBusinessUnit;
     public $availableBusinessUnits;
+    public $isLoaded = false;
     
     public function mount()
     {
         $this->loadBusinessUnits();
+        $this->isLoaded = true;
+    }
+    
+    public function hydrate()
+    {
+        // Only load if not already loaded or if session changed
+        $sessionBuId = session('current_business_unit_id');
+        $currentBuId = $this->currentBusinessUnit['id'] ?? null;
+        
+        if (!$this->isLoaded || $sessionBuId !== $currentBuId) {
+            $this->loadBusinessUnits();
+            $this->isLoaded = true;
+        }
     }
     
     public function loadBusinessUnits()
@@ -82,8 +96,8 @@ class BusinessUnitSwitcher extends Component
                 'current_department_id' => $assignment->department_id,
             ]);
             
-            // Refresh current data
-            $this->loadBusinessUnits();
+            // Mark as not loaded to force refresh
+            $this->isLoaded = false;
             
             // Flash success message
             session()->flash('success', "Switched to {$businessUnit->name} ({$businessUnit->code})");

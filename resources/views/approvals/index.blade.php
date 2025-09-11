@@ -1,287 +1,305 @@
-@php
-    use Illuminate\Support\Facades\Auth;
-@endphp
-
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Approval Dashboard</h1>
-                <p class="text-sm text-gray-600 mt-1">Review and approve purchase requests for {{ session('current_business_unit_name') }}</p>
-            </div>
-            <div class="flex items-center space-x-3">
-                <div class="text-sm text-gray-500">
-                    {{ now()->format('l, F j, Y') }}
-                </div>
-            </div>
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="w-full">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Approvals</h1>
+            <p class="mt-2 text-gray-600">Manage your purchase request approvals</p>
         </div>
-    </x-slot>
 
-    <x-slot name="breadcrumbs">
-        <li class="flex">
-            <div class="flex items-center">
-                <a href="{{ route('dashboard') }}" wire:navigate class="text-gray-400 hover:text-gray-500">
-                    <svg class="flex-shrink-0 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
-                    </svg>
-                    <span class="sr-only">Dashboard</span>
-                </a>
-            </div>
-        </li>
-        <li class="flex">
-            <div class="flex items-center">
-                <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="ml-4 text-sm font-medium text-gray-500">Approvals</span>
-            </div>
-        </li>
-    </x-slot>
-
-    <!-- Dashboard Content -->
-    <div class="space-y-6">
-        <!-- Quick Stats -->
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <!-- Pending Approvals -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
                     </div>
-                    <div class="ml-4">
-                        <h3 class="text-sm font-medium text-gray-900">Pending Approvals</h3>
-                        <p class="text-2xl font-bold text-gray-900">{{ $stats['pending_count'] }}</p>
-                        <p class="text-xs text-gray-500">Require your action</p>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ $pendingApprovals->count() }}</dd>
+                        </dl>
                     </div>
                 </div>
             </div>
 
-            <!-- Approved This Month -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
                     </div>
-                    <div class="ml-4">
-                        <h3 class="text-sm font-medium text-gray-900">Approved This Month</h3>
-                        <p class="text-2xl font-bold text-gray-900">{{ $stats['approved_this_month'] }}</p>
-                        <p class="text-xs text-gray-500">{{ now()->format('F Y') }}</p>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Approved</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ $approvalStats['total_approved'] ?? 0 }}</dd>
+                        </dl>
                     </div>
                 </div>
             </div>
 
-            <!-- Rejected This Month -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                        <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                         </div>
                     </div>
-                    <div class="ml-4">
-                        <h3 class="text-sm font-medium text-gray-900">Rejected This Month</h3>
-                        <p class="text-2xl font-bold text-gray-900">{{ $stats['rejected_this_month'] }}</p>
-                        <p class="text-xs text-gray-500">{{ now()->format('F Y') }}</p>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Rejected</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ $approvalStats['total_rejected'] ?? 0 }}</dd>
+                        </dl>
                     </div>
                 </div>
             </div>
 
-            <!-- Total Processed -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                             </svg>
                         </div>
                     </div>
-                    <div class="ml-4">
-                        <h3 class="text-sm font-medium text-gray-900">Total Processed</h3>
-                        <p class="text-2xl font-bold text-gray-900">{{ $stats['total_processed'] }}</p>
-                        <p class="text-xs text-gray-500">All time</p>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Approval Rate</dt>
+                            <dd class="text-lg font-medium text-gray-900">{{ $approvalStats['approval_rate'] ?? 0 }}%</dd>
+                        </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Pending Approvals -->
-        @if($pendingApprovals->count() > 0)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900">Pending Approvals</h3>
-                            <p class="text-sm text-gray-600 mt-1">{{ $pendingApprovals->total() }} request(s) waiting for your approval</p>
-                        </div>
-                        <div class="text-sm text-orange-600 font-medium">
-                            Action Required
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR Number</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requestor</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($pendingApprovals as $approval)
-                                @php $pr = $approval->purchaseRequest; @endphp
-                                <tr class="hover:bg-gray-50 transition-colors duration-200">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900">{{ $pr->pr_number }}</div>
-                                        <div class="text-sm text-gray-500">{{ $pr->items->count() }} items</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center mr-3">
-                                                <span class="text-sm font-medium text-gray-700">
-                                                    {{ substr($pr->user->name ?? 'U', 0, 1) }}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <div class="text-sm font-medium text-gray-900">{{ $pr->user->name ?? 'Unknown' }}</div>
-                                                <div class="text-sm text-gray-500">{{ $pr->user->email ?? 'N/A' }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="text-sm text-gray-900 max-w-xs truncate" title="{{ $pr->keperluan }}">
-                                            {{ $pr->keperluan }}
-                                        </div>
-                                        <div class="text-sm text-gray-500 max-w-xs truncate" title="{{ $pr->used_for }}">
-                                            {{ Str::limit($pr->used_for, 50) }}
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">{{ $pr->department->name ?? 'N/A' }}</div>
-                                        <div class="text-sm text-gray-500">{{ $pr->department->code ?? 'N/A' }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900 font-medium">
-                                            {{ $pr->currency }} {{ number_format($pr->total_amount, 2) }}
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">{{ $approval->assigned_at->format('M d, Y') }}</div>
-                                        <div class="text-sm text-gray-500">Step {{ $approval->step_order }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div class="flex items-center space-x-2">
-                                            <a href="{{ route('approvals.show', $approval) }}" 
-                                               wire:navigate
-                                               class="text-indigo-600 hover:text-indigo-900 transition-colors duration-200">
-                                                Review
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                
-                @if($pendingApprovals->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-200">
-                        {{ $pendingApprovals->links() }}
-                    </div>
-                @endif
+        <!-- Tabs -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <a href="{{ route('approvals.index', ['tab' => 'pending']) }}" 
+                       class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm {{ $tab === 'pending' ? 'border-indigo-500 text-indigo-600' : '' }}">
+                        Pending Approvals
+                        @if($pendingApprovals->count() > 0)
+                            <span class="bg-indigo-100 text-indigo-600 ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium">{{ $pendingApprovals->count() }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('approvals.index', ['tab' => 'history']) }}" 
+                       class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm {{ $tab === 'history' ? 'border-indigo-500 text-indigo-600' : '' }}">
+                        Approval History
+                        @if($approvalHistory->count() > 0)
+                            <span class="bg-gray-100 text-gray-600 ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium">{{ $approvalHistory->count() }}</span>
+                        @endif
+                    </a>
+                </nav>
             </div>
-        @else
-            <!-- No Pending Approvals -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="text-center py-12">
-                    <div class="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
-                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">All Caught Up!</h3>
-                    <p class="text-gray-500 mb-6">You have no pending approvals at this time. Great job staying on top of your approvals!</p>
-                </div>
-            </div>
-        @endif
+        </div>
 
-        <!-- Recent Approval History -->
-        @if($recentApprovals->count() > 0)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Recent Approval History</h3>
-                    <p class="text-sm text-gray-600 mt-1">Your latest approval decisions</p>
+        <!-- Tab Content -->
+        @if($tab === 'pending')
+            <!-- Pending Approvals Tab -->
+            @if($pendingApprovals->isEmpty())
+                <!-- Empty State -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Pending Approvals</h3>
+                    <p class="text-gray-500">You don't have any purchase requests waiting for approval at the moment.</p>
                 </div>
-                
-                <div class="p-6">
-                    <div class="flow-root">
-                        <ul class="-mb-8">
-                            @foreach($recentApprovals as $index => $approval)
-                                @php $pr = $approval->purchaseRequest; @endphp
-                                <li>
-                                    <div class="relative pb-8">
-                                        @if(!$loop->last)
-                                            <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+            @else
+                <!-- Pending Approvals List -->
+                <div class="space-y-6">
+                    @foreach($pendingApprovals as $approval)
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900">{{ $approval->purchaseRequest->pr_number }}</h3>
+                                    <p class="text-sm text-gray-600">Requested by {{ $approval->purchaseRequest->user->name }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold text-indigo-600">{{ $approval->purchaseRequest->currency }} {{ number_format($approval->purchaseRequest->total_amount, 0) }}</div>
+                                    <div class="text-sm text-gray-500">Total Amount</div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Department</label>
+                                    <p class="text-sm text-gray-900">{{ $approval->purchaseRequest->department->name }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</label>
+                                    <p class="text-sm text-gray-900">{{ \Carbon\Carbon::parse($approval->purchaseRequest->date_of_request)->format('d/m/Y') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</label>
+                                    <p class="text-sm {{ $approval->due_date->isPast() ? 'text-red-600 font-medium' : 'text-gray-900' }}">
+                                        {{ $approval->due_date->format('d/m/Y') }}
+                                        @if($approval->due_date->isPast())
+                                            <span class="text-xs">(Overdue)</span>
                                         @endif
-                                        <div class="relative flex space-x-3">
-                                            <div>
-                                                @if($approval->status === 'approved')
-                                                    <span class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    </span>
-                                                @else
-                                                    <span class="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center ring-8 ring-white">
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                        </svg>
-                                                    </span>
-                                                @endif
-                                            </div>
-                                            <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                                                <div>
-                                                    <p class="text-sm text-gray-500">
-                                                        <span class="font-medium text-gray-900">{{ $pr->pr_number }}</span>
-                                                        {{ $approval->status === 'approved' ? 'approved' : 'rejected' }} 
-                                                        - {{ $pr->currency }} {{ number_format($pr->total_amount, 2) }}
-                                                    </p>
-                                                    <p class="text-sm text-gray-500">
-                                                        Requested by {{ $pr->user->name }}
-                                                    </p>
-                                                    @if($approval->notes)
-                                                        <p class="text-sm text-gray-700 mt-1 italic">\"{{ $approval->notes }}\"</p>
-                                                    @endif
-                                                </div>
-                                                <div class="text-right text-sm whitespace-nowrap text-gray-500">
-                                                    <time>{{ $approval->responded_at->format('M d, Y') }}</time>
-                                                    <div class="text-xs">{{ $approval->responded_at->format('H:i') }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Purpose</label>
+                                <p class="text-sm text-gray-900">{{ $approval->purchaseRequest->keperluan }}</p>
+                            </div>
+
+                            <!-- Items Preview -->
+                            <div class="mb-4">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Items ({{ $approval->purchaseRequest->items->count() }})</label>
+                                <div class="space-y-1">
+                                    @foreach($approval->purchaseRequest->items->take(3) as $item)
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-900">{{ $item->item_name }}</span>
+                                        <span class="text-gray-600">{{ $item->quantity }} {{ $item->unit }} × {{ $item->currency }} {{ number_format($item->unit_price, 0) }}</span>
                                     </div>
-                                </li>
-                            @endforeach
-                        </ul>
+                                    @endforeach
+                                    @if($approval->purchaseRequest->items->count() > 3)
+                                    <div class="text-sm text-gray-500">
+                                        ... and {{ $approval->purchaseRequest->items->count() - 3 }} more items
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                                <div class="flex items-center text-sm text-gray-500">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Assigned {{ $approval->assigned_at->diffForHumans() }}
+                                </div>
+                                <div class="flex space-x-3">
+                                    <a href="{{ route('approvals.show', $approval->id) }}" 
+                                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Review & Approve
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    @endforeach
                 </div>
-            </div>
+            @endif
+
+        @elseif($tab === 'history')
+            <!-- Approval History Tab -->
+            @if($approvalHistory->isEmpty())
+                <!-- Empty State -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Approval History</h3>
+                    <p class="text-gray-500">You haven't processed any approvals yet.</p>
+                </div>
+            @else
+                <!-- Approval History List -->
+                <div class="space-y-6">
+                    @foreach($approvalHistory as $approval)
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <div class="flex items-center space-x-3">
+                                        <h3 class="text-lg font-semibold text-gray-900">{{ $approval->purchaseRequest->pr_number }}</h3>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $approval->status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                            {{ ucfirst($approval->status) }}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">Requested by {{ $approval->purchaseRequest->user->name }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold text-gray-900">{{ $approval->purchaseRequest->currency }} {{ number_format($approval->purchaseRequest->total_amount, 0) }}</div>
+                                    <div class="text-sm text-gray-500">Total Amount</div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Department</label>
+                                    <p class="text-sm text-gray-900">{{ $approval->purchaseRequest->department->name }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Request Date</label>
+                                    <p class="text-sm text-gray-900">{{ \Carbon\Carbon::parse($approval->purchaseRequest->date_of_request)->format('d/m/Y') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Responded Date</label>
+                                    <p class="text-sm text-gray-900">{{ $approval->responded_at->format('d/m/Y H:i') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Response Time</label>
+                                    <p class="text-sm text-gray-900">{{ $approval->assigned_at->diffInHours($approval->responded_at) }}h</p>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Purpose</label>
+                                <p class="text-sm text-gray-900">{{ $approval->purchaseRequest->keperluan }}</p>
+                            </div>
+
+                            @if($approval->notes)
+                            <div class="mb-4">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Your Notes</label>
+                                <p class="text-sm text-gray-900 bg-gray-50 rounded-md p-3">{{ $approval->notes }}</p>
+                            </div>
+                            @endif
+
+                            <!-- Items Preview -->
+                            <div class="mb-4">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Items ({{ $approval->purchaseRequest->items->count() }})</label>
+                                <div class="space-y-1">
+                                    @foreach($approval->purchaseRequest->items->take(2) as $item)
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-900">{{ $item->item_name }}</span>
+                                        <span class="text-gray-600">{{ $item->quantity }} {{ $item->unit }} × {{ $item->currency }} {{ number_format($item->unit_price, 0) }}</span>
+                                    </div>
+                                    @endforeach
+                                    @if($approval->purchaseRequest->items->count() > 2)
+                                    <div class="text-sm text-gray-500">
+                                        ... and {{ $approval->purchaseRequest->items->count() - 2 }} more items
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                                <div class="flex items-center text-sm text-gray-500">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Processed {{ $approval->responded_at->diffForHumans() }}
+                                </div>
+                                <div class="flex space-x-3">
+                                    <a href="{{ route('approvals.show', $approval->id) }}" 
+                                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            @endif
         @endif
     </div>
+</div>
 </x-app-layout>

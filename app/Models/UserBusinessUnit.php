@@ -7,6 +7,41 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int $business_unit_id
+ * @property int $department_id
+ * @property int $position_id
+ * @property bool $is_primary
+ * @property bool $is_active
+ * @property array<array-key, mixed>|null $permissions
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BusinessUnit $businessUnit
+ * @property-read \App\Models\Department $department
+ * @property-read \App\Models\Position $position
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit forBusinessUnit($businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit primary()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereIsPrimary($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit wherePermissions($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit wherePositionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereUserId($value)
+ * @mixin \Eloquent
+ */
 class UserBusinessUnit extends Model
 {
     use LogsActivity;
@@ -83,93 +118,7 @@ class UserBusinessUnit extends Model
         return $query->where('business_unit_id', $businessUnitId);
     }
 
-    /**
-     * Scope for specific role
-     */
-    public function scopeWithRole($query, $role)
-    {
-        return $query->where('role', $role);
-    }
 
-    /**
-     * Scope for admin roles
-     */
-    public function scopeAdmins($query)
-    {
-        return $query->where('role', 'admin');
-    }
-
-    /**
-     * Scope for BOD roles
-     */
-    public function scopeBod($query)
-    {
-        return $query->where('role', 'bod');
-    }
-
-    /**
-     * Scope for HOD roles
-     */
-    public function scopeHod($query)
-    {
-        return $query->where('role', 'hod');
-    }
-
-    /**
-     * Scope for Leader roles
-     */
-    public function scopeLeaders($query)
-    {
-        return $query->where('role', 'leader');
-    }
-
-    /**
-     * Scope for Staff roles
-     */
-    public function scopeStaff($query)
-    {
-        return $query->where('role', 'staff');
-    }
-
-    /**
-     * Check if user is admin in this business unit
-     */
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    /**
-     * Check if user is BOD in this business unit
-     */
-    public function isBod(): bool
-    {
-        return $this->role === 'bod';
-    }
-
-    /**
-     * Check if user is HOD in this business unit
-     */
-    public function isHod(): bool
-    {
-        return $this->role === 'hod';
-    }
-
-    /**
-     * Check if user is Leader in this business unit
-     */
-    public function isLeader(): bool
-    {
-        return $this->role === 'leader';
-    }
-
-    /**
-     * Check if user is Staff in this business unit
-     */
-    public function isStaff(): bool
-    {
-        return $this->role === 'staff';
-    }
 
     /**
      * Check if user has specific permission

@@ -7,267 +7,231 @@ use App\Models\Modules\WNS\PurchaseRequest;
 use App\Services\Modules\WNS\ApprovalWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Services\QrCodeService;
 
 class ApprovalController extends Controller
 {
-    protected ApprovalWorkflowService $workflowService;
-    
+    protected $workflowService;
+
     public function __construct(ApprovalWorkflowService $workflowService)
     {
         $this->workflowService = $workflowService;
     }
+
     /**
-     * Display a listing of pending approvals for the current user
+     * Show approval page for a specific approval
      */
-    public function index()
+    public function show($approvalId)
     {
-        $user = Auth::user();
-        
-        // Get pending approvals assigned to current user in current business unit
-        $pendingApprovals = PrApproval::with([
+        $approval = PrApproval::with([
             'purchaseRequest.user',
             'purchaseRequest.department',
-            'purchaseRequest.items'
-        ])
-        ->where('approver_id', $user->id)
-        ->where('status', 'pending')
-        ->whereHas('purchaseRequest', function ($query) {
-            $query->where('business_unit_id', session('current_business_unit_id'));
-        })
-        ->orderBy('assigned_at', 'asc')
-        ->paginate(15);
-        
-        // Get recent approval history
-        $recentApprovals = PrApproval::with([
-            'purchaseRequest.user',
-            'purchaseRequest.department'
-        ])
-        ->where('approver_id', $user->id)
-        ->whereIn('status', ['approved', 'rejected'])
-        ->whereHas('purchaseRequest', function ($query) {
-            $query->where('business_unit_id', session('current_business_unit_id'));
-        })
-        ->orderBy('responded_at', 'desc')
-        ->limit(10)
-        ->get();
-        
-        // Get approval statistics
-        $stats = [
-            'pending_count' => $pendingApprovals->total(),
-            'approved_this_month' => PrApproval::where('approver_id', $user->id)
+            'purchaseRequest.businessUnit',
+            'purchaseRequest.items',
+            'purchaseRequest.approvals.approver',
+            'approver'
+        ])->findOrFail($approvalId);
+
+        // Check if current user is the approver
+        if ($approval->approver_id !== Auth::id()) {
+            abort(403, 'You are not authorized to view this approval.');
+        }
+
+        // Check if this approval is the current pending one
+        $currentApproval = $approval->purchaseRequest->currentApproval();
+        $canApprove = $currentApproval && $currentApproval->id === $approval->id;
+
+        return view('approvals.show', compact('approval', 'canApprove'));
+    }
+
+    /**
+     * Process approval action
+     */
+    public function process(Request $request, $approvalId)
+    {
+        $request->validate([
+            'action' => 'required|in:approved,rejected',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $approval = PrApproval::with('purchaseRequest')->findOrFail($approvalId);
+
+        // Check if current user is the approver
+        if ($approval->approver_id !== Auth::id()) {
+            abort(403, 'You are not authorized to process this approval.');
+        }
+
+        // Check if approval is still pending
+        if ($approval->status !== 'pending') {
+            return redirect()->back()->with('error', 'This approval has already been processed.');
+        }
+
+        // Check if this is the current approval step
+        $currentApproval = $approval->purchaseRequest->currentApproval();
+        if (!$currentApproval || $currentApproval->id !== $approval->id) {
+            return redirect()->back()->with('error', 'This approval is not currently active.');
+        }
+
+        try {
+            $this->workflowService->processApproval(
+                $approval,
+                $request->action,
+                $request->notes
+            );
+
+            $message = $request->action === 'approved' 
+                ? 'Purchase request has been approved successfully.'
+                : 'Purchase request has been rejected.';
+
+            return redirect()->route('approvals.show', $approval->id)
+                ->with('success', $message);
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to process approval: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate QR code for approved purchase request
+     */
+    public function generateQrCode($approvalId)
+    {
+        $approval = PrApproval::with('purchaseRequest')->findOrFail($approvalId);
+
+        // Check if approval is approved
+        if ($approval->status !== 'approved') {
+            abort(404, 'QR code is only available for approved requests.');
+        }
+
+        // Generate unique verification token for this approval
+        $verificationToken = $this->generateVerificationToken($approval);
+
+        // Create public URL for PR verification
+        $publicUrl = route('purchase-requests.public', [
+            'pr' => $approval->purchase_request_id,
+            'token' => $verificationToken,
+            'approver' => $approval->approver_id
+        ]);
+
+        // Generate QR code
+        $qrCode = QrCode::format('svg')
+            ->size(200)
+            ->margin(1)
+            ->generate($publicUrl);
+
+        return response($qrCode, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    }
+
+    /**
+     * Show public view of purchase request via QR code
+     */
+    public function publicView($prId, Request $request)
+    {
+        $token = $request->get('token');
+        $approverId = $request->get('approver');
+        $requestorId = $request->get('requestor');
+
+        if (!$token) {
+            abort(404, 'Invalid verification link.');
+        }
+
+        $purchaseRequest = PurchaseRequest::with([
+            'user',
+            'department',
+            'businessUnit',
+            'items',
+            'approvals.approver'
+        ])->findOrFail($prId);
+
+        $qrCodeService = new QrCodeService();
+        $verificationData = [];
+
+        // Check if this is requestor verification
+        if ($requestorId) {
+            if ($requestorId != $purchaseRequest->user_id) {
+                abort(404, 'Invalid requestor verification.');
+            }
+
+            if (!$qrCodeService->verifyRequestorToken($purchaseRequest, $token)) {
+                abort(403, 'Invalid verification token.');
+            }
+
+            $verificationData = [
+                'type' => 'requestor',
+                'verified_by' => $purchaseRequest->user,
+                'verified_at' => $purchaseRequest->submitted_at,
+                'role' => 'Purchase Request Creator'
+            ];
+        }
+        // Check if this is approver verification
+        elseif ($approverId) {
+            $approval = $purchaseRequest->approvals()
+                ->where('approver_id', $approverId)
                 ->where('status', 'approved')
-                ->whereMonth('responded_at', now()->month)
-                ->whereYear('responded_at', now()->year)
-                ->count(),
-            'rejected_this_month' => PrApproval::where('approver_id', $user->id)
-                ->where('status', 'rejected')
-                ->whereMonth('responded_at', now()->month)
-                ->whereYear('responded_at', now()->year)
-                ->count(),
-            'total_processed' => PrApproval::where('approver_id', $user->id)
-                ->whereIn('status', ['approved', 'rejected'])
-                ->count(),
+                ->first();
+
+            if (!$approval) {
+                abort(404, 'Approval not found or not approved.');
+            }
+
+            if (!$qrCodeService->verifyApprovalToken($approval, $token)) {
+                abort(403, 'Invalid verification token.');
+            }
+
+            $verificationData = [
+                'type' => 'approval',
+                'verified_by' => $approval->approver,
+                'verified_at' => $approval->responded_at,
+                'role' => ucfirst($approval->approval_type),
+                'approval' => $approval
+            ];
+        } else {
+            abort(404, 'Invalid verification parameters.');
+        }
+
+        return view('purchase-requests.public', compact('purchaseRequest', 'verificationData'));
+    }
+
+    /**
+     * Generate verification token for approval
+     */
+    protected function generateVerificationToken(PrApproval $approval): string
+    {
+        $data = [
+            'approval_id' => $approval->id,
+            'pr_id' => $approval->purchase_request_id,
+            'approver_id' => $approval->approver_id,
+            'approved_at' => $approval->responded_at?->timestamp,
         ];
-        
-        return view('approvals.index', compact('pendingApprovals', 'recentApprovals', 'stats'));
+
+        return hash('sha256', json_encode($data) . config('app.key'));
     }
 
     /**
-     * Approve a purchase request
+     * Verify token for approval
      */
-    public function approve(Request $request, PrApproval $prApproval)
+    protected function verifyToken(PrApproval $approval, string $token): bool
     {
-        $request->validate([
-            'notes' => 'nullable|string|max:1000'
-        ]);
-        
-        // Check if current user is the assigned approver
-        if ($prApproval->approver_id !== Auth::id()) {
-            return back()->with('error', 'You are not authorized to approve this request.');
-        }
-        
-        if ($prApproval->status !== 'pending') {
-            return back()->with('error', 'This approval has already been processed.');
-        }
-        
-        DB::beginTransaction();
-        
-        try {
-            // Update the approval
-            $prApproval->update([
-                'status' => 'approved',
-                'notes' => $request->notes,
-                'responded_at' => now(),
-            ]);
-            
-            $purchaseRequest = $prApproval->purchaseRequest;
-            
-            // Check if this was the last pending approval
-            $remainingPendingApprovals = $purchaseRequest->pendingApprovals()->count();
-            
-            if ($remainingPendingApprovals === 0) {
-                // All approvals completed - mark PR as approved
-                $purchaseRequest->update([
-                    'status' => 'approved',
-                    'approved_at' => now(),
-                ]);
-                $message = "Purchase Request {$purchaseRequest->pr_number} has been fully approved.";
-            } else {
-                // More approvals needed - mark as in_approval
-                $purchaseRequest->update([
-                    'status' => 'in_approval'
-                ]);
-                $message = "Your approval has been recorded. {$remainingPendingApprovals} more approval(s) needed.";
-            }
-            
-            DB::commit();
-            
-            return back()->with('success', $message);
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Failed to approve request: ' . $e->getMessage());
-        }
+        $expectedToken = $this->generateVerificationToken($approval);
+        return hash_equals($expectedToken, $token);
     }
 
     /**
-     * Reject a purchase request
+     * List pending approvals for current user
      */
-    public function reject(Request $request, PrApproval $prApproval)
+    public function index(Request $request)
     {
-        $request->validate([
-            'notes' => 'required|string|max:1000'
-        ]);
+        $tab = $request->get('tab', 'pending');
         
-        // Check if current user is the assigned approver
-        if ($prApproval->approver_id !== Auth::id()) {
-            return back()->with('error', 'You are not authorized to reject this request.');
-        }
+        $pendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user());
+        $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user());
+        $approvalStats = $this->workflowService->getApprovalStatistics(Auth::user());
         
-        if ($prApproval->status !== 'pending') {
-            return back()->with('error', 'This approval has already been processed.');
-        }
-        
-        DB::beginTransaction();
-        
-        try {
-            // Update the approval
-            $prApproval->update([
-                'status' => 'rejected',
-                'notes' => $request->notes,
-                'responded_at' => now(),
-            ]);
-            
-            // Mark the entire PR as rejected
-            $purchaseRequest = $prApproval->purchaseRequest;
-            $purchaseRequest->update([
-                'status' => 'rejected',
-                'rejected_at' => now(),
-            ]);
-            
-            DB::commit();
-            
-            return back()->with('success', "Purchase Request {$purchaseRequest->pr_number} has been rejected.");
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Failed to reject request: ' . $e->getMessage());
-        }
-    }
-    
-    /**
-     * Process approval action via AJAX
-     */
-    public function process(Request $request)
-    {
-        $request->validate([
-            'approval_id' => 'required|exists:pr_approvals,id',
-            'action' => 'required|in:approve,reject',
-            'notes' => 'nullable|string|max:1000'
-        ]);
-        
-        $prApproval = PrApproval::findOrFail($request->approval_id);
-        
-        // Check if current user is the assigned approver
-        if ($prApproval->approver_id !== Auth::id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You are not authorized to process this request.'
-            ], 403);
-        }
-        
-        if ($prApproval->status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'This approval has already been processed.'
-            ], 400);
-        }
-        
-        // Validate notes for rejection
-        if ($request->action === 'reject' && empty(trim($request->notes))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Comments are required when rejecting a request.'
-            ], 400);
-        }
-        
-        DB::beginTransaction();
-        
-        try {
-            $status = $request->action === 'approve' ? 'approved' : 'rejected';
-            
-            // Update the approval
-            $prApproval->update([
-                'status' => $status,
-                'notes' => $request->notes,
-                'responded_at' => now(),
-            ]);
-            
-            $purchaseRequest = $prApproval->purchaseRequest;
-            
-            if ($request->action === 'approve') {
-                // Check if this was the last pending approval
-                $remainingPendingApprovals = $purchaseRequest->pendingApprovals()->count();
-                
-                if ($remainingPendingApprovals === 0) {
-                    // All approvals completed - mark PR as approved
-                    $purchaseRequest->update([
-                        'status' => 'approved',
-                        'approved_at' => now(),
-                    ]);
-                    $message = "Purchase Request {$purchaseRequest->pr_number} has been fully approved.";
-                } else {
-                    // More approvals needed - mark as in_approval
-                    $purchaseRequest->update([
-                        'status' => 'in_approval'
-                    ]);
-                    $message = "Your approval has been recorded. {$remainingPendingApprovals} more approval(s) needed.";
-                }
-            } else {
-                // Mark the entire PR as rejected
-                $purchaseRequest->update([
-                    'status' => 'rejected',
-                    'rejected_at' => now(),
-                ]);
-                $message = "Purchase Request {$purchaseRequest->pr_number} has been rejected.";
-            }
-            
-            DB::commit();
-            
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'pr_number' => $purchaseRequest->pr_number,
-                'action' => $request->action
-            ]);
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to process request: ' . $e->getMessage()
-            ], 500);
-        }
+        return view('approvals.index', compact('pendingApprovals', 'approvalHistory', 'approvalStats', 'tab'));
     }
 }

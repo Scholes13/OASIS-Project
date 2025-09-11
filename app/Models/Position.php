@@ -8,6 +8,46 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property int $department_id
+ * @property string $name
+ * @property string $code
+ * @property string $level
+ * @property int $hierarchy_level
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $activeUsers
+ * @property-read int|null $active_users_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\Department $department
+ * @property-read string $full_name
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserBusinessUnit> $userBusinessUnits
+ * @property-read int|null $user_business_units_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
+ * @property-read int|null $users_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position byLevel($level)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position forDepartment($departmentId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position hod()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position leader()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position staff()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereHierarchyLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class Position extends Model
 {
     use LogsActivity;

@@ -8,6 +8,62 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property string $code
+ * @property string $name
+ * @property array<array-key, mixed>|null $numbering_config
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property int|null $parent_id
+ * @property string|null $description
+ * @property string|null $address
+ * @property string|null $phone
+ * @property string|null $email
+ * @property int|null $manager_id
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Department> $activeDepartments
+ * @property-read int|null $active_departments_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberingModule> $activeNumberingModules
+ * @property-read int|null $active_numbering_modules_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, BusinessUnit> $children
+ * @property-read int|null $children_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Department> $departments
+ * @property-read int|null $departments_count
+ * @property-read \App\Models\User|null $manager
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberSequence> $numberSequences
+ * @property-read int|null $number_sequences_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberingModule> $numberingModules
+ * @property-read int|null $numbering_modules_count
+ * @property-read BusinessUnit|null $parent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PurchaseRequest> $purchaseRequests
+ * @property-read int|null $purchase_requests_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserBusinessUnit> $userBusinessUnits
+ * @property-read int|null $user_business_units_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
+ * @property-read int|null $users_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit active()
+ * @method static \Database\Factories\BusinessUnitFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereManagerId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereNumberingConfig($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereParentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit wherePhone($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class BusinessUnit extends Model
 {
     use HasFactory, LogsActivity;

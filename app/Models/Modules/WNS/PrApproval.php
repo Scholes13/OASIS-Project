@@ -9,6 +9,54 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Carbon\Carbon;
 
+/**
+ * @property int $id
+ * @property int $purchase_request_id
+ * @property int $approver_id
+ * @property int $step_order
+ * @property string $status
+ * @property string|null $notes
+ * @property \Illuminate\Support\Carbon $assigned_at
+ * @property \Illuminate\Support\Carbon|null $responded_at
+ * @property \Illuminate\Support\Carbon|null $due_date
+ * @property bool $email_sent
+ * @property \Illuminate\Support\Carbon|null $email_sent_at
+ * @property array<array-key, mixed>|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $approval_type
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read User $approver
+ * @property-read string|null $formatted_due_date
+ * @property-read string $status_color
+ * @property-read \App\Models\Modules\WNS\PurchaseRequest $purchaseRequest
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval approved()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval dueSoon()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval forApprover($approverId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval overdue()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval pending()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval rejected()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereApprovalType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereApproverId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereAssignedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereDueDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereEmailSent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereEmailSentAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereMetadata($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval wherePurchaseRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereRespondedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereStepOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class PrApproval extends Model
 {
     use LogsActivity;

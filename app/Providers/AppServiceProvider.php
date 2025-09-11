@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register PDF Layout Component
+        \Illuminate\Support\Facades\Blade::component('pdf-layout', \App\View\Components\PdfLayout::class);
     }
 }

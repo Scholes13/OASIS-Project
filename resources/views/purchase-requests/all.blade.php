@@ -10,7 +10,7 @@
                 <p class="text-sm text-gray-600 mt-1">Manage all purchase requests in {{ session('current_business_unit_name') }}</p>
             </div>
             <div class="flex items-center space-x-3">
-                <a href="{{ route('purchase-requests.create') }}" 
+                <a href="{{ route('purchase-requests.request-number') }}" 
                    wire:navigate
                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,7 +52,7 @@
     </x-slot>
 
     <!-- Purchase Requests List -->
-    <div class="max-w-7xl mx-auto">
+    <div class="w-full">
         @if($purchaseRequests->count() > 0)
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200">
@@ -178,7 +178,7 @@
                     </div>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No Purchase Requests</h3>
                     <p class="text-gray-500 mb-6">No purchase requests have been created in this business unit yet.</p>
-                    <a href="{{ route('purchase-requests.create') }}" 
+                    <a href="{{ route('purchase-requests.request-number') }}" 
                        wire:navigate
                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

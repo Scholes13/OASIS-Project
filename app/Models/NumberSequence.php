@@ -10,6 +10,42 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @property int $id
+ * @property int $business_unit_id
+ * @property int $numbering_module_id
+ * @property int|null $department_id
+ * @property int $year
+ * @property int $month
+ * @property int $current_number
+ * @property int $max_number
+ * @property array<array-key, mixed>|null $void_numbers
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\BusinessUnit $businessUnit
+ * @property-read \App\Models\Department|null $department
+ * @property-read \App\Models\NumberingModule $numberingModule
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, PurchaseRequest> $purchaseRequests
+ * @property-read int|null $purchase_requests_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence forPeriod($businessUnitId, $moduleId, $departmentId, $year, $month)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereCurrentNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereMaxNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereMonth($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereNumberingModuleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereVoidNumbers($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereYear($value)
+ * @mixin \Eloquent
+ */
 class NumberSequence extends Model
 {
     use LogsActivity;

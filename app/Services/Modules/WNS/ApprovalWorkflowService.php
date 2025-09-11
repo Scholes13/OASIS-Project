@@ -489,6 +489,25 @@ class ApprovalWorkflowService
     }
     
     /**
+     * Get approval history for a user (completed approvals)
+     */
+    public function getApprovalHistoryForUser(User $user, int $limit = 50): Collection
+    {
+        return PrApproval::with([
+            'purchaseRequest.user',
+            'purchaseRequest.department',
+            'purchaseRequest.businessUnit',
+            'purchaseRequest.items'
+        ])
+        ->where('approver_id', $user->id)
+        ->whereIn('status', ['approved', 'rejected'])
+        ->whereNotNull('responded_at')
+        ->orderBy('responded_at', 'desc')
+        ->limit($limit)
+        ->get();
+    }
+    
+    /**
      * Get approval statistics for a user
      */
     public function getApprovalStatistics(User $user, ?Carbon $startDate = null, ?Carbon $endDate = null): array

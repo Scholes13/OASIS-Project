@@ -2,58 +2,328 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom responsive utilities */
+/* Modern Fluid Responsive Design */
 @layer components {
-    /* Sidebar responsive utilities */
-    .sidebar-transition {
-        @apply transition-all duration-300 ease-in-out;
+    /* Enhanced Typography - More Readable Sizes */
+    .fluid-text-xs {
+        font-size: clamp(0.65rem, 0.7vw, 0.75rem) !important; /* Increased from 0.5-0.55rem */
+        line-height: 1.2 !important;
     }
     
-    /* Mobile optimizations */
-    @media (max-width: 1023px) {
-        .mobile-optimized {
-            @apply text-sm;
-        }
-        
-        .mobile-padding {
-            @apply px-3 py-2;
+    .fluid-text-sm {
+        font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important; /* Increased from 0.6-0.65rem */
+        line-height: 1.25 !important;
+    }
+    
+    .fluid-text-base {
+        font-size: clamp(0.65rem, 0.67vw, 0.7rem) !important; /* 10.4px - 11.2px */
+        line-height: 1.3 !important;
+    }
+    
+    .fluid-text-lg {
+        font-size: clamp(0.7rem, 0.72vw, 0.75rem) !important; /* 11.2px - 12px */
+        line-height: 1.3 !important;
+    }
+    
+    .fluid-text-xl {
+        font-size: clamp(0.75rem, 0.77vw, 0.8rem) !important; /* 12px - 12.8px */
+        line-height: 1.25 !important;
+    }
+    
+    .fluid-text-2xl {
+        font-size: clamp(0.8rem, 0.82vw, 0.85rem) !important; /* 12.8px - 13.6px */
+        line-height: 1.2 !important;
+    }
+    
+    .fluid-text-3xl {
+        font-size: clamp(0.85rem, 0.87vw, 0.9rem) !important; /* 13.6px - 14.4px */
+        line-height: 1.15 !important;
+    }
+    
+    /* Ultra-Minimalist Spacing - Compact Design */
+    .fluid-spacing-xs {
+        padding: clamp(0.25rem, 0.3vw, 0.375rem); /* 4px - 6px */
+    }
+    
+    .fluid-spacing-sm {
+        padding: clamp(0.375rem, 0.5vw, 0.5rem); /* 6px - 8px */
+    }
+    
+    .fluid-spacing-md {
+        padding: clamp(0.75rem, 1.5vw, 1rem); /* 12px - 16px */
+    }
+    
+    .fluid-spacing-lg {
+        padding: clamp(1rem, 2vw, 1.5rem); /* 16px - 24px */
+    }
+    
+    .fluid-spacing-xl {
+        padding: clamp(1.5rem, 3vw, 2rem); /* 24px - 32px */
+    }
+    
+    /* Fluid Gaps */
+    .fluid-gap-sm {
+        gap: clamp(0.5rem, 1vw, 0.75rem); /* 8px - 12px */
+    }
+    
+    .fluid-gap-md {
+        gap: clamp(0.75rem, 1.5vw, 1rem); /* 12px - 16px */
+    }
+    
+    .fluid-gap-lg {
+        gap: clamp(1rem, 2vw, 1.5rem); /* 16px - 24px */
+    }
+    
+    /* Ultra-Wide Container - Maximum Screen Utilization */
+    .fluid-container {
+        width: 100%;
+        max-width: none; /* Remove max-width constraint */
+        margin: 0; /* Remove auto margins */
+        padding-left: clamp(1rem, 1.5vw, 1.5rem); /* Space from sidebar */
+        padding-right: clamp(1rem, 1.5vw, 1.5rem); /* Space from right edge */
+    }
+    
+    /* Optimized content spacing - Closer to edges */
+    .content-spacing {
+        padding-top: clamp(1rem, 1.5vw, 1.25rem); /* Reduced top padding */
+        padding-bottom: clamp(0.5rem, 0.75vw, 0.75rem); /* Reduced bottom padding */
+    }
+    
+    /* Compact dashboard spacing */
+    .dashboard-spacing {
+        padding: clamp(0.875rem, 1.2vw, 1.25rem);
+        gap: clamp(0.75rem, 1vw, 1rem);
+    }
+    
+    /* Optimized Header - Better spacing */
+    .fluid-header {
+        min-height: clamp(3rem, 7vh, 4rem); /* 48px - 64px - better spacing */
+        display: flex;
+        align-items: center;
+        padding-top: clamp(0.5rem, 1vh, 0.75rem);
+        padding-bottom: clamp(0.5rem, 1vh, 0.75rem);
+    }
+    
+    /* Modern Responsive Grid */
+    .fluid-grid-auto {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+        gap: clamp(0.75rem, 2vw, 1.5rem);
+    }
+    
+    .fluid-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+        gap: clamp(0.75rem, 2vw, 1.5rem);
+    }
+    
+    .fluid-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: clamp(0.75rem, 2vw, 1.5rem);
+    }
+    
+    .fluid-grid-4 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+        gap: clamp(0.75rem, 2vw, 1.5rem);
+    }
+    
+    /* Fluid Components */
+    .fluid-card {
+        background: white;
+        border-radius: clamp(0.375rem, 0.5vw, 0.5rem);
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        border: 1px solid rgb(229 231 235);
+        padding: clamp(1rem, 1.2vw, 1.25rem); /* More conservative padding */
+    }
+    
+    /* Ultra-Minimalist Dashboard Cards */
+    .dashboard-card {
+        background: white;
+        border-radius: clamp(0.375rem, 0.4vw, 0.4rem);
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        border: 1px solid rgb(229 231 235);
+        padding: clamp(0.75rem, 0.9vw, 0.875rem);
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .dashboard-card:hover {
+        box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+        /* Removed transform to prevent DOM mutations that trigger Livewire re-rendering */
+    }
+    
+    .dashboard-icon {
+        width: clamp(1.75rem, 1.8vw, 1.875rem);
+        height: clamp(1.75rem, 1.8vw, 1.875rem);
+        border-radius: clamp(0.25rem, 0.3vw, 0.3rem);
+    }
+    
+    .dashboard-icon svg {
+        width: clamp(0.875rem, 0.9vw, 0.9rem);
+        height: clamp(0.875rem, 0.9vw, 0.9rem);
+    }
+    
+    .fluid-button {
+        padding: clamp(0.375rem, 1vw, 0.5rem) clamp(0.75rem, 2vw, 1rem);
+        font-size: clamp(0.75rem, 1vw, 0.875rem);
+        font-weight: 500;
+        border-radius: clamp(0.25rem, 0.5vw, 0.375rem);
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .fluid-input {
+        padding: clamp(0.375rem, 1vw, 0.5rem) clamp(0.5rem, 1.5vw, 0.75rem);
+        font-size: clamp(0.75rem, 1vw, 0.875rem);
+        border: 1px solid rgb(209 213 219);
+        border-radius: clamp(0.25rem, 0.5vw, 0.375rem);
+        width: 100%;
+    }
+    
+    .fluid-table-cell {
+        padding: clamp(0.375rem, 1vw, 0.5rem) clamp(0.5rem, 1.5vw, 0.75rem);
+        font-size: clamp(0.625rem, 0.8vw, 0.75rem);
+        line-height: 1.4;
+    }
+    
+    /* Enhanced Sidebar - Better Spacing for Larger Fonts */
+    .fluid-sidebar {
+        width: clamp(13rem, 14vw, 14rem); /* 208px - 224px - slightly wider for larger fonts */
+        transition: all 0.3s ease-in-out;
+    }
+    
+    /* UNIFIED SIDEBAR MENU ITEM - CONSISTENT ALIGNMENT */
+    .sidebar-menu-item {
+        display: flex !important;
+        align-items: center !important;
+        width: 100% !important;
+        padding: clamp(0.375rem, 0.4vw, 0.4375rem) clamp(0.5rem, 0.6vw, 0.625rem) !important;
+        border-radius: clamp(0.1875rem, 0.25vw, 0.25rem) !important;
+        transition: all 0.2s ease-in-out !important;
+        gap: 0 !important; /* Remove gap, use margin-right on icon container instead */
+        text-align: left !important;
+        justify-content: flex-start !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Legacy support - redirect to new class */
+    .fluid-sidebar-item {
+        padding: clamp(0.375rem, 0.4vw, 0.4375rem) clamp(0.5rem, 0.6vw, 0.625rem);
+        border-radius: clamp(0.1875rem, 0.25vw, 0.25rem);
+        transition: all 0.2s ease-in-out;
+        gap: 0; /* Remove gap for consistency */
+    }
+    
+    /* UNIVERSAL SIDEBAR ICON CONTAINER - PERFECT ALIGNMENT */
+    .sidebar-icon-container {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        width: clamp(1.5rem, 1.6vw, 1.65rem) !important;
+        height: clamp(1.5rem, 1.6vw, 1.65rem) !important;
+        margin-right: clamp(0.375rem, 0.4vw, 0.4375rem) !important;
+        margin-left: 0 !important; /* Ensure no left margin */
+        padding: 0 !important; /* Remove any padding */
+    }
+    
+    /* Sidebar chevron styling */
+    .sidebar-chevron {
+        width: clamp(0.375rem, 0.5vw, 0.5rem) !important;
+        height: clamp(0.375rem, 0.5vw, 0.5rem) !important;
+        flex-shrink: 0 !important;
+        margin-left: auto !important; /* Push to right */
+    }
+    
+    /* FORCE CONSISTENT ALIGNMENT - Override any conflicting styles */
+    .sidebar-menu-item button,
+    .sidebar-menu-item a {
+        box-sizing: border-box !important;
+        border: none !important;
+        background: transparent !important;
+        text-decoration: none !important;
+        outline: none !important;
+    }
+    
+    /* Ensure all menu items start at same position */
+    nav ul li > div > button,
+    nav ul li > a {
+        padding-left: clamp(0.5rem, 0.6vw, 0.625rem) !important;
+        margin-left: 0 !important;
+        text-align: left !important;
+    }
+    
+    /* Remove any default button/link styling that might cause misalignment */
+    .sidebar-menu-item:focus,
+    .sidebar-menu-item:active {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    
+    .fluid-sidebar-icon {
+        flex-shrink: 0;
+    }
+    
+    .fluid-sidebar-logo {
+        flex-shrink: 0;
+    }
+    
+    /* Form spacing with fluid margins */
+    .fluid-form-spacing > * + * {
+        margin-top: clamp(0.75rem, 2vw, 1rem);
+    }
+    
+    /* Responsive Table Utilities */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e0 #f7fafc;
+    }
+    
+    .table-responsive::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f7fafc;
+        border-radius: 4px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 4px;
+    }
+    
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+    
+    /* Table with minimum width to prevent column squashing */
+    .table-fixed-columns {
+        min-width: 1200px; /* Ensure table doesn't get too narrow */
+        table-layout: fixed;
+    }
+    
+    /* Responsive breakpoint utilities */
+    .responsive-hide-mobile {
+        display: none;
+    }
+    
+    @media (min-width: 640px) {
+        .responsive-hide-mobile {
+            display: block;
         }
     }
     
-    /* High DPI screen optimizations */
-    @media (min-resolution: 192dpi) {
-        .high-dpi-text {
-            @apply text-[13px] leading-5;
-        }
+    .responsive-show-mobile {
+        display: block;
     }
     
-    /* Large screen optimizations (24"-27" monitors) */
-    @media (min-width: 1920px) {
-        .large-screen-container {
-            @apply max-w-8xl mx-auto;
+    @media (min-width: 640px) {
+        .responsive-show-mobile {
+            display: none;
         }
-        
-        .large-screen-text {
-            @apply text-base leading-6;
-        }
-    }
-    
-    /* Medium screen optimizations (14"-16" laptops) */
-    @media (min-width: 1024px) and (max-width: 1599px) {
-        .medium-screen-text {
-            @apply text-sm leading-5;
-        }
-        
-        .medium-screen-padding {
-            @apply px-4 py-3;
-        }
-    }
-    
-    /* Prevent zoom issues */
-    .zoom-stable {
-        @apply transform-gpu;
-        font-size: 1rem;
-        line-height: 1.5;
     }
     
     /* Gradient utilities for sidebar */
@@ -64,34 +334,220 @@
     .sidebar-gradient-light {
         background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%);
     }
+    
+    /* Transition utilities */
+    .smooth-transition {
+        transition: all 0.3s ease-in-out;
+    }
+    
+    /* Micro Utilities - Extra Small Everything */
+    .minimal-gap {
+        gap: clamp(0.375rem, 0.5vw, 0.5rem);
+    }
+    
+    .minimal-padding {
+        padding: clamp(0.375rem, 0.5vw, 0.5rem);
+    }
+    
+    .minimal-margin {
+        margin: clamp(0.25rem, 0.375vw, 0.375rem);
+    }
+    
+    .ultra-compact {
+        padding: clamp(0.1875rem, 0.3vw, 0.25rem);
+        font-size: clamp(0.5rem, 0.55vw, 0.575rem);
+        line-height: 1.2;
+    }
+    
+    .minimal-border-radius {
+        border-radius: clamp(0.125rem, 0.2vw, 0.1875rem);
+    }
+    
+    .minimal-shadow {
+        box-shadow: 0 1px 1px 0 rgb(0 0 0 / 0.05);
+    }
+    
+    .minimal-shadow-hover:hover {
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+    
+    /* Enhanced Sidebar Typography - Larger and More Readable */
+    .sidebar-text-standard {
+        font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important; /* Increased from 0.6-0.65rem */
+        line-height: 1.3 !important;
+        font-weight: 500 !important;
+    }
+    
+    .sidebar-icon-standard {
+        width: clamp(0.875rem, 0.9vw, 0.95rem) !important; /* Increased from 0.7-0.75rem */
+        height: clamp(0.875rem, 0.9vw, 0.95rem) !important;
+        display: block !important;
+        margin: 0 auto !important; /* Center icon within its container */
+    }
+    
+    .sidebar-logo-standard {
+        width: clamp(1.5rem, 1.6vw, 1.65rem) !important; /* Increased from 1.2-1.35rem */
+        height: clamp(1.5rem, 1.6vw, 1.65rem) !important;
+    }
+    
+    /* Dashboard Specific Overrides - Force Small Fonts */
+    .dashboard-title {
+        font-size: clamp(0.65rem, 0.67vw, 0.7rem) !important;
+        line-height: 1.3 !important;
+        font-weight: 600 !important;
+    }
+    
+    .dashboard-card-value {
+        font-size: clamp(0.7rem, 0.72vw, 0.75rem) !important;
+        line-height: 1.3 !important;
+        font-weight: 700 !important;
+    }
+    
+    .dashboard-section-title {
+        font-size: clamp(0.65rem, 0.67vw, 0.7rem) !important;
+        line-height: 1.3 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* OPTIMIZED TAILWIND TEXT CLASSES - Readable but Compact */
+    .text-xs { font-size: clamp(0.65rem, 0.7vw, 0.75rem) !important; line-height: 1.2 !important; }
+    .text-sm { font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important; line-height: 1.25 !important; }
+    .text-base { font-size: clamp(0.8rem, 0.85vw, 0.9rem) !important; line-height: 1.3 !important; }
+    .text-lg { font-size: clamp(0.85rem, 0.9vw, 0.95rem) !important; line-height: 1.3 !important; }
+    .text-xl { font-size: clamp(0.9rem, 0.95vw, 1rem) !important; line-height: 1.25 !important; }
+    .text-2xl { font-size: clamp(0.95rem, 1vw, 1.05rem) !important; line-height: 1.2 !important; }
+    .text-3xl { font-size: clamp(1rem, 1.05vw, 1.1rem) !important; line-height: 1.15 !important; }
+    .text-4xl { font-size: clamp(1.05rem, 1.1vw, 1.15rem) !important; line-height: 1.1 !important; }
+    .text-5xl { font-size: clamp(1.1rem, 1.15vw, 1.2rem) !important; line-height: 1.1 !important; }
+    .text-6xl { font-size: clamp(1.15rem, 1.2vw, 1.25rem) !important; line-height: 1.1 !important; }
+    
+    /* FORCE OVERRIDE ALL FONT WEIGHT CLASSES */
+    .font-thin { font-weight: 100 !important; }
+    .font-extralight { font-weight: 200 !important; }
+    .font-light { font-weight: 300 !important; }
+    .font-normal { font-weight: 400 !important; }
+    .font-medium { font-weight: 500 !important; }
+    .font-semibold { font-weight: 600 !important; }
+    .font-bold { font-weight: 700 !important; }
+    .font-extrabold { font-weight: 800 !important; }
+    .font-black { font-weight: 900 !important; }
+    
+    /* FORCE OVERRIDE ALL LEADING (LINE-HEIGHT) CLASSES */
+    .leading-none { line-height: 1 !important; }
+    .leading-tight { line-height: 1.25 !important; }
+    .leading-snug { line-height: 1.375 !important; }
+    .leading-normal { line-height: 1.5 !important; }
+    .leading-relaxed { line-height: 1.625 !important; }
+    .leading-loose { line-height: 2 !important; }
+    
+    /* NUCLEAR OPTION - FORCE ALL ELEMENTS TO USE OUR FONT SIZES */
+    * {
+        font-size: inherit !important;
+    }
+    
+    /* FORCE OVERRIDE SPECIFIC ELEMENTS THAT MIGHT HAVE DEFAULT SIZES */
+    p, span, div, a, button, input, textarea, select, label {
+        font-size: inherit !important;
+        line-height: inherit !important;
+    }
+    
+    /* FORCE OVERRIDE ALL POSSIBLE TEXT ELEMENTS */
+    .text-xs, .text-xs * { font-size: clamp(0.5rem, 0.52vw, 0.55rem) !important; }
+    .text-sm, .text-sm * { font-size: clamp(0.6rem, 0.62vw, 0.65rem) !important; }
+    .text-base, .text-base * { font-size: clamp(0.65rem, 0.67vw, 0.7rem) !important; }
+    .text-lg, .text-lg * { font-size: clamp(0.7rem, 0.72vw, 0.75rem) !important; }
+    .text-xl, .text-xl * { font-size: clamp(0.75rem, 0.77vw, 0.8rem) !important; }
+    .text-2xl, .text-2xl * { font-size: clamp(0.8rem, 0.82vw, 0.85rem) !important; }
+    .text-3xl, .text-3xl * { font-size: clamp(0.85rem, 0.87vw, 0.9rem) !important; }
 }
 
-/* Global font optimizations */
+/* Modern Base Styles with Fluid Typography */
 @layer base {
+    /* Root font size scaling based on viewport - OPTIMIZED */
     html {
         @apply h-full;
+        /* Optimized base font size - slightly larger but consistent */
+        font-size: clamp(0.7rem, 0.75vw, 0.8rem) !important;
         /* Prevent zoom on mobile */
         -webkit-text-size-adjust: 100%;
         -ms-text-size-adjust: 100%;
+        /* Better scroll behavior */
+        scroll-behavior: smooth;
     }
     
     body {
         @apply font-inter antialiased;
+        /* Optimized body font size */
+        font-size: clamp(0.7rem, 0.75vw, 0.8rem) !important;
         /* Better font rendering */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        /* Consistent line height across devices */
-        line-height: 1.5;
+        /* Compact line height */
+        line-height: 1.25 !important;
+        /* Prevent horizontal overflow */
+        overflow-x: hidden;
     }
     
-    /* Improved focus states */
+    /* Optimized Headings - Readable but Compact */
+    h1 {
+        font-size: clamp(0.9rem, 0.95vw, 1rem) !important;
+        line-height: 1.25 !important;
+        font-weight: 700 !important;
+    }
+    
+    h2 {
+        font-size: clamp(0.85rem, 0.9vw, 0.95rem) !important;
+        line-height: 1.3 !important;
+        font-weight: 600 !important;
+    }
+    
+    h3 {
+        font-size: clamp(0.8rem, 0.85vw, 0.9rem) !important;
+        line-height: 1.3 !important;
+        font-weight: 600 !important;
+    }
+    
+    h4 {
+        font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important;
+        line-height: 1.25 !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Improved focus states with relative sizing */
     *:focus {
-        @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+        @apply outline-none;
+        box-shadow: 0 0 0 clamp(1px, 0.2vw, 2px) rgb(59 130 246 / 0.5);
+        border-radius: clamp(2px, 0.3vw, 4px);
     }
     
     /* Better button states */
     button:disabled {
         @apply opacity-50 cursor-not-allowed;
+    }
+    
+    /* Responsive images */
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* Better table responsiveness */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    /* Fluid border radius */
+    .rounded {
+        border-radius: clamp(0.25rem, 0.5vw, 0.375rem);
+    }
+    
+    .rounded-lg {
+        border-radius: clamp(0.375rem, 0.8vw, 0.5rem);
+    }
+    
+    .rounded-xl {
+        border-radius: clamp(0.5rem, 1vw, 0.75rem);
     }
 }
 
@@ -114,4 +570,95 @@
         from { transform: translateX(-100%); }
         to { transform: translateX(0); }
     }
+}
+
+/* Fix overlay issues */
+@layer utilities {
+    /* Ensure mobile overlay is completely hidden on desktop */
+    @media (min-width: 1024px) {
+        .lg\:hidden {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+    }
+    
+    /* Ensure all interactive elements are clickable */
+    .dashboard-card,
+    .sidebar-menu-item,
+    .bg-white {
+        pointer-events: auto !important;
+    }
+    
+    /* Force clickable elements */
+    a, button, [role="button"], [onclick] {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+}
+
+/* FINAL NUCLEAR OVERRIDE - HIGHEST SPECIFICITY - MUST BE LAST */
+html body * {
+    font-size: inherit !important;
+}
+
+html body .text-xs,
+html body .text-xs * {
+    font-size: clamp(0.65rem, 0.7vw, 0.75rem) !important;
+    line-height: 1.2 !important;
+}
+
+html body .text-sm,
+html body .text-sm * {
+    font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important;
+    line-height: 1.25 !important;
+}
+
+html body .text-base,
+html body .text-base * {
+    font-size: clamp(0.8rem, 0.85vw, 0.9rem) !important;
+    line-height: 1.3 !important;
+}
+
+html body .text-lg,
+html body .text-lg * {
+    font-size: clamp(0.85rem, 0.9vw, 0.95rem) !important;
+    line-height: 1.3 !important;
+}
+
+html body .text-xl,
+html body .text-xl * {
+    font-size: clamp(0.9rem, 0.95vw, 1rem) !important;
+    line-height: 1.25 !important;
+}
+
+html body .text-2xl,
+html body .text-2xl * {
+    font-size: clamp(0.95rem, 1vw, 1.05rem) !important;
+    line-height: 1.2 !important;
+}
+
+html body .text-3xl,
+html body .text-3xl * {
+    font-size: clamp(1rem, 1.05vw, 1.1rem) !important;
+    line-height: 1.15 !important;
+}
+
+/* FORCE DASHBOARD ELEMENTS WITH MAXIMUM SPECIFICITY */
+html body main .text-base {
+    font-size: clamp(0.8rem, 0.85vw, 0.9rem) !important;
+    line-height: 1.3 !important;
+    font-weight: 600 !important;
+}
+
+html body main .text-lg {
+    font-size: clamp(0.85rem, 0.9vw, 0.95rem) !important;
+    line-height: 1.3 !important;
+    font-weight: 700 !important;
+}
+
+html body main .text-sm {
+    font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important;
+    line-height: 1.25 !important;
 }

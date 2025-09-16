@@ -188,10 +188,48 @@
             </div>
         </div>
         
+        <!-- Toast Notifications -->
+        <x-toast-notification />
+        
         @livewireScripts
         
         <!-- Additional Scripts -->
         @stack('scripts')
+        
+        <!-- Toast Notification Helper -->
+        <script>
+            // Toast notification helper function
+            window.notify = function(message, type = 'info', duration = 5000) {
+                window.dispatchEvent(new CustomEvent('notify', {
+                    detail: { message, type, duration }
+                }));
+            };
+            
+            // Auto-show flash messages as toasts
+            document.addEventListener('DOMContentLoaded', function() {
+                @if (session()->has('success'))
+                    notify('{{ session('success') }}', 'success');
+                @endif
+                
+                @if (session()->has('error'))
+                    notify('{{ session('error') }}', 'error');
+                @endif
+                
+                @if (session()->has('warning'))
+                    notify('{{ session('warning') }}', 'warning');
+                @endif
+                
+                @if (session()->has('info'))
+                    notify('{{ session('info') }}', 'info');
+                @endif
+                
+                @if ($errors->any())
+                    @foreach ($errors->all() as $error)
+                        notify('{{ $error }}', 'error', 8000);
+                    @endforeach
+                @endif
+            });
+        </script>
         
         <!-- Ensure proper Alpine.js initialization -->
         <script>

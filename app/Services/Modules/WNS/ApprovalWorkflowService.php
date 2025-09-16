@@ -222,10 +222,7 @@ class ApprovalWorkflowService
         return User::whereHas('roles', function ($query) {
             $query->where('name', 'department_head');
         })
-        ->whereHas('departmentUsers', function ($query) use ($department) {
-            $query->where('department_id', $department->id)
-                  ->where('is_active', true);
-        })
+        ->where('primary_department_id', $department->id)
         ->where('is_active', true)
         ->first();
     }

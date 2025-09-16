@@ -1,7 +1,12 @@
 <div class="space-y-8">
     <!-- Form Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-4 border                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-20">
+                                    QTY
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+                                    Unit
+                                </th>der-gray-200">
             <h3 class="text-lg font-semibold text-gray-900">Purchase Request Information</h3>
             <p class="text-sm text-gray-600 mt-1">Fill in the basic information for your purchase request</p>
         </div>
@@ -106,201 +111,260 @@
 
     <!-- Items Section -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <div>
-                <h3 class="text-lg font-semibold text-gray-900">Purchase Items</h3>
-                <p class="text-sm text-gray-600 mt-1">Add items to your purchase request</p>
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-6">
+                    <h3 class="text-lg font-semibold text-gray-900">Purchase Items</h3>
+                    <button 
+                        wire:click="addItem" 
+                        wire:loading.attr="disabled"
+                        wire:target="addItem"
+                        type="button"
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+                        <span wire:loading.remove wire:target="addItem" class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Add Item
+                        </span>
+                        <span wire:loading wire:target="addItem" class="flex items-center">
+                            <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Adding...
+                        </span>
+                    </button>
+                </div>
+                <p class="text-sm text-gray-600">Add items to your purchase request</p>
             </div>
-            <button 
-                wire:click="addItem" 
-                type="button"
-                class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                Add Item
-            </button>
         </div>
 
         <div class="p-6">
             @if(count($items) > 0)
-                <div class="space-y-6">
-                    @foreach($items as $index => $item)
-                        <div class="border border-gray-200 rounded-lg p-6 relative" wire:key="item-{{ $index }}">
-                            <!-- Item Header -->
-                            <div class="flex items-center justify-between mb-4">
-                                <h4 class="text-md font-semibold text-gray-900">Item #{{ $index + 1 }}</h4>
-                                @if(count($items) > 1)
-                                    <button 
-                                        wire:click="removeItem({{ $index }})" 
-                                        type="button"
-                                        class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors duration-200"
-                                        title="Remove item">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                        </svg>
-                                    </button>
-                                @endif
-                            </div>
+                <!-- Items Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                                    No
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-48">
+                                    Item Name
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+                                    Brand
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+                                    Supplier
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-20">
+                                    Qty
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-20">
+                                    Unit
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-28">
+                                    Unit Price
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-28">
+                                    Total
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">
+                                    Department
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                                    Action
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($items as $index => $item)
+                                <tr wire:key="item-{{ $index }}" class="hover:bg-gray-50">
+                                    <!-- Row Number -->
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                        {{ $index + 1 }}
+                                    </td>
+                                    
+                                    <!-- Item Name -->
+                                    <td class="px-4 py-3">
+                                        <div class="space-y-1">
+                                            <input 
+                                                wire:model.blur="items.{{ $index }}.item_name" 
+                                                type="text"
+                                                class="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder="Enter item name"
+                                                maxlength="255"
+                                            >
+                                            @if(!empty($item['item_description']))
+                                                <textarea 
+                                                    wire:model.blur="items.{{ $index }}.item_description" 
+                                                    rows="2"
+                                                    class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50"
+                                                    placeholder="Description..."
+                                                    maxlength="1000"
+                                                ></textarea>
+                                            @else
+                                                <button 
+                                                    type="button" 
+                                                    onclick="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                                    class="text-xs text-indigo-600 hover:text-indigo-800">
+                                                    + Add description
+                                                </button>
+                                                <textarea 
+                                                    wire:model.blur="items.{{ $index }}.item_description" 
+                                                    rows="2"
+                                                    style="display:none"
+                                                    class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50"
+                                                    placeholder="Description..."
+                                                    maxlength="1000"
+                                                ></textarea>
+                                            @endif
+                                            @error("items.{$index}.item_name") 
+                                                <p class="text-xs text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </td>
 
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                <!-- Item Name -->
-                                <div class="sm:col-span-2 lg:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Item Name <span class="text-red-500">*</span>
-                                    </label>
-                                    <input 
-                                        wire:model.live="items.{{ $index }}.item_name" 
-                                        type="text"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                        placeholder="Enter item name"
-                                        maxlength="255"
-                                    >
-                                    @error("items.{$index}.item_name") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Brand Name -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
-                                    <input 
-                                        wire:model.live="items.{{ $index }}.brand_name" 
-                                        type="text"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                        placeholder="Enter brand name"
-                                        maxlength="255"
-                                    >
-                                    @error("items.{$index}.brand_name") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Supplier Name -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
-                                    <input 
-                                        wire:model.live="items.{{ $index }}.supplier_name" 
-                                        type="text"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                        placeholder="Enter supplier name"
-                                        maxlength="255"
-                                    >
-                                    @error("items.{$index}.supplier_name") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Item Description -->
-                                <div class="sm:col-span-2 lg:col-span-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                    <textarea 
-                                        wire:model.live="items.{{ $index }}.item_description" 
-                                        rows="2"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                        placeholder="Enter item description..."
-                                        maxlength="1000"
-                                    ></textarea>
-                                    @error("items.{$index}.item_description") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Quantity -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Quantity <span class="text-red-500">*</span>
-                                    </label>
-                                    <input 
-                                        wire:model.live="items.{{ $index }}.quantity" 
-                                        type="number"
-                                        step="0.01"
-                                        min="0.01"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                        placeholder="0.00"
-                                    >
-                                    @error("items.{$index}.quantity") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Unit -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Unit <span class="text-red-500">*</span>
-                                    </label>
-                                    <select 
-                                        wire:model.live="items.{{ $index }}.unit" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                    >
-                                        <option value="pcs">pcs (pieces)</option>
-                                        <option value="set">set</option>
-                                        <option value="box">box</option>
-                                        <option value="pack">pack</option>
-                                        <option value="unit">unit</option>
-                                        <option value="kg">kg (kilogram)</option>
-                                        <option value="m">m (meter)</option>
-                                        <option value="liter">liter</option>
-                                        <option value="dozen">dozen</option>
-                                        <option value="roll">roll</option>
-                                    </select>
-                                    @error("items.{$index}.unit") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Unit Price -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Unit Price <span class="text-red-500">*</span>
-                                    </label>
-                                    <div class="relative">
-                                        <span class="absolute left-3 top-2 text-gray-500 text-sm">{{ $currency }}</span>
+                                    <!-- Brand Name -->
+                                    <td class="px-4 py-3">
                                         <input 
-                                            wire:model.live="items.{{ $index }}.unit_price" 
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                            placeholder="0.00"
+                                            wire:model.blur="items.{{ $index }}.brand_name" 
+                                            type="text"
+                                            class="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                            placeholder="Brand"
+                                            maxlength="255"
                                         >
-                                    </div>
-                                    @error("items.{$index}.unit_price") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
+                                        @error("items.{$index}.brand_name") 
+                                            <p class="text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </td>
 
-                                <!-- Expense Department -->
-                                <div class="sm:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Expense Department <span class="text-red-500">*</span>
-                                    </label>
-                                    <select 
-                                        wire:model.live="items.{{ $index }}.expense_department_id" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                                    >
-                                        <option value="">Select Department</option>
-                                        @foreach($departments as $department)
-                                            <option value="{{ $department->id }}">{{ $department->name }} ({{ $department->code }})</option>
-                                        @endforeach
-                                    </select>
-                                    @error("items.{$index}.expense_department_id") 
-                                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
+                                    <!-- Supplier Name -->
+                                    <td class="px-4 py-3">
+                                        <input 
+                                            wire:model.blur="items.{{ $index }}.supplier_name" 
+                                            type="text"
+                                            class="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                            placeholder="Supplier"
+                                            maxlength="255"
+                                        >
+                                        @error("items.{$index}.supplier_name") 
+                                            <p class="text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </td>
 
-                                <!-- Total Price Display -->
-                                <div class="lg:col-span-1">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
-                                    <div class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                                        <span class="text-sm font-medium text-gray-900">
-                                            {{ $currency }} {{ number_format($item['total_price'] ?? 0, 2) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
+                                    <!-- Quantity -->
+                                    <td class="px-4 py-3">
+                                        <input 
+                                            wire:model.blur="items.{{ $index }}.quantity" 
+                                            type="number"
+                                            step="1"
+                                            min="1"
+                                            value="{{ $item['quantity'] ?? 1 }}"
+                                            class="w-full min-w-20 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                            placeholder="1"
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }});"
+                                        >
+                                        @error("items.{$index}.quantity") 
+                                            <p class="text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </td>
+
+                                    <!-- Unit -->
+                                    <td class="px-4 py-3">
+                                        <select 
+                                            wire:model.blur="items.{{ $index }}.unit" 
+                                            class="w-full min-w-32 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                        >
+                                            <option value="pcs">pcs</option>
+                                            <option value="set">set</option>
+                                            <option value="box">box</option>
+                                            <option value="pack">pack</option>
+                                            <option value="unit">unit</option>
+                                            <option value="kg">kg</option>
+                                            <option value="m">m</option>
+                                            <option value="liter">liter</option>
+                                            <option value="dozen">dozen</option>
+                                            <option value="roll">roll</option>
+                                        </select>
+                                        @error("items.{$index}.unit") 
+                                            <p class="text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </td>
+
+                                    <!-- Unit Price -->
+                                    <td class="px-4 py-3">
+                                        <div class="relative">
+                                            <span class="absolute left-2 top-1 text-xs text-gray-500">{{ $currency }}</span>
+                                            <input 
+                                                wire:model.blur="items.{{ $index }}.unit_price" 
+                                                type="number"
+                                                step="1"
+                                                min="0"
+                                                value="{{ $item['unit_price'] ?? 0 }}"
+                                                class="w-full pl-8 pr-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-right"
+                                                placeholder="0"
+                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }});"
+                                            >
+                                        </div>
+                                        @error("items.{$index}.unit_price") 
+                                            <p class="text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </td>
+
+                                    <!-- Total Price -->
+                                    <td class="px-4 py-3">
+                                        <div class="text-sm font-medium text-gray-900 text-right">
+                                            {{ $currency }} <span id="total-{{ $index }}">{{ number_format($item['total_price'] ?? 0, 0) }}</span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Expense Department -->
+                                    <td class="px-4 py-3">
+                                        <select 
+                                            wire:model.blur="items.{{ $index }}.expense_department_id" 
+                                            class="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                        >
+                                            <option value="">Select Dept</option>
+                                            @foreach($departments as $department)
+                                                <option value="{{ $department->id }}">{{ $department->code }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error("items.{$index}.expense_department_id") 
+                                            <p class="text-xs text-red-600">{{ $message }}</p>
+                                        @enderror
+                                    </td>
+
+                                    <!-- Action -->
+                                    <td class="px-4 py-3 text-center">
+                                        @if(count($items) > 1)
+                                            <button 
+                                                wire:click="removeItem({{ $index }})" 
+                                                wire:loading.attr="disabled"
+                                                wire:target="removeItem({{ $index }})"
+                                                type="button"
+                                                class="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                                title="Remove item">
+                                                <span wire:loading.remove wire:target="removeItem({{ $index }})">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                    </svg>
+                                                </span>
+                                                <span wire:loading wire:target="removeItem({{ $index }})">
+                                                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </span>
+                                            </button>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
 
                 <!-- Total Summary -->
@@ -308,7 +372,7 @@
                     <div class="flex justify-between items-center">
                         <span class="text-lg font-semibold text-gray-900">Total Amount:</span>
                         <span class="text-xl font-bold text-indigo-600">
-                            {{ $currency }} {{ number_format($totalAmount, 2) }}
+                            {{ $currency }} <span id="grand-total">{{ number_format($totalAmount, 0) }}</span>
                         </span>
                     </div>
                     <p class="text-sm text-gray-600 mt-1">{{ count($items) }} item(s) in this purchase request</p>
@@ -320,17 +384,32 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
                         </svg>
                     </div>
-                    <h3 class="text-sm font-medium text-gray-900 mb-1">No items added</h3>
-                    <p class="text-sm text-gray-500 mb-4">Get started by adding your first item to the purchase request.</p>
-                    <button 
-                        wire:click="addItem" 
-                        type="button"
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Add First Item
-                    </button>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <div class="text-center sm:text-left">
+                            <h3 class="text-sm font-medium text-gray-900">No items added</h3>
+                            <p class="text-sm text-gray-500">Get started by adding your first item to the purchase request</p>
+                        </div>
+                        <button 
+                            wire:click="addItem" 
+                            wire:loading.attr="disabled"
+                            wire:target="addItem"
+                            type="button"
+                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+                            <span wire:loading.remove wire:target="addItem" class="flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                Add First Item
+                            </span>
+                            <span wire:loading wire:target="addItem" class="flex items-center">
+                                <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Adding...
+                            </span>
+                        </button>
+                    </div>
                 </div>
             @endif
 
@@ -400,3 +479,94 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Client-side calculation for instant feedback
+    function calculateRowTotal(index) {
+        // Get quantity and price inputs
+        const qtyInput = document.querySelector(`input[wire\\:model\\.blur="items.${index}.quantity"]`);
+        const priceInput = document.querySelector(`input[wire\\:model\\.blur="items.${index}.unit_price"]`);
+        const totalSpan = document.getElementById(`total-${index}`);
+        
+        if (qtyInput && priceInput && totalSpan) {
+            const qty = parseInt(qtyInput.value) || 0;
+            const price = parseInt(priceInput.value.replace(/[^0-9]/g, '')) || 0;
+            const total = qty * price;
+            
+            // Update row total with number formatting
+            totalSpan.textContent = new Intl.NumberFormat('id-ID').format(total);
+            
+            // Recalculate grand total
+            calculateGrandTotal();
+        }
+    }
+    
+    function calculateGrandTotal() {
+        let grandTotal = 0;
+        
+        // Sum all row totals
+        document.querySelectorAll('[id^="total-"]').forEach(function(totalSpan) {
+            const value = totalSpan.textContent.replace(/[^0-9]/g, '');
+            grandTotal += parseInt(value) || 0;
+        });
+        
+        // Update grand total display
+        const grandTotalSpan = document.getElementById('grand-total');
+        if (grandTotalSpan) {
+            grandTotalSpan.textContent = new Intl.NumberFormat('id-ID').format(grandTotal);
+        }
+    }
+    
+    // Recalculate totals when page loads or items are added/removed
+    document.addEventListener('DOMContentLoaded', function() {
+        calculateGrandTotal();
+    });
+    
+    // Recalculate totals after Livewire updates
+    document.addEventListener('livewire:navigated', function() {
+        calculateGrandTotal();
+    });
+    
+    // Recalculate after any Livewire DOM update (when items added/removed)
+    Livewire.hook('morph.updated', ({ el, component }) => {
+        setTimeout(() => calculateGrandTotal(), 100); // Small delay to ensure DOM is updated
+    });
+    
+    // Listen for specific Livewire events
+    window.addEventListener('item-added', function() {
+        setTimeout(() => calculateGrandTotal(), 100);
+        // Show toast notification
+        if (typeof window.notify === 'function') {
+            window.notify('Item added successfully', 'success');
+        }
+    });
+    
+    window.addEventListener('item-removed', function() {
+        setTimeout(() => calculateGrandTotal(), 100);
+        // Show toast notification
+        if (typeof window.notify === 'function') {
+            window.notify('Item removed successfully', 'success');
+        }
+    });
+    
+    // Listen for Livewire events globally
+    document.addEventListener('livewire:init', function () {
+        Livewire.on('notify', function(data) {
+            if (typeof window.notify === 'function') {
+                window.notify(data.message, data.type || 'info', data.duration || 5000);
+            }
+        });
+    });
+    
+    // Auto-validate fields on blur for better UX
+    document.addEventListener('blur', function(e) {
+        if (e.target.hasAttribute('wire:model') || e.target.hasAttribute('wire:model.blur')) {
+            const fieldName = e.target.getAttribute('wire:model') || e.target.getAttribute('wire:model.blur');
+            if (fieldName && typeof @this !== 'undefined') {
+                // Extract field name without array indices for validation
+                const baseField = fieldName.split('.')[0];
+                @this.validateField && @this.validateField(baseField);
+            }
+        }
+    }, true);
+</script>

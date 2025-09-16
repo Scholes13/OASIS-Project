@@ -94,9 +94,8 @@ class PurchaseRequestWorkflowTest extends TestCase
 
         // Assign users to departments
         foreach ([$this->requestor, $this->departmentHead] as $user) {
-            $user->departmentUsers()->create([
-                'department_id' => $this->department->id,
-                'is_active' => true,
+            $user->update([
+                'primary_department_id' => $this->department->id,
             ]);
         }
     }

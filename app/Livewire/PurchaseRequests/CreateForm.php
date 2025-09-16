@@ -86,6 +86,7 @@ class CreateForm extends Component
         ];
         
         $this->calculateTotals();
+        $this->dispatch('item-added');
     }
 
     public function removeItem($index)
@@ -94,6 +95,7 @@ class CreateForm extends Component
             unset($this->items[$index]);
             $this->items = array_values($this->items);
             $this->calculateTotals();
+            $this->dispatch('item-removed');
         }
     }
 

@@ -17,6 +17,7 @@ class RequestNumber extends Component
     // Form fields for complete PR
     public $purpose = '';           // Keperluan
     public $used_for = '';         // Digunakan untuk
+    public $expected_date = '';    // Expected delivery date
     public $currency = 'IDR';      // Currency
     public $items = [];            // Items array
     public $departments = [];      // Available departments
@@ -147,7 +148,7 @@ class RequestNumber extends Component
 
     public function removeItem($index)
     {
-        if (count($this->items) > 1) {
+        if (count($this->items) > 1 && isset($this->items[$index])) {
             unset($this->items[$index]);
             $this->items = array_values($this->items);
             $this->calculateTotals();
@@ -162,21 +163,44 @@ class RequestNumber extends Component
     // Add specific updaters for item properties to ensure real-time calculation
     public function updatedItemsQuantity($value, $key)
     {
+        // Sanitize quantity input
+        $keyParts = explode('.', $key);
+        if (count($keyParts) >= 2) {
+            $index = $keyParts[0];
+            // Ensure quantity is numeric and positive integer
+            $cleanValue = is_numeric($value) ? max(0, intval($value)) : 0;
+            $this->items[$index]['quantity'] = $cleanValue;
+        }
         $this->calculateTotals();
     }
 
     public function updatedItemsUnitPrice($value, $key)
     {
-        // Clean the value by removing commas
-        $cleanValue = str_replace(',', '', $value);
-        
-        // Update the item with clean value
+        // Sanitize price input
         $keyParts = explode('.', $key);
         if (count($keyParts) >= 2) {
             $index = $keyParts[0];
+            // Remove all non-numeric characters and ensure it's numeric
+            $cleanValue = preg_replace('/[^0-9]/', '', $value);
+            $cleanValue = is_numeric($cleanValue) ? max(0, intval($cleanValue)) : 0;
             $this->items[$index]['unit_price'] = $cleanValue;
         }
-        
+        $this->calculateTotals();
+    }
+
+    // Add listener for any item property changes
+    public function updatedItemsItemName()
+    {
+        $this->calculateTotals();
+    }
+
+    public function updatedItemsBrandName()
+    {
+        $this->calculateTotals();
+    }
+
+    public function updatedItemsUnit()
+    {
         $this->calculateTotals();
     }
 
@@ -307,18 +331,60 @@ class RequestNumber extends Component
     {
         $this->totalAmount = 0;
         
-        foreach ($this->items as $item) {
-            $quantity = floatval($item['quantity'] ?? 0);
-            // Remove commas from unit_price before converting to float
-            $unitPrice = floatval(str_replace(',', '', $item['unit_price'] ?? 0));
-            $this->totalAmount += $quantity * $unitPrice;
+        foreach ($this->items as $index => $item) {
+            // Ensure quantity is numeric and integer
+            $quantity = 0;
+            if (isset($item['quantity']) && is_numeric($item['quantity'])) {
+                $quantity = intval($item['quantity']);
+            }
+            
+            // Ensure unit_price is numeric and integer (no decimals)
+            $unitPrice = 0;
+            if (isset($item['unit_price'])) {
+                // Remove all non-numeric characters
+                $cleanPrice = preg_replace('/[^0-9]/', '', $item['unit_price']);
+                if (is_numeric($cleanPrice)) {
+                    $unitPrice = intval($cleanPrice);
+                }
+            }
+            
+            // Calculate item total and add to grand total
+            $itemTotal = $quantity * $unitPrice;
+            $this->totalAmount += $itemTotal;
+            
+            // Update the item in the array with clean values
+            $this->items[$index]['quantity'] = $quantity;
+            $this->items[$index]['unit_price'] = $unitPrice;
         }
         
-        // Dispatch event to update UI
+        // Force re-render to ensure UI updates
         $this->dispatch('totals-updated');
     }
 
-    public function saveDraft()
+    public function getTotalAmountProperty()
+    {
+        $total = 0;
+        
+        foreach ($this->items as $item) {
+            $quantity = 0;
+            if (isset($item['quantity']) && is_numeric($item['quantity'])) {
+                $quantity = intval($item['quantity']);
+            }
+
+            $unitPrice = 0;
+            if (isset($item['unit_price'])) {
+                // Remove all non-numeric characters
+                $cleanPrice = preg_replace('/[^0-9]/', '', $item['unit_price']);
+                if (is_numeric($cleanPrice)) {
+                    $unitPrice = intval($cleanPrice);
+                }
+            }
+
+            $total += $quantity * $unitPrice;
+        }
+        
+        return $total;
+    }    public function saveDraft()
     {
         $this->isLoading = true;
         
@@ -396,13 +462,20 @@ class RequestNumber extends Component
         $this->isLoading = true;
         
         try {
-            // Check session data first
+            // Initialize session data from authenticated user if not exists
+            $this->ensureSessionData();
+            
+            // Check session data
             if (!session('current_business_unit_id') || !session('current_department_id')) {
+                $this->dispatch('notify', [
+                    'message' => 'Session expired. Please refresh the page and try again.',
+                    'type' => 'error'
+                ]);
                 throw new \Exception('Missing business unit or department session data. Please refresh the page and try again.');
             }
             
-            // Validate the complete form
-            $this->validate();
+            // Validate the complete form with enhanced error reporting
+            $this->validateForm();
             
             // Additional validation for custom approval
             if ($this->approvalFlow === 'custom') {
@@ -471,8 +544,31 @@ class RequestNumber extends Component
             session()->flash('success', "Purchase Request {$result['formatted_number']} has been submitted for approval.");
             return redirect()->route('purchase-requests.show', $purchaseRequest);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            
+            // Send detailed validation errors via toast
+            $errors = $e->validator->errors();
+            $firstError = $errors->first();
+            
+            $this->dispatch('notify', [
+                'message' => 'Validation Error: ' . $firstError,
+                'type' => 'error',
+                'duration' => 8000
+            ]);
+            
+            // Re-throw to show field-specific errors
+            throw $e;
+            
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            $this->dispatch('notify', [
+                'message' => 'Failed to submit: ' . $e->getMessage(),
+                'type' => 'error',
+                'duration' => 8000
+            ]);
+            
             session()->flash('error', 'Failed to submit purchase request: ' . $e->getMessage());
         } finally {
             $this->isLoading = false;
@@ -493,6 +589,109 @@ class RequestNumber extends Component
         }
         
         return $result;
+    }
+
+    /**
+     * Ensure session data is available from authenticated user
+     */
+    private function ensureSessionData()
+    {
+        if (!session('current_business_unit_id') || !session('current_department_id')) {
+            $user = Auth::user();
+            
+            if ($user) {
+                // Get user's primary business unit and department
+                if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
+                    session([
+                        'current_business_unit_id' => $user->primaryDepartment->businessUnit->id,
+                        'current_business_unit_code' => $user->primaryDepartment->businessUnit->code,
+                        'current_business_unit_name' => $user->primaryDepartment->businessUnit->name,
+                        'current_department_id' => $user->primaryDepartment->id,
+                        'current_user_role' => $user->global_role,
+                    ]);
+                } elseif ($user->global_role === 'super_admin') {
+                    // For super admin, use WG business unit as fallback
+                    $wgBusinessUnit = \App\Models\BusinessUnit::where('code', 'WG')->first();
+                    if ($wgBusinessUnit) {
+                        $corporateDept = \App\Models\Department::where('business_unit_id', $wgBusinessUnit->id)
+                                                               ->where('code', 'CORP')
+                                                               ->first();
+                        
+                        session([
+                            'current_business_unit_id' => $wgBusinessUnit->id,
+                            'current_business_unit_code' => $wgBusinessUnit->code,
+                            'current_business_unit_name' => $wgBusinessUnit->name,
+                            'current_department_id' => $corporateDept ? $corporateDept->id : null,
+                            'current_user_role' => 'super_admin',
+                        ]);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Enhanced validation with toast notifications
+     */
+    public function validateForm()
+    {
+        try {
+            $this->validate();
+            
+            // If validation passes, show success message
+            $this->dispatch('notify', [
+                'message' => 'Form validation passed!',
+                'type' => 'success',
+                'duration' => 3000
+            ]);
+            
+            return true;
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Get all validation errors
+            $errors = $e->validator->errors();
+            
+            // Count total errors
+            $totalErrors = $errors->count();
+            
+            if ($totalErrors > 1) {
+                // Show summary for multiple errors
+                $this->dispatch('notify', [
+                    'message' => "Found {$totalErrors} validation errors. Please check the highlighted fields below.",
+                    'type' => 'error',
+                    'duration' => 10000
+                ]);
+            } else {
+                // Show specific error for single issue
+                $this->dispatch('notify', [
+                    'message' => 'Validation Error: ' . $errors->first(),
+                    'type' => 'error',
+                    'duration' => 8000
+                ]);
+            }
+            
+            // Re-throw to show field-specific errors
+            throw $e;
+        }
+    }
+
+    /**
+     * Validate specific field and show toast if error
+     */
+    public function validateField($field)
+    {
+        try {
+            $this->validateOnly($field);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $error = $e->validator->errors()->first($field);
+            if ($error) {
+                $this->dispatch('notify', [
+                    'message' => $error,
+                    'type' => 'error',
+                    'duration' => 5000
+                ]);
+            }
+        }
     }
 
 

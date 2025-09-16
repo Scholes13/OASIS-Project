@@ -55,7 +55,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', function (Request $request) {
             return response()->json([
                 'success' => true,
-                'data' => $request->user()->load(['roles', 'businessUnits.businessUnit', 'departmentUsers.department'])
+                'data' => $request->user()->load(['roles', 'businessUnits.businessUnit', 'primaryDepartment'])
             ]);
         })->name('api.user.profile');
         

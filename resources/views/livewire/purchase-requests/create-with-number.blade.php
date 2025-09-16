@@ -264,20 +264,19 @@
 
     <!-- Items Section (Same as original but with items array) -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <div>
-                <h3 class="text-lg font-semibold text-gray-900">Purchase Items</h3>
-                <p class="text-sm text-gray-600 mt-1">Add items to your purchase request</p>
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-6">
+                    <h3 class="text-lg font-semibold text-gray-900">Purchase Items</h3>
+                    <button 
+                        wire:click="addItem" 
+                        type="button"
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                        Add Item
+                    </button>
+                </div>
+                <p class="text-sm text-gray-600">Add items to your purchase request</p>
             </div>
-            <button 
-                wire:click="addItem" 
-                type="button"
-                class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                Add Item
-            </button>
         </div>
 
         <div class="p-6">
@@ -470,17 +469,18 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
                         </svg>
                     </div>
-                    <h3 class="text-sm font-medium text-gray-900 mb-1">No items added</h3>
-                    <p class="text-sm text-gray-500 mb-4">Get started by adding your first item to the purchase request.</p>
-                    <button 
-                        wire:click="addItem" 
-                        type="button"
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Add First Item
-                    </button>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <div class="text-center sm:text-left">
+                            <h3 class="text-sm font-medium text-gray-900">No items added</h3>
+                            <p class="text-sm text-gray-500">Get started by adding your first item to the purchase request</p>
+                        </div>
+                        <button 
+                            wire:click="addItem" 
+                            type="button"
+                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                            Add First Item
+                        </button>
+                    </div>
                 </div>
             @endif
 

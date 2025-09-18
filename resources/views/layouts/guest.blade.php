@@ -20,26 +20,5 @@
         {{ $slot }}
         
         @livewireScripts
-        
-        <!-- Fix Alpine.js and Livewire compatibility -->
-        <script>
-            // Disable Livewire navigate for login to prevent Alpine.js conflicts
-            document.addEventListener('DOMContentLoaded', function() {
-                // Ensure Alpine is available and properly initialized
-                if (typeof Alpine !== 'undefined') {
-                    Alpine.start();
-                }
-            });
-            
-            // Handle form submissions without navigate
-            document.addEventListener('livewire:init', function() {
-                Livewire.hook('morph.updated', ({ el, component }) => {
-                    // Re-initialize Alpine components after Livewire updates
-                    if (typeof Alpine !== 'undefined' && Alpine.initTree) {
-                        Alpine.initTree(el);
-                    }
-                });
-            });
-        </script>
     </body>
 </html>

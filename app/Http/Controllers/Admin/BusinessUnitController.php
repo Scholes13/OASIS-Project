@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessUnit;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class BusinessUnitController extends Controller
 {
@@ -22,8 +22,8 @@ class BusinessUnitController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -46,7 +46,13 @@ class BusinessUnitController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.business-units.create', compact('parentBusinessUnits'));
+        // Get users who can be General Managers
+        $managers = \App\Models\User::where('is_active', true)
+            ->whereIn('global_role', ['super_admin', 'admin', 'manager'])
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.business-units.create', compact('parentBusinessUnits', 'managers'));
     }
 
     /**
@@ -63,83 +69,28 @@ class BusinessUnitController extends Controller
             'email' => 'nullable|email|max:255',
             'parent_id' => 'nullable|exists:business_units,id',
             'manager_id' => 'nullable|exists:users,id',
-            'departments' => 'required|array|min:1',
-            'departments.*.code' => 'required|string|max:10',
-            'departments.*.name' => 'required|string|max:255',
-            'departments.*.description' => 'nullable|string|max:1000',
-            'departments.*.positions' => 'array',
-            'departments.*.positions.*.name' => 'required|string|max:100',
-
         ]);
 
-        DB::transaction(function () use ($request) {
-            // Create business unit
-            $businessUnit = BusinessUnit::create([
-                'name' => $request->name,
-                'code' => strtoupper($request->code),
-                'description' => $request->description,
-                'address' => $request->address,
-                'phone' => $request->phone,
-                'email' => $request->email,
-                'parent_id' => $request->parent_id,
-                'manager_id' => $request->manager_id,
-                'numbering_config' => [],
-                'is_active' => $request->boolean('is_active', true),
-            ]);
-
-            // Create departments and positions
-            foreach ($request->departments as $deptData) {
-                $department = $businessUnit->departments()->create([
-                    'code' => strtoupper($deptData['code']),
-                    'name' => $deptData['name'],
-                    'description' => $deptData['description'] ?? null,
-                    'is_active' => true,
-                ]);
-
-                // Create positions for this department
-                if (isset($deptData['positions'])) {
-                    foreach ($deptData['positions'] as $index => $posData) {
-                        if (!empty($posData['name'])) {
-                            $level = 'staff'; // default
-                            $hierarchyLevel = 3; // default
-                            
-                            if ($posData['name'] === 'HOD') {
-                                $level = 'hod';
-                                $hierarchyLevel = 1;
-                            } elseif ($posData['name'] === 'Leader') {
-                                $level = 'leader';
-                                $hierarchyLevel = 2;
-                            }
-                            
-                            // Generate unique code for this department
-                            $baseCode = strtoupper(substr($posData['name'], 0, 3));
-                            $code = $baseCode . '_' . $index;
-                            
-                            // Ensure uniqueness within department
-                            $counter = 1;
-                            while ($department->positions()->where('code', $code)->exists()) {
-                                $code = $baseCode . '_' . $index . '_' . $counter;
-                                $counter++;
-                            }
-                            
-                            $department->positions()->create([
-                                'name' => $posData['name'],
-                                'code' => $code,
-                                'level' => $level,
-                                'hierarchy_level' => $hierarchyLevel,
-                                'is_active' => true,
-                            ]);
-                        }
-                    }
-                }
-            }
-
-
-        });
+        // Create business unit only
+        $businessUnit = BusinessUnit::create([
+            'name' => $request->name,
+            'code' => strtoupper($request->code),
+            'description' => $request->description,
+            'address' => $request->address,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'parent_id' => $request->parent_id,
+            'manager_id' => $request->manager_id,
+            'numbering_config' => [],
+            'is_active' => $request->boolean('is_active', true),
+        ]);
 
         return redirect()
             ->route('admin.business-units.index')
-            ->with('success', 'Business unit created successfully with departments and positions.');
+            ->with('success_create_unit', [
+                'title' => 'Success Create Business Unit',
+                'name' => $businessUnit->name
+            ]);
     }
 
     /**
@@ -155,7 +106,7 @@ class BusinessUnitController extends Controller
             'users.user',
             'purchaseRequests' => function ($query) {
                 $query->latest()->limit(10);
-            }
+            },
         ]);
 
         // Statistics
@@ -195,7 +146,7 @@ class BusinessUnitController extends Controller
      */
     public function update(Request $request, BusinessUnit $businessUnit)
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'code' => ['required', 'string', 'max:10', Rule::unique('business_units')->ignore($businessUnit->id)],
             'description' => 'nullable|string|max:1000',
@@ -213,22 +164,14 @@ class BusinessUnitController extends Controller
             return back()->withErrors(['parent_id' => 'Business unit cannot be its own parent.']);
         }
 
-        $businessUnit->update([
-            'name' => $request->name,
-            'code' => strtoupper($request->code),
-            'description' => $request->description,
-            'address' => $request->address,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'parent_id' => $request->parent_id,
-            'manager_id' => $request->manager_id,
-            'numbering_config' => $request->config ?? [],
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+                $businessUnit->update($validatedData);
 
         return redirect()
             ->route('admin.business-units.index')
-            ->with('success', 'Business unit updated successfully.');
+            ->with('success_update_unit', [
+                'title' => 'Success Update Business Unit',
+                'name' => $businessUnit->name
+            ]);
     }
 
     /**
@@ -247,12 +190,10 @@ class BusinessUnitController extends Controller
         }
 
         // Check if business unit has active users
-        $activeUsers = $businessUnit->users()->whereHas('user', function ($query) {
-            $query->where('is_active', true);
-        })->count();
+        $activeUsers = $businessUnit->users()->count();
 
         if ($activeUsers > 0) {
-            return back()->with('error', "Cannot delete business unit that has {$activeUsers} active users. Please reassign users first.");
+            return back()->with('error', "Cannot delete business unit that has {$activeUsers} users. Please reassign users first.");
         }
 
         DB::transaction(function () use ($businessUnit) {
@@ -260,26 +201,31 @@ class BusinessUnitController extends Controller
             foreach ($businessUnit->departments as $department) {
                 $department->positions()->delete();
             }
-            
+
             // Delete all departments
             $businessUnit->departments()->delete();
-            
+
             // Delete user assignments (inactive users)
             $businessUnit->users()->delete();
-            
+
             // Delete numbering sequences
             $businessUnit->numberSequences()->delete();
-            
+
             // Delete numbering modules
             $businessUnit->numberingModules()->delete();
-            
+
             // Finally delete the business unit
             $businessUnit->delete();
         });
 
+        $businessUnitName = $businessUnit->name;
+
         return redirect()
             ->route('admin.business-units.index')
-            ->with('success', 'Business unit and all associated data deleted successfully.');
+            ->with('success_delete_unit', [
+                'title' => 'Success Delete Business Unit',
+                'name' => $businessUnitName
+            ]);
     }
 
     /**
@@ -287,9 +233,10 @@ class BusinessUnitController extends Controller
      */
     public function toggleStatus(BusinessUnit $businessUnit)
     {
-        $businessUnit->update(['is_active' => !$businessUnit->is_active]);
+        $businessUnit->update(['is_active' => ! $businessUnit->is_active]);
 
         $status = $businessUnit->is_active ? 'activated' : 'deactivated';
+
         return back()->with('success', "Business unit {$status} successfully.");
     }
 

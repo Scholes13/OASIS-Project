@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrItem;
-use App\Services\Modules\WNS\PRNumberingService;
+use App\Services\UniversalPRNumberingService;
 use App\Services\Modules\WNS\ApprovalWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +15,10 @@ use Carbon\Carbon;
 
 class PurchaseRequestController extends Controller
 {
-    protected PRNumberingService $numberingService;
+    protected UniversalPRNumberingService $numberingService;
     protected ApprovalWorkflowService $workflowService;
-    
-    public function __construct(PRNumberingService $numberingService, ApprovalWorkflowService $workflowService)
+
+    public function __construct(UniversalPRNumberingService $numberingService, ApprovalWorkflowService $workflowService)
     {
         $this->numberingService = $numberingService;
         $this->workflowService = $workflowService;

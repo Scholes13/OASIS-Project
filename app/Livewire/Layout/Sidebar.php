@@ -59,8 +59,8 @@ class Sidebar extends Component
                 'children' => [
                     [
                         'name' => 'Create New PR',
-                        'href' => route('purchase-requests.request-number'),
-                        'current' => $this->currentRoute === 'purchase-requests.request-number'
+                        'href' => route('purchase-requests.create'),
+                        'current' => $this->currentRoute === 'purchase-requests.create'
                     ],
                     [
                         'name' => 'My History',

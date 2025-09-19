@@ -15,12 +15,19 @@ use Carbon\Carbon;
 class Create extends Component
 {
     // Form fields for complete PR
+    public $title = '';             // Request title
+    public $business_unit_id = '';  // Selected business unit
+    public $department_id = '';     // Selected department
+    public $request_date = '';      // Request date
+    public $description = '';       // Description
+    public $approval_notes = '';    // Approval notes
     public $purpose = '';           // Keperluan
     public $used_for = '';         // Digunakan untuk
     public $expected_date = '';    // Expected delivery date
     public $currency = 'IDR';      // Currency
     public $items = [];            // Items array
     public $departments = [];      // Available departments
+    public $businessUnits = [];    // Available business units
     
     // Approval Flow Settings
     public $approvalFlow = 'automatic';     // 'automatic' or 'custom'
@@ -40,12 +47,18 @@ class Create extends Component
     
     // Validation rules for complete PR
     protected $rules = [
+        'title' => 'required|string|min:3|max:255',
+        'business_unit_id' => 'required|exists:business_units,id',
+        'department_id' => 'required|exists:departments,id',
+        'request_date' => 'required|date',
+        'description' => 'nullable|string|max:1000',
+        'approval_notes' => 'nullable|string|max:1000',
         'purpose' => 'required|string|min:3|max:500',
         'used_for' => 'required|string|min:10|max:1000',
         'items' => 'required|array|min:1',
         'items.*.item_name' => 'required|string|max:255',
-        'items.*.brand_name' => 'nullable|string|max:255',
-        'items.*.item_description' => 'nullable|string|max:1000',
+        'items.*.brand' => 'nullable|string|max:255',
+        'items.*.description' => 'nullable|string|max:1000',
         'items.*.supplier_name' => 'nullable|string|max:255',
         'items.*.quantity' => 'required|numeric|min:0.01',
         'items.*.unit' => 'required|string|max:50',
@@ -53,6 +66,10 @@ class Create extends Component
     ];
 
     protected $messages = [
+        'title.required' => 'Title field is required.',
+        'business_unit_id.required' => 'Business unit is required.',
+        'department_id.required' => 'Department is required.',
+        'request_date.required' => 'Request date is required.',
         'purpose.required' => 'Purpose field is required.',
         'purpose.min' => 'Purpose must be at least 3 characters.',
         'used_for.required' => 'Used for field is required.',
@@ -69,6 +86,12 @@ class Create extends Component
     public function mount()
     {
         // Initialize form properties
+        $this->title = '';
+        $this->business_unit_id = session('current_business_unit_id', '');
+        $this->department_id = session('current_department_id', '');
+        $this->request_date = Carbon::today()->format('Y-m-d');
+        $this->description = '';
+        $this->approval_notes = '';
         $this->purpose = '';
         $this->used_for = '';
         
@@ -83,7 +106,7 @@ class Create extends Component
         
         // Get department from user's current department
         $user = Auth::user();
-        if ($user->primaryDepartment) {
+        if ($user && $user->primaryDepartment) {
             $this->department_name = $user->primaryDepartment->name;
             $this->department_code = $user->primaryDepartment->code;
         } else {
@@ -91,18 +114,51 @@ class Create extends Component
             $this->department_code = 'N/A';
         }
         
-        // Load departments and add first item
+        // Load departments and business units then add first item
+        $this->loadBusinessUnits();
         $this->loadDepartments();
         $this->loadAvailableApprovers();
         $this->addItem();
     }
 
+    public function updatedBusinessUnitId($value)
+    {
+        // Update departments when business unit changes
+        $this->department_id = '';
+        $this->loadDepartments();
+    }
+
+    public function loadBusinessUnits()
+    {
+        $user = Auth::user();
+        
+        if ($user && $user->isSuperAdmin()) {
+            // Super admin can see all business units
+            $this->businessUnits = \App\Models\BusinessUnit::where('is_active', true)
+                ->orderBy('name')
+                ->get();
+        } else if ($user) {
+            // Regular users see only accessible business units
+            $accessibleBusinessUnitIds = $user->businessUnits()->pluck('business_unit_id')->toArray();
+            $this->businessUnits = \App\Models\BusinessUnit::whereIn('id', $accessibleBusinessUnitIds)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+        } else {
+            $this->businessUnits = collect();
+        }
+    }
+
     public function loadDepartments()
     {
-        $this->departments = Department::where('business_unit_id', session('current_business_unit_id'))
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        if ($this->business_unit_id) {
+            $this->departments = Department::where('business_unit_id', $this->business_unit_id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+        } else {
+            $this->departments = collect();
+        }
     }
 
     public function loadAvailableApprovers()
@@ -134,8 +190,8 @@ class Create extends Component
     {
         $this->items[] = [
             'item_name' => '',
-            'brand_name' => '',
-            'item_description' => '',
+            'brand' => '',
+            'description' => '',
             'supplier_name' => '',
             'quantity' => 1,
             'unit' => 'pcs',
@@ -361,6 +417,31 @@ class Create extends Component
         $this->dispatch('totals-updated');
     }
 
+    public function getGrandTotal()
+    {
+        $total = 0;
+        
+        foreach ($this->items as $item) {
+            $quantity = 0;
+            if (isset($item['quantity']) && is_numeric($item['quantity'])) {
+                $quantity = intval($item['quantity']);
+            }
+
+            $unitPrice = 0;
+            if (isset($item['unit_price'])) {
+                // Remove all non-numeric characters
+                $cleanPrice = preg_replace('/[^0-9]/', '', $item['unit_price']);
+                if (is_numeric($cleanPrice)) {
+                    $unitPrice = intval($cleanPrice);
+                }
+            }
+
+            $total += $quantity * $unitPrice;
+        }
+        
+        return $total;
+    }
+
     public function getTotalAmountProperty()
     {
         $total = 0;
@@ -457,6 +538,11 @@ class Create extends Component
         } finally {
             $this->isLoading = false;
         }
+    }
+
+    public function submitRequest()
+    {
+        return $this->submitPurchaseRequest();
     }
 
     public function submitPurchaseRequest()

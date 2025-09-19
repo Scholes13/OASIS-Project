@@ -10,7 +10,7 @@
                 <p class="text-sm text-gray-600 mt-1">Manage your purchase requests for {{ session('current_business_unit_name') }}</p>
             </div>
             <div class="flex items-center space-x-3">
-                <a href="{{ route('purchase-requests.request-number') }}" 
+                <a href="{{ route('purchase-requests.create') }}" 
                    wire:navigate
                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +224,7 @@
                     </div>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No Purchase Request History</h3>
                     <p class="text-gray-500 mb-6">You haven't created any purchase requests or reserved any numbers yet. Get started by creating your first one.</p>
-                    <a href="{{ route('purchase-requests.request-number') }}" 
+                    <a href="{{ route('purchase-requests.create') }}" 
                        wire:navigate
                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

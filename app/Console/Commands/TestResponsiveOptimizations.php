@@ -67,7 +67,7 @@ class TestResponsiveOptimizations extends Command
         }
         
         // Check form optimizations
-        $formPath = resource_path('views/livewire/purchase-requests/request-number.blade.php');
+        $formPath = resource_path('views/livewire/purchase-requests/create.blade.php');
         if (file_exists($formPath)) {
             $content = file_get_contents($formPath);
             

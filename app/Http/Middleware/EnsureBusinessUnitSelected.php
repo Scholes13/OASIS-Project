@@ -66,15 +66,12 @@ class EnsureBusinessUnitSelected
             $currentBusinessUnitId = session('current_business_unit_id');
 
             if (!$currentBusinessUnitId) {
-                // Fallback: Set primary business unit if not set during login
-                $primaryBu = $user->activeBusinessUnits()
-                    ->with('businessUnit')
-                    ->orderBy('created_at', 'asc')
-                    ->first();
-
-                if ($primaryBu) {
+                // Priority 1: Try to use user's primary business unit
+                $primaryBu = $user->primaryBusinessUnit();
+                
+                if ($primaryBu && $primaryBu->businessUnit) {
                     $businessUnit = $primaryBu->businessUnit;
-
+                    
                     session([
                         'current_business_unit_id' => $businessUnit->id,
                         'current_business_unit_code' => $businessUnit->code,
@@ -83,10 +80,28 @@ class EnsureBusinessUnitSelected
                         'current_department_id' => $primaryBu->department_id,
                     ]);
                 } else {
-                    // User has no business unit access - show error
-                    Auth::logout();
-                    return redirect()->route('login')
-                        ->with('error', 'You do not have access to any business unit. Please contact administrator.');
+                    // Priority 2: Fallback to first active business unit
+                    $fallbackBu = $user->activeBusinessUnits()
+                        ->with('businessUnit')
+                        ->orderBy('created_at', 'asc')
+                        ->first();
+
+                    if ($fallbackBu) {
+                        $businessUnit = $fallbackBu->businessUnit;
+
+                        session([
+                            'current_business_unit_id' => $businessUnit->id,
+                            'current_business_unit_code' => $businessUnit->code,
+                            'current_business_unit_name' => $businessUnit->name,
+                            'current_user_role' => $user->getAccessLevel(),
+                            'current_department_id' => $fallbackBu->department_id,
+                        ]);
+                    } else {
+                        // User has no business unit access - show error
+                        Auth::logout();
+                        return redirect()->route('login')
+                            ->with('error', 'You do not have access to any business unit. Please contact administrator.');
+                    }
                 }
             } else {
                 // Validate that user still has access to current business unit

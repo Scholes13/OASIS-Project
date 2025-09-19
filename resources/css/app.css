@@ -305,7 +305,53 @@
         table-layout: fixed;
     }
     
-    /* Responsive breakpoint utilities */
+    /* Purchase Request Form Table - Optimized Column Widths */
+    .pr-form-table {
+        min-width: 1400px;
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .pr-form-table .col-no { 
+        width: 60px; 
+        min-width: 60px; 
+    }
+    .pr-form-table .col-item-name { 
+        width: 200px; 
+        min-width: 200px; 
+    }
+    .pr-form-table .col-brand { 
+        width: 120px; 
+        min-width: 120px; 
+    }
+    .pr-form-table .col-supplier { 
+        width: 120px; 
+        min-width: 120px; 
+    }
+    .pr-form-table .col-qty { 
+        width: 160px; 
+        min-width: 160px; /* Diperlebar lagi dari 150px ke 160px */
+    }
+    .pr-form-table .col-unit { 
+        width: 200px; 
+        min-width: 200px; /* Diperlebar lagi dari 180px ke 200px */
+    }
+    .pr-form-table .col-unit-price { 
+        width: 140px; 
+        min-width: 140px; 
+    }
+    .pr-form-table .col-total { 
+        width: 140px; 
+        min-width: 140px; 
+    }
+    .pr-form-table .col-department { 
+        width: 140px; 
+        min-width: 140px; 
+    }
+    .pr-form-table .col-action { 
+        width: 80px; 
+        min-width: 80px; 
+    }    /* Responsive breakpoint utilities */
     .responsive-hide-mobile {
         display: none;
     }
@@ -661,4 +707,35 @@ html body main .text-lg {
 html body main .text-sm {
     font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important;
     line-height: 1.25 !important;
+}
+
+/* Business Unit Form Responsive & Clean Layout */
+.business-unit-form {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Remove any horizontal scroll issues */
+body, html {
+    overflow-x: hidden !important;
+}
+
+/* Better form field spacing */
+.business-unit-form .space-y-6 > * + * {
+    margin-top: 1.5rem !important;
+}
+
+/* Consistent input styling */
+.business-unit-form input, 
+.business-unit-form textarea, 
+.business-unit-form select {
+    transition: all 0.15s ease-in-out;
+}
+
+.business-unit-form input:focus,
+.business-unit-form textarea:focus,
+.business-unit-form select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }

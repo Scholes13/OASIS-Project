@@ -1,33 +1,102 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Purchase Request Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**WNS (Werkudara Nusantara Sejahtera) - Universal Purchase Request System**
 
-## About Laravel
+A modern Laravel 12 application with Livewire 3 for managing enterprise purchase requests with multi-level approval workflows and universal business unit support.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## System Overview
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+This is an enterprise **Purchase Request Management System** designed specifically for multi-business unit operations with hierarchical approval workflows.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Core Features
 
-## Learning Laravel
+- **Universal Routing System**: Single route structure supporting multiple business units (WNS, UKA, WG)
+- **Multi-Level Approval Workflow**: Automatic approval routing based on amount thresholds
+- **Sequential PR Numbering**: Business unit-specific numbering with proper sequence management  
+- **QR Code Integration**: PDF verification and tracking system
+- **Real-time Livewire Interface**: Modern, responsive UI with instant feedback
+- **Role-Based Access Control**: Hierarchical permission system with Spatie Permission
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Architecture
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- **Laravel Framework**: 12.26.3
+- **Livewire**: 3.6.4 for reactive components
+- **Tailwind CSS**: 3.x for modern styling
+- **Alpine.js**: 3.x for client-side interactions
+- **DomPDF**: PDF generation with QR codes
+- **Spatie Permission**: Role and permission management
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Key Services
+
+- **UniversalPRNumberingService**: Centralized PR numbering across all business units
+- **ApprovalWorkflowService**: Core approval engine with rule-based approver assignment  
+- **QrCodeService**: PDF verification and tracking system
+
+## Quick Start
+
+### Prerequisites
+
+- PHP 8.2+
+- Composer
+- Node.js & NPM
+- MySQL/SQLite database
+
+### Installation
+
+```bash
+# Clone repository
+git clone https://github.com/Scholes13/Numbering.git
+cd Numbering
+
+# Install dependencies
+composer install
+npm install
+
+# Environment setup
+cp .env.example .env
+php artisan key:generate
+
+# Database setup
+php artisan migrate
+php artisan db:seed
+
+# Build assets
+npm run build
+
+# Start development server
+php artisan serve
+```
+
+## Project Structure
+
+### Universal Architecture
+
+The system uses a universal architecture where:
+- Single route definitions support all business units
+- Dynamic component loading based on business unit context  
+- Centralized services with business unit awareness
+- Unified approval workflow with customizable rules
+
+### Core Components
+
+```
+app/
+├── Livewire/Modules/WNS/           # Business unit specific components
+├── Services/                       # Core business services
+│   ├── UniversalPRNumberingService.php
+│   └── Modules/WNS/ApprovalWorkflowService.php
+├── Models/Modules/WNS/             # Domain models
+└── Http/Controllers/               # RESTful API endpoints
+
+resources/views/
+├── purchase-requests/              # Universal templates
+├── livewire/modules/wns/           # Business unit specific views
+└── layouts/                        # Application layouts
+
+routes/
+├── web.php                         # Universal web routes
+└── api.php                         # RESTful API routes
+```
 
 ## Laravel Sponsors
 

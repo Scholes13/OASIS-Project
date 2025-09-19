@@ -114,9 +114,7 @@ class BusinessUnitController extends Controller
             'total_departments' => $businessUnit->departments()->count(),
             'active_departments' => $businessUnit->departments()->where('is_active', true)->count(),
             'total_users' => $businessUnit->users()->count(),
-            'active_users' => $businessUnit->users()->whereHas('user', function ($query) {
-                $query->where('is_active', true);
-            })->count(),
+            'active_users' => $businessUnit->users()->where('is_active', true)->count(),
             'total_prs' => $businessUnit->purchaseRequests()->count(),
             'pending_prs' => $businessUnit->purchaseRequests()->where('status', 'submitted')->count(),
         ];

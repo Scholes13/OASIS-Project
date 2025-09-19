@@ -6,7 +6,7 @@
                 <p class="text-sm text-gray-600 mt-1">Track your reserved PR numbers for {{ session('current_business_unit_name') }}</p>
             </div>
             <div class="flex items-center space-x-3">
-                <a href="{{ route('purchase-requests.request-number') }}" 
+                <a href="{{ route('purchase-requests.create') }}" 
                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -215,7 +215,7 @@
                     <h3 class="mt-2 text-sm font-medium text-gray-900">No PR numbers reserved</h3>
                     <p class="mt-1 text-sm text-gray-500">Get started by requesting your first PR number.</p>
                     <div class="mt-6">
-                        <a href="{{ route('purchase-requests.request-number') }}" 
+                        <a href="{{ route('purchase-requests.create') }}" 
                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>

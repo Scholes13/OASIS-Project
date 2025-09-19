@@ -179,7 +179,7 @@
                 </div>
                 <div class="p-4 lg:p-6">
                     <div class="space-y-3">
-                        <a href="{{ route('purchase-requests.request-number') }}" class="group block p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200 transform hover:scale-[1.02]">
+                        <a href="{{ route('purchase-requests.create') }}" class="group block p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200 transform hover:scale-[1.02]">
                             <div class="flex items-center space-x-3">
                                 <div class="flex-shrink-0">
                                     <div class="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center group-hover:from-indigo-200 group-hover:to-indigo-300 transition-colors duration-200">
@@ -195,7 +195,7 @@
                             </div>
                         </a>
 
-                        <a href="{{ route('purchase-requests.request-number') }}" class="group block p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-200 transform hover:scale-[1.02]">
+                        <a href="{{ route('purchase-requests.create') }}" class="group block p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-200 transform hover:scale-[1.02]">
                             <div class="flex items-center space-x-3">
                                 <div class="flex-shrink-0">
                                     <div class="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-300 transition-colors duration-200">

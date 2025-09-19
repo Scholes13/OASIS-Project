@@ -135,51 +135,6 @@
                 <main class="flex-1 overflow-y-auto bg-gray-50">
                     <div class="content-spacing">
                         <div class="fluid-container">
-                            <!-- Flash messages -->
-                            @if (session('success'))
-                                <div class="mb-6 rounded-lg bg-green-50 p-4 border border-green-200 shadow-sm">
-                                    <div class="flex">
-                                        <div class="flex-shrink-0">
-                                            <svg class="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div class="ml-3">
-                                            <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                                        </div>
-                                        <div class="ml-auto pl-3">
-                                            <button type="button" class="text-green-400 hover:text-green-600" onclick="this.parentElement.parentElement.parentElement.remove()">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            @if (session('error'))
-                                <div class="mb-6 rounded-lg bg-red-50 p-4 border border-red-200 shadow-sm">
-                                    <div class="flex">
-                                        <div class="flex-shrink-0">
-                                            <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div class="ml-3">
-                                            <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
-                                        </div>
-                                        <div class="ml-auto pl-3">
-                                            <button type="button" class="text-red-400 hover:text-red-600" onclick="this.parentElement.parentElement.parentElement.remove()">
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-                            
                             <!-- Page content -->
                             {{ $slot }}
                         </div>
@@ -231,26 +186,15 @@
             });
         </script>
         
-        <!-- Ensure proper Alpine.js initialization -->
+        <!-- Livewire navigation handlers only (Alpine is auto-loaded by Livewire 3) -->
         <script>
-            // Fix Alpine.js initialization issues
-            document.addEventListener('DOMContentLoaded', function() {
-                // Ensure Alpine is properly initialized
-                if (typeof Alpine !== 'undefined' && Alpine.start) {
-                    Alpine.start();
-                }
-            });
-            
-            // Handle Livewire navigation errors gracefully
+            // Handle Livewire navigation gracefully
             document.addEventListener('livewire:navigating', function() {
                 // Show loading state if needed
             });
             
             document.addEventListener('livewire:navigated', function() {
-                // Re-initialize any components if needed
-                if (typeof Alpine !== 'undefined' && Alpine.initTree) {
-                    Alpine.initTree(document.body);
-                }
+                // Page navigation completed
             });
         </script>
     </body>

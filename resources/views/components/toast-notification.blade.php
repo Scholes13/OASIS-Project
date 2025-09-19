@@ -1,93 +1,82 @@
-<!-- Toast Notification Container -->
-<div 
-    x-data="{ 
-        notifications: [],
-        show(message, type = 'info', duration = 5000) {
-            const id = Date.now();
-            this.notifications.push({ id, message, type });
-            
-            setTimeout(() => {
-                this.removeNotification(id);
-            }, duration);
-        },
-        removeNotification(id) {
-            this.notifications = this.notifications.filter(n => n.id !== id);
-        }
-    }"
-    @notify.window="show($event.detail.message, $event.detail.type || 'info', $event.detail.duration || 5000)"
-    class="fixed top-4 right-4 z-50 space-y-2 w-96 max-w-full pointer-events-none">
+<!-- Simple Toast Notification Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2 w-96 max-w-full" style="z-index: 9999;">
+    <!-- Toasts will be dynamically added here -->
+</div>
+
+<script>
+// Simple global toast system
+window.toastManager = {
+    container: null,
+    lastToastTime: 0,
+    lastToastMessage: '',
     
-    <template x-for="notification in notifications" :key="notification.id">
-        <div 
-            x-show="true"
-            x-transition:enter="transition-all duration-300 transform"
-            x-transition:enter-start="translate-x-full opacity-0"
-            x-transition:enter-end="translate-x-0 opacity-100"
-            x-transition:leave="transition-all duration-300 transform"
-            x-transition:leave-start="translate-x-0 opacity-100"
-            x-transition:leave-end="translate-x-full opacity-0"
-            class="pointer-events-auto relative overflow-hidden rounded-lg shadow-lg ring-1 ring-black ring-opacity-5"
-            :class="{
-                'bg-white border-l-4 border-l-green-400': notification.type === 'success',
-                'bg-white border-l-4 border-l-red-400': notification.type === 'error',
-                'bg-white border-l-4 border-l-yellow-400': notification.type === 'warning',
-                'bg-white border-l-4 border-l-blue-400': notification.type === 'info'
-            }">
-            
+    init() {
+        this.container = document.getElementById('toast-container');
+        
+        // Listen for Livewire events
+        document.addEventListener('livewire:init', () => {
+            if (typeof Livewire !== 'undefined') {
+                Livewire.on('notify', (data) => {
+                    console.log('Livewire notify received:', data);
+                    this.show(data.message, data.type, data.duration);
+                });
+            }
+        });
+        
+        // Listen for custom events
+        window.addEventListener('show-toast', (e) => {
+            console.log('Custom toast event:', e.detail);
+            this.show(e.detail.message, e.detail.type, e.detail.duration);
+        });
+    },
+    
+    show(message, type = 'info', duration = 5000) {
+        if (!this.container) {
+            console.error('Toast container not found');
+            return;
+        }
+        
+        // Debounce - prevent rapid duplicate toasts
+        const now = Date.now();
+        if (now - this.lastToastTime < 100 && this.lastToastMessage === message) {
+            console.log('Duplicate toast prevented by debounce');
+            return;
+        }
+        this.lastToastTime = now;
+        this.lastToastMessage = message;
+        
+        console.log('Showing toast:', { message, type, duration });
+        
+        // Enhanced duplicate prevention - check for existing similar messages
+        const existingToasts = this.container.querySelectorAll('[id^="toast-"]');
+        for (let toast of existingToasts) {
+            const existingMessage = toast.querySelector('.text-sm').innerHTML;
+            if (existingMessage === message) {
+                console.log('Duplicate toast prevented - identical message found');
+                return;
+            }
+        }
+        
+        const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = `transform transition-all duration-300 translate-x-full opacity-0 scale-95 pointer-events-auto relative overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 border-l-4 ${this.getBorderClass(type)}`;
+        
+        toast.innerHTML = `
             <div class="p-4">
                 <div class="flex items-start">
                     <div class="flex-shrink-0">
-                        <!-- Success Icon -->
-                        <template x-if="notification.type === 'success'">
-                            <svg class="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </template>
-                        
-                        <!-- Error Icon -->
-                        <template x-if="notification.type === 'error'">
-                            <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </template>
-                        
-                        <!-- Warning Icon -->
-                        <template x-if="notification.type === 'warning'">
-                            <svg class="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                            </svg>
-                        </template>
-                        
-                        <!-- Info Icon -->
-                        <template x-if="notification.type === 'info'">
-                            <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </template>
+                        <div class="flex items-center justify-center w-8 h-8 rounded-full ${this.getIconBgClass(type)}">
+                            ${this.getIcon(type)}
+                        </div>
                     </div>
-                    
-                    <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium"
-                           :class="{
-                               'text-green-800': notification.type === 'success',
-                               'text-red-800': notification.type === 'error',
-                               'text-yellow-800': notification.type === 'warning',
-                               'text-blue-800': notification.type === 'info'
-                           }"
-                           x-text="notification.message">
-                        </p>
+                    <div class="ml-3 flex-1 pt-0.5">
+                        <div class="text-sm font-medium text-gray-900">${message}</div>
                     </div>
-                    
                     <div class="ml-4 flex-shrink-0">
-                        <button
-                            @click="removeNotification(notification.id)"
-                            class="inline-flex rounded-md p-1.5 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            :class="{
-                                'text-green-500 hover:bg-green-50 focus:ring-green-500': notification.type === 'success',
-                                'text-red-500 hover:bg-red-50 focus:ring-red-500': notification.type === 'error',
-                                'text-yellow-500 hover:bg-yellow-50 focus:ring-yellow-500': notification.type === 'warning',
-                                'text-blue-500 hover:bg-blue-50 focus:ring-blue-500': notification.type === 'info'
-                            }">
+                        <button onclick="window.toastManager.remove('${toastId}')" class="inline-flex rounded-md p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
                             <span class="sr-only">Dismiss</span>
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -96,6 +85,102 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </template>
-</div>
+            <div class="w-full bg-gray-200 h-1">
+                <div class="h-1 rounded-br-lg transition-all ease-linear ${this.getProgressBarClass(type)}" style="width: 100%; animation: shrink ${duration}ms linear forwards;"></div>
+            </div>
+        `;
+        
+        // Add to container
+        this.container.appendChild(toast);
+        
+        // Trigger enter animation
+        setTimeout(() => {
+            toast.className = toast.className.replace('translate-x-full opacity-0 scale-95', 'translate-x-0 opacity-100 scale-100');
+        }, 10);
+        
+        // Auto remove
+        setTimeout(() => {
+            this.remove(toastId);
+        }, duration);
+    },
+    
+    remove(toastId) {
+        const toast = document.getElementById(toastId);
+        if (!toast) return;
+        
+        // Trigger exit animation
+        toast.className = toast.className.replace('translate-x-0 opacity-100 scale-100', 'translate-x-full opacity-0 scale-95');
+        
+        // Remove from DOM after animation
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    },
+    
+    getBorderClass(type) {
+        const classes = {
+            'success': 'border-l-green-600',
+            'error': 'border-l-red-600',
+            'warning': 'border-l-yellow-600',
+            'info': 'border-l-blue-600'
+        };
+        return classes[type] || classes.info;
+    },
+    
+    getIconBgClass(type) {
+        const classes = {
+            'success': 'bg-green-100',
+            'error': 'bg-red-100',
+            'warning': 'bg-yellow-100',
+            'info': 'bg-blue-100'
+        };
+        return classes[type] || classes.info;
+    },
+    
+    getProgressBarClass(type) {
+        const classes = {
+            'success': 'bg-green-600',
+            'error': 'bg-red-600',
+            'warning': 'bg-yellow-600',
+            'info': 'bg-blue-600'
+        };
+        return classes[type] || classes.info;
+    },
+    
+    getIcon(type) {
+        const icons = {
+            'success': '<svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+            'error': '<svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+            'warning': '<svg class="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>',
+            'info': '<svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+        };
+        return icons[type] || icons.info;
+    }
+};
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => window.toastManager.init());
+} else {
+    window.toastManager.init();
+}
+
+// Reinitialize after navigation
+document.addEventListener('livewire:navigated', () => {
+    setTimeout(() => window.toastManager.init(), 100);
+});
+</script>
+
+<style>
+@keyframes shrink {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+/* Pause animation on hover */
+#toast-container > div:hover .h-1 {
+    animation-play-state: paused !important;
+}
+</style>

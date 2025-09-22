@@ -14,7 +14,7 @@ class UniversalPRNumberingService
 {
     protected NumberingService $numberingService;
     protected string $moduleCode = 'PR';
-    protected string $formatPattern = 'PR.{BU_CODE}-{DEPT_CODE}/{YYYYMM}/{SEQUENCE}';
+    protected string $formatPattern = 'PR.{BU_CODE}/{YYYYMM}/{SEQUENCE}';
     
     public function __construct(NumberingService $numberingService)
     {
@@ -55,21 +55,19 @@ class UniversalPRNumberingService
         $this->ensurePRModule($businessUnit);
         
         // Generate sequence number
-        // Use business_unit + department combination for unique sequences per BU-DEPT
-        $sequenceKey = $businessUnit->id . '-' . $department->id;
+        // Use business unit only for continuous sequence per BU across all departments
         
         $result = $this->numberingService->generateNumber(
             $businessUnit->id,
             $this->moduleCode,
-            $department->id, // Use department for sequence separation
+            null, // No department separation - continuous per BU
             $date->year,
-            $date->month     // Monthly reset for better organization
+            null  // No monthly reset - yearly reset only
         );
         
-        // Format the PR number with new universal format
+        // Format the PR number with new simplified format
         $result['formatted_number'] = $this->formatUniversalPRNumber(
             $businessUnit->code,
-            $department->code,
             $date->year,
             $date->month,
             $result['sequence_number']
@@ -179,20 +177,18 @@ class UniversalPRNumberingService
     }
     
     /**
-     * Format PR number with universal format
-     * Format: PR.{BU_CODE}-{DEPT_CODE}/{YYYYMM}/{XX}
+     * Format PR number with simplified format
+     * Format: PR.{BU_CODE}/{YYYYMM}/{XXX}
      */
     protected function formatUniversalPRNumber(
         string $buCode, 
-        string $deptCode, 
         int $year, 
         int $month, 
         int $sequence
     ): string {
         return sprintf(
-            'PR.%s-%s/%d%02d/%02d',
+            'PR.%s/%d%02d/%03d',
             $buCode,
-            $deptCode,
             $year,
             $month,
             $sequence
@@ -204,20 +200,19 @@ class UniversalPRNumberingService
      */
     public function parseUniversalPRNumber(string $prNumber): array
     {
-        // Expected format: PR.BU-DEPT/YYYYMM/XX
-        $pattern = '/^PR\.([A-Z]+)-([A-Z]+)\/(\d{6})\/(\d{2})$/';
+        // Expected format: PR.BU/YYYYMM/XXX
+        $pattern = '/^PR\.([A-Z]+)\/(\d{6})\/(\d{3})$/';
         
         if (preg_match($pattern, $prNumber, $matches)) {
-            $yearMonth = $matches[3];
+            $yearMonth = $matches[2];
             $year = (int) substr($yearMonth, 0, 4);
             $month = (int) substr($yearMonth, 4, 2);
             
             return [
                 'business_unit_code' => $matches[1],
-                'department_code' => $matches[2],
                 'year' => $year,
                 'month' => $month,
-                'sequence' => (int) $matches[4],
+                'sequence' => (int) $matches[3],
                 'year_month' => $yearMonth,
                 'valid' => true,
             ];
@@ -257,9 +252,9 @@ class UniversalPRNumberingService
         $status = $this->numberingService->getSequenceStatus(
             $businessUnit->id,
             $this->moduleCode,
-            $department->id,
+            null, // No department separation
             $date->year,
-            $date->month
+            null  // No monthly separation
         );
         
         // Handle null status
@@ -267,14 +262,13 @@ class UniversalPRNumberingService
             $status = [
                 'current_number' => 0,
                 'next_number' => 1,
-                'available_numbers' => 99,
+                'available_numbers' => 999,
             ];
         }
         
         // Format preview number
         $previewNumber = $this->formatUniversalPRNumber(
             $businessUnit->code,
-            $department->code,
             $date->year,
             $date->month,
             $status['next_number']
@@ -372,12 +366,12 @@ class UniversalPRNumberingService
                 'module_name' => 'Purchase Request',
                 'format_pattern' => $this->formatPattern,
                 'config' => [
-                    'sequence_padding' => 2,
-                    'max_number' => 99,
-                    'reset_annually' => false,  // No yearly reset
-                    'reset_monthly' => true,    // Monthly reset for better organization
-                    'cross_department' => false, // Department-specific sequences
-                    'shared_sequence' => false,  // Each department has own sequence
+                    'sequence_padding' => 3,
+                    'max_number' => 999,
+                    'reset_annually' => true,   // Yearly reset
+                    'reset_monthly' => false,   // No monthly reset
+                    'cross_department' => true, // Continuous across departments
+                    'shared_sequence' => true,  // Shared sequence for all departments in BU
                 ],
                 'is_active' => true,
             ]

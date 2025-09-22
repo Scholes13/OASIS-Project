@@ -15,7 +15,6 @@ use Carbon\Carbon;
 class Create extends Component
 {
     // Form fields for complete PR
-    public $title = '';             // Request title
     public $business_unit_id = '';  // Selected business unit
     public $department_id = '';     // Selected department
     public $request_date = '';      // Request date
@@ -46,7 +45,6 @@ class Create extends Component
     
     // Validation rules for complete PR
     protected $rules = [
-        'title' => 'required|string|min:3|max:255',
         'business_unit_id' => 'required|exists:business_units,id',
         'department_id' => 'required|exists:departments,id',
         'request_date' => 'required|date',
@@ -65,7 +63,6 @@ class Create extends Component
     ];
 
     protected $messages = [
-        'title.required' => 'Title field is required.',
         'business_unit_id.required' => 'Business unit is required.',
         'department_id.required' => 'Department is required.',
         'request_date.required' => 'Request date is required.',
@@ -85,7 +82,6 @@ class Create extends Component
     public function mount()
     {
         // Initialize form properties
-        $this->title = '';
         $this->business_unit_id = session('current_business_unit_id', '');
         $this->department_id = session('current_department_id', '');
         $this->request_date = Carbon::today()->format('Y-m-d');

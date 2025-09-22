@@ -16,6 +16,23 @@ Route::get('/', function () {
 // Public routes (no authentication required)
 Route::get('/purchase-requests/{pr}/public', [ApprovalController::class, 'publicView'])->name('purchase-requests.public');
 
+// Test route for QR codes (temporary)
+Route::get('/test-qr/{pr}', function ($prId) {
+    $pr = \App\Models\Modules\WNS\PurchaseRequest::with([
+        'user', 'department', 'businessUnit', 'items', 'approvals.approver'
+    ])->findOrFail($prId);
+    
+    $qrCodeService = new \App\Services\QrCodeService();
+    $qrCodes = [];
+    $qrCodes['requestor'] = $qrCodeService->generateRequestorQrCodeDataUrl($pr);
+    $qrCodes['approvals'] = [];
+    foreach ($pr->approvals as $approval) {
+        $qrCodes['approvals'][$approval->id] = $qrCodeService->generateApproverQrCodeDataUrl($approval);
+    }
+    
+    return view('test-qr', compact('qrCodes', 'pr'));
+})->name('test-qr');
+
 // Dashboard with enhanced middleware
 Route::get('dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])

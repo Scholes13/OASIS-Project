@@ -48,6 +48,11 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             return view('purchase-requests.create');
         })->name('create');
 
+        // Create with Reserved Number Route
+        Route::get('/create-with-number', function () {
+            return view('purchase-requests.create-with-number');
+        })->name('create-with-number');
+
         Route::post('/', [PurchaseRequestController::class, 'store'])->name('store');
         Route::get('/{purchaseRequest}', [PurchaseRequestController::class, 'show'])->name('show');
         Route::get('/{purchaseRequest}/edit', [PurchaseRequestController::class, 'edit'])->name('edit');

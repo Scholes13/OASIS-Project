@@ -299,58 +299,58 @@
         background: #a0aec0;
     }
     
-    /* Table with minimum width to prevent column squashing */
+    /* Table with responsive minimum width */
     .table-fixed-columns {
-        min-width: 1200px; /* Ensure table doesn't get too narrow */
+        min-width: clamp(75rem, 90vw, 100rem); /* Responsive table minimum width */
         table-layout: fixed;
     }
     
-    /* Purchase Request Form Table - Optimized Column Widths */
+    /* Purchase Request Form Table - Fluid Responsive Column Widths */
     .pr-form-table {
-        min-width: 1400px;
+        min-width: clamp(87.5rem, 95vw, 110rem); /* 1400px equivalent but fluid */
         table-layout: fixed;
         width: 100%;
     }
 
     .pr-form-table .col-no { 
-        width: 60px; 
-        min-width: 60px; 
+        width: clamp(3.75rem, 4vw, 5rem); /* ~60px fluid */
+        min-width: clamp(3.75rem, 4vw, 5rem); 
     }
     .pr-form-table .col-item-name { 
-        width: 200px; 
-        min-width: 200px; 
+        width: clamp(12.5rem, 15vw, 16rem); /* ~200px fluid */
+        min-width: clamp(12.5rem, 15vw, 16rem); 
     }
     .pr-form-table .col-brand { 
-        width: 120px; 
-        min-width: 120px; 
+        width: clamp(7.5rem, 9vw, 10rem); /* ~120px fluid */
+        min-width: clamp(7.5rem, 9vw, 10rem); 
     }
     .pr-form-table .col-supplier { 
-        width: 120px; 
-        min-width: 120px; 
+        width: clamp(7.5rem, 9vw, 10rem); /* ~120px fluid */
+        min-width: clamp(7.5rem, 9vw, 10rem); 
     }
     .pr-form-table .col-qty { 
-        width: 160px; 
-        min-width: 160px; /* Diperlebar lagi dari 150px ke 160px */
+        width: clamp(10rem, 12vw, 13rem); /* ~160px fluid */
+        min-width: clamp(10rem, 12vw, 13rem); 
     }
     .pr-form-table .col-unit { 
-        width: 200px; 
-        min-width: 200px; /* Diperlebar lagi dari 180px ke 200px */
+        width: clamp(12.5rem, 15vw, 16rem); /* ~200px fluid */
+        min-width: clamp(12.5rem, 15vw, 16rem); 
     }
     .pr-form-table .col-unit-price { 
-        width: 140px; 
-        min-width: 140px; 
+        width: clamp(8.75rem, 10vw, 11rem); /* ~140px fluid */
+        min-width: clamp(8.75rem, 10vw, 11rem); 
     }
     .pr-form-table .col-total { 
-        width: 140px; 
-        min-width: 140px; 
+        width: clamp(8.75rem, 10vw, 11rem); /* ~140px fluid */
+        min-width: clamp(8.75rem, 10vw, 11rem); 
     }
     .pr-form-table .col-department { 
-        width: 140px; 
-        min-width: 140px; 
+        width: clamp(8.75rem, 10vw, 11rem); /* ~140px fluid */
+        min-width: clamp(8.75rem, 10vw, 11rem); 
     }
     .pr-form-table .col-action { 
-        width: 80px; 
-        min-width: 80px; 
+        width: clamp(5rem, 6vw, 7rem); /* ~80px fluid */
+        min-width: clamp(5rem, 6vw, 7rem); 
     }    /* Responsive breakpoint utilities */
     .responsive-hide-mobile {
         display: none;

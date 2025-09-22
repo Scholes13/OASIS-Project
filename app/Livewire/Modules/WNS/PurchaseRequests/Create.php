@@ -31,8 +31,7 @@ class Create extends Component
     
     // Approval Flow Settings
     public $approvalFlow = 'automatic';     // 'automatic' or 'custom'
-    public $customApprovalLayers = 1;       // Number of custom approval layers (1-5)
-    public $customApprovers = [];           // Array of custom approvers
+    public $customApprovalList = [];        // NEW: Array of custom approval items with approver_id and task_type
     public $availableApprovers = [];        // Available approvers for selection
     
     // Auto-generated fields (display only)
@@ -97,8 +96,7 @@ class Create extends Component
         
         // Initialize approval flow settings
         $this->approvalFlow = 'automatic';
-        $this->customApprovalLayers = 1;
-        $this->customApprovers = [];
+        $this->customApprovalList = [];
         
         // Auto-populate data from current user and session
         $this->submission_date = Carbon::today()->format('d/m/Y');
@@ -273,70 +271,92 @@ class Create extends Component
     {
         // Reset custom approval settings when switching to automatic
         if ($this->approvalFlow === 'automatic') {
-            $this->customApprovalLayers = 1;
-            $this->customApprovers = [];
+            $this->customApprovalList = [];
+        } elseif (empty($this->customApprovalList)) {
+            // Initialize with first approval row if empty
+            $this->customApprovalList = [['approver_id' => '', 'task_type' => 'approval']];
         }
         
         // Force re-render to ensure UI updates
         $this->dispatch('approval-flow-changed');
     }
 
-    public function updatedCustomApprovalLayers()
+    public function addCustomApproval()
     {
-        // Reset custom approvers when changing number of layers
-        $this->customApprovers = [];
+        $this->customApprovalList[] = [
+            'approver_id' => '',
+            'task_type' => 'approval'
+        ];
         
-        // Force re-render to ensure UI updates
-        $this->dispatch('approval-layers-changed');
+        $this->dispatch('approval-row-added');
+    }
+
+    public function removeCustomApproval($index)
+    {
+        if (count($this->customApprovalList) > 1) {
+            unset($this->customApprovalList[$index]);
+            $this->customApprovalList = array_values($this->customApprovalList);
+        }
+        
+        $this->dispatch('approval-row-removed');
     }
 
     protected function createCustomApprovalWorkflow(PurchaseRequest $purchaseRequest)
     {
         // Validate that custom approvers are selected
-        $selectedApprovers = array_filter($this->customApprovers);
+        $validApprovals = array_filter($this->customApprovalList, function($approval) {
+            return !empty($approval['approver_id']);
+        });
         
-        if (empty($selectedApprovers)) {
+        if (empty($validApprovals)) {
             throw new \Exception('Please select at least one approver for custom approval workflow.');
+        }
+
+        // Check for duplicate approvers
+        $approverIds = array_column($validApprovals, 'approver_id');
+        if (count($approverIds) !== count(array_unique($approverIds))) {
+            throw new \Exception('Cannot select the same approver for multiple steps.');
         }
 
         // Create approval steps for custom workflow
         $stepOrder = 1;
         $workflowStructure = [];
         
-        foreach ($selectedApprovers as $layerIndex => $approverId) {
-            if (!empty($approverId)) {
-                $approver = \App\Models\User::find($approverId);
-                
-                if (!$approver) {
-                    throw new \Exception("Approver not found for layer {$layerIndex}");
-                }
-
-                // Create approval record
-                \App\Models\Modules\WNS\PrApproval::create([
-                    'purchase_request_id' => $purchaseRequest->id,
-                    'approver_id' => $approverId,
-                    'step_order' => $stepOrder,
-                    'approval_type' => 'custom',
-                    'status' => 'pending',
-                    'assigned_at' => now(),
-                    'due_date' => $this->addBusinessDays(now(), 3), // Default 3 business days
-                    'notes' => null,
-                    'responded_at' => null,
-                ]);
-
-                // Build workflow structure
-                $workflowStructure[] = [
-                    'approver_id' => $approverId,
-                    'approver_name' => $approver->name,
-                    'approver_email' => $approver->email,
-                    'step_order' => $stepOrder,
-                    'approval_type' => 'custom',
-                    'reason' => "Custom approval layer {$stepOrder}",
-                    'due_date' => $this->addBusinessDays(now(), 3)->toISOString(),
-                ];
-
-                $stepOrder++;
+        foreach ($validApprovals as $index => $approval) {
+            $approverId = $approval['approver_id'];
+            $taskType = $approval['task_type'] ?? 'approval';
+            
+            $approver = \App\Models\User::find($approverId);
+            
+            if (!$approver) {
+                throw new \Exception("Approver not found for step {$stepOrder}");
             }
+
+            // Create approval record
+            \App\Models\Modules\WNS\PrApproval::create([
+                'purchase_request_id' => $purchaseRequest->id,
+                'approver_id' => $approverId,
+                'step_order' => $stepOrder,
+                'approval_type' => $taskType, // Use task_type (approval/paraf)
+                'status' => 'pending',
+                'assigned_at' => now(),
+                'due_date' => $this->addBusinessDays(now(), 3), // Default 3 business days
+                'notes' => null,
+                'responded_at' => null,
+            ]);
+
+            // Build workflow structure
+            $workflowStructure[] = [
+                'approver_id' => $approverId,
+                'approver_name' => $approver->name,
+                'approver_email' => $approver->email,
+                'step_order' => $stepOrder,
+                'approval_type' => $taskType,
+                'reason' => "Custom {$taskType} step {$stepOrder}",
+                'due_date' => $this->addBusinessDays(now(), 3)->toISOString(),
+            ];
+
+            $stepOrder++;
         }
 
         // Update purchase request with workflow information
@@ -349,35 +369,38 @@ class Create extends Component
         // Log the custom workflow creation
         \Illuminate\Support\Facades\Log::info("Custom approval workflow created", [
             'pr_number' => $purchaseRequest->pr_number,
-            'total_layers' => count($selectedApprovers),
+            'total_steps' => count($validApprovals),
             'approvers' => collect($workflowStructure)->pluck('approver_name')->toArray()
         ]);
     }
 
     protected function validateCustomApproval()
     {
-        $selectedApprovers = array_filter($this->customApprovers);
+        $validApprovals = array_filter($this->customApprovalList, function($approval) {
+            return !empty($approval['approver_id']);
+        });
         
-        if (empty($selectedApprovers)) {
-            $this->addError('customApprovers', 'Please select at least one approver for custom approval workflow.');
+        if (empty($validApprovals)) {
+            $this->addError('customApprovalList', 'Please select at least one approver for custom approval workflow.');
             throw new \Illuminate\Validation\ValidationException(validator([], []));
         }
 
         // Check for duplicate approvers
-        $uniqueApprovers = array_unique($selectedApprovers);
-        if (count($selectedApprovers) !== count($uniqueApprovers)) {
-            $this->addError('customApprovers', 'Cannot select the same approver for multiple layers.');
+        $approverIds = array_column($validApprovals, 'approver_id');
+        if (count($approverIds) !== count(array_unique($approverIds))) {
+            $this->addError('customApprovalList', 'Cannot select the same approver for multiple steps.');
             throw new \Illuminate\Validation\ValidationException(validator([], []));
         }
 
         // Validate that all selected approvers exist and are active
-        foreach ($selectedApprovers as $layerIndex => $approverId) {
+        foreach ($validApprovals as $index => $approval) {
+            $approverId = $approval['approver_id'];
             $approver = \App\Models\User::where('id', $approverId)
                 ->where('is_active', true)
                 ->first();
                 
             if (!$approver) {
-                $this->addError("customApprovers.{$layerIndex}", "Selected approver is not valid or inactive.");
+                $this->addError("customApprovalList.{$index}.approver_id", 'Selected approver is not valid or inactive.');
                 throw new \Illuminate\Validation\ValidationException(validator([], []));
             }
         }

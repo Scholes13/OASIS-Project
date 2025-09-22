@@ -54,7 +54,5 @@
     </x-slot>
 
     <!-- Purchase Request Create Form -->
-    <div class="max-w-6xl mx-auto">
-        <livewire:modules.wns.purchase-requests.create />
-    </div>
+    <livewire:modules.wns.purchase-requests.create />
 </x-app-layout>

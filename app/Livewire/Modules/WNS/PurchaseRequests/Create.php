@@ -157,26 +157,43 @@ class Create extends Component
 
     public function loadAvailableApprovers()
     {
-        // Get all active users from current business unit (not just specific roles)
-        $businessUnitId = session('current_business_unit_id');
-        
-        $this->availableApprovers = \App\Models\User::whereHas('businessUnits', function ($query) use ($businessUnitId) {
-            $query->where('business_unit_id', $businessUnitId)
-                  ->where('is_active', true);
+        $currentUser = Auth::user();
+        $currentBusinessUnitId = session('current_business_unit_id');
+
+        // Get all users who can approve PRs from current business unit
+        $this->availableApprovers = \App\Models\User::where(function($query) use ($currentBusinessUnitId) {
+            $query->whereHas('businessUnits', function ($subQuery) use ($currentBusinessUnitId) {
+                // Users who have access to the same business unit as the PR creator
+                $subQuery->where('business_unit_id', $currentBusinessUnitId)
+                      ->where('is_active', true);
+            })
+            // OR users who are management from Werkudara Group (WG) - they can approve from any BU
+            ->orWhereHas('businessUnits', function ($subQuery) {
+                $subQuery->whereHas('businessUnit', function ($subSubQuery) {
+                    $subSubQuery->where('code', 'WG'); // Werkudara Group
+                })
+                ->where('is_active', true);
+            });
         })
         ->where('is_active', true)
-        ->where('id', '!=', Auth::id()) // Exclude current user
-        ->orderBy('name') // Sort by name for better UX
+        ->where('id', '!=', $currentUser->id) // Exclude current user (creator)
+        ->orderBy('name')
         ->get()
+        ->filter(function ($user) {
+            // Additional filter: user must have at least one business unit assignment
+            // This excludes users with "N/A" departments
+            return $user->businessUnits()->where('is_active', true)->count() > 0;
+        })
         ->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
-                'role' => $user->roles->first()->name ?? 'User',
+                'role' => ucfirst(str_replace('_', ' ', $user->global_role)),
                 'department' => $user->primaryDepartment->name ?? 'N/A',
                 'email' => $user->email
             ];
         })
+        ->values() // Reset array keys after filter
         ->toArray();
     }
 
@@ -272,7 +289,12 @@ class Create extends Component
             // Initialize with first approval row if empty
             $this->customApprovalList = [['approver_id' => '', 'task_type' => 'approval']];
         }
-        
+
+        // Reload available approvers when switching to custom
+        if ($this->approvalFlow === 'custom') {
+            $this->loadAvailableApprovers();
+        }
+
         // Force re-render to ensure UI updates
         $this->dispatch('approval-flow-changed');
     }

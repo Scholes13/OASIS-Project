@@ -1,21 +1,31 @@
-<x-app-layout>
-    <x-slot name="header">
+<?php if (isset($component)) { $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54 = $attributes; } ?>
+<?php $component = App\View\Components\AppLayout::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+     <?php $__env->slot('header', null, []); ?> 
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Edit User') }}: {{ $user->name }}
+                <?php echo e(__('Edit User')); ?>: <?php echo e($user->name); ?>
+
             </h2>
-            <a href="{{ route('admin.users.index') }}" 
+            <a href="<?php echo e(route('admin.users.index')); ?>" 
                class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
                 <i class="fas fa-arrow-left mr-2"></i>Back to List
             </a>
         </div>
-    </x-slot>
+     <?php $__env->endSlot(); ?>
 
     <div class="py-12">
         <div class="w-full">
-            <form action="{{ route('admin.users.update', $user) }}" method="POST" id="userForm">
-                @csrf
-                @method('PUT')
+            <form action="<?php echo e(route('admin.users.update', $user)); ?>" method="POST" id="userForm">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
                 
                 <!-- Basic Information -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
@@ -29,12 +39,19 @@
                                 <input type="text" 
                                        name="name" 
                                        id="name"
-                                       value="{{ old('name', $user->name) }}"
+                                       value="<?php echo e(old('name', $user->name)); ?>"
                                        required
                                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                @error('name')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['name'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <!-- Email -->
@@ -43,12 +60,19 @@
                                 <input type="email" 
                                        name="email" 
                                        id="email"
-                                       value="{{ old('email', $user->email) }}"
+                                       value="<?php echo e(old('email', $user->email)); ?>"
                                        required
                                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                @error('email')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['email'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <!-- Phone -->
@@ -57,23 +81,37 @@
                                 <input type="text" 
                                        name="phone_number" 
                                        id="phone_number"
-                                       value="{{ old('phone_number', $user->phone_number) }}"
+                                       value="<?php echo e(old('phone_number', $user->phone_number)); ?>"
                                        class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                @error('phone_number')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['phone_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <!-- Global Role -->
                             <div>
                                 <label for="global_role" class="block text-sm font-medium text-gray-700 mb-1">Global Role *</label>
                                 <select name="global_role" id="global_role" required class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="user" {{ old('global_role', $user->global_role) === 'user' ? 'selected' : '' }}>User</option>
-                                    <option value="super_admin" {{ old('global_role', $user->global_role) === 'super_admin' ? 'selected' : '' }}>Super Admin</option>
+                                    <option value="user" <?php echo e(old('global_role', $user->global_role) === 'user' ? 'selected' : ''); ?>>User</option>
+                                    <option value="super_admin" <?php echo e(old('global_role', $user->global_role) === 'super_admin' ? 'selected' : ''); ?>>Super Admin</option>
                                 </select>
-                                @error('global_role')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['global_role'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <!-- Supervisor -->
@@ -81,15 +119,22 @@
                                 <label for="supervisor_id" class="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
                                 <select name="supervisor_id" id="supervisor_id" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="">No Supervisor</option>
-                                    @foreach($users as $supervisor)
-                                        <option value="{{ $supervisor->id }}" {{ old('supervisor_id', $user->supervisor_id) == $supervisor->id ? 'selected' : '' }}>
-                                            {{ $supervisor->name }} ({{ $supervisor->email }})
+                                    <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $supervisor): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($supervisor->id); ?>" <?php echo e(old('supervisor_id', $user->supervisor_id) == $supervisor->id ? 'selected' : ''); ?>>
+                                            <?php echo e($supervisor->name); ?> (<?php echo e($supervisor->email); ?>)
                                         </option>
-                                    @endforeach
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </select>
-                                @error('supervisor_id')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['supervisor_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <!-- Status -->
@@ -100,13 +145,21 @@
                                            name="is_active" 
                                            id="is_active"
                                            value="1"
-                                           {{ old('is_active', $user->is_active) ? 'checked' : '' }}
+                                           <?php echo e(old('is_active', $user->is_active) ? 'checked' : ''); ?>
+
                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <label for="is_active" class="ml-2 text-sm text-gray-700">Active</label>
                                 </div>
-                                @error('is_active')
-                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                @enderror
+                                <?php $__errorArgs = ['is_active'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                             </div>
                         </div>
 
@@ -121,9 +174,16 @@
                                            name="password" 
                                            id="password"
                                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    @error('password')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['password'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <div>
@@ -144,68 +204,72 @@
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Business Unit Assignments</h3>
                         
                         <div id="business-unit-assignments">
-                            @foreach($user->activeBusinessUnits as $index => $assignment)
-                                <div class="business-unit-assignment border border-gray-200 rounded-lg p-4 mb-4" data-index="{{ $index }}">
+                            <?php $__currentLoopData = $user->activeBusinessUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $assignment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <div class="business-unit-assignment border border-gray-200 rounded-lg p-4 mb-4" data-index="<?php echo e($index); ?>">
                                     <div class="flex justify-between items-center mb-4">
-                                        <h4 class="text-md font-medium text-gray-900">Assignment {{ $index + 1 }}</h4>
-                                        @if($index > 0)
+                                        <h4 class="text-md font-medium text-gray-900">Assignment <?php echo e($index + 1); ?></h4>
+                                        <?php if($index > 0): ?>
                                             <button type="button" class="remove-assignment text-red-600 hover:text-red-800">
                                                 <i class="fas fa-trash"></i> Remove
                                             </button>
-                                        @endif
+                                        <?php endif; ?>
                                     </div>
                                     
                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <!-- Business Unit -->
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
-                                            <select name="business_units[{{ $index }}][business_unit_id]" 
+                                            <select name="business_units[<?php echo e($index); ?>][business_unit_id]" 
                                                     class="business-unit-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
                                                     required>
                                                 <option value="">Select Business Unit</option>
-                                                @foreach($businessUnits as $bu)
-                                                    <option value="{{ $bu->id }}" 
-                                                            {{ $assignment->business_unit_id == $bu->id ? 'selected' : '' }}
-                                                            data-departments="{{ $bu->departments->toJson() }}">
-                                                        {{ $bu->name }} ({{ $bu->code }})
+                                                <?php $__currentLoopData = $businessUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bu): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <option value="<?php echo e($bu->id); ?>" 
+                                                            <?php echo e($assignment->business_unit_id == $bu->id ? 'selected' : ''); ?>
+
+                                                            data-departments="<?php echo e($bu->departments->toJson()); ?>">
+                                                        <?php echo e($bu->name); ?> (<?php echo e($bu->code); ?>)
                                                     </option>
-                                                @endforeach
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                             </select>
                                         </div>
 
                                         <!-- Department -->
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                                            <select name="business_units[{{ $index }}][department_id]" 
+                                            <select name="business_units[<?php echo e($index); ?>][department_id]" 
                                                     class="department-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
                                                     required>
                                                 <option value="">Select Department</option>
-                                                @if($assignment->businessUnit)
-                                                    @foreach($assignment->businessUnit->departments as $dept)
-                                                        <option value="{{ $dept->id }}" 
-                                                                {{ $assignment->department_id == $dept->id ? 'selected' : '' }}
-                                                                data-positions="{{ $dept->positions->toJson() }}">
-                                                            {{ $dept->name }}
+                                                <?php if($assignment->businessUnit): ?>
+                                                    <?php $__currentLoopData = $assignment->businessUnit->departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dept): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        <option value="<?php echo e($dept->id); ?>" 
+                                                                <?php echo e($assignment->department_id == $dept->id ? 'selected' : ''); ?>
+
+                                                                data-positions="<?php echo e($dept->positions->toJson()); ?>">
+                                                            <?php echo e($dept->name); ?>
+
                                                         </option>
-                                                    @endforeach
-                                                @endif
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                <?php endif; ?>
                                             </select>
                                         </div>
 
                                         <!-- Position -->
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Position *</label>
-                                            <select name="business_units[{{ $index }}][position_id]" 
+                                            <select name="business_units[<?php echo e($index); ?>][position_id]" 
                                                     class="position-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
                                                     required>
                                                 <option value="">Select Position</option>
-                                                @if($assignment->department)
-                                                    @foreach($assignment->department->positions as $pos)
-                                                        <option value="{{ $pos->id }}" {{ $assignment->position_id == $pos->id ? 'selected' : '' }}>
-                                                            {{ $pos->name }}
+                                                <?php if($assignment->department): ?>
+                                                    <?php $__currentLoopData = $assignment->department->positions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pos): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        <option value="<?php echo e($pos->id); ?>" <?php echo e($assignment->position_id == $pos->id ? 'selected' : ''); ?>>
+                                                            <?php echo e($pos->name); ?>
+
                                                         </option>
-                                                    @endforeach
-                                                @endif
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                <?php endif; ?>
                                             </select>
                                         </div>
 
@@ -217,23 +281,31 @@
                                         <div class="flex items-center">
                                             <input type="radio"
                                                    name="primary_business_unit"
-                                                   value="{{ $index }}"
-                                                   {{ $assignment->is_primary ? 'checked' : '' }}
+                                                   value="<?php echo e($index); ?>"
+                                                   <?php echo e($assignment->is_primary ? 'checked' : ''); ?>
+
                                                    class="primary-radio rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                             <label class="ml-2 text-sm text-gray-700">Set as Primary Assignment</label>
                                         </div>
                                     </div>
                                 </div>
-                            @endforeach
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </div>
 
                         <button type="button" id="add-assignment" class="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors duration-200">
                             <i class="fas fa-plus mr-2"></i>Add Another Assignment
                         </button>
 
-                        @error('business_units')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
+                        <?php $__errorArgs = ['business_units'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                            <p class="mt-2 text-sm text-red-600"><?php echo e($message); ?></p>
+                        <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
                 </div>
 
@@ -241,7 +313,7 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div class="flex justify-end space-x-4">
-                            <a href="{{ route('admin.users.index') }}" 
+                            <a href="<?php echo e(route('admin.users.index')); ?>" 
                                class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md transition-colors duration-200">
                                 Cancel
                             </a>
@@ -256,9 +328,9 @@
         </div>
     </div>
 
-    @push('scripts')
+    <?php $__env->startPush('scripts'); ?>
     <script>
-        let businessUnitIndex = {{ $user->activeBusinessUnits->count() }};
+        let businessUnitIndex = <?php echo e($user->activeBusinessUnits->count()); ?>;
 
         document.addEventListener('DOMContentLoaded', function() {
             // Add assignment button
@@ -293,11 +365,11 @@
                                     class="business-unit-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                     required>
                                 <option value="">Select Business Unit</option>
-                                @foreach($businessUnits as $bu)
-                                    <option value="{{ $bu->id }}" data-departments="{{ $bu->departments->toJson() }}">
-                                        {{ $bu->name }} ({{ $bu->code }})
+                                <?php $__currentLoopData = $businessUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bu): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <option value="<?php echo e($bu->id); ?>" data-departments="<?php echo e($bu->departments->toJson()); ?>">
+                                        <?php echo e($bu->name); ?> (<?php echo e($bu->code); ?>)
                                     </option>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </select>
                         </div>
 
@@ -432,5 +504,14 @@
             });
         }
     </script>
-    @endpush
-</x-app-layout>
+    <?php $__env->stopPush(); ?>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $attributes = $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?><?php /**PATH E:\Learning\WGProject\Numbering\resources\views/admin/users/edit.blade.php ENDPATH**/ ?>

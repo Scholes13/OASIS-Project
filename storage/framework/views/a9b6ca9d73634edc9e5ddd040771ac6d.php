@@ -1,5 +1,14 @@
-<x-app-layout>
-    @push('styles')
+<?php if (isset($component)) { $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54 = $attributes; } ?>
+<?php $component = App\View\Components\AppLayout::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+    <?php $__env->startPush('styles'); ?>
     <style>
         /* Fix scrollbar issues and prevent layout shifting */
         html {
@@ -111,9 +120,9 @@
             background: #94a3b8;
         }
     </style>
-    @endpush
+    <?php $__env->stopPush(); ?>
 
-    <x-slot name="header">
+     <?php $__env->slot('header', null, []); ?> 
         <div class="flex justify-between items-center">
             <div>
                 <h2 class="font-bold text-2xl text-gray-900 leading-tight">
@@ -121,7 +130,7 @@
                 </h2>
                 <p class="text-sm text-gray-600 mt-1">Manage system users, roles, and business unit assignments</p>
             </div>
-            <a href="{{ route('admin.users.create') }}"
+            <a href="<?php echo e(route('admin.users.create')); ?>"
                class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -129,7 +138,7 @@
                 Create New User
             </a>
         </div>
-    </x-slot>
+     <?php $__env->endSlot(); ?>
 
     <div class="py-8 main-container">
         <div class="w-full px-4 sm:px-6 lg:px-8">
@@ -146,11 +155,11 @@
                         <h3 class="text-lg font-semibold text-gray-900">Advanced Filters</h3>
                     </div>
                     <div class="text-sm text-gray-500">
-                        {{ $users->total() }} users found
+                        <?php echo e($users->total()); ?> users found
                     </div>
                 </div>
 
-                <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <form method="GET" action="<?php echo e(route('admin.users.index')); ?>" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <!-- Search -->
                     <div class="space-y-2">
                         <label for="search" class="block text-sm font-medium text-gray-700">Search Users</label>
@@ -163,7 +172,7 @@
                             <input type="text"
                                    name="search"
                                    id="search"
-                                   value="{{ request('search') }}"
+                                   value="<?php echo e(request('search')); ?>"
                                    placeholder="Name, email, or phone..."
                                    class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
@@ -174,11 +183,11 @@
                         <label for="business_unit" class="block text-sm font-medium text-gray-700">Business Unit</label>
                         <select name="business_unit" id="business_unit" class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">All Business Units</option>
-                            @foreach($businessUnits as $bu)
-                                <option value="{{ $bu->id }}" {{ request('business_unit') == $bu->id ? 'selected' : '' }}>
-                                    {{ $bu->name }} ({{ $bu->code }})
+                            <?php $__currentLoopData = $businessUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bu): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <option value="<?php echo e($bu->id); ?>" <?php echo e(request('business_unit') == $bu->id ? 'selected' : ''); ?>>
+                                    <?php echo e($bu->name); ?> (<?php echo e($bu->code); ?>)
                                 </option>
-                            @endforeach
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
                     </div>
 
@@ -187,11 +196,11 @@
                         <label for="department" class="block text-sm font-medium text-gray-700">Department</label>
                         <select name="department" id="department" class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">All Departments</option>
-                            @foreach($departments as $dept)
-                                <option value="{{ $dept->id }}" {{ request('department') == $dept->id ? 'selected' : '' }}>
-                                    {{ $dept->name }} ({{ $dept->businessUnit->code }})
+                            <?php $__currentLoopData = $departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dept): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <option value="<?php echo e($dept->id); ?>" <?php echo e(request('department') == $dept->id ? 'selected' : ''); ?>>
+                                    <?php echo e($dept->name); ?> (<?php echo e($dept->businessUnit->code); ?>)
                                 </option>
-                            @endforeach
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
                     </div>
 
@@ -200,8 +209,8 @@
                         <label for="global_role" class="block text-sm font-medium text-gray-700">Global Role</label>
                         <select name="global_role" id="global_role" class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">All Roles</option>
-                            <option value="super_admin" {{ request('global_role') == 'super_admin' ? 'selected' : '' }}>Super Administrator</option>
-                            <option value="user" {{ request('global_role') == 'user' ? 'selected' : '' }}>User</option>
+                            <option value="super_admin" <?php echo e(request('global_role') == 'super_admin' ? 'selected' : ''); ?>>Super Administrator</option>
+                            <option value="user" <?php echo e(request('global_role') == 'user' ? 'selected' : ''); ?>>User</option>
                         </select>
                     </div>
 
@@ -213,7 +222,7 @@
                             </svg>
                             Apply Filters
                         </button>
-                        <a href="{{ route('admin.users.index') }}" class="inline-flex items-center px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm rounded-lg transition-all duration-200">
+                        <a href="<?php echo e(route('admin.users.index')); ?>" class="inline-flex items-center px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm rounded-lg transition-all duration-200">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -229,7 +238,7 @@
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-gray-900">System Users</h3>
                         <div class="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>{{ $users->firstItem() ?? 0 }}-{{ $users->lastItem() ?? 0 }} of {{ $users->total() }}</span>
+                            <span><?php echo e($users->firstItem() ?? 0); ?>-<?php echo e($users->lastItem() ?? 0); ?> of <?php echo e($users->total()); ?></span>
                         </div>
                     </div>
                 </div>
@@ -246,49 +255,51 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
-                            @forelse($users as $user)
+                            <?php $__empty_1 = true; $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                                 <tr class="hover:bg-gray-50 transition-colors duration-150">
                                     <!-- Name -->
                                     <td class="px-6 py-4">
                                         <div>
-                                            <div class="text-sm font-semibold text-gray-900">{{ $user->name }}</div>
-                                            <div class="text-sm text-gray-600">{{ $user->email }}</div>
-                                            @if($user->phone_number)
-                                                <div class="text-xs text-gray-500 mt-1">{{ $user->phone_number }}</div>
-                                            @endif
+                                            <div class="text-sm font-semibold text-gray-900"><?php echo e($user->name); ?></div>
+                                            <div class="text-sm text-gray-600"><?php echo e($user->email); ?></div>
+                                            <?php if($user->phone_number): ?>
+                                                <div class="text-xs text-gray-500 mt-1"><?php echo e($user->phone_number); ?></div>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
 
                                     <!-- Primary Assignment -->
                                     <td class="px-6 py-4">
-                                        @if($user->primaryDepartment)
+                                        <?php if($user->primaryDepartment): ?>
                                             <div class="primary-indicator">
-                                                <div class="text-sm font-medium text-gray-900">{{ $user->primaryDepartment->businessUnit->name }}</div>
-                                                <div class="text-sm text-gray-600">{{ $user->primaryDepartment->name }}</div>
-                                                @if($user->primaryPosition)
-                                                    <div class="text-xs text-gray-500 mt-1">{{ $user->primaryPosition->name }}</div>
-                                                @endif
+                                                <div class="text-sm font-medium text-gray-900"><?php echo e($user->primaryDepartment->businessUnit->name); ?></div>
+                                                <div class="text-sm text-gray-600"><?php echo e($user->primaryDepartment->name); ?></div>
+                                                <?php if($user->primaryPosition): ?>
+                                                    <div class="text-xs text-gray-500 mt-1"><?php echo e($user->primaryPosition->name); ?></div>
+                                                <?php endif; ?>
                                             </div>
-                                        @else
+                                        <?php else: ?>
                                             <div class="text-sm text-gray-400 italic">Not assigned</div>
-                                        @endif
+                                        <?php endif; ?>
                                     </td>
 
                                     <!-- Business Units -->
                                     <td class="px-6 py-4">
                                         <div class="space-y-2">
-                                            @foreach($user->activeBusinessUnits as $assignment)
+                                            <?php $__currentLoopData = $user->activeBusinessUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $assignment): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                                 <div class="flex items-center">
                                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                                                        {{ $assignment->businessUnit->code }}
-                                                        @if($assignment->is_primary)
+                                                        <?php echo e($assignment->businessUnit->code); ?>
+
+                                                        <?php if($assignment->is_primary): ?>
                                                             <span class="ml-1 text-gray-700 font-semibold">PRIMARY</span>
-                                                        @endif
+                                                        <?php endif; ?>
                                                     </span>
                                                 </div>
-                                            @endforeach
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                             <div class="text-xs text-gray-500">
-                                                {{ $user->activeBusinessUnits->count() }} {{ Str::plural('assignment', $user->activeBusinessUnits->count()) }}
+                                                <?php echo e($user->activeBusinessUnits->count()); ?> <?php echo e(Str::plural('assignment', $user->activeBusinessUnits->count())); ?>
+
                                             </div>
                                         </div>
                                     </td>
@@ -296,15 +307,16 @@
                                     <!-- Role -->
                                     <td class="px-6 py-4">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold status-badge
-                                            {{ $user->global_role === 'super_admin' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200' }}">
-                                            {{ $user->global_role === 'super_admin' ? 'Super Administrator' : 'User' }}
+                                            <?php echo e($user->global_role === 'super_admin' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'); ?>">
+                                            <?php echo e($user->global_role === 'super_admin' ? 'Super Administrator' : 'User'); ?>
+
                                         </span>
                                     </td>
 
                                     <!-- Actions -->
                                     <td class="px-6 py-4 text-center">
                                         <div class="flex items-center justify-center space-x-2">
-                                            <a href="{{ route('admin.users.show', $user) }}"
+                                            <a href="<?php echo e(route('admin.users.show', $user)); ?>"
                                                class="action-button text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                                                title="View Details">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -312,27 +324,27 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                                 </svg>
                                             </a>
-                                            <a href="{{ route('admin.users.edit', $user) }}"
+                                            <a href="<?php echo e(route('admin.users.edit', $user)); ?>"
                                                class="action-button text-amber-600 hover:text-amber-800 hover:bg-amber-50"
                                                title="Edit User">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </a>
-                                            @if(!$user->isSuperAdmin())
+                                            <?php if(!$user->isSuperAdmin()): ?>
                                                 <button type="button"
                                                         class="action-button text-red-600 hover:text-red-800 hover:bg-red-50"
                                                         title="Deactivate User"
-                                                        onclick="showDeleteModal('{{ $user->id }}', '{{ $user->name }}')">
+                                                        onclick="showDeleteModal('<?php echo e($user->id); ?>', '<?php echo e($user->name); ?>')">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                     </svg>
                                                 </button>
-                                            @endif
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
-                            @empty
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                                 <tr>
                                     <td colspan="5" class="px-6 py-12 text-center">
                                         <div class="flex flex-col items-center justify-center">
@@ -341,7 +353,7 @@
                                             </svg>
                                             <h3 class="text-lg font-medium text-gray-900 mb-2">No users found</h3>
                                             <p class="text-gray-500 mb-4">Try adjusting your search criteria or create a new user.</p>
-                                            <a href="{{ route('admin.users.create') }}"
+                                            <a href="<?php echo e(route('admin.users.create')); ?>"
                                                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg">
                                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -351,26 +363,27 @@
                                         </div>
                                     </td>
                                 </tr>
-                            @endforelse
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Enhanced Pagination -->
-                @if($users->hasPages())
+                <?php if($users->hasPages()): ?>
                     <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
                         <div class="flex items-center justify-between">
                             <div class="text-sm text-gray-700">
-                                Showing <span class="font-medium">{{ $users->firstItem() ?? 0 }}</span> to
-                                <span class="font-medium">{{ $users->lastItem() ?? 0 }}</span> of
-                                <span class="font-medium">{{ $users->total() }}</span> results
+                                Showing <span class="font-medium"><?php echo e($users->firstItem() ?? 0); ?></span> to
+                                <span class="font-medium"><?php echo e($users->lastItem() ?? 0); ?></span> of
+                                <span class="font-medium"><?php echo e($users->total()); ?></span> results
                             </div>
                             <div>
-                                {{ $users->appends(request()->query())->links() }}
+                                <?php echo e($users->appends(request()->query())->links()); ?>
+
                             </div>
                         </div>
                     </div>
-                @endif
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -444,11 +457,11 @@
 
     <!-- Hidden form for deletion -->
     <form id="deleteForm" method="POST" class="hidden">
-        @csrf
-        @method('DELETE')
+        <?php echo csrf_field(); ?>
+        <?php echo method_field('DELETE'); ?>
     </form>
 
-    @push('scripts')
+    <?php $__env->startPush('scripts'); ?>
     <script>
         let currentUserId = null;
 
@@ -469,7 +482,7 @@
         document.getElementById('confirmDelete').addEventListener('click', function() {
             if (currentUserId) {
                 const form = document.getElementById('deleteForm');
-                form.action = `{{ route('admin.users.index') }}/${currentUserId}`;
+                form.action = `<?php echo e(route('admin.users.index')); ?>/${currentUserId}`;
                 form.submit();
             }
         });
@@ -481,5 +494,14 @@
             }
         });
     </script>
-    @endpush
-</x-app-layout>
+    <?php $__env->stopPush(); ?>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $attributes = $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?><?php /**PATH E:\Learning\WGProject\Numbering\resources\views/admin/users/index.blade.php ENDPATH**/ ?>

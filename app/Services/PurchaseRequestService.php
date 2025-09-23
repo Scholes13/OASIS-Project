@@ -33,15 +33,34 @@ class PurchaseRequestService
         $user = Auth::user();
         $accessLevel = $user->getAccessLevel();
 
-        // Base query
-        $query = PurchaseRequest::with(['department', 'user', 'items', 'approvals'])
-            ->where('business_unit_id', session('current_business_unit_id'));
+        // Get current business unit and its accessible business units
+        $currentBusinessUnitId = session('current_business_unit_id');
+        $currentBusinessUnit = \App\Models\BusinessUnit::find($currentBusinessUnitId);
+
+        // Base query with business unit hierarchy consideration
+        $query = PurchaseRequest::with(['department', 'user', 'items', 'approvals']);
+
+        // Apply business unit filtering based on hierarchy
+        if ($currentBusinessUnit) {
+            // For top management (super_admin/director) in parent business units,
+            // show PRs from current BU + all child business units
+            if (in_array($accessLevel, ['super_admin', 'director'])) {
+                $accessibleBusinessUnits = $currentBusinessUnit->getAccessibleBusinessUnits();
+                $query->whereIn('business_unit_id', $accessibleBusinessUnits);
+            } else {
+                // For other roles, only show PRs from current business unit
+                $query->where('business_unit_id', $currentBusinessUnitId);
+            }
+        } else {
+            // Fallback: only current business unit
+            $query->where('business_unit_id', $currentBusinessUnitId);
+        }
 
         // Apply hierarchy-based filtering
         switch ($accessLevel) {
             case 'super_admin':
             case 'director':
-                // Can see all PRs in the business unit
+                // Can see all PRs in accessible business units (already filtered above)
                 break;
 
             case 'department_head':

@@ -19,8 +19,8 @@ class EnsureBusinessUnitSelected
 
             // Super admins can bypass business unit requirement
             if ($user->global_role === 'super_admin') {
-                // Ensure super admin session context exists
-                if (!session('current_business_unit_code')) {
+                // Ensure super admin session context exists (check both code AND id)
+                if (!session('current_business_unit_code') || !session('current_business_unit_id')) {
                     // For super admins, use their primary business unit (usually WG)
                     $primaryBu = null;
                     if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {

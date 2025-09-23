@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__laravel-boost__application-info",
+      "mcp__laravel-boost__list-routes",
+      "mcp__laravel-boost__database-schema",
+      "mcp__laravel-boost__database-query",
+      "mcp__laravel-boost__tinker",
+      "Bash(php artisan view:clear)",
+      "Bash(php artisan livewire:stubs)",
+      "mcp__laravel-boost__browser-logs",
+      "mcp__laravel-boost__last-error",
+      "WebFetch(domain:localhost)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ]
+}

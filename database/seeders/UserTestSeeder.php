@@ -117,7 +117,7 @@ class UserTestSeeder extends Seeder
                 'phone_number' => '081234567890',
                 'primary_department_id' => $corpDept->id,
                 'primary_position_id' => $managerPosition->id,
-                'global_role' => 'user',
+                'global_role' => 'super_admin', // Changed from 'user' to 'super_admin' for admin role
                 'is_active' => true,
                 'email_verified_at' => now(),
                 'department' => $corpDept,

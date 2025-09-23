@@ -1,5 +1,14 @@
-<x-app-layout>
-    @push('styles')
+<?php if (isset($component)) { $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54 = $attributes; } ?>
+<?php $component = App\View\Components\AppLayout::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+    <?php $__env->startPush('styles'); ?>
     <style>
         .business-unit-assignment {
             transition: all 0.3s ease-in-out;
@@ -42,19 +51,20 @@
             transition: transform 0.3s ease-in;
         }
     </style>
-    @endpush
+    <?php $__env->stopPush(); ?>
 
-    <x-slot name="header">
+     <?php $__env->slot('header', null, []); ?> 
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Create New User') }}
+                <?php echo e(__('Create New User')); ?>
+
             </h2>
-            <a href="{{ route('admin.users.index') }}" 
+            <a href="<?php echo e(route('admin.users.index')); ?>" 
                class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
                 <i class="fas fa-arrow-left mr-2"></i>Back to Users
             </a>
         </div>
-    </x-slot>
+     <?php $__env->endSlot(); ?>
 
     <div class="py-12">
         <div class="mx-auto px-4 sm:px-6 lg:px-8">
@@ -75,8 +85,8 @@
                         </div>
                     </div>
 
-                    <form action="{{ route('admin.users.store') }}" method="POST" id="userForm">
-                        @csrf
+                    <form action="<?php echo e(route('admin.users.store')); ?>" method="POST" id="userForm">
+                        <?php echo csrf_field(); ?>
                         
                         <!-- Basic Information -->
                         <div class="mb-8">
@@ -92,12 +102,26 @@
                                     <input type="text" 
                                            name="name" 
                                            id="name"
-                                           value="{{ old('name') }}"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('name') border-red-300 @enderror"
+                                           value="<?php echo e(old('name')); ?>"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm <?php $__errorArgs = ['name'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> border-red-300 <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>"
                                            required>
-                                    @error('name')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['name'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <!-- Email -->
@@ -106,12 +130,26 @@
                                     <input type="email" 
                                            name="email" 
                                            id="email"
-                                           value="{{ old('email') }}"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('email') border-red-300 @enderror"
+                                           value="<?php echo e(old('email')); ?>"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm <?php $__errorArgs = ['email'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> border-red-300 <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>"
                                            required>
-                                    @error('email')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['email'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <!-- Phone Number -->
@@ -120,12 +158,26 @@
                                     <input type="text" 
                                            name="phone_number" 
                                            id="phone_number"
-                                           value="{{ old('phone_number') }}"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('phone_number') border-red-300 @enderror"
+                                           value="<?php echo e(old('phone_number')); ?>"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm <?php $__errorArgs = ['phone_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> border-red-300 <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>"
                                            placeholder="+62812345678901">
-                                    @error('phone_number')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['phone_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <!-- Global Role -->
@@ -133,15 +185,29 @@
                                     <label for="global_role" class="block text-sm font-medium text-gray-700 mb-2">Global Role *</label>
                                     <select name="global_role" 
                                             id="global_role"
-                                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('global_role') border-red-300 @enderror"
+                                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm <?php $__errorArgs = ['global_role'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> border-red-300 <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>"
                                             required>
                                         <option value="">Select Global Role</option>
-                                        <option value="user" {{ old('global_role') == 'user' ? 'selected' : '' }}>Regular User</option>
-                                        <option value="super_admin" {{ old('global_role') == 'super_admin' ? 'selected' : '' }}>Super Admin</option>
+                                        <option value="user" <?php echo e(old('global_role') == 'user' ? 'selected' : ''); ?>>Regular User</option>
+                                        <option value="super_admin" <?php echo e(old('global_role') == 'super_admin' ? 'selected' : ''); ?>>Super Admin</option>
                                     </select>
-                                    @error('global_role')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['global_role'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <!-- Supervisor -->
@@ -149,17 +215,31 @@
                                     <label for="supervisor_id" class="block text-sm font-medium text-gray-700 mb-2">Supervisor</label>
                                     <select name="supervisor_id" 
                                             id="supervisor_id"
-                                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('supervisor_id') border-red-300 @enderror">
+                                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm <?php $__errorArgs = ['supervisor_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> border-red-300 <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>">
                                         <option value="">No Supervisor</option>
-                                        @foreach($users as $user)
-                                            <option value="{{ $user->id }}" {{ old('supervisor_id') == $user->id ? 'selected' : '' }}>
-                                                {{ $user->name }} ({{ $user->email }})
+                                        <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <option value="<?php echo e($user->id); ?>" <?php echo e(old('supervisor_id') == $user->id ? 'selected' : ''); ?>>
+                                                <?php echo e($user->name); ?> (<?php echo e($user->email); ?>)
                                             </option>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
-                                    @error('supervisor_id')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['supervisor_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <!-- Status -->
@@ -168,7 +248,8 @@
                                         <input type="checkbox" 
                                                name="is_active" 
                                                value="1"
-                                               {{ old('is_active', true) ? 'checked' : '' }}
+                                               <?php echo e(old('is_active', true) ? 'checked' : ''); ?>
+
                                                class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                         <span class="ml-2 text-sm text-gray-700">Active User</span>
                                     </label>
@@ -190,11 +271,25 @@
                                     <input type="password" 
                                            name="password" 
                                            id="password"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('password') border-red-300 @enderror"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm <?php $__errorArgs = ['password'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> border-red-300 <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>"
                                            required>
-                                    @error('password')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
+                                    <?php $__errorArgs = ['password'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p>
+                                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                 </div>
 
                                 <!-- Confirm Password -->
@@ -236,16 +331,24 @@
                                 <!-- Business unit assignments will be added here dynamically -->
                             </div>
 
-                            @error('business_units')
+                            <?php $__errorArgs = ['business_units'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
                                 <p class="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-                                    <i class="fas fa-exclamation-triangle mr-2"></i>{{ $message }}
+                                    <i class="fas fa-exclamation-triangle mr-2"></i><?php echo e($message); ?>
+
                                 </p>
-                            @enderror
+                            <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                         </div>
 
                         <!-- Submit Buttons -->
                         <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 px-6 py-6 rounded-b-lg">
-                            <a href="{{ route('admin.users.index') }}" 
+                            <a href="<?php echo e(route('admin.users.index')); ?>" 
                                class="inline-flex items-center px-8 py-3 bg-gray-400 hover:bg-gray-500 text-white font-semibold text-base rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
                                 <i class="fas fa-times mr-2"></i>
                                 Cancel
@@ -286,11 +389,11 @@
                             class="business-unit-select block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             required>
                         <option value="">Select Business Unit</option>
-                        @foreach($businessUnits as $bu)
-                            <option value="{{ $bu->id }}" data-departments="{{ $bu->departments->toJson() }}">
-                                {{ $bu->name }} ({{ $bu->code }})
+                        <?php $__currentLoopData = $businessUnits; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bu): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($bu->id); ?>" data-departments="<?php echo e($bu->departments->toJson()); ?>">
+                                <?php echo e($bu->name); ?> (<?php echo e($bu->code); ?>)
                             </option>
-                        @endforeach
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
 
@@ -334,7 +437,7 @@
         </div>
     </template>
 
-    @push('scripts')
+    <?php $__env->startPush('scripts'); ?>
     <script>
         let businessUnitIndex = 0;
 
@@ -496,5 +599,14 @@
             }, 3000);
         }
     </script>
-    @endpush
-</x-app-layout>
+    <?php $__env->stopPush(); ?>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $attributes = $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?><?php /**PATH E:\Learning\WGProject\Numbering\resources\views/admin/users/create.blade.php ENDPATH**/ ?>

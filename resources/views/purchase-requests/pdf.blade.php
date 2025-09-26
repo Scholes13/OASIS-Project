@@ -190,51 +190,161 @@
                 </div>
             </div>
 
-            <!-- Approval Steps -->
-            @php
-                $approvals = $purchaseRequest->approvals->sortBy('step_order');
-                $maxApprovals = 2; // Show 2 approval columns
-            @endphp
-            
-            @for($i = 0; $i < $maxApprovals; $i++)
+            <!-- Acknowledged by Section -->
+            <div class="approval-box">
+                <div class="approval-title">Acknowledged by</div>
+                
                 @php
-                    $approval = $approvals->skip($i)->first();
+                    $acknowledgedApproval = $purchaseRequest->approvals->where('step_order', 1)->first();
                 @endphp
                 
-                <div class="approval-box">
-                    <div class="approval-title">Approved by</div>
-                    
-                    @if($approval && $approval->status === 'approved')
-                        <div class="qr-code-container">
-                            <div class="qr-placeholder">
-                                <div class="qr-content">
-                                    <div class="qr-lines"></div>
-                                    <div class="qr-date">{{ $approval->responded_at->format('d/m/Y') }}</div>
-                                </div>
+                @if($acknowledgedApproval && $acknowledgedApproval->status === 'approved')
+                    <div class="qr-code-container">
+                        <div class="qr-placeholder">
+                            <div class="qr-content">
+                                <div class="qr-lines"></div>
+                                <div class="qr-date">{{ $acknowledgedApproval->responded_at->format('d/m/Y') }}</div>
                             </div>
                         </div>
-                        
-                        <div class="approver-info">
-                            <div class="approver-name">{{ $approval->approver->name }}</div>
-                            <div class="approver-dept">{{ $approval->approver->primaryDepartment->code ?? 'N/A' }}</div>
+                    </div>
+                    
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $acknowledgedApproval->approver->name }}</div>
+                        <div class="approver-dept">{{ $acknowledgedApproval->approver->primaryDepartment->code ?? 'BAS' }}</div>
+                    </div>
+                @else
+                    <div class="pending-box">
+                        <div class="pending-text">PENDING</div>
+                    </div>
+                    
+                    <div class="approver-info">
+                        @if($acknowledgedApproval)
+                            <div class="approver-name">{{ $acknowledgedApproval->approver->name }}</div>
+                            <div class="approver-dept">{{ $acknowledgedApproval->approver->primaryDepartment->code ?? 'BAS' }}</div>
+                        @else
+                            <div class="approver-name">Hanung Setinya</div>
+                            <div class="approver-dept">BAS</div>
+                        @endif
+                    </div>
+                @endif
+            </div>
+
+            <!-- Approved by Section 1 -->
+            <div class="approval-box">
+                <div class="approval-title">Approved by</div>
+                
+                @php
+                    $firstApproval = $purchaseRequest->approvals->where('step_order', 2)->first();
+                @endphp
+                
+                @if($firstApproval && $firstApproval->status === 'approved')
+                    <div class="qr-code-container">
+                        <div class="qr-placeholder">
+                            <div class="qr-content">
+                                <div class="qr-lines"></div>
+                                <div class="qr-date">{{ $firstApproval->responded_at->format('d/m/Y') }}</div>
+                            </div>
                         </div>
-                    @else
-                        <div class="pending-box">
-                            <div class="pending-text">PENDING</div>
+                    </div>
+                    
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $firstApproval->approver->name }}</div>
+                        <div class="approver-dept">{{ $firstApproval->approver->primaryDepartment->code ?? 'BAS' }}</div>
+                    </div>
+                @else
+                    <div class="pending-box">
+                        <div class="pending-text">PENDING</div>
+                    </div>
+                    
+                    <div class="approver-info">
+                        @if($firstApproval)
+                            <div class="approver-name">{{ $firstApproval->approver->name }}</div>
+                            <div class="approver-dept">{{ $firstApproval->approver->primaryDepartment->code ?? 'BAS' }}</div>
+                        @else
+                            <div class="approver-name">Yulia Mekar Rini</div>
+                            <div class="approver-dept">BAS</div>
+                        @endif
+                    </div>
+                @endif
+            </div>
+
+            <!-- Approved by Section 2 -->
+            <div class="approval-box">
+                <div class="approval-title">Approved by</div>
+                
+                @php
+                    $secondApproval = $purchaseRequest->approvals->where('step_order', 3)->first();
+                @endphp
+                
+                @if($secondApproval && $secondApproval->status === 'approved')
+                    <div class="qr-code-container">
+                        <div class="qr-placeholder">
+                            <div class="qr-content">
+                                <div class="qr-lines"></div>
+                                <div class="qr-date">{{ $secondApproval->responded_at->format('d/m/Y') }}</div>
+                            </div>
                         </div>
-                        
-                        <div class="approver-info">
-                            @if($approval)
-                                <div class="approver-name">{{ $approval->approver->name }}</div>
-                                <div class="approver-dept">{{ $approval->approver->primaryDepartment->code ?? 'BAS' }}</div>
-                            @else
-                                <div class="approver-name">Pending</div>
-                                <div class="approver-dept">-</div>
-                            @endif
+                    </div>
+                    
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $secondApproval->approver->name }}</div>
+                        <div class="approver-dept">{{ $secondApproval->approver->primaryDepartment->code ?? 'MD' }}</div>
+                    </div>
+                @else
+                    <div class="pending-box">
+                        <div class="pending-text">PENDING</div>
+                    </div>
+                    
+                    <div class="approver-info">
+                        @if($secondApproval)
+                            <div class="approver-name">{{ $secondApproval->approver->name }}</div>
+                            <div class="approver-dept">{{ $secondApproval->approver->primaryDepartment->code ?? 'MD' }}</div>
+                        @else
+                            <div class="approver-name">I Gusti Putu Yaktisurupa</div>
+                            <div class="approver-dept">MD</div>
+                        @endif
+                    </div>
+                @endif
+            </div>
+
+            <!-- Approved by Section 3 -->
+            <div class="approval-box">
+                <div class="approval-title">Approved by</div>
+                
+                @php
+                    $thirdApproval = $purchaseRequest->approvals->where('step_order', 4)->first();
+                @endphp
+                
+                @if($thirdApproval && $thirdApproval->status === 'approved')
+                    <div class="qr-code-container">
+                        <div class="qr-placeholder">
+                            <div class="qr-content">
+                                <div class="qr-lines"></div>
+                                <div class="qr-date">{{ $thirdApproval->responded_at->format('d/m/Y') }}</div>
+                            </div>
                         </div>
-                    @endif
-                </div>
-            @endfor
+                    </div>
+                    
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $thirdApproval->approver->name }}</div>
+                        <div class="approver-dept">{{ $thirdApproval->approver->primaryDepartment->code ?? 'MD' }}</div>
+                    </div>
+                @else
+                    <div class="pending-box">
+                        <div class="pending-text">PENDING</div>
+                    </div>
+                    
+                    <div class="approver-info">
+                        @if($thirdApproval)
+                            <div class="approver-name">{{ $thirdApproval->approver->name }}</div>
+                            <div class="approver-dept">{{ $thirdApproval->approver->primaryDepartment->code ?? 'MD' }}</div>
+                        @else
+                            <div class="approver-name">Dimas Wijanarko</div>
+                            <div class="approver-dept">SS</div>
+                        @endif
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
 

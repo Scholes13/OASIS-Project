@@ -619,13 +619,12 @@
 
     <!-- Action Buttons -->
     <div class="flex justify-between items-center pt-6 border-t border-gray-200">
-        <!-- Save as Draft -->
         <button 
             wire:click="saveDraft" 
             type="button"
             onclick="showSavingState(this);"
             class="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            Save as Draft
+            {{ $isEdit ? 'Update Draft' : 'Save as Draft' }}
         </button>
 
         <!-- Submit Button -->
@@ -634,7 +633,7 @@
             type="button"
             onclick="showSubmittingState(this);"
             class="px-6 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            Submit for Approval
+            {{ $isEdit ? "Submit Changes" : "Submit for Approval" }}
         </button>
     </div>
 </div>

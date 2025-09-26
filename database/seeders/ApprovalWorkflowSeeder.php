@@ -6,6 +6,7 @@ use App\Models\ApprovalWorkflow;
 use App\Models\BusinessUnit;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class ApprovalWorkflowSeeder extends Seeder
 {
@@ -14,9 +15,15 @@ class ApprovalWorkflowSeeder extends Seeder
      */
     public function run(): void
     {
+        if (! Schema::hasColumn('user_business_units', 'role')) {
+            $this->command?->warn('Skipping ApprovalWorkflowSeeder: user_business_units.role column not available.');
+
+            return;
+        }
+
         $wns = BusinessUnit::where('code', 'WNS')->first();
-        
-        if (!$wns) {
+
+        if (! $wns) {
             return;
         }
 
@@ -40,7 +47,7 @@ class ApprovalWorkflowSeeder extends Seeder
             ->where('user_business_units.role', 'bod')
             ->first();
 
-        if (!$hodFin || !$hodProc || !$bod) {
+        if (! $hodFin || ! $hodProc || ! $bod) {
             return;
         }
 
@@ -77,7 +84,7 @@ class ApprovalWorkflowSeeder extends Seeder
                         'field' => 'total_amount',
                         'operator' => '<',
                         'value' => 10000000,
-                    ]
+                    ],
                 ],
             ],
 
@@ -121,7 +128,7 @@ class ApprovalWorkflowSeeder extends Seeder
                         'field' => 'total_amount',
                         'operator' => '>=',
                         'value' => 10000000,
-                    ]
+                    ],
                 ],
             ],
 
@@ -149,7 +156,7 @@ class ApprovalWorkflowSeeder extends Seeder
                         'field' => 'is_emergency',
                         'operator' => '=',
                         'value' => true,
-                    ]
+                    ],
                 ],
             ],
 
@@ -198,7 +205,7 @@ class ApprovalWorkflowSeeder extends Seeder
                         'field' => 'department_code',
                         'operator' => '=',
                         'value' => 'IT',
-                    ]
+                    ],
                 ],
             ],
         ];

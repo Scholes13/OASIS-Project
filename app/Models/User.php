@@ -3,16 +3,16 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrApproval;
+use App\Models\Modules\WNS\PurchaseRequest;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Permission\Traits\HasRoles;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -54,6 +54,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, User> $subordinates
  * @property-read int|null $subordinates_count
  * @property-read User|null $supervisor
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User active()
  * @method static \Database\Factories\UserFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User inDepartment($departmentId)
@@ -79,12 +80,13 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withGlobalRole($role)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutPermission($permissions)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutRole($roles, $guard = null)
+ *
  * @mixin \Eloquent
  */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, LogsActivity;
+    use HasFactory, HasRoles, LogsActivity, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -256,7 +258,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Get user's access level based on position
+     * Get user's access level.
      */
     public function getAccessLevel(): string
     {
@@ -264,35 +266,63 @@ class User extends Authenticatable
             return 'super_admin';
         }
 
-        if (!$this->primaryPosition) {
-            return 'staff';
+        $position = $this->primaryPosition;
+
+        if ($position && $position->access_level === 'executive') {
+            return 'executive';
         }
 
-        $positionName = strtolower($this->primaryPosition->name);
-        
-        // CEO/Director level - can see all in business unit
-        if (str_contains($positionName, 'ceo') || 
-            str_contains($positionName, 'director') || 
-            str_contains($positionName, 'managing director')) {
-            return 'director';
+        if ($position && $position->access_level === 'general_manager') {
+            return 'general_manager';
         }
-        
-        // HOD level - can see all in department
-        if (str_contains($positionName, 'head') || 
-            str_contains($positionName, 'manager') ||
-            str_contains($positionName, 'hod')) {
-            return 'department_head';
+
+        if ($this->isGeneralManager()) {
+            return 'general_manager';
         }
-        
-        // Leader level - can see team in department
-        if (str_contains($positionName, 'leader') || 
-            str_contains($positionName, 'supervisor') ||
-            str_contains($positionName, 'lead')) {
-            return 'team_leader';
+
+        if ($position && $position->access_level) {
+            return $position->access_level;
         }
-        
-        // Default staff level - can see own data
+
+        if ($position) {
+            switch ($position->level) {
+                case 'hod':
+                    return 'department_head';
+                case 'leader':
+                    return 'team_leader';
+                default:
+                    return 'staff';
+            }
+        }
+
         return 'staff';
+    }
+
+    /**
+     * Determine if the user acts as a general manager for any business unit.
+     */
+    public function isGeneralManager(): bool
+    {
+        return BusinessUnit::where('manager_id', $this->id)->exists();
+    }
+
+    /**
+     * Business unit IDs where the user is assigned as general manager.
+     */
+    public function managedBusinessUnitIds(): array
+    {
+        return BusinessUnit::where('manager_id', $this->id)->pluck('id')->toArray();
+    }
+
+    /**
+     * Business unit IDs the user can access as general manager (manager assignment + active links).
+     */
+    public function generalManagerBusinessUnitIds(): array
+    {
+        return array_values(array_unique(array_merge(
+            $this->managedBusinessUnitIds(),
+            $this->activeBusinessUnits()->pluck('business_unit_id')->toArray()
+        )));
     }
 
     /**
@@ -306,6 +336,10 @@ class User extends Authenticatable
         }
 
         // Check if user is assigned to this business unit
+        if (in_array($businessUnitId, $this->generalManagerBusinessUnitIds(), true)) {
+            return true;
+        }
+
         return $this->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->exists();
@@ -321,21 +355,33 @@ class User extends Authenticatable
         }
 
         $accessLevel = $this->getAccessLevel();
-        
-        // Director can access all departments in their business units
-        if ($accessLevel === 'director') {
-            $businessUnitIds = $this->activeBusinessUnits()->pluck('business_unit_id');
+
+        if ($accessLevel === 'executive') {
+            $businessUnitIds = $this->getAccessibleBusinessUnitIds();
+
             return \App\Models\Department::where('id', $departmentId)
                 ->whereIn('business_unit_id', $businessUnitIds)
                 ->exists();
         }
-        
-        // Department head can access their department
+
+        if ($accessLevel === 'general_manager') {
+            $businessUnitIds = $this->generalManagerBusinessUnitIds();
+
+            if (! empty($businessUnitIds)) {
+                return \App\Models\Department::where('id', $departmentId)
+                    ->whereIn('business_unit_id', $businessUnitIds)
+                    ->exists();
+            }
+        }
+
         if ($accessLevel === 'department_head') {
             return $this->primary_department_id == $departmentId;
         }
-        
-        // Team leader and staff can access their department
+
+        if ($accessLevel === 'team_leader') {
+            return $this->primary_department_id == $departmentId;
+        }
+
         return $this->primary_department_id == $departmentId;
     }
 
@@ -350,38 +396,50 @@ class User extends Authenticatable
 
         $accessLevel = $this->getAccessLevel();
         $managedIds = [$this->id]; // Always include self
-        
+
         switch ($accessLevel) {
-            case 'director':
-                // Can manage all users in their business units
-                $businessUnitIds = $this->activeBusinessUnits()->pluck('business_unit_id');
-                $departmentIds = \App\Models\Department::whereIn('business_unit_id', $businessUnitIds)
-                    ->pluck('id');
-                $managedIds = User::whereIn('primary_department_id', $departmentIds)
-                    ->pluck('id')->toArray();
+            case 'executive':
+                $businessUnitIds = $this->getAccessibleBusinessUnitIds();
+
+                if (! empty($businessUnitIds)) {
+                    $departmentIds = \App\Models\Department::whereIn('business_unit_id', $businessUnitIds)
+                        ->pluck('id');
+                    $managedIds = User::whereIn('primary_department_id', $departmentIds)
+                        ->pluck('id')->toArray();
+                    $managedIds[] = $this->id;
+                }
                 break;
-                
+
+            case 'general_manager':
+                $businessUnitIds = $this->generalManagerBusinessUnitIds();
+
+                if (! empty($businessUnitIds)) {
+                    $departmentIds = \App\Models\Department::whereIn('business_unit_id', $businessUnitIds)
+                        ->pluck('id');
+                    $managedIds = User::whereIn('primary_department_id', $departmentIds)
+                        ->pluck('id')->toArray();
+                    $managedIds[] = $this->id;
+                }
+                break;
+
             case 'department_head':
-                // Can manage all users in their department
                 $managedIds = User::where('primary_department_id', $this->primary_department_id)
                     ->pluck('id')->toArray();
                 break;
-                
+
             case 'team_leader':
-                // Can manage direct reports and self
                 $managedIds = User::where('supervisor_id', $this->id)
                     ->pluck('id')->toArray();
                 $managedIds[] = $this->id;
                 break;
-                
+
             case 'staff':
             default:
-                // Can only see self
                 $managedIds = [$this->id];
                 break;
         }
-        
-        return $managedIds;
+
+        return array_values(array_unique($managedIds));
     }
 
     /**
@@ -394,7 +452,11 @@ class User extends Authenticatable
             return true;
         }
 
-        return $this->businessUnits()
+        if (in_array($businessUnitId, $this->generalManagerBusinessUnitIds(), true)) {
+            return true;
+        }
+
+        return $this->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->where('is_active', true)
             ->exists();
@@ -409,17 +471,38 @@ class User extends Authenticatable
         if ($this->isSuperAdmin()) {
             $primaryBU = $this->primaryBusinessUnit();
             if ($primaryBU && $primaryBU->businessUnit) {
-                // If super admin is assigned to a parent business unit, get all children
-                $accessibleIds = [$primaryBU->business_unit_id];
-                $children = $primaryBU->businessUnit->descendants()->get();
-                foreach ($children as $child) {
-                    $accessibleIds[] = $child->id;
-                }
-                return $accessibleIds;
+                $accessibleIds = $primaryBU->businessUnit->getAccessibleBusinessUnits();
+
+                return array_values(array_unique($accessibleIds));
             }
-            
+
             // Fallback: access to all business units
             return BusinessUnit::active()->pluck('id')->toArray();
+        }
+
+        $accessLevel = $this->getAccessLevel();
+
+        if ($accessLevel === 'executive') {
+            $ids = [];
+
+            foreach ($this->activeBusinessUnits()->with('businessUnit')->get() as $assignment) {
+                if ($assignment->businessUnit) {
+                    $ids = array_merge($ids, $assignment->businessUnit->getAccessibleBusinessUnits());
+                }
+            }
+
+            if ($this->isGeneralManager()) {
+                $ids = array_merge($ids, $this->managedBusinessUnitIds());
+            }
+
+            return array_values(array_unique($ids));
+        }
+
+        if ($accessLevel === 'general_manager') {
+            $ids = $this->generalManagerBusinessUnitIds();
+            if (! empty($ids)) {
+                return $ids;
+            }
         }
 
         // Regular users can only access their assigned business units
@@ -432,7 +515,7 @@ class User extends Authenticatable
     public function getAccessibleBusinessUnits()
     {
         $accessibleIds = $this->getAccessibleBusinessUnitIds();
-        
+
         return BusinessUnit::whereIn('id', $accessibleIds)
             ->with(['parent', 'children', 'departments'])
             ->active()
@@ -448,7 +531,7 @@ class User extends Authenticatable
         if ($this->canAccessBusinessUnit($businessUnitId)) {
             return $this->getAccessLevel();
         }
-        
+
         return null;
     }
 

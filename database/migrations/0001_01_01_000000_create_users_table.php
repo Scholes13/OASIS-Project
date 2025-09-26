@@ -25,10 +25,8 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
-            
-            // Foreign key constraints
-            $table->foreign('primary_department_id')->references('id')->on('departments')->onDelete('set null');
-            $table->foreign('primary_position_id')->references('id')->on('positions')->onDelete('set null');
+
+            // Foreign key constraints (additional constraints added in a later migration)
             $table->foreign('supervisor_id')->references('id')->on('users')->onDelete('set null');
         });
 

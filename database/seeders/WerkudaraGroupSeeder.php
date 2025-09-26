@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\BusinessUnit;
-use App\Models\User;
-use App\Models\UserBusinessUnit;
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\User;
+use App\Models\UserBusinessUnit;
 use Illuminate\Database\Seeder;
 
 class WerkudaraGroupSeeder extends Seeder
@@ -36,10 +36,10 @@ class WerkudaraGroupSeeder extends Seeder
 
         // Update existing business units to be children of Werkudara Group
         $childBusinessUnits = ['WNS', 'UT', 'MRP', 'WNN'];
-        
+
         foreach ($childBusinessUnits as $code) {
             BusinessUnit::where('code', $code)->update([
-                'parent_id' => $werkudaraGroup->id
+                'parent_id' => $werkudaraGroup->id,
             ]);
         }
 
@@ -47,7 +47,7 @@ class WerkudaraGroupSeeder extends Seeder
         $corporateDept = Department::firstOrCreate(
             [
                 'business_unit_id' => $werkudaraGroup->id,
-                'code' => 'CORP'
+                'code' => 'CORP',
             ],
             [
                 'name' => 'Corporate',
@@ -59,12 +59,13 @@ class WerkudaraGroupSeeder extends Seeder
         $bodPosition = Position::firstOrCreate(
             [
                 'department_id' => $corporateDept->id,
-                'code' => 'BOD'
+                'code' => 'BOD',
             ],
             [
                 'name' => 'Board of Directors',
                 'level' => 'hod',
                 'hierarchy_level' => 0,
+                'access_level' => 'executive',
                 'is_active' => true,
             ]
         );
@@ -73,19 +74,20 @@ class WerkudaraGroupSeeder extends Seeder
         $ceoPosition = Position::firstOrCreate(
             [
                 'department_id' => $corporateDept->id,
-                'code' => 'CEO'
+                'code' => 'CEO',
             ],
             [
                 'name' => 'Chief Executive Officer',
                 'level' => 'hod',
                 'hierarchy_level' => 1,
+                'access_level' => 'executive',
                 'is_active' => true,
             ]
         );
 
         // Update super admin to be assigned to Werkudara Group
         $superAdmin = User::where('email', 'admin@wns.com')->first();
-        
+
         if ($superAdmin) {
             // Update primary business unit assignment
             $superAdmin->update([

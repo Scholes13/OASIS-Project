@@ -3,46 +3,69 @@
 namespace App\Livewire\Modules\WNS\PurchaseRequests;
 
 use App\Models\Department;
-use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrItem;
-use App\Services\UniversalPRNumberingService;
+use App\Models\Modules\WNS\PurchaseRequest;
 use App\Services\Modules\WNS\ApprovalWorkflowService;
-use Livewire\Component;
+use App\Services\UniversalPRNumberingService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Livewire\Component;
 
 class Create extends Component
 {
     // Form fields for complete PR
     public $business_unit_id = '';  // Selected business unit
+
     public $department_id = '';     // Selected department
+
     public $request_date = '';      // Request date
+
     public $description = '';       // Description
+
     public $approval_notes = '';    // Approval notes
+
     public $purpose = '';           // Keperluan
+
     public $used_for = '';         // Digunakan untuk
+
     public $expected_date = '';    // Expected delivery date
+
     public $currency = 'IDR';      // Currency
+
     public $items = [];            // Items array
+
     public $departments = [];      // Available departments
+
     public $businessUnits = [];    // Available business units
-    
+
     // Approval Flow Settings
     public $approvalFlow = 'automatic';     // 'automatic' or 'custom'
+
     public $customApprovalList = [];        // NEW: Array of custom approval items with approver_id and task_type
+
     public $availableApprovers = [];        // Available approvers for selection
-    
+
     // Auto-generated fields (display only)
     public $submission_date;
+
     public $department_name;
+
     public $department_code;
+
     public $user_name;
-    
+
     // State
     public $isLoading = false;
+
     public $totalAmount = 0;
-    
+
+    public $isEdit = false;
+
+    public $purchaseRequestId = null;
+
+    protected $existingPurchaseRequest = null;
+
     // Validation rules for complete PR
     protected $rules = [
         'business_unit_id' => 'required|exists:business_units,id',
@@ -79,9 +102,42 @@ class Create extends Component
         'items.*.unit_price.min' => 'Unit price must be 0 or greater.',
     ];
 
-    public function mount()
+    public function mount(?PurchaseRequest $purchaseRequest = null, string $mode = 'create')
     {
-        // Initialize form properties
+        if ($mode === 'edit' && $purchaseRequest) {
+            $this->isEdit = true;
+            $this->purchaseRequestId = $purchaseRequest->id;
+            $this->existingPurchaseRequest = $purchaseRequest->load(['items', 'businessUnit', 'department', 'user']);
+
+            session([
+                'current_business_unit_id' => $this->existingPurchaseRequest->business_unit_id,
+                'current_department_id' => $this->existingPurchaseRequest->department_id,
+            ]);
+
+            $this->initializeEditState();
+        } else {
+            $this->initializeCreateState();
+        }
+    }
+
+    protected function resolveExistingPurchaseRequest(): PurchaseRequest
+    {
+        if ($this->existingPurchaseRequest instanceof PurchaseRequest) {
+            return $this->existingPurchaseRequest;
+        }
+
+        if (! $this->purchaseRequestId) {
+            throw new \RuntimeException('Purchase request context is missing.');
+        }
+
+        $this->existingPurchaseRequest = PurchaseRequest::with(['items', 'businessUnit', 'department', 'user', 'approvals'])
+            ->findOrFail($this->purchaseRequestId);
+
+        return $this->existingPurchaseRequest;
+    }
+
+    protected function initializeCreateState(): void
+    {
         $this->business_unit_id = session('current_business_unit_id', '');
         $this->department_id = session('current_department_id', '');
         $this->request_date = Carbon::today()->format('Y-m-d');
@@ -89,16 +145,15 @@ class Create extends Component
         $this->approval_notes = '';
         $this->purpose = '';
         $this->used_for = '';
-        
-        // Initialize approval flow settings
+        $this->expected_date = null;
+        $this->currency = 'IDR';
+
         $this->approvalFlow = 'automatic';
         $this->customApprovalList = [];
-        
-        // Auto-populate data from current user and session
+
         $this->submission_date = Carbon::today()->format('d/m/Y');
         $this->user_name = Auth::user()->name;
-        
-        // Get department from user's current department
+
         $user = Auth::user();
         if ($user && $user->primaryDepartment) {
             $this->department_name = $user->primaryDepartment->name;
@@ -107,12 +162,66 @@ class Create extends Component
             $this->department_name = 'Department not set';
             $this->department_code = 'N/A';
         }
-        
-        // Load departments and business units then add first item
+
         $this->loadBusinessUnits();
         $this->loadDepartments();
         $this->loadAvailableApprovers();
+
+        $this->items = [];
         $this->addItem();
+    }
+
+    protected function initializeEditState(): void
+    {
+        $purchaseRequest = $this->resolveExistingPurchaseRequest();
+
+        $this->business_unit_id = $purchaseRequest->business_unit_id;
+        $this->department_id = $purchaseRequest->department_id;
+        $this->request_date = optional($purchaseRequest->date_of_request)->format('Y-m-d') ?? Carbon::today()->format('Y-m-d');
+        $this->description = $purchaseRequest->description ?? '';
+        $this->approval_notes = $purchaseRequest->approval_notes ?? '';
+        $this->purpose = $purchaseRequest->keperluan ?? '';
+        $this->used_for = $purchaseRequest->used_for ?? '';
+        $this->expected_date = optional($purchaseRequest->designated_date)->format('Y-m-d');
+        $this->currency = $purchaseRequest->currency ?? 'IDR';
+
+        $this->approvalFlow = $purchaseRequest->approval_workflow ? 'custom' : 'automatic';
+        $this->customApprovalList = collect($purchaseRequest->approval_workflow['steps'] ?? [])->map(function ($step) {
+            return [
+                'approver_id' => $step['approver_id'] ?? null,
+                'task_type' => $step['task_type'] ?? 'approval',
+                'amount_threshold' => $step['amount_threshold'] ?? null,
+            ];
+        })->toArray();
+
+        $this->submission_date = optional($purchaseRequest->date_of_request)->format('d/m/Y') ?? Carbon::parse($purchaseRequest->created_at)->format('d/m/Y');
+        $this->user_name = optional($purchaseRequest->user)->name ?? Auth::user()->name;
+        $this->department_name = optional($purchaseRequest->department)->name ?? 'Department not set';
+        $this->department_code = optional($purchaseRequest->department)->code ?? 'N/A';
+
+        $this->loadBusinessUnits();
+        $this->loadDepartments();
+        $this->loadAvailableApprovers();
+
+        $this->items = $purchaseRequest->items->map(function ($item) use ($purchaseRequest) {
+            return [
+                'item_name' => $item->item_name,
+                'brand_name' => $item->brand_name,
+                'item_description' => $item->item_description,
+                'supplier_name' => $item->supplier_name,
+                'quantity' => (float) $item->quantity,
+                'unit' => $item->unit,
+                'unit_price' => (float) $item->unit_price,
+                'currency' => $item->currency ?? $purchaseRequest->currency ?? 'IDR',
+                'expense_department_id' => $item->expense_department_id ?? $purchaseRequest->department_id,
+            ];
+        })->toArray();
+
+        if (empty($this->items)) {
+            $this->addItem();
+        }
+
+        $this->calculateTotals();
     }
 
     public function updatedBusinessUnitId($value)
@@ -125,13 +234,13 @@ class Create extends Component
     public function loadBusinessUnits()
     {
         $user = Auth::user();
-        
+
         if ($user && $user->isSuperAdmin()) {
             // Super admin can see all business units
             $this->businessUnits = \App\Models\BusinessUnit::where('is_active', true)
                 ->orderBy('name')
                 ->get();
-        } else if ($user) {
+        } elseif ($user) {
             // Regular users see only accessible business units
             $accessibleBusinessUnitIds = $user->businessUnits()->pluck('business_unit_id')->toArray();
             $this->businessUnits = \App\Models\BusinessUnit::whereIn('id', $accessibleBusinessUnitIds)
@@ -161,40 +270,40 @@ class Create extends Component
         $currentBusinessUnitId = session('current_business_unit_id');
 
         // Get all users who can approve PRs from current business unit
-        $this->availableApprovers = \App\Models\User::where(function($query) use ($currentBusinessUnitId) {
+        $this->availableApprovers = \App\Models\User::where(function ($query) use ($currentBusinessUnitId) {
             $query->whereHas('businessUnits', function ($subQuery) use ($currentBusinessUnitId) {
                 // Users who have access to the same business unit as the PR creator
                 $subQuery->where('business_unit_id', $currentBusinessUnitId)
-                      ->where('is_active', true);
+                    ->where('is_active', true);
             })
             // OR users who are management from Werkudara Group (WG) - they can approve from any BU
-            ->orWhereHas('businessUnits', function ($subQuery) {
-                $subQuery->whereHas('businessUnit', function ($subSubQuery) {
-                    $subSubQuery->where('code', 'WG'); // Werkudara Group
-                })
-                ->where('is_active', true);
-            });
+                ->orWhereHas('businessUnits', function ($subQuery) {
+                    $subQuery->whereHas('businessUnit', function ($subSubQuery) {
+                        $subSubQuery->where('code', 'WG'); // Werkudara Group
+                    })
+                        ->where('is_active', true);
+                });
         })
-        ->where('is_active', true)
-        ->where('id', '!=', $currentUser->id) // Exclude current user (creator)
-        ->orderBy('name')
-        ->get()
-        ->filter(function ($user) {
-            // Additional filter: user must have at least one business unit assignment
-            // This excludes users with "N/A" departments
-            return $user->businessUnits()->where('is_active', true)->count() > 0;
-        })
-        ->map(function ($user) {
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'role' => ucfirst(str_replace('_', ' ', $user->global_role)),
-                'department' => $user->primaryDepartment->name ?? 'N/A',
-                'email' => $user->email
-            ];
-        })
-        ->values() // Reset array keys after filter
-        ->toArray();
+            ->where('is_active', true)
+            ->where('id', '!=', $currentUser->id) // Exclude current user (creator)
+            ->orderBy('name')
+            ->get()
+            ->filter(function ($user) {
+                // Additional filter: user must have at least one business unit assignment
+                // This excludes users with "N/A" departments
+                return $user->businessUnits()->where('is_active', true)->count() > 0;
+            })
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'role' => ucfirst(str_replace('_', ' ', $user->global_role)),
+                    'department' => $user->primaryDepartment->name ?? 'N/A',
+                    'email' => $user->email,
+                ];
+            })
+            ->values() // Reset array keys after filter
+            ->toArray();
     }
 
     public function addItem()
@@ -209,7 +318,7 @@ class Create extends Component
             'unit_price' => 0,
             'currency' => $this->currency,
         ];
-        
+
         $this->calculateTotals();
     }
 
@@ -303,9 +412,9 @@ class Create extends Component
     {
         $this->customApprovalList[] = [
             'approver_id' => '',
-            'task_type' => 'approval'
+            'task_type' => 'approval',
         ];
-        
+
         $this->dispatch('approval-row-added');
     }
 
@@ -315,17 +424,17 @@ class Create extends Component
             unset($this->customApprovalList[$index]);
             $this->customApprovalList = array_values($this->customApprovalList);
         }
-        
+
         $this->dispatch('approval-row-removed');
     }
 
     protected function createCustomApprovalWorkflow(PurchaseRequest $purchaseRequest)
     {
         // Validate that custom approvers are selected
-        $validApprovals = array_filter($this->customApprovalList, function($approval) {
-            return !empty($approval['approver_id']);
+        $validApprovals = array_filter($this->customApprovalList, function ($approval) {
+            return ! empty($approval['approver_id']);
         });
-        
+
         if (empty($validApprovals)) {
             throw new \Exception('Please select at least one approver for custom approval workflow.');
         }
@@ -339,14 +448,14 @@ class Create extends Component
         // Create approval steps for custom workflow
         $stepOrder = 1;
         $workflowStructure = [];
-        
+
         foreach ($validApprovals as $index => $approval) {
             $approverId = $approval['approver_id'];
             $taskType = $approval['task_type'] ?? 'approval';
-            
+
             $approver = \App\Models\User::find($approverId);
-            
-            if (!$approver) {
+
+            if (! $approver) {
                 throw new \Exception("Approver not found for step {$stepOrder}");
             }
 
@@ -381,23 +490,23 @@ class Create extends Component
         $purchaseRequest->update([
             'approval_workflow' => $workflowStructure,
             'is_sequential_approval' => true,
-            'status' => 'in_approval'
+            'status' => 'in_approval',
         ]);
 
         // Log the custom workflow creation
-        \Illuminate\Support\Facades\Log::info("Custom approval workflow created", [
+        \Illuminate\Support\Facades\Log::info('Custom approval workflow created', [
             'pr_number' => $purchaseRequest->pr_number,
             'total_steps' => count($validApprovals),
-            'approvers' => collect($workflowStructure)->pluck('approver_name')->toArray()
+            'approvers' => collect($workflowStructure)->pluck('approver_name')->toArray(),
         ]);
     }
 
     protected function validateCustomApproval()
     {
-        $validApprovals = array_filter($this->customApprovalList, function($approval) {
-            return !empty($approval['approver_id']);
+        $validApprovals = array_filter($this->customApprovalList, function ($approval) {
+            return ! empty($approval['approver_id']);
         });
-        
+
         if (empty($validApprovals)) {
             $this->addError('customApprovalList', 'Please select at least one approver for custom approval workflow.');
             throw new \Illuminate\Validation\ValidationException(validator([], []));
@@ -416,8 +525,8 @@ class Create extends Component
             $approver = \App\Models\User::where('id', $approverId)
                 ->where('is_active', true)
                 ->first();
-                
-            if (!$approver) {
+
+            if (! $approver) {
                 $this->addError("customApprovalList.{$index}.approver_id", 'Selected approver is not valid or inactive.');
                 throw new \Illuminate\Validation\ValidationException(validator([], []));
             }
@@ -427,14 +536,14 @@ class Create extends Component
     public function calculateTotals()
     {
         $this->totalAmount = 0;
-        
+
         foreach ($this->items as $index => $item) {
             // Ensure quantity is numeric and integer
             $quantity = 0;
             if (isset($item['quantity']) && is_numeric($item['quantity'])) {
                 $quantity = intval($item['quantity']);
             }
-            
+
             // Ensure unit_price is numeric and integer (no decimals)
             $unitPrice = 0;
             if (isset($item['unit_price'])) {
@@ -444,16 +553,16 @@ class Create extends Component
                     $unitPrice = intval($cleanPrice);
                 }
             }
-            
+
             // Calculate item total and add to grand total
             $itemTotal = $quantity * $unitPrice;
             $this->totalAmount += $itemTotal;
-            
+
             // Update the item in the array with clean values
             $this->items[$index]['quantity'] = $quantity;
             $this->items[$index]['unit_price'] = $unitPrice;
         }
-        
+
         // Force re-render to ensure UI updates
         $this->dispatch('totals-updated');
     }
@@ -461,7 +570,7 @@ class Create extends Component
     public function getGrandTotal()
     {
         $total = 0;
-        
+
         foreach ($this->items as $item) {
             $quantity = 0;
             if (isset($item['quantity']) && is_numeric($item['quantity'])) {
@@ -479,14 +588,14 @@ class Create extends Component
 
             $total += $quantity * $unitPrice;
         }
-        
+
         return $total;
     }
 
     public function getTotalAmountProperty()
     {
         $total = 0;
-        
+
         foreach ($this->items as $item) {
             $quantity = 0;
             if (isset($item['quantity']) && is_numeric($item['quantity'])) {
@@ -504,14 +613,18 @@ class Create extends Component
 
             $total += $quantity * $unitPrice;
         }
-        
+
         return $total;
     }
 
     public function saveDraft()
     {
         $this->isLoading = true;
-        
+
+        if ($this->isEdit) {
+            return $this->updateExistingDraft();
+        }
+
         try {
             // Validate basic fields
             $this->validate([
@@ -520,7 +633,7 @@ class Create extends Component
             ]);
 
             DB::beginTransaction();
-            
+
             // Generate PR number with current date
             $currentDate = Carbon::today();
             $numberingService = app(UniversalPRNumberingService::class);
@@ -549,7 +662,7 @@ class Create extends Component
 
             // Create PR items if any
             foreach ($this->items as $index => $itemData) {
-                if (!empty($itemData['item_name'])) {
+                if (! empty($itemData['item_name'])) {
                     PrItem::create([
                         'purchase_request_id' => $purchaseRequest->id,
                         'item_order' => $index + 1,
@@ -572,14 +685,99 @@ class Create extends Component
             DB::commit();
 
             session()->flash('success', "Purchase Request {$result['formatted_number']} has been saved as draft.");
+
             return redirect()->route('purchase-requests.show', $purchaseRequest);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            session()->flash('error', 'Failed to save draft: ' . $e->getMessage());
+            session()->flash('error', 'Failed to save draft: '.$e->getMessage());
         } finally {
             $this->isLoading = false;
         }
+    }
+
+    protected function buildRequestPayload(string $status = 'draft'): array
+    {
+        $items = collect($this->items)->map(function ($item) {
+            return [
+                'item_name' => $item['item_name'] ?? '',
+                'brand_name' => $item['brand_name'] ?? null,
+                'item_description' => $item['item_description'] ?? null,
+                'supplier_name' => $item['supplier_name'] ?? null,
+                'quantity' => $item['quantity'] ?? 1,
+                'unit' => $item['unit'] ?? 'pcs',
+                'unit_price' => is_numeric($item['unit_price'] ?? null) ? $item['unit_price'] : str_replace(',', '', $item['unit_price'] ?? 0),
+                'currency' => $item['currency'] ?? $this->currency,
+                'expense_department_id' => $item['expense_department_id'] ?? $this->department_id,
+            ];
+        })->toArray();
+
+        if (empty($items)) {
+            $items[] = [
+                'item_name' => '',
+                'brand_name' => null,
+                'item_description' => null,
+                'supplier_name' => null,
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 0,
+                'currency' => $this->currency,
+                'expense_department_id' => $this->department_id,
+            ];
+        }
+
+        return [
+            'keperluan' => $this->purpose,
+            'used_for' => $this->used_for,
+            'date_of_request' => $this->request_date ?? Carbon::today()->format('Y-m-d'),
+            'designated_date' => $this->expected_date ? Carbon::parse($this->expected_date)->format('Y-m-d') : null,
+            'status' => $status,
+            'currency' => $this->currency,
+            'items' => $items,
+        ];
+    }
+
+    protected function updateExistingDraft()
+    {
+        $this->ensureSessionData();
+
+        try {
+            $this->validate([
+                'purpose' => 'required|string|min:3|max:500',
+                'used_for' => 'required|string|min:10|max:1000',
+            ]);
+
+            DB::beginTransaction();
+
+            $data = $this->buildRequestPayload('draft');
+            $service = app(\App\Services\PurchaseRequestService::class);
+            $purchaseRequest = $service->updatePurchaseRequest($this->resolveExistingPurchaseRequest()->fresh(['items', 'approvals']), $data);
+
+            $this->existingPurchaseRequest = $purchaseRequest;
+
+            $purchaseRequest->update([
+                'status' => 'draft',
+                'submitted_at' => null,
+                'approved_at' => null,
+                'rejected_at' => null,
+                'voided_at' => null,
+                'last_modified_by' => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            session()->flash('success', 'Draft updated successfully.');
+
+            return redirect()->route('purchase-requests.show', $purchaseRequest);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Failed to update draft: '.$e->getMessage());
+        } finally {
+            $this->isLoading = false;
+        }
+
+        return null;
     }
 
     public function submitRequest()
@@ -590,30 +788,34 @@ class Create extends Component
     public function submitPurchaseRequest()
     {
         $this->isLoading = true;
-        
+
+        if ($this->isEdit) {
+            return $this->submitUpdatedRequest();
+        }
+
         try {
             // Initialize session data from authenticated user if not exists
             $this->ensureSessionData();
-            
+
             // Check session data
-            if (!session('current_business_unit_id') || !session('current_department_id')) {
+            if (! session('current_business_unit_id') || ! session('current_department_id')) {
                 $this->dispatch('notify',
                     message: 'Session expired. Please refresh the page and try again.',
                     type: 'error'
                 );
                 throw new \Exception('Missing business unit or department session data. Please refresh the page and try again.');
             }
-            
+
             // Validate the complete form with enhanced error reporting
             $this->validateForm();
-            
+
             // Additional validation for custom approval
             if ($this->approvalFlow === 'custom') {
                 $this->validateCustomApproval();
             }
 
             DB::beginTransaction();
-            
+
             // Generate PR number with current date
             $currentDate = Carbon::today();
             $numberingService = app(UniversalPRNumberingService::class);
@@ -673,27 +875,28 @@ class Create extends Component
             DB::commit();
 
             session()->flash('success', "Purchase Request {$result['formatted_number']} has been submitted for approval.");
+
             return redirect()->route('purchase-requests.show', $purchaseRequest);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
-            
+
             // Consolidate validation errors into single toast
             $errors = $e->validator->errors();
             $totalErrors = $errors->count();
-            
+
             if ($totalErrors > 1) {
                 // Create consolidated error message
                 $errorList = [];
                 foreach ($errors->all() as $error) {
-                    $errorList[] = "• " . $error;
+                    $errorList[] = '� '.$error;
                 }
-                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>" . implode("<br>", array_slice($errorList, 0, 5));
-                
+                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>".implode('<br>', array_slice($errorList, 0, 5));
+
                 if ($totalErrors > 5) {
-                    $consolidatedMessage .= "<br>• ... and " . ($totalErrors - 5) . " more errors";
+                    $consolidatedMessage .= '<br>� ... and '.($totalErrors - 5).' more errors';
                 }
-                
+
                 $this->dispatch('notify',
                     message: $consolidatedMessage,
                     type: 'error',
@@ -702,43 +905,108 @@ class Create extends Component
             } else {
                 // Single error message
                 $this->dispatch('notify',
-                    message: 'Validation Error: ' . $errors->first(),
+                    message: 'Validation Error: '.$errors->first(),
                     type: 'error',
                     duration: 8000
                 );
             }
-            
+
             // Re-throw to show field-specific errors
             throw $e;
-            
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             $this->dispatch('notify',
-                message: 'Failed to submit: ' . $e->getMessage(),
+                message: 'Failed to submit: '.$e->getMessage(),
                 type: 'error',
                 duration: 8000
             );
-            
-            session()->flash('error', 'Failed to submit purchase request: ' . $e->getMessage());
+
+            session()->flash('error', 'Failed to submit purchase request: '.$e->getMessage());
         } finally {
             $this->isLoading = false;
         }
     }
 
+    protected function submitUpdatedRequest()
+    {
+        $this->ensureSessionData();
+
+        try {
+            if (! session('current_business_unit_id') || ! session('current_department_id')) {
+                $this->dispatch('notify',
+                    message: 'Session expired. Please refresh the page and try again.',
+                    type: 'error'
+                );
+                throw new \Exception('Missing business unit or department session data. Please refresh the page and try again.');
+            }
+
+            $this->validateForm();
+
+            if ($this->approvalFlow === 'custom') {
+                $this->validateCustomApproval();
+            }
+
+            DB::beginTransaction();
+
+            $data = $this->buildRequestPayload('submitted');
+            $service = app(\App\Services\PurchaseRequestService::class);
+            $purchaseRequest = $service->updatePurchaseRequest($this->resolveExistingPurchaseRequest()->fresh(['items', 'approvals']), $data);
+
+            $this->existingPurchaseRequest = $purchaseRequest;
+
+            $purchaseRequest->update([
+                'status' => 'submitted',
+                'submitted_at' => now(),
+                'last_modified_by' => Auth::id(),
+            ]);
+
+            if ($this->approvalFlow === 'custom') {
+                $this->createCustomApprovalWorkflow($purchaseRequest);
+            } else {
+                $workflowService = app(ApprovalWorkflowService::class);
+                $workflowService->createWorkflow($purchaseRequest);
+            }
+
+            DB::commit();
+
+            session()->flash('success', 'Purchase Request has been updated and submitted for approval.');
+
+            return redirect()->route('purchase-requests.show', $purchaseRequest);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            $this->dispatch('notify',
+                message: 'Failed to submit: '.$e->getMessage(),
+                type: 'error',
+                duration: 8000
+            );
+
+            session()->flash('error', 'Failed to submit purchase request: '.$e->getMessage());
+        } finally {
+            $this->isLoading = false;
+        }
+
+        return null;
+    }
+
     protected function addBusinessDays(Carbon $date, int $days): Carbon
     {
         $result = $date->copy();
-        
+
         while ($days > 0) {
             $result->addDay();
-            
+
             // Skip weekends
             if ($result->isWeekday()) {
                 $days--;
             }
         }
-        
+
         return $result;
     }
 
@@ -747,9 +1015,9 @@ class Create extends Component
      */
     private function ensureSessionData()
     {
-        if (!session('current_business_unit_id') || !session('current_department_id')) {
+        if (! session('current_business_unit_id') || ! session('current_department_id')) {
             $user = Auth::user();
-            
+
             if ($user) {
                 // Get user's primary business unit and department
                 if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
@@ -765,9 +1033,9 @@ class Create extends Component
                     $wgBusinessUnit = \App\Models\BusinessUnit::where('code', 'WG')->first();
                     if ($wgBusinessUnit) {
                         $corporateDept = \App\Models\Department::where('business_unit_id', $wgBusinessUnit->id)
-                                                               ->where('code', 'CORP')
-                                                               ->first();
-                        
+                            ->where('code', 'CORP')
+                            ->first();
+
                         session([
                             'current_business_unit_id' => $wgBusinessUnit->id,
                             'current_business_unit_code' => $wgBusinessUnit->code,
@@ -788,33 +1056,33 @@ class Create extends Component
     {
         try {
             $this->validate();
-            
+
             // If validation passes, show success message
             $this->dispatch('notify',
                 message: 'Form validation passed!',
                 type: 'success',
                 duration: 3000
             );
-            
+
             return true;
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Get all validation errors
             $errors = $e->validator->errors();
             $totalErrors = $errors->count();
-            
+
             if ($totalErrors > 1) {
                 // Create consolidated error message
                 $errorList = [];
                 foreach ($errors->all() as $error) {
-                    $errorList[] = "• " . $error;
+                    $errorList[] = '• '.$error;
                 }
-                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>" . implode("<br>", array_slice($errorList, 0, 5));
-                
+                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>".implode('<br>', array_slice($errorList, 0, 5));
+
                 if ($totalErrors > 5) {
-                    $consolidatedMessage .= "<br>• ... and " . ($totalErrors - 5) . " more errors";
+                    $consolidatedMessage .= '<br>• ... and '.($totalErrors - 5).' more errors';
                 }
-                
+
                 $this->dispatch('notify',
                     message: $consolidatedMessage,
                     type: 'error',
@@ -823,12 +1091,12 @@ class Create extends Component
             } else {
                 // Show specific error for single issue
                 $this->dispatch('notify',
-                    message: 'Validation Error: ' . $errors->first(),
+                    message: 'Validation Error: '.$errors->first(),
                     type: 'error',
                     duration: 8000
                 );
             }
-            
+
             // Re-throw to show field-specific errors
             throw $e;
         }

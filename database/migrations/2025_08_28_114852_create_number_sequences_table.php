@@ -22,15 +22,18 @@ return new class extends Migration
             $table->integer('max_number')->default(999)->comment('Maximum allowed number');
             $table->json('void_numbers')->nullable()->comment('Array of voided numbers for resequencing');
             $table->timestamps();
-            
+
             // Unique constraint for sequence per business unit, module, department, year, month
             $table->unique(
-                ['business_unit_id', 'numbering_module_id', 'department_id', 'year', 'month'], 
+                ['business_unit_id', 'numbering_module_id', 'department_id', 'year', 'month'],
                 'unique_sequence_per_period'
             );
-            
+
             // Indexes for performance
-            $table->index(['business_unit_id', 'numbering_module_id', 'year', 'month']);
+            $table->index(
+                ['business_unit_id', 'numbering_module_id', 'year', 'month'],
+                'number_sequences_period_idx'
+            );
         });
     }
 

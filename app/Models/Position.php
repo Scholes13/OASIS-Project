@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -14,6 +14,7 @@ use Spatie\Activitylog\LogOptions;
  * @property string $name
  * @property string $code
  * @property string $level
+ * @property string $access_level
  * @property int $hierarchy_level
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -28,6 +29,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read int|null $user_business_units_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
  * @property-read int|null $users_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Position active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Position byLevel($level)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Position forDepartment($departmentId)
@@ -46,6 +48,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereLevel($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Position whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Position extends Model
@@ -58,11 +61,13 @@ class Position extends Model
         'code',
         'level',
         'hierarchy_level',
+        'access_level',
         'is_active',
     ];
 
     protected $casts = [
         'hierarchy_level' => 'integer',
+        'access_level' => 'string',
         'is_active' => 'boolean',
     ];
 
@@ -151,7 +156,7 @@ class Position extends Model
      */
     public function getFullNameAttribute(): string
     {
-        return $this->department->name . ' - ' . $this->name;
+        return $this->department->name.' - '.$this->name;
     }
 
     /**

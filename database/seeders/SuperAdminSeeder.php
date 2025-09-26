@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\BusinessUnit;
-use App\Models\User;
-use App\Models\UserBusinessUnit;
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\User;
+use App\Models\UserBusinessUnit;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -39,7 +39,7 @@ class SuperAdminSeeder extends Seeder
         $corporateDept = Department::firstOrCreate(
             [
                 'business_unit_id' => $werkudaraGroup->id,
-                'code' => 'CORP'
+                'code' => 'CORP',
             ],
             [
                 'name' => 'Corporate',
@@ -51,12 +51,13 @@ class SuperAdminSeeder extends Seeder
         $superAdminPosition = Position::firstOrCreate(
             [
                 'department_id' => $corporateDept->id,
-                'code' => 'SUPERADMIN'
+                'code' => 'SUPERADMIN',
             ],
             [
                 'name' => 'Super Administrator',
                 'level' => 'hod',
                 'hierarchy_level' => 0,
+                'access_level' => 'executive',
                 'is_active' => true,
             ]
         );

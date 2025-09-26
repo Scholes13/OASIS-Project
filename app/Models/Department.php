@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -33,6 +33,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read int|null $user_business_units_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
  * @property-read int|null $users_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department active()
  * @method static \Database\Factories\DepartmentFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department forBusinessUnit($businessUnitId)
@@ -46,6 +47,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereIsActive($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class Department extends Model
@@ -62,6 +64,13 @@ class Department extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (self $department) {
+            $department->ensureDefaultPositions();
+        });
+    }
 
     /**
      * Get the business unit that owns this department
@@ -120,6 +129,51 @@ class Department extends Model
     }
 
     /**
+     * Ensure default hierarchy positions exist for the department.
+     */
+    public function ensureDefaultPositions(): void
+    {
+        $positions = [
+            [
+                'code' => 'HOD_'.strtoupper($this->code),
+                'name' => 'Head of '.$this->name,
+                'level' => 'hod',
+                'access_level' => 'department_head',
+                'hierarchy_level' => 1,
+            ],
+            [
+                'code' => 'LEAD_'.strtoupper($this->code),
+                'name' => 'Leader of '.$this->name,
+                'level' => 'leader',
+                'access_level' => 'team_leader',
+                'hierarchy_level' => 2,
+            ],
+            [
+                'code' => 'STAFF_'.strtoupper($this->code),
+                'name' => 'Staff of '.$this->name,
+                'level' => 'staff',
+                'access_level' => 'staff',
+                'hierarchy_level' => 3,
+            ],
+        ];
+
+        foreach ($positions as $position) {
+            Position::firstOrCreate(
+                [
+                    'department_id' => $this->id,
+                    'code' => $position['code'],
+                ],
+                [
+                    'name' => $position['name'],
+                    'level' => $position['level'],
+                    'hierarchy_level' => $position['hierarchy_level'],
+                    'is_active' => true,
+                ]
+            );
+        }
+    }
+
+    /**
      * Scope for active departments
      */
     public function scopeActive($query)
@@ -140,7 +194,7 @@ class Department extends Model
      */
     public function getFullNameAttribute(): string
     {
-        return $this->businessUnit->name . ' - ' . $this->name;
+        return $this->businessUnit->name.' - '.$this->name;
     }
 
     /**

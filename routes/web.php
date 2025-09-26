@@ -16,6 +16,26 @@ Route::get('/', function () {
 // Public routes (no authentication required)
 Route::get('/purchase-requests/{pr}/public', [ApprovalController::class, 'publicView'])->name('purchase-requests.public');
 
+// Public PDF route for browsershot (no auth middleware)
+Route::get('/purchase-requests/{purchaseRequest}/pdf-public', [PurchaseRequestController::class, 'pdfPublic'])->name('purchase-requests.pdf-public');
+
+// Public download PDF route for browsershot (no auth middleware)
+Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [PurchaseRequestController::class, 'downloadPdfPublic'])->name('purchase-requests.download-pdf-public');
+
+// Test route for debugging Browsershot timeout
+Route::get('/test-browsershot', function () {
+    return '<html><body><h1>Test Page</h1><p>This is a simple test page for Browsershot.</p></body></html>';
+});
+
+// Alternative PDF download route using job queue (for programmatic access)
+Route::get('/purchase-requests/{purchaseRequest}/pdf-download-queue', function (\App\Models\Modules\WNS\PurchaseRequest $purchaseRequest) {
+    // For future implementation: Queue PDF generation job
+    return response()->json([
+        'message' => 'PDF generation queued. This feature will be available soon.',
+        'redirect_to' => route('purchase-requests.pdf-public', $purchaseRequest)
+    ]);
+})->name('purchase-requests.pdf-queue');
+
 // Test route for QR codes (temporary)
 Route::get('/test-qr/{pr}', function ($prId) {
     $pr = \App\Models\Modules\WNS\PurchaseRequest::with([

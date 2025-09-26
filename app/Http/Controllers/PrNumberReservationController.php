@@ -15,29 +15,30 @@ class PrNumberReservationController extends Controller
     {
         $user = Auth::user();
         $accessLevel = $user->getAccessLevel();
-        
+
         $query = PrNumberReservation::with(['businessUnit', 'department', 'user', 'purchaseRequest'])
             ->where('business_unit_id', session('current_business_unit_id'));
 
         // Apply hierarchy-based filtering (same as PurchaseRequestController)
         switch ($accessLevel) {
             case 'super_admin':
-            case 'director':
+            case 'executive':
+            case 'general_manager':
                 // Can see all reservations in the business unit
                 break;
-                
+
             case 'department_head':
                 // Department head can see all reservations in their department
                 $query->where('department_id', $user->primary_department_id);
                 break;
-                
+
             case 'team_leader':
                 // Team leader can see their own + subordinates' reservations
                 $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
                 $subordinateIds[] = $user->id; // Include own reservations
                 $query->whereIn('user_id', $subordinateIds);
                 break;
-                
+
             case 'staff':
             default:
                 // Staff can only see their own reservations
@@ -56,15 +57,15 @@ class PrNumberReservationController extends Controller
     public function void(Request $request, PrNumberReservation $reservation)
     {
         $request->validate([
-            'reason' => 'required|string|max:500'
+            'reason' => 'required|string|max:500',
         ]);
 
         // Check if user can void this reservation
-        if ($reservation->user_id !== Auth::id() && !Auth::user()->isSuperAdmin()) {
+        if ($reservation->user_id !== Auth::id() && ! Auth::user()->isSuperAdmin()) {
             return back()->with('error', 'You can only void your own PR number reservations.');
         }
 
-        if (!$reservation->canBeVoided()) {
+        if (! $reservation->canBeVoided()) {
             return back()->with('error', 'This PR number cannot be voided.');
         }
 
@@ -83,7 +84,7 @@ class PrNumberReservationController extends Controller
             return back()->with('error', 'You can only continue with your own PR number reservations.');
         }
 
-        if (!$reservation->canBeUsed()) {
+        if (! $reservation->canBeUsed()) {
             return back()->with('error', 'This PR number is no longer available.');
         }
 
@@ -103,7 +104,7 @@ class PrNumberReservationController extends Controller
                 'requested_by' => $reservation->user->name,
                 'requested_at' => $reservation->reserved_at->format('Y-m-d H:i:s'),
                 'reservation_id' => $reservation->id, // Track which reservation this is for
-            ]
+            ],
         ]);
 
         return redirect()->route('purchase-requests.create-with-number');

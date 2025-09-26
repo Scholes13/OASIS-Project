@@ -5,9 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Modules\WNS\PurchaseRequest;
 use App\Services\PurchaseRequestService;
 use App\Services\QrCodeService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Spatie\Browsershot\Browsershot;
 
 class PurchaseRequestController extends Controller
 {
@@ -36,7 +37,8 @@ class PurchaseRequestController extends Controller
         // Apply same hierarchy filtering as PR
         switch ($accessLevel) {
             case 'super_admin':
-            case 'director':
+            case 'executive':
+            case 'general_manager':
                 break;
             case 'department_head':
                 $reservationQuery->where('department_id', $user->primary_department_id);
@@ -66,7 +68,7 @@ class PurchaseRequestController extends Controller
         $accessLevel = $user->getAccessLevel();
 
         // Only allow certain access levels to view "all" PRs
-        if (! in_array($accessLevel, ['super_admin', 'director', 'department_head'])) {
+        if (! in_array($accessLevel, ['super_admin', 'executive', 'general_manager', 'department_head'])) {
             return redirect()->route('purchase-requests.index')
                 ->with('error', 'You do not have permission to view all purchase requests.');
         }
@@ -130,8 +132,16 @@ class PurchaseRequestController extends Controller
                 ->with('error', 'This purchase request cannot be edited.');
         }
 
+        if (session('current_business_unit_id') !== $purchaseRequest->business_unit_id) {
+            session(['current_business_unit_id' => $purchaseRequest->business_unit_id]);
+        }
+
+        if (session('current_department_id') !== $purchaseRequest->department_id) {
+            session(['current_department_id' => $purchaseRequest->department_id]);
+        }
+
         $departments = $this->purchaseRequestService->getDepartments();
-        $purchaseRequest->load(['items']);
+        $purchaseRequest->load(['items', 'businessUnit']);
 
         return view('purchase-requests.edit', compact('purchaseRequest', 'departments'));
     }
@@ -230,13 +240,13 @@ class PurchaseRequestController extends Controller
         $qrCodeService = new QrCodeService;
         $qrCodes = $this->generateQrCodesForPdf($purchaseRequest, $qrCodeService);
 
-        return view('purchase-requests.pdf-simple', compact('purchaseRequest', 'qrCodes'));
+        return view('purchase-requests.pdf-browser', compact('purchaseRequest', 'qrCodes'));
     }
 
     /**
-     * Download PDF for purchase request
+     * Generate PDF view for purchase request - Public access for browsershot
      */
-    public function downloadPdf(PurchaseRequest $purchaseRequest)
+    public function pdfPublic(PurchaseRequest $purchaseRequest)
     {
         // Load relationships needed for PDF
         $purchaseRequest->load([
@@ -251,16 +261,139 @@ class PurchaseRequestController extends Controller
         $qrCodeService = new QrCodeService;
         $qrCodes = $this->generateQrCodesForPdf($purchaseRequest, $qrCodeService);
 
-        // Generate PDF using DomPDF
-        $pdf = Pdf::loadView('purchase-requests.pdf-simple', compact('purchaseRequest', 'qrCodes'));
-        $pdf->setPaper('A4', 'landscape');
+        return view('purchase-requests.pdf-browser', compact('purchaseRequest', 'qrCodes'));
+    }
+
+    /**
+     * Download PDF via public route (no authentication required)
+     * This method is accessible by Browsershot without authentication
+     */
+    public function downloadPdfPublic(PurchaseRequest $purchaseRequest)
+    {
+        // Increase PHP execution time for PDF generation
+        set_time_limit(300); // 5 minutes
+        
+        // Load relationships needed for PDF
+        $purchaseRequest->load([
+            'user',
+            'department',
+            'businessUnit',
+            'items',
+            'approvals.approver',
+        ]);
+
+        // Generate QR codes for PDF
+        $qrCodeService = new QrCodeService;
+        $qrCodes = $this->generateQrCodesForPdf($purchaseRequest, $qrCodeService);
 
         // Clean filename by removing invalid characters
         $cleanPrNumber = preg_replace('/[\/\\\\:*?"<>|]/', '-', $purchaseRequest->pr_number);
         $filename = 'PR-'.$cleanPrNumber.'.pdf';
 
-        return $pdf->download($filename);
+        try {
+            // Generate HTML content directly to avoid URL timeout issues
+            $html = view('purchase-requests.pdf-browser', compact('purchaseRequest', 'qrCodes'))->render();
+            
+            // Create temporary file path
+            $tempPath = storage_path('app/temp/' . $filename);
+            
+            // Ensure temp directory exists
+            if (!file_exists(dirname($tempPath))) {
+                mkdir(dirname($tempPath), 0755, true);
+            }
+
+            // Generate PDF from HTML string (more reliable than URL)
+            Browsershot::html($html)
+                ->format('A4')
+                ->landscape()  
+                ->margins(10, 10, 10, 10)
+                ->timeout(120)
+                ->noSandbox()
+                ->disableWebSecurity()
+                ->setDelay(2000) // Wait 2 seconds for rendering
+                ->save($tempPath);
+
+            // Check if file was created successfully
+            if (!file_exists($tempPath)) {
+                throw new \Exception('PDF file was not generated successfully');
+            }
+
+            // Return file download response
+            return response()->download($tempPath, $filename, [
+                'Content-Type' => 'application/pdf',
+            ])->deleteFileAfterSend(true);
+                
+        } catch (\Exception $e) {
+            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
+
+            // Fallback: redirect to PDF view with better print styles
+            return redirect()->route('purchase-requests.pdf-public', $purchaseRequest)
+                ->with('error', 'Automatic PDF generation failed. Please use Ctrl+P to save as PDF.');
+        }
     }
+
+    /**
+     * Download PDF for purchase request using configured method
+     */
+    public function downloadPdf(PurchaseRequest $purchaseRequest)
+    {
+        // Try Browsershot PDF generation first, fallback to PDF view if fails
+        return redirect()->route('purchase-requests.download-pdf-public', $purchaseRequest);
+    }
+
+    /**
+     * Generate PDF using Browsershot
+     */
+    private function generateBrowsershotPdf($purchaseRequest, $qrCodes, $filename)
+    {
+        try {
+            // Generate the full URL for the PDF view using public route (no auth required)
+            $baseUrl = config('app.url');
+            if ($baseUrl === 'http://localhost') {
+                $baseUrl = 'http://localhost:8000';
+            }
+
+            $url = $baseUrl.'/purchase-requests/'.$purchaseRequest->id.'/pdf-public';
+
+            Log::info('Browsershot attempting to access URL: ' . $url);
+
+            // Get Browsershot configuration
+            $config = config('pdf.browsershot');
+
+            // Use working configuration with proper timeout
+            $browsershot = Browsershot::url($url)
+                ->format('A4')
+                ->landscape()
+                ->margins(10, 10, 10, 10)
+                ->timeout(120) // Increased timeout for complex PDF pages
+                ->noSandbox()
+                ->disableWebSecurity();
+
+            // Don't wait for network idle to avoid timeout
+            // Network idle can cause timeout on slow connections
+            
+            Log::info('Browsershot configuration applied, generating PDF...');
+
+            $pdf = $browsershot->pdf();
+
+            Log::info('Browsershot PDF generation successful');
+
+            return response($pdf)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
+
+        } catch (\Exception $e) {
+            // Log error and return proper error response
+            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
+
+            return response()->json([
+                'error' => 'PDF generation failed. Please try again later.',
+                'message' => 'Browsershot encountered an error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 
     /**
      * Generate QR codes for PDF

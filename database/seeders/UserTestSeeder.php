@@ -2,13 +2,12 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\User;
 use App\Models\UserBusinessUnit;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
@@ -23,31 +22,32 @@ class UserTestSeeder extends Seeder
 
         // Get Werkudara Group business unit
         $businessUnit = BusinessUnit::where('code', 'WG')->first();
-        
-        if (!$businessUnit) {
+
+        if (! $businessUnit) {
             $this->command->error('Werkudara Group business unit not found!');
+
             return;
         }
 
         // Get departments
         $corpDept = Department::where('business_unit_id', $businessUnit->id)
-                             ->where('code', 'CORP')
-                             ->first();
-        
+            ->where('code', 'CORP')
+            ->first();
+
         $itDept = Department::where('business_unit_id', $businessUnit->id)
-                           ->where('code', 'IT')
-                           ->first();
+            ->where('code', 'IT')
+            ->first();
 
         $hrDept = Department::where('business_unit_id', $businessUnit->id)
-                           ->where('code', 'HR')
-                           ->first();
+            ->where('code', 'HR')
+            ->first();
 
         $finDept = Department::where('business_unit_id', $businessUnit->id)
-                            ->where('code', 'FIN')
-                            ->first();
+            ->where('code', 'FIN')
+            ->first();
 
         // Ensure departments exist
-        if (!$corpDept) {
+        if (! $corpDept) {
             $corpDept = Department::create([
                 'business_unit_id' => $businessUnit->id,
                 'code' => 'CORP',
@@ -56,7 +56,7 @@ class UserTestSeeder extends Seeder
             ]);
         }
 
-        if (!$itDept) {
+        if (! $itDept) {
             $itDept = Department::create([
                 'business_unit_id' => $businessUnit->id,
                 'code' => 'IT',
@@ -65,7 +65,7 @@ class UserTestSeeder extends Seeder
             ]);
         }
 
-        if (!$hrDept) {
+        if (! $hrDept) {
             $hrDept = Department::create([
                 'business_unit_id' => $businessUnit->id,
                 'code' => 'HR',
@@ -74,7 +74,7 @@ class UserTestSeeder extends Seeder
             ]);
         }
 
-        if (!$finDept) {
+        if (! $finDept) {
             $finDept = Department::create([
                 'business_unit_id' => $businessUnit->id,
                 'code' => 'FIN',
@@ -91,6 +91,7 @@ class UserTestSeeder extends Seeder
             'name' => 'Manager',
             'level' => 'hod',
             'hierarchy_level' => 3,
+            'access_level' => 'department_head',
             'is_active' => true,
         ]);
 
@@ -101,6 +102,7 @@ class UserTestSeeder extends Seeder
             'name' => 'Staff',
             'level' => 'staff',
             'hierarchy_level' => 1,
+            'access_level' => 'staff',
             'is_active' => true,
         ]);
 
@@ -123,7 +125,7 @@ class UserTestSeeder extends Seeder
                 'department' => $corpDept,
                 'position' => $managerPosition,
                 'role' => $adminRole,
-                'bu_role' => 'manager'
+                'bu_role' => 'manager',
             ],
             [
                 'name' => 'Sarah Supervisor',
@@ -138,16 +140,17 @@ class UserTestSeeder extends Seeder
                 'department' => $hrDept,
                 'position' => $managerPosition,
                 'role' => $userRole,
-                'bu_role' => 'supervisor'
-            ]
+                'bu_role' => 'supervisor',
+            ],
         ];
 
         foreach ($testUsers as $userData) {
             // Check if user already exists
             $existingUser = User::where('email', $userData['email'])->first();
-            
+
             if ($existingUser) {
                 $this->command->warn("User {$userData['email']} already exists. Skipping...");
+
                 continue;
             }
 
@@ -183,7 +186,7 @@ class UserTestSeeder extends Seeder
                 ]),
             ]);
 
-            $this->command->info("✓ Created user: {$userData['name']} ({$userData['email']})");
+            $this->command->info("??? Created user: {$userData['name']} ({$userData['email']})");
             $this->command->info("  - Department: {$userData['department']->name}");
             $this->command->info("  - Position: {$userData['position']->name}");
             $this->command->info("  - Role: {$userData['role']->name}");

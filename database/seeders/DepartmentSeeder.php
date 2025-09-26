@@ -13,7 +13,21 @@ class DepartmentSeeder extends Seeder
      */
     public function run(): void
     {
-        // WNS specific departments as per design requirements
+        $werkudaraGroupDepartments = [
+            [
+                'code' => 'CEO',
+                'name' => 'Chief Executive Office',
+            ],
+            [
+                'code' => 'MD',
+                'name' => 'Managing Director',
+            ],
+            [
+                'code' => 'SYSADMIN',
+                'name' => 'System Administration',
+            ],
+        ];
+
         $wnsDepartments = [
             [
                 'code' => 'BAS',
@@ -53,7 +67,6 @@ class DepartmentSeeder extends Seeder
             ],
         ];
 
-        // Default departments for other business units
         $defaultDepartments = [
             [
                 'code' => 'GA',
@@ -89,13 +102,17 @@ class DepartmentSeeder extends Seeder
             ],
         ];
 
-        // Get business units
         $businessUnits = BusinessUnit::all();
-        
+
         foreach ($businessUnits as $businessUnit) {
-            // Use WNS specific departments for WNS business unit
-            $departments = ($businessUnit->code === 'WNS') ? $wnsDepartments : $defaultDepartments;
-            
+            if ($businessUnit->code === 'WG') {
+                $departments = $werkudaraGroupDepartments;
+            } elseif ($businessUnit->code === 'WNS') {
+                $departments = $wnsDepartments;
+            } else {
+                $departments = $defaultDepartments;
+            }
+
             foreach ($departments as $deptData) {
                 Department::firstOrCreate(
                     [

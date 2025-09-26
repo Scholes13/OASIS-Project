@@ -12,61 +12,57 @@ class BusinessUnitSeeder extends Seeder
      */
     public function run(): void
     {
+        $commonConfig = [
+            'pr_format' => 'PR.{DEPT}/{YEAR}/{MONTH}/{SEQUENCE}',
+            'sequence_padding' => 3,
+            'max_sequence' => 999,
+            'reset_annually' => false,
+            'reset_monthly' => false,
+        ];
+
+        BusinessUnit::unguard();
+
+        $werkudaraGroup = BusinessUnit::updateOrCreate(
+            ['id' => 1],
+            [
+                'code' => 'WG',
+                'name' => 'Werkudara Group',
+                'description' => 'Parent company and top management for Werkudara Group',
+                'numbering_config' => $commonConfig,
+                'parent_id' => null,
+                'is_active' => true,
+            ]
+        );
+
+        BusinessUnit::reguard();
+
         $businessUnits = [
             [
                 'code' => 'WNS',
                 'name' => 'Werkudara Nirwana Sakti',
-                'numbering_config' => [
-                    'pr_format' => 'PR.{DEPT}/{YEAR}/{MONTH}/{SEQUENCE}',
-                    'sequence_padding' => 3,
-                    'max_sequence' => 999,
-                    'reset_annually' => false,
-                    'reset_monthly' => false,
-                ],
-                'is_active' => true,
             ],
             [
                 'code' => 'UT',
                 'name' => 'Utama Kalpana',
-                'numbering_config' => [
-                    'pr_format' => 'PR.{DEPT}/{YEAR}/{MONTH}/{SEQUENCE}',
-                    'sequence_padding' => 3,
-                    'max_sequence' => 999,
-                    'reset_annually' => false,
-                    'reset_monthly' => false,
-                ],
-                'is_active' => true,
             ],
             [
                 'code' => 'MRP',
                 'name' => 'Maharaja Pratama',
-                'numbering_config' => [
-                    'pr_format' => 'PR.{DEPT}/{YEAR}/{MONTH}/{SEQUENCE}',
-                    'sequence_padding' => 3,
-                    'max_sequence' => 999,
-                    'reset_annually' => false,
-                    'reset_monthly' => false,
-                ],
-                'is_active' => true,
             ],
             [
                 'code' => 'WNN',
                 'name' => 'Werkudara Nirwana Nadi',
-                'numbering_config' => [
-                    'pr_format' => 'PR.{DEPT}/{YEAR}/{MONTH}/{SEQUENCE}',
-                    'sequence_padding' => 3,
-                    'max_sequence' => 999,
-                    'reset_annually' => false,
-                    'reset_monthly' => false,
-                ],
-                'is_active' => true,
             ],
         ];
 
         foreach ($businessUnits as $unitData) {
-            BusinessUnit::firstOrCreate(
+            BusinessUnit::updateOrCreate(
                 ['code' => $unitData['code']],
-                $unitData
+                array_merge($unitData, [
+                    'numbering_config' => $commonConfig,
+                    'parent_id' => $werkudaraGroup->id,
+                    'is_active' => true,
+                ])
             );
         }
     }

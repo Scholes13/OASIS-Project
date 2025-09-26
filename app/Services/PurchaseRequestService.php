@@ -42,13 +42,17 @@ class PurchaseRequestService
 
         // Apply business unit filtering based on hierarchy
         if ($currentBusinessUnit) {
-            // For top management (super_admin/director) in parent business units,
-            // show PRs from current BU + all child business units
-            if (in_array($accessLevel, ['super_admin', 'director'])) {
+            if (in_array($accessLevel, ['super_admin', 'executive'])) {
                 $accessibleBusinessUnits = $currentBusinessUnit->getAccessibleBusinessUnits();
                 $query->whereIn('business_unit_id', $accessibleBusinessUnits);
+            } elseif ($accessLevel === 'general_manager') {
+                $managedBusinessUnits = $user->generalManagerBusinessUnitIds();
+                if (! empty($managedBusinessUnits)) {
+                    $query->whereIn('business_unit_id', $managedBusinessUnits);
+                } else {
+                    $query->where('business_unit_id', $currentBusinessUnitId);
+                }
             } else {
-                // For other roles, only show PRs from current business unit
                 $query->where('business_unit_id', $currentBusinessUnitId);
             }
         } else {
@@ -59,7 +63,8 @@ class PurchaseRequestService
         // Apply hierarchy-based filtering
         switch ($accessLevel) {
             case 'super_admin':
-            case 'director':
+            case 'executive':
+            case 'general_manager':
                 // Can see all PRs in accessible business units (already filtered above)
                 break;
 

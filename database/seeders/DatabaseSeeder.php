@@ -11,13 +11,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Run seeders in dependency order
         $this->call([
             BusinessUnitSeeder::class,
             DepartmentSeeder::class,
             PositionSeeder::class,
             UserSeeder::class,
-            WerkudaraGroupSeeder::class, // Add after UserSeeder to update existing data
             NumberingModuleSeeder::class,
             ApprovalWorkflowSeeder::class,
         ]);

@@ -26,24 +26,6 @@ Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [Purchase
 // DEBUG ROUTES - Only active in local environment
 // ============================================================================
 if (app()->environment('local')) {
-    // Auth Debug Helper - Check authentication state and session data
-    Route::get('/debug/auth', [App\Http\Controllers\AuthDebugController::class, 'debug'])
-        ->middleware('auth')
-        ->name('debug.auth');
-
-    // Livewire Component Debug - Test PR Create component initialization
-    Route::get('/debug/pr-create', function () {
-        if (! Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        $component = new \App\Livewire\Modules\Wns\PurchaseRequests\Create;
-        $component->mount();
-        $debugReport = $component->getDebugReport();
-
-        return response()->json($debugReport, 200, [], JSON_PRETTY_PRINT);
-    })->middleware('auth')->name('debug.pr-create');
-
     // Browsershot Test - Simple page for testing PDF generation
     Route::get('/test-browsershot', function () {
         return '<html><body><h1>Test Page</h1><p>This is a simple test page for Browsershot.</p></body></html>';

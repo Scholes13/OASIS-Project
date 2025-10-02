@@ -41,8 +41,9 @@ class TestBrowsershotPdf extends Command
                 ->format('A4')
                 ->pdf();
 
-            file_put_contents(storage_path('test-browsershot-basic.pdf'), $pdf);
-            $this->info('✓ Basic test PDF saved to: '.storage_path('test-browsershot-basic.pdf'));
+            $testFile = storage_path('app/test-browsershot-basic.pdf');
+            file_put_contents($testFile, $pdf);
+            $this->info('✓ Basic test PDF saved to: '.$testFile);
 
             // Test Purchase Request URL
             $this->info('2. Testing Purchase Request URL...');
@@ -65,7 +66,7 @@ class TestBrowsershotPdf extends Command
                 ->timeout(60)
                 ->pdf();
 
-            $filename = storage_path('test-browsershot-pr-'.$purchaseRequest->id.'.pdf');
+            $filename = storage_path('app/test-browsershot-pr-'.$purchaseRequest->id.'.pdf');
             file_put_contents($filename, $pdf);
             $this->info("✓ Purchase Request PDF saved to: {$filename}");
 

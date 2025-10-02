@@ -4,14 +4,13 @@ namespace App\Models\Modules\WNS;
 
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\User;
 use App\Models\NumberSequence;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-use Carbon\Carbon;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -50,6 +49,7 @@ use Carbon\Carbon;
  * @property-read int|null $pending_approvals_count
  * @property-read NumberSequence $sequence
  * @property-read User $user
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest approved()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest byDepartment($departmentId)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest byUser($userId)
@@ -85,6 +85,7 @@ use Carbon\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereVoidedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest withStatus($status)
+ *
  * @mixin \Eloquent
  */
 class PurchaseRequest extends Model
@@ -103,6 +104,7 @@ class PurchaseRequest extends Model
         'keperluan', // Specific needs or requirements field
         'date_of_request', // Auto dari PR number creation
         'expected_date', // User input - kapan barang dibutuhkan
+        'designated_date', // Saved from expected_date field
         'status',
         'submitted_at',
         'approved_at',
@@ -119,6 +121,7 @@ class PurchaseRequest extends Model
     protected $casts = [
         'date_of_request' => 'date',
         'expected_date' => 'date',
+        'designated_date' => 'date',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
@@ -305,7 +308,7 @@ class PurchaseRequest extends Model
      */
     public function canBeVoided(): bool
     {
-        return !in_array($this->status, ['voided', 'approved']);
+        return ! in_array($this->status, ['voided', 'approved']);
     }
 
     /**
@@ -313,7 +316,7 @@ class PurchaseRequest extends Model
      */
     public function submit(): bool
     {
-        if (!$this->canBeSubmitted()) {
+        if (! $this->canBeSubmitted()) {
             return false;
         }
 
@@ -331,14 +334,14 @@ class PurchaseRequest extends Model
     /**
      * Approve the PR
      */
-    public function approve(User $approver, string $notes = null): bool
+    public function approve(User $approver, ?string $notes = null): bool
     {
-        if (!$this->canBeApproved()) {
+        if (! $this->canBeApproved()) {
             return false;
         }
 
         $currentApproval = $this->currentApproval();
-        if (!$currentApproval || $currentApproval->approver_id !== $approver->id) {
+        if (! $currentApproval || $currentApproval->approver_id !== $approver->id) {
             return false;
         }
 
@@ -350,7 +353,7 @@ class PurchaseRequest extends Model
 
         // Check if all approvals are completed
         $pendingCount = $this->pendingApprovals()->count();
-        
+
         if ($pendingCount === 0) {
             $this->update([
                 'status' => 'approved',
@@ -368,12 +371,12 @@ class PurchaseRequest extends Model
      */
     public function reject(User $approver, string $notes): bool
     {
-        if (!$this->canBeApproved()) {
+        if (! $this->canBeApproved()) {
             return false;
         }
 
         $currentApproval = $this->currentApproval();
-        if (!$currentApproval || $currentApproval->approver_id !== $approver->id) {
+        if (! $currentApproval || $currentApproval->approver_id !== $approver->id) {
             return false;
         }
 
@@ -396,7 +399,7 @@ class PurchaseRequest extends Model
      */
     public function void(User $user, string $reason): bool
     {
-        if (!$this->canBeVoided()) {
+        if (! $this->canBeVoided()) {
             return false;
         }
 
@@ -443,7 +446,7 @@ class PurchaseRequest extends Model
             'user_id' => $userId,
             'timestamp' => now()->toISOString(),
         ];
-        
+
         $this->update(['edit_history' => $history]);
     }
 
@@ -480,30 +483,30 @@ class PurchaseRequest extends Model
             'department_code' => $this->department->code,
             'business_unit_id' => $this->business_unit_id,
         ];
-        
+
         // Find matching workflow based on conditions
         $workflow = \App\Models\ApprovalWorkflow::getWorkflowForConditions(
             $this->business_unit_id,
             'purchase_request',
             $workflowData
         );
-        
+
         // Fallback to default workflow if no match
-        if (!$workflow) {
+        if (! $workflow) {
             $workflow = \App\Models\ApprovalWorkflow::getDefaultWorkflow(
                 $this->business_unit_id,
                 'purchase_request'
             );
         }
-        
+
         // Store workflow and create approval steps
         if ($workflow) {
             $this->update([
                 'approval_workflow' => $workflow->approval_steps,
                 'is_sequential_approval' => $workflow->is_sequential,
-                'status' => 'in_approval'
+                'status' => 'in_approval',
             ]);
-            
+
             // Create PrApproval records for each step
             foreach ($workflow->approval_steps as $step) {
                 PrApproval::create([

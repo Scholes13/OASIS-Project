@@ -85,39 +85,6 @@
         </div>
     @endif
 
-    <!-- Debug Helper (only in debug mode) -->
-    @if(config('app.debug'))
-    <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="h-5 w-5 text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span class="text-sm font-medium text-yellow-800">Debug Mode Active</span>
-            </div>
-            <div class="flex gap-2">
-                <a 
-                    href="{{ route('debug.pr-create') }}" 
-                    target="_blank"
-                    class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">
-                    View JSON Debug
-                </a>
-                <a 
-                    href="{{ route('debug.auth') }}" 
-                    target="_blank"
-                    class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors">
-                    Auth Debug
-                </a>
-            </div>
-        </div>
-        <div class="mt-2 text-xs text-yellow-700">
-            <strong>Current Values:</strong> 
-            User: <code class="{{ empty($user_name) || $user_name === 'Unknown User' ? 'text-red-600 font-bold' : '' }}">{{ $user_name ?: 'EMPTY' }}</code>, 
-            Department: <code class="{{ empty($department_name) || $department_name === 'Department not set' ? 'text-red-600 font-bold' : '' }}">{{ $department_name ?: 'EMPTY' }} ({{ $department_code ?: 'N/A' }})</code>
-        </div>
-    </div>
-    @endif
-
     <!-- Basic Information Form -->
     {{-- CRITICAL: This section MUST be visible --}}
     <div class="bg-white border border-gray-200" style="display: block !important; visibility: visible !important;">

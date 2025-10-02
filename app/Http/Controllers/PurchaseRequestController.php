@@ -272,7 +272,7 @@ class PurchaseRequestController extends Controller
     {
         // Increase PHP execution time for PDF generation
         set_time_limit(300); // 5 minutes
-        
+
         // Load relationships needed for PDF
         $purchaseRequest->load([
             'user',
@@ -293,36 +293,26 @@ class PurchaseRequestController extends Controller
         try {
             // Generate HTML content directly to avoid URL timeout issues
             $html = view('purchase-requests.pdf-browser', compact('purchaseRequest', 'qrCodes'))->render();
-            
-            // Create temporary file path
-            $tempPath = storage_path('app/temp/' . $filename);
-            
-            // Ensure temp directory exists
-            if (!file_exists(dirname($tempPath))) {
-                mkdir(dirname($tempPath), 0755, true);
-            }
 
-            // Generate PDF from HTML string (more reliable than URL)
-            Browsershot::html($html)
+            // Generate PDF directly in memory (no temp file needed)
+            $pdfContent = Browsershot::html($html)
                 ->format('A4')
-                ->landscape()  
+                ->landscape()
                 ->margins(10, 10, 10, 10)
                 ->timeout(120)
                 ->noSandbox()
                 ->disableWebSecurity()
                 ->setDelay(2000) // Wait 2 seconds for rendering
-                ->save($tempPath);
+                ->pdf();
 
-            // Check if file was created successfully
-            if (!file_exists($tempPath)) {
-                throw new \Exception('PDF file was not generated successfully');
-            }
-
-            // Return file download response
-            return response()->download($tempPath, $filename, [
+            // Return PDF content directly as response
+            return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
-            ])->deleteFileAfterSend(true);
-                
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+                'Pragma' => 'no-cache',
+            ]);
+
         } catch (\Exception $e) {
             Log::error('Browsershot PDF generation failed: '.$e->getMessage());
 
@@ -355,7 +345,7 @@ class PurchaseRequestController extends Controller
 
             $url = $baseUrl.'/purchase-requests/'.$purchaseRequest->id.'/pdf-public';
 
-            Log::info('Browsershot attempting to access URL: ' . $url);
+            Log::info('Browsershot attempting to access URL: '.$url);
 
             // Get Browsershot configuration
             $config = config('pdf.browsershot');
@@ -371,7 +361,7 @@ class PurchaseRequestController extends Controller
 
             // Don't wait for network idle to avoid timeout
             // Network idle can cause timeout on slow connections
-            
+
             Log::info('Browsershot configuration applied, generating PDF...');
 
             $pdf = $browsershot->pdf();
@@ -388,12 +378,10 @@ class PurchaseRequestController extends Controller
 
             return response()->json([
                 'error' => 'PDF generation failed. Please try again later.',
-                'message' => 'Browsershot encountered an error: ' . $e->getMessage()
+                'message' => 'Browsershot encountered an error: '.$e->getMessage(),
             ], 500);
         }
     }
-
-
 
     /**
      * Generate QR codes for PDF

@@ -17,6 +17,25 @@
 
     <!-- Dashboard Content -->
     <div class="space-y-6 max-w-none">
+        <!-- Work in Progress Notice -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 lg:p-6 shadow-sm">
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-semibold text-amber-900 mb-1">Work in Progress - Test Data</h3>
+                    <p class="text-sm text-amber-800 leading-relaxed">
+                        <strong>Note:</strong> The data displayed on this dashboard is <strong>not real data</strong>. 
+                        The Purchase Request reporting dashboard is currently under development. 
+                        All statistics, numbers, and activity logs shown below are sample data for demonstration purposes only.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Quick Stats -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:gap-6">
             <!-- Active PRs Card -->

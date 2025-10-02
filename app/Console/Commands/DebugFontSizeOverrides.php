@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class DebugFontSizeOverrides extends Command
 {
     protected $signature = 'debug:font-overrides';
+
     protected $description = 'Debug font size overrides and external CSS conflicts';
 
     public function handle()

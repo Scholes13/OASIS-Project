@@ -20,7 +20,7 @@ class EnsureBusinessUnitSelected
             // Super admins can bypass business unit requirement
             if ($user->global_role === 'super_admin') {
                 // Ensure super admin session context exists (check both code AND id)
-                if (!session('current_business_unit_code') || !session('current_business_unit_id')) {
+                if (! session('current_business_unit_code') || ! session('current_business_unit_id')) {
                     // For super admins, use their primary business unit (usually WG)
                     $primaryBu = null;
                     if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
@@ -65,13 +65,13 @@ class EnsureBusinessUnitSelected
             // Check if user has current business unit context from login
             $currentBusinessUnitId = session('current_business_unit_id');
 
-            if (!$currentBusinessUnitId) {
+            if (! $currentBusinessUnitId) {
                 // Priority 1: Try to use user's primary business unit
                 $primaryBu = $user->primaryBusinessUnit();
-                
+
                 if ($primaryBu && $primaryBu->businessUnit) {
                     $businessUnit = $primaryBu->businessUnit;
-                    
+
                     session([
                         'current_business_unit_id' => $businessUnit->id,
                         'current_business_unit_code' => $businessUnit->code,
@@ -99,6 +99,7 @@ class EnsureBusinessUnitSelected
                     } else {
                         // User has no business unit access - show error
                         Auth::logout();
+
                         return redirect()->route('login')
                             ->with('error', 'You do not have access to any business unit. Please contact administrator.');
                     }
@@ -107,7 +108,7 @@ class EnsureBusinessUnitSelected
                 // Validate that user still has access to current business unit
                 $hasAccess = $user->canAccessBusinessUnit($currentBusinessUnitId);
 
-                if (!$hasAccess) {
+                if (! $hasAccess) {
                     // Remove invalid business unit from session and logout
                     session()->flush();
                     Auth::logout();

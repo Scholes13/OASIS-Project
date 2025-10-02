@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestLoginStylingFix extends Command
 {
     protected $signature = 'test:login-styling-fix';
+
     protected $description = 'Test login page styling fixes';
 
     public function handle()

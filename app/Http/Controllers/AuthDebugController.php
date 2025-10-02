@@ -22,18 +22,18 @@ class AuthDebugController extends Controller
                 'id' => Auth::id(),
                 'user_name' => Auth::user()->name ?? null,
                 'user_email' => Auth::user()->email ?? null,
-                'guards' => []
+                'guards' => [],
             ],
             'session' => [
                 'driver' => config('session.driver'),
                 'id' => session()->getId(),
-                'auth_session_key' => session()->get('login_web_' . sha1('web')),
+                'auth_session_key' => session()->get('login_web_'.sha1('web')),
                 'current_business_unit_id' => session('current_business_unit_id'),
                 'current_department_id' => session('current_department_id'),
-                'all_session_keys' => array_keys(session()->all())
+                'all_session_keys' => array_keys(session()->all()),
             ],
             'user_details' => null,
-            'department_info' => null
+            'department_info' => null,
         ];
 
         // Test different guards
@@ -47,7 +47,7 @@ class AuthDebugController extends Controller
                 ];
             } catch (\Exception $e) {
                 $debugInfo['authentication']['guards'][$guardName] = [
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
             }
         }
@@ -62,7 +62,7 @@ class AuthDebugController extends Controller
                 'primary_department_id' => $user->primary_department_id,
                 'global_role' => $user->global_role,
                 'created_at' => $user->created_at,
-                'updated_at' => $user->updated_at
+                'updated_at' => $user->updated_at,
             ];
 
             // Get department information
@@ -72,7 +72,7 @@ class AuthDebugController extends Controller
                     'name' => $user->primaryDepartment->name,
                     'code' => $user->primaryDepartment->code,
                     'business_unit_id' => $user->primaryDepartment->business_unit_id,
-                    'business_unit_name' => $user->primaryDepartment->businessUnit->name ?? null
+                    'business_unit_name' => $user->primaryDepartment->businessUnit->name ?? null,
                 ];
             } else {
                 // Try to find departments by primary_department_id
@@ -83,7 +83,7 @@ class AuthDebugController extends Controller
                         'id' => $department->id,
                         'name' => $department->name,
                         'code' => $department->code,
-                        'business_unit_id' => $department->business_unit_id
+                        'business_unit_id' => $department->business_unit_id,
                     ];
                 }
             }

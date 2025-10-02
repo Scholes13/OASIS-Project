@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrApproval;
+use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\NumberSequence;
-use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
@@ -58,9 +57,9 @@ class AdminController extends Controller
             });
 
         return view('admin.dashboard', compact(
-            'stats', 
-            'recentUsers', 
-            'businessUnitStats', 
+            'stats',
+            'recentUsers',
+            'businessUnitStats',
             'monthlyPRs'
         ));
     }
@@ -93,13 +92,13 @@ class AdminController extends Controller
             return [
                 'status' => 'healthy',
                 'response_time_ms' => $responseTime,
-                'message' => 'Database connection is working properly'
+                'message' => 'Database connection is working properly',
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'response_time_ms' => null,
-                'message' => 'Database connection failed: ' . $e->getMessage()
+                'message' => 'Database connection failed: '.$e->getMessage(),
             ];
         }
     }
@@ -118,7 +117,7 @@ class AdminController extends Controller
 
         $issues = [];
         foreach ($paths as $path) {
-            if (!is_writable($path)) {
+            if (! is_writable($path)) {
                 $issues[] = "Path not writable: {$path}";
             }
         }
@@ -126,7 +125,7 @@ class AdminController extends Controller
         return [
             'status' => empty($issues) ? 'healthy' : 'warning',
             'issues' => $issues,
-            'message' => empty($issues) ? 'All required directories are writable' : 'Some directories have permission issues'
+            'message' => empty($issues) ? 'All required directories are writable' : 'Some directories have permission issues',
         ];
     }
 
@@ -136,21 +135,21 @@ class AdminController extends Controller
     protected function checkCacheHealth(): array
     {
         try {
-            $testKey = 'health_check_' . time();
+            $testKey = 'health_check_'.time();
             $testValue = 'test_value';
-            
+
             cache()->put($testKey, $testValue, 60);
             $retrieved = cache()->get($testKey);
             cache()->forget($testKey);
 
             return [
                 'status' => $retrieved === $testValue ? 'healthy' : 'error',
-                'message' => $retrieved === $testValue ? 'Cache is working properly' : 'Cache read/write failed'
+                'message' => $retrieved === $testValue ? 'Cache is working properly' : 'Cache read/write failed',
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
-                'message' => 'Cache system error: ' . $e->getMessage()
+                'message' => 'Cache system error: '.$e->getMessage(),
             ];
         }
     }
@@ -164,12 +163,12 @@ class AdminController extends Controller
             // Simple check - in production you might want to check actual queue status
             return [
                 'status' => 'healthy',
-                'message' => 'Queue system is configured'
+                'message' => 'Queue system is configured',
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
-                'message' => 'Queue system error: ' . $e->getMessage()
+                'message' => 'Queue system error: '.$e->getMessage(),
             ];
         }
     }

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSidebarHtmlFix extends Command
 {
     protected $signature = 'test:sidebar-html-fix';
+
     protected $description = 'Test sidebar HTML syntax fixes for Livewire component';
 
     public function handle()

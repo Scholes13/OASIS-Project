@@ -241,6 +241,25 @@
                 </div>
                 @endif
 
+                <!-- View PDF Section -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-900">Purchase Request Document</h2>
+                    </div>
+                    <div class="px-6 py-4">
+                        <p class="text-sm text-gray-600 mb-4">View the complete purchase request document in PDF format</p>
+                        
+                        <a href="{{ route('purchase-requests.pdf', $approval->purchaseRequest->id) }}" 
+                           target="_blank"
+                           class="inline-flex items-center justify-center w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                            View PDF Document
+                        </a>
+                    </div>
+                </div>
+
                 <!-- QR Code Section -->
                 @if($approval->status === 'approved')
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -254,7 +273,21 @@
                                  class="mx-auto w-32 h-32 border border-gray-200 rounded">
                         </div>
                         <p class="text-sm text-gray-600 mb-2">Scan QR code to verify this approval</p>
-                        <p class="text-xs text-gray-500">This QR code is unique to your approval and cannot be replicated</p>
+                        <p class="text-xs text-gray-500 mb-4">This QR code is unique to your approval and cannot be replicated</p>
+                        
+                        @php
+                            $qrCodeService = new \App\Services\QrCodeService();
+                            $publicUrl = $qrCodeService->generatePublicVerificationUrl($approval);
+                        @endphp
+                        
+                        <a href="{{ $publicUrl }}" 
+                           target="_blank"
+                           class="inline-flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            View Public Verification
+                        </a>
                     </div>
                 </div>
                 @endif

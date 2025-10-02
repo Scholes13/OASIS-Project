@@ -40,18 +40,18 @@ class LoginForm extends Form
         }
 
         RateLimiter::clear($this->throttleKey());
-        
+
         // Automatically set primary business unit context
         $this->setBusinessUnitContext();
     }
-    
+
     /**
      * Automatically set business unit context for seamless login
      */
     protected function setBusinessUnitContext(): void
     {
         $user = Auth::user();
-        
+
         // Super admins can bypass business unit requirement
         if ($user->global_role === 'super_admin') {
             // Set default session for super admin access
@@ -62,19 +62,20 @@ class LoginForm extends Form
                 'current_user_role' => 'super_admin',
                 'current_department_id' => null,
             ]);
+
             return;
         }
-        
+
         // Get primary business unit (first assigned) or fall back to first active
         $primaryBusinessUnit = $user->businessUnits()
             ->with('businessUnit')
             ->where('is_active', true)
             ->orderBy('created_at', 'asc')
             ->first();
-            
+
         if ($primaryBusinessUnit) {
             $businessUnit = $primaryBusinessUnit->businessUnit;
-            
+
             // Set session context for seamless experience
             session([
                 'current_business_unit_id' => $businessUnit->id,
@@ -86,7 +87,7 @@ class LoginForm extends Form
         } else {
             // User has no business unit assigned - logout and show error
             Auth::logout();
-            
+
             throw ValidationException::withMessages([
                 'form.email' => 'No business unit assigned. Please contact administrator.',
             ]);

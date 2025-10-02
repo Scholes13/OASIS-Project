@@ -586,18 +586,28 @@
             wire:click="saveDraft" 
             type="button"
             onclick="showSavingState(this);"
-            class="px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
             {{ ($isEdit ?? false) ? 'Update Draft' : 'Save as Draft' }}
         </button>
 
-        <!-- Submit Button -->
-        <button 
-            wire:click="submitPurchaseRequest" 
-            type="button"
-            onclick="showSubmittingState(this);"
-            class="px-6 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            {{ ($isEdit ?? false) ? "Submit Changes" : "Submit for Approval" }}
-        </button>
+        <div class="flex items-center space-x-3">
+            <!-- Save Changes (for edit mode, keeps rejected status if PR was rejected) -->
+            <button 
+                wire:click="submitPurchaseRequest" 
+                type="button"
+                onclick="showSubmittingState(this);"
+                class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                @if($isEdit ?? false)
+                    @if($this->isRejected ?? false)
+                        Save Changes (Rejected)
+                    @else
+                        Save Changes
+                    @endif
+                @else
+                    Submit for Approval
+                @endif
+            </button>
+        </div>
     </div>
 </div>
 
@@ -622,6 +632,12 @@
         button.disabled = true;
         button.classList.add('opacity-75');
         button.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Submitting...';
+    }
+    
+    function showResubmittingState(button) {
+        button.disabled = true;
+        button.classList.add('opacity-75');
+        button.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Resubmitting...';
     }
     
     // Client-side calculation untuk instant feedback

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestInlineStylesFix extends Command
 {
     protected $signature = 'test:inline-styles-fix';
+
     protected $description = 'Test inline styles fix for font sizes';
 
     public function handle()

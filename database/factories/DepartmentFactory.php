@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\Department;
 use App\Models\BusinessUnit;
+use App\Models\Department;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class DepartmentFactory extends Factory
@@ -15,7 +15,7 @@ class DepartmentFactory extends Factory
         return [
             'business_unit_id' => BusinessUnit::factory(),
             'code' => strtoupper($this->faker->unique()->lexify('???')),
-            'name' => $this->faker->company . ' Department',
+            'name' => $this->faker->company.' Department',
             'is_active' => true,
         ];
     }

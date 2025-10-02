@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Position;
+use App\Models\User;
 use App\Models\UserBusinessUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
@@ -82,7 +80,7 @@ class UserManagementController extends Controller
         // Log raw input untuk debugging
         \Log::info('User creation attempt - raw input', [
             'global_role_input' => $request->input('global_role'),
-            'form_data' => $request->except(['password', 'password_confirmation'])
+            'form_data' => $request->except(['password', 'password_confirmation']),
         ]);
 
         try {
@@ -106,12 +104,12 @@ class UserManagementController extends Controller
             \Log::info('User creation validation passed', [
                 'validated_global_role' => $validated['global_role'],
                 'type' => gettype($validated['global_role']),
-                'length' => strlen($validated['global_role'])
+                'length' => strlen($validated['global_role']),
             ]);
 
             // Get primary business unit from radio selection
             $primaryIndex = $validated['primary_business_unit'];
-            if (!isset($validated['business_units'][$primaryIndex])) {
+            if (! isset($validated['business_units'][$primaryIndex])) {
                 return back()->withErrors(['primary_business_unit' => 'Invalid primary business unit selection.'])
                     ->withInput();
             }
@@ -150,17 +148,16 @@ class UserManagementController extends Controller
             \DB::commit();
 
             return redirect()->route('admin.users.index')
-                ->with('success', "User '{$user->name}' created successfully with " . count($validated['business_units']) . ' business unit assignment(s).');
+                ->with('success', "User '{$user->name}' created successfully with ".count($validated['business_units']).' business unit assignment(s).');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('User creation validation failed', [
                 'errors' => $e->errors(),
-                'input' => $request->except(['password', 'password_confirmation'])
+                'input' => $request->except(['password', 'password_confirmation']),
             ]);
 
             // Re-throw validation exception untuk ditampilkan ke user
             throw $e;
-
         } catch (\Exception $e) {
             \DB::rollBack();
 
@@ -169,7 +166,7 @@ class UserManagementController extends Controller
                 'error_code' => $e->getCode(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'input_data' => $request->except(['password', 'password_confirmation'])
+                'input_data' => $request->except(['password', 'password_confirmation']),
             ]);
 
             // Handle specific constraint violation
@@ -177,10 +174,10 @@ class UserManagementController extends Controller
                 $errorMessage = 'Invalid role value. Please select either Super Admin or User from the dropdown.';
                 \Log::error('CHECK constraint violation detected', [
                     'selected_role' => $request->input('global_role'),
-                    'available_options' => ['super_admin', 'user']
+                    'available_options' => ['super_admin', 'user'],
                 ]);
             } else {
-                $errorMessage = 'Failed to create user: ' . $e->getMessage();
+                $errorMessage = 'Failed to create user: '.$e->getMessage();
             }
 
             return back()
@@ -202,7 +199,7 @@ class UserManagementController extends Controller
             'subordinates',
             'activeBusinessUnits.businessUnit',
             'activeBusinessUnits.department',
-            'activeBusinessUnits.position'
+            'activeBusinessUnits.position',
         ]);
 
         return view('admin.users.show', compact('user'));
@@ -244,7 +241,7 @@ class UserManagementController extends Controller
 
         // Get primary business unit from radio selection
         $primaryIndex = $validated['primary_business_unit'];
-        if (!isset($validated['business_units'][$primaryIndex])) {
+        if (! isset($validated['business_units'][$primaryIndex])) {
             return back()->withErrors(['primary_business_unit' => 'Invalid primary business unit selection.']);
         }
 
@@ -262,7 +259,7 @@ class UserManagementController extends Controller
             'is_active' => $validated['is_active'] ?? true,
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
         }
 
@@ -285,7 +282,7 @@ class UserManagementController extends Controller
         }
 
         return redirect()->route('admin.users.index')
-            ->with('success', 'User updated successfully with ' . count($validated['business_units']) . ' business unit assignment(s).');
+            ->with('success', 'User updated successfully with '.count($validated['business_units']).' business unit assignment(s).');
     }
 
     /**

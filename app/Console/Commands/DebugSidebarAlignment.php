@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class DebugSidebarAlignment extends Command
 {
     protected $signature = 'debug:sidebar-alignment';
+
     protected $description = 'Debug sidebar alignment issues with detailed analysis';
 
     public function handle()

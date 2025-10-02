@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -29,6 +29,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read \App\Models\NumberingModule $numberingModule
  * @property-read \Illuminate\Database\Eloquent\Collection<int, PurchaseRequest> $purchaseRequests
  * @property-read int|null $purchase_requests_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence forPeriod($businessUnitId, $moduleId, $departmentId, $year, $month)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence newQuery()
@@ -44,6 +45,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereVoidNumbers($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberSequence whereYear($value)
+ *
  * @mixin \Eloquent
  */
 class NumberSequence extends Model
@@ -109,17 +111,17 @@ class NumberSequence extends Model
         return DB::transaction(function () {
             // Lock the row for update to prevent race conditions
             $sequence = self::where('id', $this->id)->lockForUpdate()->first();
-            
+
             $nextNumber = $sequence->current_number + 1;
-            
+
             // Check if we've exceeded the maximum
             if ($nextNumber > $sequence->max_number) {
                 throw new \Exception('Maximum number reached for this sequence');
             }
-            
+
             // Update the current number
             $sequence->update(['current_number' => $nextNumber]);
-            
+
             return $nextNumber;
         });
     }
@@ -130,8 +132,8 @@ class NumberSequence extends Model
     public function addVoidNumber(int $number): void
     {
         $voidNumbers = $this->void_numbers ?? [];
-        
-        if (!in_array($number, $voidNumbers)) {
+
+        if (! in_array($number, $voidNumbers)) {
             $voidNumbers[] = $number;
             sort($voidNumbers);
             $this->update(['void_numbers' => $voidNumbers]);
@@ -144,7 +146,7 @@ class NumberSequence extends Model
     public function removeVoidNumber(int $number): void
     {
         $voidNumbers = $this->void_numbers ?? [];
-        
+
         if (($key = array_search($number, $voidNumbers)) !== false) {
             unset($voidNumbers[$key]);
             $this->update(['void_numbers' => array_values($voidNumbers)]);
@@ -157,14 +159,15 @@ class NumberSequence extends Model
     public function getNextAvailableNumber(): int
     {
         $voidNumbers = $this->void_numbers ?? [];
-        
+
         // If there are void numbers, return the smallest one
-        if (!empty($voidNumbers)) {
+        if (! empty($voidNumbers)) {
             $number = min($voidNumbers);
             $this->removeVoidNumber($number);
+
             return $number;
         }
-        
+
         // Otherwise, get the next sequential number
         return $this->getNextNumber();
     }
@@ -193,10 +196,10 @@ class NumberSequence extends Model
     public function scopeForPeriod($query, $businessUnitId, $moduleId, $departmentId, $year, $month)
     {
         return $query->where('business_unit_id', $businessUnitId)
-                    ->where('numbering_module_id', $moduleId)
-                    ->where('department_id', $departmentId)
-                    ->where('year', $year)
-                    ->where('month', $month);
+            ->where('numbering_module_id', $moduleId)
+            ->where('department_id', $departmentId)
+            ->where('year', $year)
+            ->where('month', $month);
     }
 
     /**

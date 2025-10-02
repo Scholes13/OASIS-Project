@@ -2,14 +2,16 @@
 
 namespace App\Livewire\Layout;
 
-use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Livewire\Component;
 
 class Sidebar extends Component
 {
     public $currentRoute;
+
     public $navigationItems;
+
     public $isInitialized = false;
 
     public function mount()
@@ -23,7 +25,7 @@ class Sidebar extends Component
     {
         // Only re-initialize if route changed or not initialized
         $currentRoute = Route::currentRouteName();
-        if (!$this->isInitialized || $this->currentRoute !== $currentRoute) {
+        if (! $this->isInitialized || $this->currentRoute !== $currentRoute) {
             $this->currentRoute = $currentRoute;
             $this->navigationItems = $this->getNavigationItems();
             $this->isInitialized = true;
@@ -49,7 +51,7 @@ class Sidebar extends Component
                 'href' => route('dashboard'),
                 'icon' => 'home',
                 'current' => $this->currentRoute === 'dashboard',
-                'children' => []
+                'children' => [],
             ],
             [
                 'name' => 'Purchase Requests',
@@ -60,27 +62,27 @@ class Sidebar extends Component
                     [
                         'name' => 'Create New PR',
                         'href' => route('purchase-requests.create'),
-                        'current' => $this->currentRoute === 'purchase-requests.create'
+                        'current' => $this->currentRoute === 'purchase-requests.create',
                     ],
                     [
                         'name' => 'My History',
                         'href' => route('purchase-requests.index'),
-                        'current' => $this->currentRoute === 'purchase-requests.index'
+                        'current' => $this->currentRoute === 'purchase-requests.index',
                     ],
                     [
                         'name' => 'All Requests',
                         'href' => route('purchase-requests.all'),
-                        'current' => $this->currentRoute === 'purchase-requests.all'
-                    ]
-                ]
+                        'current' => $this->currentRoute === 'purchase-requests.all',
+                    ],
+                ],
             ],
             [
                 'name' => 'Approvals',
                 'href' => route('approvals.index'),
                 'icon' => 'check-circle',
                 'current' => str_starts_with($this->currentRoute, 'approvals'),
-                'children' => []
-            ]
+                'children' => [],
+            ],
         ];
 
         // Add admin sections for managers and admins
@@ -93,7 +95,7 @@ class Sidebar extends Component
                 $reportsChildren[] = [
                     'name' => 'PR Statistics',
                     'href' => route('reports.purchase-requests'),
-                    'current' => $this->currentRoute === 'reports.purchase-requests'
+                    'current' => $this->currentRoute === 'reports.purchase-requests',
                 ];
             } catch (\Exception) {
                 // Route doesn't exist, don't add the menu item
@@ -104,20 +106,20 @@ class Sidebar extends Component
                 $reportsChildren[] = [
                     'name' => 'Approval Analytics',
                     'href' => route('reports.approvals'),
-                    'current' => $this->currentRoute === 'reports.approvals'
+                    'current' => $this->currentRoute === 'reports.approvals',
                 ];
             } catch (\Exception) {
                 // Route doesn't exist, don't add the menu item
             }
 
             // Only add Reports section if there are child items
-            if (!empty($reportsChildren)) {
+            if (! empty($reportsChildren)) {
                 $navigation[] = [
                     'name' => 'Reports',
-                    'href' => !empty($reportsChildren) ? $reportsChildren[0]['href'] : '#',
+                    'href' => ! empty($reportsChildren) ? $reportsChildren[0]['href'] : '#',
                     'icon' => 'chart-bar',
                     'current' => str_starts_with($this->currentRoute, 'reports'),
-                    'children' => $reportsChildren
+                    'children' => $reportsChildren,
                 ];
             }
         }
@@ -130,7 +132,7 @@ class Sidebar extends Component
                 'href' => route('admin.users.index'),
                 'icon' => 'users',
                 'current' => str_starts_with($this->currentRoute, 'admin.users'),
-                'children' => []
+                'children' => [],
             ];
 
             // Business Units
@@ -139,7 +141,7 @@ class Sidebar extends Component
                 'href' => route('admin.business-units.index'),
                 'icon' => 'office-building',
                 'current' => str_starts_with($this->currentRoute, 'admin.business-units'),
-                'children' => []
+                'children' => [],
             ];
 
             // Departments
@@ -148,7 +150,7 @@ class Sidebar extends Component
                 'href' => route('admin.departments.index'),
                 'icon' => 'collection',
                 'current' => str_starts_with($this->currentRoute, 'admin.departments'),
-                'children' => []
+                'children' => [],
             ];
         }
 

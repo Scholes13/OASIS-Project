@@ -23,7 +23,7 @@ return [
     */
     'browsershot' => [
         'timeout' => 180, // Increase to 3 minutes
-        'format' => 'A4', 
+        'format' => 'A4',
         'orientation' => 'landscape',
         'margins' => [
             'top' => 10,

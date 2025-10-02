@@ -241,7 +241,19 @@ class PurchaseRequestService
     }
 
     /**
-     * Submit Purchase Request for approval
+     * Submit an EXISTING DRAFT Purchase Request for approval
+     * 
+     * ⚠️ CURRENTLY UNUSED - Kept for future "Save as Draft" feature
+     * 
+     * Purpose: Transitions EXISTING draft PR from 'draft' → 'submitted' status
+     * Different from: Livewire Create::submitPurchaseRequest() (creates NEW PRs)
+     * 
+     * Current Flow: App creates PRs directly as 'submitted' (no draft step)
+     * Future Use: If "Save as Draft" feature added, this submits those drafts
+     * 
+     * @param PurchaseRequest $purchaseRequest MUST be in 'draft' status
+     * @return PurchaseRequest Updated PR in 'submitted' status with workflow
+     * @throws \Exception If PR not in submittable state
      */
     public function submitPurchaseRequest(PurchaseRequest $purchaseRequest): PurchaseRequest
     {
@@ -259,6 +271,45 @@ class PurchaseRequestService
             ]);
 
             // Create approval workflow
+            $this->workflowService->createWorkflow($purchaseRequest);
+
+            DB::commit();
+
+            return $purchaseRequest;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Resubmit a rejected Purchase Request (reset workflow)
+     */
+    public function resubmitPurchaseRequest(PurchaseRequest $purchaseRequest): PurchaseRequest
+    {
+        if ($purchaseRequest->status !== 'rejected') {
+            throw new \Exception('Only rejected purchase requests can be resubmitted.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Preserve original submitted_at timestamp (for QR token reusability)
+            $originalSubmittedAt = $purchaseRequest->submitted_at;
+
+            // Reset the workflow (delete old approvals)
+            $this->workflowService->resetWorkflow($purchaseRequest);
+
+            // Update PR status and timestamps
+            // CRITICAL: Keep original submitted_at to ensure QR tokens remain valid
+            $purchaseRequest->update([
+                'status' => 'submitted',
+                'submitted_at' => $originalSubmittedAt ?? now(), // Reuse original timestamp
+                'rejected_at' => null,
+            ]);
+
+            // Create new approval workflow (will use preserved JSON if available)
             $this->workflowService->createWorkflow($purchaseRequest);
 
             DB::commit();

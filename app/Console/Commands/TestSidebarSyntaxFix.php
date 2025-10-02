@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSidebarSyntaxFix extends Command
 {
     protected $signature = 'test:sidebar-syntax-fix';
+
     protected $description = 'Test sidebar syntax fix for Livewire single root element requirement';
 
     public function handle()

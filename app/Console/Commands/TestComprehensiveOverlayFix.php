@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestComprehensiveOverlayFix extends Command
 {
     protected $signature = 'test:comprehensive-overlay-fix';
+
     protected $description = 'Test comprehensive overlay fix';
 
     public function handle()

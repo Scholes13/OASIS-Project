@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrItem;
-use App\Services\UniversalPRNumberingService;
+use App\Models\Modules\WNS\PurchaseRequest;
 use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Services\UniversalPRNumberingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
 
 class PurchaseRequestController extends Controller
 {
     protected UniversalPRNumberingService $numberingService;
+
     protected ApprovalWorkflowService $workflowService;
 
     public function __construct(UniversalPRNumberingService $numberingService, ApprovalWorkflowService $workflowService)
@@ -78,7 +78,7 @@ class PurchaseRequestController extends Controller
                 'last' => $purchaseRequests->url($purchaseRequests->lastPage()),
                 'prev' => $purchaseRequests->previousPageUrl(),
                 'next' => $purchaseRequests->nextPageUrl(),
-            ]
+            ],
         ]);
     }
 
@@ -104,7 +104,7 @@ class PurchaseRequestController extends Controller
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             // Generate PR number
             $prNumber = $this->numberingService->generatePRNumber(
@@ -154,16 +154,16 @@ class PurchaseRequestController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Purchase request created successfully',
-                'data' => $purchaseRequest
+                'data' => $purchaseRequest,
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create purchase request',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -178,12 +178,12 @@ class PurchaseRequestController extends Controller
             'user',
             'items.expenseDepartment',
             'approvals.approver',
-            'businessUnit'
+            'businessUnit',
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $purchaseRequest
+            'data' => $purchaseRequest,
         ]);
     }
 
@@ -193,18 +193,18 @@ class PurchaseRequestController extends Controller
     public function update(Request $request, PurchaseRequest $purchaseRequest)
     {
         // Check if user can edit
-        if (!$purchaseRequest->canBeEdited()) {
+        if (! $purchaseRequest->canBeEdited()) {
             return response()->json([
                 'success' => false,
-                'message' => 'This purchase request cannot be edited'
+                'message' => 'This purchase request cannot be edited',
             ], 403);
         }
 
         // Check if user owns the PR or has admin rights
-        if ($purchaseRequest->user_id !== Auth::id() && !(Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin'))) {
+        if ($purchaseRequest->user_id !== Auth::id() && ! (Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin'))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to update this purchase request'
+                'message' => 'Unauthorized to update this purchase request',
             ], 403);
         }
 
@@ -225,7 +225,7 @@ class PurchaseRequestController extends Controller
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             // Update purchase request
             $purchaseRequest->update([
@@ -269,16 +269,16 @@ class PurchaseRequestController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Purchase request updated successfully',
-                'data' => $purchaseRequest
+                'data' => $purchaseRequest,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update purchase request',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -288,10 +288,10 @@ class PurchaseRequestController extends Controller
      */
     public function submit(PurchaseRequest $purchaseRequest)
     {
-        if (!$purchaseRequest->canBeSubmitted()) {
+        if (! $purchaseRequest->canBeSubmitted()) {
             return response()->json([
                 'success' => false,
-                'message' => 'This purchase request cannot be submitted'
+                'message' => 'This purchase request cannot be submitted',
             ], 400);
         }
 
@@ -299,39 +299,39 @@ class PurchaseRequestController extends Controller
         if ($purchaseRequest->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to submit this purchase request'
+                'message' => 'Unauthorized to submit this purchase request',
             ], 403);
         }
 
         DB::beginTransaction();
-        
+
         try {
             // Update status to submitted
             $purchaseRequest->update([
                 'status' => 'submitted',
                 'submitted_at' => now(),
             ]);
-            
+
             // Create approval workflow
             $this->workflowService->createWorkflow($purchaseRequest);
-            
+
             DB::commit();
-            
+
             $purchaseRequest->load(['approvals.approver']);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Purchase request submitted for approval successfully',
-                'data' => $purchaseRequest
+                'data' => $purchaseRequest,
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit for approval',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -342,21 +342,21 @@ class PurchaseRequestController extends Controller
     public function void(Request $request, PurchaseRequest $purchaseRequest)
     {
         $request->validate([
-            'reason' => 'required|string|max:500'
+            'reason' => 'required|string|max:500',
         ]);
 
-        if (!$purchaseRequest->canBeVoided()) {
+        if (! $purchaseRequest->canBeVoided()) {
             return response()->json([
                 'success' => false,
-                'message' => 'This purchase request cannot be voided'
+                'message' => 'This purchase request cannot be voided',
             ], 400);
         }
 
         // Check if user owns the PR or has admin rights
-        if ($purchaseRequest->user_id !== Auth::id() && !(Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin'))) {
+        if ($purchaseRequest->user_id !== Auth::id() && ! (Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin'))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to void this purchase request'
+                'message' => 'Unauthorized to void this purchase request',
             ], 403);
         }
 
@@ -365,7 +365,7 @@ class PurchaseRequestController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Purchase request voided successfully',
-            'data' => $purchaseRequest
+            'data' => $purchaseRequest,
         ]);
     }
 
@@ -374,18 +374,18 @@ class PurchaseRequestController extends Controller
      */
     public function destroy(PurchaseRequest $purchaseRequest)
     {
-        if (!$purchaseRequest->canBeEdited()) {
+        if (! $purchaseRequest->canBeEdited()) {
             return response()->json([
                 'success' => false,
-                'message' => 'This purchase request cannot be deleted'
+                'message' => 'This purchase request cannot be deleted',
             ], 400);
         }
 
         // Check if user owns the PR or has admin rights
-        if ($purchaseRequest->user_id !== Auth::id() && !(Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin'))) {
+        if ($purchaseRequest->user_id !== Auth::id() && ! (Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin'))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to delete this purchase request'
+                'message' => 'Unauthorized to delete this purchase request',
             ], 403);
         }
 
@@ -393,7 +393,7 @@ class PurchaseRequestController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Purchase request deleted successfully'
+            'message' => 'Purchase request deleted successfully',
         ]);
     }
 
@@ -403,10 +403,10 @@ class PurchaseRequestController extends Controller
     public function workflowStatus(PurchaseRequest $purchaseRequest)
     {
         $workflowStatus = $this->workflowService->getWorkflowStatus($purchaseRequest);
-        
+
         return response()->json([
             'success' => true,
-            'data' => $workflowStatus
+            'data' => $workflowStatus,
         ]);
     }
 }

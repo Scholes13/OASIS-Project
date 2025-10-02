@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestDashboardStructureFix extends Command
 {
     protected $signature = 'test:dashboard-structure-fix';
+
     protected $description = 'Test dashboard structure fix implementation';
 
     public function handle()

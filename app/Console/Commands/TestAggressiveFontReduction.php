@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestAggressiveFontReduction extends Command
 {
     protected $signature = 'test:aggressive-font-reduction';
+
     protected $description = 'Test aggressive font reduction with !important overrides';
 
     public function handle()

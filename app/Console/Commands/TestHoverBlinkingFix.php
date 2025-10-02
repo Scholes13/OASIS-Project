@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestHoverBlinkingFix extends Command
 {
     protected $signature = 'test:hover-blinking-fix';
+
     protected $description = 'Test hover-related blinking fix';
 
     public function handle()

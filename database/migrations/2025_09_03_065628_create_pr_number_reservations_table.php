@@ -28,7 +28,7 @@ return new class extends Migration
             $table->foreignId('voided_by')->nullable()->constrained('users');
             $table->foreignId('purchase_request_id')->nullable()->constrained('purchase_requests');
             $table->timestamps();
-            
+
             $table->index(['user_id', 'status']);
             $table->index(['business_unit_id', 'status']);
             $table->index(['status', 'reserved_at']);

@@ -2,19 +2,22 @@
 
 namespace Tests\Feature\Modules\WNS;
 
-use App\Models\User;
-use App\Models\Department;
-use App\Models\BusinessUnit;
-use Livewire\Livewire;
 use App\Livewire\Modules\WNS\PurchaseRequests\Create;
-use Tests\TestCase;
+use App\Models\BusinessUnit;
+use App\Models\Department;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
 
 class PurchaseRequestUserDisplayTest extends TestCase
 {
     use RefreshDatabase;
+
     protected $businessUnit;
+
     protected $department;
+
     protected $user;
 
     protected function setUp(): void

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class DiagnoseOverlayIssue extends Command
 {
     protected $signature = 'debug:overlay-issue';
+
     protected $description = 'Diagnose persistent overlay issue';
 
     public function handle()

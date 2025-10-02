@@ -16,24 +16,24 @@ class CheckBusinessUnitAccess
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return redirect()->route('login');
         }
 
         // Get business unit ID from route parameter or request
-        $businessUnitId = $request->route('business_unit') 
+        $businessUnitId = $request->route('business_unit')
             ?? $request->route('businessUnit')
             ?? $request->input('business_unit_id')
             ?? $request->input('businessUnitId');
 
         // If no business unit specified, allow access
-        if (!$businessUnitId) {
+        if (! $businessUnitId) {
             return $next($request);
         }
 
         // Check if user has access to the business unit
-        if (!$user->hasAccessToBusinessUnit($businessUnitId)) {
+        if (! $user->hasAccessToBusinessUnit($businessUnitId)) {
             abort(403, 'You do not have access to this business unit.');
         }
 

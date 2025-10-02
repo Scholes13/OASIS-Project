@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestDashboardBlinkingFix extends Command
 {
     protected $signature = 'test:dashboard-blinking-fix';
+
     protected $description = 'Test dashboard blinking fixes for super admin';
 
     public function handle()

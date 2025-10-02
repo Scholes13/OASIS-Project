@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class CompareAdminUserDashboard extends Command
 {
     protected $signature = 'debug:compare-dashboards';
+
     protected $description = 'Compare admin vs user dashboard to find overlay source';
 
     public function handle()

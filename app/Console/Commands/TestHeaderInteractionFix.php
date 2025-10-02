@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestHeaderInteractionFix extends Command
 {
     protected $signature = 'test:header-interaction-fix';
+
     protected $description = 'Test header interaction fixes for clickability and blinking issues';
 
     public function handle()

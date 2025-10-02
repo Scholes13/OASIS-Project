@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class FixAbsoluteOverlayIssue extends Command
 {
     protected $signature = 'fix:absolute-overlay';
+
     protected $description = 'Fix absolute positioned overlay blocking clicks';
 
     public function handle()

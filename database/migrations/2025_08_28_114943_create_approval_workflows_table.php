@@ -17,18 +17,18 @@ return new class extends Migration
             $table->text('description')->nullable()->comment('Workflow description');
             $table->foreignId('business_unit_id')->constrained('business_units')->onDelete('cascade');
             $table->string('module_type')->comment('Module this workflow applies to (e.g., purchase_request)');
-            
+
             // Workflow Configuration
             $table->json('approval_steps')->comment('Array of approval steps with approver roles/users');
             $table->boolean('is_sequential')->default(true)->comment('Sequential or parallel approval');
             $table->boolean('is_default')->default(false)->comment('Is this the default workflow');
             $table->boolean('is_active')->default(true);
-            
+
             // Conditions for auto-assignment
             $table->json('conditions')->nullable()->comment('Conditions for when this workflow applies');
-            
+
             $table->timestamps();
-            
+
             // Indexes
             $table->index(['business_unit_id', 'module_type', 'is_active']);
         });

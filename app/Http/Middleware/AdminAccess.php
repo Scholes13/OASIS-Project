@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\User;
 
 class AdminAccess
 {
@@ -20,17 +20,17 @@ class AdminAccess
         $user = Auth::user();
 
         // Check if user is authenticated
-        if (!$user) {
+        if (! $user) {
             abort(401, 'Unauthenticated');
         }
 
         // Ensure we have the correct User model instance
-        if (!$user instanceof User) {
+        if (! $user instanceof User) {
             abort(401, 'Invalid user type');
         }
 
         // Check if user is super admin (using our custom method)
-        if (!$user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin()) {
             abort(403, 'Only Super Admin can access this area.');
         }
 

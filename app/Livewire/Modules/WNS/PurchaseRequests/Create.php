@@ -1063,6 +1063,23 @@ class Create extends Component
         return $this->grandTotal();
     }
 
+    /**
+     * Check if current PR is rejected (for conditional button display)
+     */
+    public function getIsRejectedProperty(): bool
+    {
+        if (!$this->isEdit) {
+            return false;
+        }
+
+        try {
+            $pr = $this->resolveExistingPurchaseRequest();
+            return $pr->status === 'rejected';
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     public function saveDraft()
     {
         $this->isLoading = true;
@@ -1383,24 +1400,42 @@ class Create extends Component
 
             DB::beginTransaction();
 
-            $data = $this->buildRequestPayload('submitted');
+            $existingPR = $this->resolveExistingPurchaseRequest()->fresh(['items', 'approvals']);
+            $wasRejected = $existingPR->status === 'rejected';
+
+            // Keep rejected status if PR was rejected (don't auto-resubmit)
+            $targetStatus = $wasRejected ? 'rejected' : 'submitted';
+            $data = $this->buildRequestPayload($targetStatus);
+            
             $service = app(\App\Services\PurchaseRequestService::class);
-            $purchaseRequest = $service->updatePurchaseRequest($this->resolveExistingPurchaseRequest()->fresh(['items', 'approvals']), $data);
+            $purchaseRequest = $service->updatePurchaseRequest($existingPR, $data);
 
             $this->existingPurchaseRequest = $purchaseRequest;
 
-            $purchaseRequest->update([
-                'status' => 'submitted',
-                'submitted_at' => now(),
-                'last_modified_by' => Auth::id(),
-            ]);
+            // Only update timestamps and workflow if NOT rejected
+            if (!$wasRejected) {
+                $purchaseRequest->update([
+                    'status' => 'submitted',
+                    'submitted_at' => now(),
+                    'last_modified_by' => Auth::id(),
+                ]);
 
-            // Create manual approval workflow
-            $this->createCustomApprovalWorkflow($purchaseRequest);
+                // Create manual approval workflow only for non-rejected
+                $this->createCustomApprovalWorkflow($purchaseRequest);
+            } else {
+                // For rejected PR, just update last_modified_by
+                $purchaseRequest->update([
+                    'last_modified_by' => Auth::id(),
+                ]);
+            }
 
             DB::commit();
 
-            session()->flash('success', 'Purchase Request has been updated and submitted for approval.');
+            if ($wasRejected) {
+                session()->flash('success', 'Purchase Request has been updated. Use "Resubmit for Approval" button to resubmit.');
+            } else {
+                session()->flash('success', 'Purchase Request has been updated and submitted for approval.');
+            }
 
             return redirect()->route('purchase-requests.show', $purchaseRequest);
 
@@ -1698,5 +1733,131 @@ class Create extends Component
                 'submission_date' => \Carbon\Carbon::today()->format('d/m/Y'),
             ]);
         }
+    }
+
+    /**
+     * Save changes and resubmit for approval (for rejected PRs)
+     * This combines update + workflow reset + resubmit in one action
+     */
+    public function saveAndResubmit()
+    {
+        $this->isLoading = true;
+
+        try {
+            // Must be in edit mode
+            if (!$this->isEdit) {
+                $this->dispatch('notify',
+                    message: 'This action is only available in edit mode.',
+                    type: 'error',
+                    duration: 5000
+                );
+                throw new \Exception('This action is only available in edit mode.');
+            }
+
+            // Get the existing PR
+            $purchaseRequest = $this->resolveExistingPurchaseRequest();
+
+            // Only allow for rejected PRs (STRICT CHECK)
+            if ($purchaseRequest->status !== 'rejected') {
+                $this->dispatch('notify',
+                    message: 'Only rejected purchase requests can be resubmitted. Current status: ' . $purchaseRequest->status,
+                    type: 'error',
+                    duration: 5000
+                );
+                throw new \Exception('Only rejected purchase requests can be resubmitted.');
+            }
+
+            // Validate ownership
+            if ($purchaseRequest->user_id !== Auth::id()) {
+                $this->dispatch('notify',
+                    message: 'You are not authorized to resubmit this purchase request.',
+                    type: 'error',
+                    duration: 5000
+                );
+                throw new \Exception('You are not authorized to resubmit this purchase request.');
+            }
+
+            // Validate form
+            $this->validateForm();
+
+            // Validate custom approval (required for all requests)
+            $this->validateCustomApproval();
+
+            DB::beginTransaction();
+
+            // Step 1: Update the PR with new data (but keep status as rejected temporarily)
+            $data = $this->buildRequestPayload('rejected'); // Keep rejected first
+            $service = app(\App\Services\PurchaseRequestService::class);
+            $purchaseRequest = $service->updatePurchaseRequest($purchaseRequest->fresh(['items', 'approvals']), $data);
+
+            // Step 2: Reset workflow (delete old approvals)
+            $workflowService = app(\App\Services\Modules\Wns\ApprovalWorkflowService::class);
+            $workflowService->resetWorkflow($purchaseRequest);
+
+            // Step 3: Update PR status to submitted (AFTER workflow reset)
+            $purchaseRequest->update([
+                'status' => 'submitted',
+                'submitted_at' => now(),
+                'rejected_at' => null,
+                'last_modified_by' => Auth::id(),
+            ]);
+
+            // Step 4: Create NEW approval workflow
+            $this->createCustomApprovalWorkflow($purchaseRequest);
+
+            DB::commit();
+
+            session()->flash('success', "Purchase Request {$purchaseRequest->pr_number} has been updated and resubmitted for approval. Approval workflow has been reset.");
+
+            return redirect()->route('purchase-requests.show', $purchaseRequest);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+
+            // Consolidate validation errors
+            $errors = $e->validator->errors();
+            $totalErrors = $errors->count();
+
+            if ($totalErrors > 1) {
+                $errorList = [];
+                foreach ($errors->all() as $error) {
+                    $errorList[] = '• ' . $error;
+                }
+                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>" . implode('<br>', array_slice($errorList, 0, 5));
+
+                if ($totalErrors > 5) {
+                    $consolidatedMessage .= '<br>• ... and ' . ($totalErrors - 5) . ' more errors';
+                }
+
+                $this->dispatch('notify',
+                    message: $consolidatedMessage,
+                    type: 'error',
+                    duration: 10000
+                );
+            } else {
+                $this->dispatch('notify',
+                    message: 'Validation Error: ' . $errors->first(),
+                    type: 'error',
+                    duration: 8000
+                );
+            }
+
+            throw $e;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            $this->dispatch('notify',
+                message: 'Failed to resubmit: ' . $e->getMessage(),
+                type: 'error',
+                duration: 8000
+            );
+
+            session()->flash('error', 'Failed to resubmit purchase request: ' . $e->getMessage());
+        } finally {
+            $this->isLoading = false;
+        }
+
+        return null;
     }
 }

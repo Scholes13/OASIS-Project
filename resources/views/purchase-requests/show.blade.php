@@ -10,11 +10,21 @@
                 <p class="text-sm text-gray-600 mt-1">Created by {{ $purchaseRequest->user->name }} on {{ $purchaseRequest->created_at->format('M d, Y') }}</p>
             </div>
             <div class="flex items-center space-x-3">
+                {{-- Debug Info --}}
+                @if(config('app.debug'))
+                    <span class="text-xs text-gray-500">
+                        Status: {{ $purchaseRequest->status }} | 
+                        Owner: {{ $purchaseRequest->user_id }} | 
+                        Current: {{ Auth::id() }} |
+                        Can Edit: {{ $purchaseRequest->canBeEdited() ? 'YES' : 'NO' }}
+                    </span>
+                @endif
+                
                 @if($purchaseRequest->canBeEdited() && $purchaseRequest->user_id === Auth::id())
                     <a href="{{ route('purchase-requests.edit', $purchaseRequest) }}" 
                        wire:navigate
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
                         Edit
@@ -27,10 +37,24 @@
                         <button type="submit" 
                                 class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                                 onclick="return confirm('Are you sure you want to submit this purchase request for approval?')">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                             </svg>
                             Submit for Approval
+                        </button>
+                    </form>
+                @endif
+
+                @if($purchaseRequest->status === 'rejected' && $purchaseRequest->user_id === Auth::id())
+                    <form method="POST" action="{{ route('purchase-requests.resubmit', $purchaseRequest) }}" class="inline">
+                        @csrf
+                        <button type="submit" 
+                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
+                                onclick="return confirm('This will reset the approval workflow and resubmit for approval. Continue?')">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Resubmit for Approval
                         </button>
                     </form>
                 @endif
@@ -39,7 +63,7 @@
                 <a href="{{ route('purchase-requests.pdf', $purchaseRequest) }}" 
                    target="_blank"
                    class="inline-flex items-center px-4 py-2 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                     View PDF
@@ -47,7 +71,7 @@
                 
                 <a href="{{ route('purchase-requests.download-pdf', $purchaseRequest) }}" 
                    class="inline-flex items-center px-4 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                     Download PDF
@@ -56,7 +80,7 @@
                 <a href="{{ route('purchase-requests.index') }}" 
                    wire:navigate
                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
                     Back to List
@@ -98,6 +122,54 @@
 
     <!-- Purchase Request Details -->
     <div class="w-full space-y-6">
+        <!-- Action Buttons Section -->
+        @if($purchaseRequest->status === 'rejected' && $purchaseRequest->user_id === Auth::id())
+            <div class="bg-orange-50 border-l-4 border-orange-400 p-6 rounded-lg">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <h3 class="text-lg font-medium text-orange-800">
+                            This Purchase Request Was Rejected
+                        </h3>
+                        <p class="mt-2 text-sm text-orange-700">
+                            You can edit the request and resubmit it for approval. The approval workflow will be completely reset.
+                        </p>
+                        <div class="mt-4 flex items-center space-x-3">
+                            <a href="{{ route('purchase-requests.edit', $purchaseRequest) }}" 
+                               class="inline-flex items-center px-4 py-2 border border-orange-300 rounded-lg text-sm font-medium text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200">
+                                <svg class="w-4 h-4 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                                Edit Request
+                            </a>
+                            <form method="POST" action="{{ route('purchase-requests.resubmit', $purchaseRequest) }}" class="inline">
+                                @csrf
+                                <button type="submit" 
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
+                                        onclick="return confirm('This will reset the approval workflow and resubmit for approval. Continue?')">
+                                    <svg class="w-4 h-4 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                    Resubmit for Approval
+                                </button>
+                            </form>
+                        </div>
+                        
+                        {{-- Debug Info --}}
+                        @if(config('app.debug'))
+                            <div class="mt-3 text-xs text-orange-600 font-mono bg-orange-100 p-2 rounded">
+                                Debug: Status={{ $purchaseRequest->status }} | Owner={{ $purchaseRequest->user_id }} | Current={{ Auth::id() }} | CanEdit={{ $purchaseRequest->canBeEdited() ? 'YES' : 'NO' }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+        
         <!-- PR Header Info -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="px-6 py-4 border-b border-gray-200">

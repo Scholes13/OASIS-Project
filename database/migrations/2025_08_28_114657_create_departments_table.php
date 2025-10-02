@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('name')->comment('Department full name');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            
+
             // Unique constraint for department code per business unit
             $table->unique(['business_unit_id', 'code'], 'unique_dept_per_bu');
         });

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSidebarUnifiedStructure extends Command
 {
     protected $signature = 'test:sidebar-unified-structure';
+
     protected $description = 'Test unified sidebar structure - identical alignment for all menu items';
 
     public function handle()

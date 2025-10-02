@@ -80,40 +80,14 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Show the form for creating a new purchase request
+     * Store method removed - Livewire component handles PR creation
+     * See: app/Livewire/Modules/Wns/PurchaseRequests/Create.php
      */
-    public function create()
-    {
-        $departments = $this->purchaseRequestService->getDepartments();
-
-        return view('purchase-requests.create', compact('departments'));
-    }
-
-    /**
-     * Store a newly created purchase request
-     */
-    public function store(Request $request)
-    {
-        $rules = $this->purchaseRequestService->getValidationRules();
-        $request->validate($rules);
-
-        try {
-            $purchaseRequest = $this->purchaseRequestService->createPurchaseRequest($request->all());
-
-            return redirect()
-                ->route('purchase-requests.show', $purchaseRequest)
-                ->with('success', "Purchase Request {$purchaseRequest->pr_number} has been created successfully.");
-
-        } catch (\Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Failed to create purchase request: '.$e->getMessage());
-        }
-    }
 
     /**
      * Display the specified purchase request
      */
+
     public function show(PurchaseRequest $purchaseRequest)
     {
         $purchaseRequest->load(['department', 'user', 'items.expenseDepartment', 'approvals.approver']);
@@ -147,41 +121,36 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Update the specified purchase request
+     * Update method removed - Livewire component handles PR updates
+     * See: app/Livewire/Modules/Wns/PurchaseRequests/Create.php
      */
-    public function update(Request $request, PurchaseRequest $purchaseRequest)
-    {
-        $rules = $this->purchaseRequestService->getValidationRules();
-        $request->validate($rules);
-
-        try {
-            $purchaseRequest = $this->purchaseRequestService->updatePurchaseRequest($purchaseRequest, $request->all());
-
-            return redirect()
-                ->route('purchase-requests.show', $purchaseRequest)
-                ->with('success', 'Purchase request has been updated successfully.');
-
-        } catch (\Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Failed to update purchase request: '.$e->getMessage());
-        }
-    }
 
     /**
-     * Submit purchase request for approval
+     * Resubmit rejected purchase request (reset workflow)
      */
-    public function submit(PurchaseRequest $purchaseRequest)
+
+    public function resubmit(PurchaseRequest $purchaseRequest)
     {
+        // Check if PR can be resubmitted (must be rejected)
+        if ($purchaseRequest->status !== 'rejected') {
+            return back()->with('error', 'Only rejected purchase requests can be resubmitted.');
+        }
+
+        // Check if user owns this PR
+        if ($purchaseRequest->user_id !== Auth::id()) {
+            abort(403, 'You are not authorized to resubmit this purchase request.');
+        }
+
         try {
-            $purchaseRequest = $this->purchaseRequestService->submitPurchaseRequest($purchaseRequest);
+            // Reset workflow and resubmit
+            $purchaseRequest = $this->purchaseRequestService->resubmitPurchaseRequest($purchaseRequest);
 
             return redirect()
                 ->route('purchase-requests.show', $purchaseRequest)
-                ->with('success', 'Purchase request has been submitted for approval and workflow has been created.');
+                ->with('success', 'Purchase request has been resubmitted for approval. Approval workflow has been reset.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to submit for approval: '.$e->getMessage());
+            return back()->with('error', 'Failed to resubmit purchase request: '.$e->getMessage());
         }
     }
 
@@ -390,12 +359,19 @@ class PurchaseRequestController extends Controller
     {
         $qrCodes = [];
 
-        // Generate QR code for requestor
-        $qrCodes['requestor'] = $qrCodeService->generateRequestorQrCodeDataUrl($purchaseRequest);
+        // Skip QR code generation for rejected PRs
+        if ($purchaseRequest->status === 'rejected') {
+            return $qrCodes;
+        }
 
-        // Generate QR codes for each approval
+        // Generate QR code for requestor (only if submitted)
+        if ($purchaseRequest->submitted_at) {
+            $qrCodes['requestor'] = $qrCodeService->generateRequestorQrCodeDataUrl($purchaseRequest);
+        }
+
+        // Generate QR codes for each approved approval only
         $qrCodes['approvals'] = [];
-        foreach ($purchaseRequest->approvals as $approval) {
+        foreach ($purchaseRequest->approvals->where('status', 'approved') as $approval) {
             $qrCodes['approvals'][$approval->id] = $qrCodeService->generateApproverQrCodeDataUrl($approval);
         }
 

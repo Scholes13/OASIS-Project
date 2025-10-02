@@ -20,7 +20,7 @@ return new class extends Migration
             $table->integer('hierarchy_level')->default(1)->comment('Numeric hierarchy level for sorting');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            
+
             // Unique constraint for position code per department
             $table->unique(['department_id', 'code'], 'unique_position_per_dept');
         });

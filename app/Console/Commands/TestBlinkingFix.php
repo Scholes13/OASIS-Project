@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestBlinkingFix extends Command
 {
     protected $signature = 'test:blinking-fix';
+
     protected $description = 'Test comprehensive blinking fix implementation';
 
     public function handle()

@@ -5,9 +5,8 @@ namespace App\Models\Modules\WNS;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-use Carbon\Carbon;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -31,6 +30,7 @@ use Carbon\Carbon;
  * @property-read string|null $formatted_due_date
  * @property-read string $status_color
  * @property-read \App\Models\Modules\WNS\PurchaseRequest $purchaseRequest
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval approved()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval dueSoon()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval forApprover($approverId)
@@ -55,6 +55,7 @@ use Carbon\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereStepOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class PrApproval extends Model
@@ -142,8 +143,8 @@ class PrApproval extends Model
     public function scopeOverdue($query)
     {
         return $query->where('status', 'pending')
-                    ->whereNotNull('due_date')
-                    ->where('due_date', '<', now());
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now());
     }
 
     /**
@@ -152,8 +153,8 @@ class PrApproval extends Model
     public function scopeDueSoon($query)
     {
         return $query->where('status', 'pending')
-                    ->whereNotNull('due_date')
-                    ->whereBetween('due_date', [now(), now()->addDay()]);
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [now(), now()->addDay()]);
     }
 
     /**
@@ -185,8 +186,8 @@ class PrApproval extends Model
      */
     public function isOverdue(): bool
     {
-        return $this->isPending() && 
-               $this->due_date && 
+        return $this->isPending() &&
+               $this->due_date &&
                $this->due_date->isPast();
     }
 
@@ -195,17 +196,17 @@ class PrApproval extends Model
      */
     public function isDueSoon(): bool
     {
-        return $this->isPending() && 
-               $this->due_date && 
+        return $this->isPending() &&
+               $this->due_date &&
                $this->due_date->isBetween(now(), now()->addDay());
     }
 
     /**
      * Approve this step
      */
-    public function approve(string $notes = null): bool
+    public function approve(?string $notes = null): bool
     {
-        if (!$this->isPending()) {
+        if (! $this->isPending()) {
             return false;
         }
 
@@ -223,7 +224,7 @@ class PrApproval extends Model
      */
     public function reject(string $notes): bool
     {
-        if (!$this->isPending()) {
+        if (! $this->isPending()) {
             return false;
         }
 
@@ -252,7 +253,7 @@ class PrApproval extends Model
      */
     public function getDaysUntilDue(): ?int
     {
-        if (!$this->due_date) {
+        if (! $this->due_date) {
             return null;
         }
 
@@ -264,7 +265,7 @@ class PrApproval extends Model
      */
     public function getHoursUntilDue(): ?int
     {
-        if (!$this->due_date) {
+        if (! $this->due_date) {
             return null;
         }
 
@@ -276,7 +277,7 @@ class PrApproval extends Model
      */
     public function getFormattedDueDateAttribute(): ?string
     {
-        if (!$this->due_date) {
+        if (! $this->due_date) {
             return null;
         }
 
@@ -288,9 +289,9 @@ class PrApproval extends Model
      */
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'pending' => 'yellow',
-            'approved' => 'green', 
+            'approved' => 'green',
             'rejected' => 'red',
             'skipped' => 'gray',
             default => 'gray'

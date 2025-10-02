@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSidebarAlignmentForce extends Command
 {
     protected $signature = 'test:sidebar-alignment-force';
+
     protected $description = 'Test forced sidebar alignment with CSS overrides';
 
     public function handle()

@@ -2,33 +2,36 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Position;
-use App\Models\UserBusinessUnit;
 use App\Models\NumberingModule;
+use App\Models\Position;
+use App\Models\User;
+use App\Models\UserBusinessUnit;
 use App\Services\Modules\WNS\PRNumberingService;
-use App\Services\NumberingService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
-use Carbon\Carbon;
 
 class PRNumberGenerationTest extends TestCase
 {
     use RefreshDatabase;
 
     protected $user;
+
     protected $businessUnit;
+
     protected $department;
+
     protected $position;
+
     protected $prNumberingService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create test business unit
         $this->businessUnit = BusinessUnit::create([
             'code' => 'WNS',
@@ -111,11 +114,11 @@ class PRNumberGenerationTest extends TestCase
         $this->assertArrayHasKey('formatted_number', $result);
         $this->assertArrayHasKey('sequence_number', $result);
         $this->assertArrayHasKey('department_code', $result);
-        
+
         // Check format: PR.GA/2025/09/001
         $expectedPattern = '/^PR\.GA\/\d{4}\/\d{2}\/\d{3}$/';
         $this->assertMatchesRegularExpression($expectedPattern, $result['formatted_number']);
-        
+
         $this->assertEquals('GA', $result['department_code']);
         $this->assertEquals(1, $result['sequence_number']);
     }
@@ -125,14 +128,14 @@ class PRNumberGenerationTest extends TestCase
     {
         // Generate first PR number
         $result1 = $this->prNumberingService->generatePRNumber($this->user);
-        
+
         // Generate second PR number
         $result2 = $this->prNumberingService->generatePRNumber($this->user);
-        
+
         // Assert they are sequential
         $this->assertEquals(1, $result1['sequence_number']);
         $this->assertEquals(2, $result2['sequence_number']);
-        
+
         // Both should have same department and date format
         $this->assertEquals('GA', $result1['department_code']);
         $this->assertEquals('GA', $result2['department_code']);
@@ -159,7 +162,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertEquals('Test keperluan untuk PR testing', $pr->keperluan);
         $this->assertEquals('IDR', $pr->currency);
         $this->assertEquals('draft', $pr->status);
-        
+
         // Check PR number format
         $expectedPattern = '/^PR\.GA\/\d{4}\/\d{2}\/\d{3}$/';
         $this->assertMatchesRegularExpression($expectedPattern, $pr->pr_number);
@@ -170,7 +173,7 @@ class PRNumberGenerationTest extends TestCase
     {
         // Valid user should pass validation
         $this->assertTrue($this->prNumberingService->validateUserCanCreatePR($this->user));
-        
+
         // User without primary department should fail
         $userWithoutDept = User::create([
             'name' => 'User Without Department',
@@ -178,7 +181,7 @@ class PRNumberGenerationTest extends TestCase
             'password' => Hash::make('password'),
             'is_active' => true,
         ]);
-        
+
         $this->assertFalse($this->prNumberingService->validateUserCanCreatePR($userWithoutDept));
     }
 
@@ -193,10 +196,10 @@ class PRNumberGenerationTest extends TestCase
         $this->assertArrayHasKey('preview_number', $preview);
         $this->assertArrayHasKey('next_sequence', $preview);
         $this->assertArrayHasKey('department_code', $preview);
-        
+
         $expectedPattern = '/^PR\.GA\/\d{4}\/\d{2}\/\d{3}$/';
         $this->assertMatchesRegularExpression($expectedPattern, $preview['preview_number']);
-        
+
         $this->assertEquals('GA', $preview['department_code']);
         $this->assertEquals(1, $preview['next_sequence']);
     }
@@ -207,15 +210,15 @@ class PRNumberGenerationTest extends TestCase
         // Generate PR for current month
         $currentDate = Carbon::now();
         $result1 = $this->prNumberingService->generatePRNumber($this->user, $currentDate);
-        
+
         // Generate PR for next month
         $nextMonth = $currentDate->copy()->addMonth();
         $result2 = $this->prNumberingService->generatePRNumber($this->user, $nextMonth);
-        
+
         // They should have different month in the format but sequential numbers
         $this->assertStringContainsString($currentDate->format('/Y/m/'), $result1['formatted_number']);
         $this->assertStringContainsString($nextMonth->format('/Y/m/'), $result2['formatted_number']);
-        
+
         // Since it's cross-department shared sequence, both should be sequential
         $this->assertEquals(1, $result1['sequence_number']);
         $this->assertEquals(2, $result2['sequence_number']);
@@ -242,9 +245,9 @@ class PRNumberGenerationTest extends TestCase
             'keperluan' => 'First PR',
             'description' => 'First description',
         ]);
-        
+
         $pr2 = $this->prNumberingService->createPRWithNumber($this->user, [
-            'keperluan' => 'Second PR', 
+            'keperluan' => 'Second PR',
             'description' => 'Second description',
         ]);
 
@@ -254,7 +257,7 @@ class PRNumberGenerationTest extends TestCase
         // Assert
         $this->assertIsArray($history);
         $this->assertCount(2, $history);
-        
+
         // Should be ordered by created_at desc (newest first)
         $this->assertEquals($pr2->pr_number, $history[0]['pr_number']);
         $this->assertEquals($pr1->pr_number, $history[1]['pr_number']);
@@ -288,7 +291,7 @@ class PRNumberGenerationTest extends TestCase
         // Should throw exception
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('User must belong to WNS business unit');
-        
+
         $this->prNumberingService->generatePRNumber($userFromOtherBU);
     }
 
@@ -298,7 +301,7 @@ class PRNumberGenerationTest extends TestCase
         // Valid formats
         $this->assertTrue($this->prNumberingService->validatePRNumber('PR.GA/2025/09/001'));
         $this->assertTrue($this->prNumberingService->validatePRNumber('PR.IT/2024/12/999'));
-        
+
         // Invalid formats
         $this->assertFalse($this->prNumberingService->validatePRNumber('PR.GA/25/09/001')); // Year too short
         $this->assertFalse($this->prNumberingService->validatePRNumber('PR.GA/2025/9/001')); // Month not padded
@@ -312,13 +315,13 @@ class PRNumberGenerationTest extends TestCase
     {
         // Valid PR number
         $result = $this->prNumberingService->parsePRNumber('PR.GA/2025/09/001');
-        
+
         $this->assertTrue($result['valid']);
         $this->assertEquals('GA', $result['department_code']);
         $this->assertEquals(2025, $result['year']);
         $this->assertEquals(9, $result['month']);
         $this->assertEquals(1, $result['sequence']);
-        
+
         // Invalid PR number
         $invalidResult = $this->prNumberingService->parsePRNumber('INVALID-FORMAT');
         $this->assertFalse($invalidResult['valid']);

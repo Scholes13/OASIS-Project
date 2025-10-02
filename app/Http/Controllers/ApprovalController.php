@@ -5,11 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Modules\WNS\PrApproval;
 use App\Models\Modules\WNS\PurchaseRequest;
 use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
-use App\Services\QrCodeService;
 
 class ApprovalController extends Controller
 {
@@ -31,7 +29,7 @@ class ApprovalController extends Controller
             'purchaseRequest.businessUnit',
             'purchaseRequest.items',
             'purchaseRequest.approvals.approver',
-            'approver'
+            'approver',
         ])->findOrFail($approvalId);
 
         // Check if current user is the approver
@@ -70,7 +68,7 @@ class ApprovalController extends Controller
 
         // Check if this is the current approval step
         $currentApproval = $approval->purchaseRequest->currentApproval();
-        if (!$currentApproval || $currentApproval->id !== $approval->id) {
+        if (! $currentApproval || $currentApproval->id !== $approval->id) {
             return redirect()->back()->with('error', 'This approval is not currently active.');
         }
 
@@ -81,7 +79,7 @@ class ApprovalController extends Controller
                 $request->notes
             );
 
-            $message = $request->action === 'approved' 
+            $message = $request->action === 'approved'
                 ? 'Purchase request has been approved successfully.'
                 : 'Purchase request has been rejected.';
 
@@ -89,7 +87,7 @@ class ApprovalController extends Controller
                 ->with('success', $message);
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to process approval: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to process approval: '.$e->getMessage());
         }
     }
 
@@ -106,7 +104,7 @@ class ApprovalController extends Controller
         }
 
         // Use QrCodeService for consistent QR code generation
-        $qrCodeService = new QrCodeService();
+        $qrCodeService = new QrCodeService;
         $qrCodeSvg = $qrCodeService->generateApproverQrCode($approval);
 
         return response($qrCodeSvg, 200, [
@@ -124,7 +122,7 @@ class ApprovalController extends Controller
         $approverId = $request->get('approver');
         $requestorId = $request->get('requestor');
 
-        if (!$token) {
+        if (! $token) {
             abort(404, 'Invalid verification link.');
         }
 
@@ -133,10 +131,10 @@ class ApprovalController extends Controller
             'department',
             'businessUnit',
             'items',
-            'approvals.approver'
+            'approvals.approver',
         ])->findOrFail($prId);
 
-        $qrCodeService = new QrCodeService();
+        $qrCodeService = new QrCodeService;
         $verificationData = [];
 
         // Check if this is requestor verification
@@ -145,7 +143,7 @@ class ApprovalController extends Controller
                 abort(404, 'Invalid requestor verification.');
             }
 
-            if (!$qrCodeService->verifyRequestorToken($purchaseRequest, $token)) {
+            if (! $qrCodeService->verifyRequestorToken($purchaseRequest, $token)) {
                 abort(403, 'Invalid verification token.');
             }
 
@@ -153,7 +151,7 @@ class ApprovalController extends Controller
                 'type' => 'requestor',
                 'verified_by' => $purchaseRequest->user,
                 'verified_at' => $purchaseRequest->submitted_at,
-                'role' => 'Purchase Request Creator'
+                'role' => 'Purchase Request Creator',
             ];
         }
         // Check if this is approver verification
@@ -163,11 +161,11 @@ class ApprovalController extends Controller
                 ->where('status', 'approved')
                 ->first();
 
-            if (!$approval) {
+            if (! $approval) {
                 abort(404, 'Approval not found or not approved.');
             }
 
-            if (!$qrCodeService->verifyApprovalToken($approval, $token)) {
+            if (! $qrCodeService->verifyApprovalToken($approval, $token)) {
                 abort(403, 'Invalid verification token.');
             }
 
@@ -176,7 +174,7 @@ class ApprovalController extends Controller
                 'verified_by' => $approval->approver,
                 'verified_at' => $approval->responded_at,
                 'role' => ucfirst($approval->approval_type),
-                'approval' => $approval
+                'approval' => $approval,
             ];
         } else {
             abort(404, 'Invalid verification parameters.');
@@ -185,19 +183,17 @@ class ApprovalController extends Controller
         return view('purchase-requests.public', compact('purchaseRequest', 'verificationData'));
     }
 
-
-
     /**
      * List pending approvals for current user
      */
     public function index(Request $request)
     {
         $tab = $request->get('tab', 'pending');
-        
+
         $pendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user());
         $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user());
         $approvalStats = $this->workflowService->getApprovalStatistics(Auth::user());
-        
+
         return view('approvals.index', compact('pendingApprovals', 'approvalHistory', 'approvalStats', 'tab'));
     }
 }

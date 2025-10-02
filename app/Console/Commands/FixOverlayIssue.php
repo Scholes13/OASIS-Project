@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class FixOverlayIssue extends Command
 {
     protected $signature = 'fix:overlay-issue';
+
     protected $description = 'Fix white overlay issue that prevents clicking';
 
     public function handle()

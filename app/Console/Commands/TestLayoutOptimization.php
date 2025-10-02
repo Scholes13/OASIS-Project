@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestLayoutOptimization extends Command
 {
     protected $signature = 'test:layout-optimization';
+
     protected $description = 'Test layout optimization - wider content and better font sizes';
 
     public function handle()

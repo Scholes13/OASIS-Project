@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class AnalyzeDashboardDifferences extends Command
 {
     protected $signature = 'debug:dashboard-differences';
+
     protected $description = 'Analyze key differences between admin and user dashboards';
 
     public function handle()

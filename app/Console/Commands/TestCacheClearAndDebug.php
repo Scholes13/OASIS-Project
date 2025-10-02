@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestCacheClearAndDebug extends Command
 {
     protected $signature = 'test:cache-clear-debug';
+
     protected $description = 'Clear all caches and debug font size issues';
 
     public function handle()
@@ -26,14 +27,14 @@ class TestCacheClearAndDebug extends Command
         $cssPath = resource_path('css/app.css');
         if (file_exists($cssPath)) {
             $cssContent = file_get_contents($cssPath);
-            
+
             $this->info('✅ CSS File Check:');
             if (str_contains($cssContent, 'fluid-text-base')) {
                 $this->line('   ✓ fluid-text-base class found in CSS');
             } else {
                 $this->error('   ✗ fluid-text-base class NOT found in CSS');
             }
-            
+
             if (str_contains($cssContent, 'clamp(0.65rem, 0.67vw, 0.7rem)')) {
                 $this->line('   ✓ Reduced font sizes found in CSS');
             } else {
@@ -46,14 +47,14 @@ class TestCacheClearAndDebug extends Command
         $dashboardPath = resource_path('views/admin/dashboard.blade.php');
         if (file_exists($dashboardPath)) {
             $dashboardContent = file_get_contents($dashboardPath);
-            
+
             $this->info('✅ Dashboard View Check:');
             if (str_contains($dashboardContent, 'fluid-text-base')) {
                 $this->line('   ✓ fluid-text-base class found in dashboard');
             } else {
                 $this->error('   ✗ fluid-text-base class NOT found in dashboard');
             }
-            
+
             if (str_contains($dashboardContent, 'fluid-text-lg')) {
                 $this->line('   ✓ fluid-text-lg class found in dashboard');
             } else {
@@ -67,7 +68,7 @@ class TestCacheClearAndDebug extends Command
         if (file_exists($manifestPath)) {
             $this->info('✅ Build Files Check:');
             $this->line('   ✓ Build manifest exists');
-            
+
             $manifest = json_decode(file_get_contents($manifestPath), true);
             if (isset($manifest['resources/css/app.css'])) {
                 $this->line('   ✓ CSS file built successfully');

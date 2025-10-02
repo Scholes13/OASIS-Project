@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class FixHoverBlinkingIssue extends Command
 {
     protected $signature = 'fix:hover-blinking';
+
     protected $description = 'Fix hover-related blinking issue on dashboard';
 
     public function handle()

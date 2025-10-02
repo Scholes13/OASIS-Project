@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestContentFontReduction extends Command
 {
     protected $signature = 'test:content-font-reduction';
+
     protected $description = 'Test content and header font size reduction';
 
     public function handle()

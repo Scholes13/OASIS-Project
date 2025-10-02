@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -23,6 +23,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read \App\Models\BusinessUnit $businessUnit
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberSequence> $numberSequences
  * @property-read int|null $number_sequences_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule byCode($moduleCode)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule forBusinessUnit($businessUnitId)
@@ -38,6 +39,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereModuleCode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereModuleName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NumberingModule whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class NumberingModule extends Model
@@ -122,11 +124,11 @@ class NumberingModule extends Model
     public function parseFormatPattern(array $variables): string
     {
         $pattern = $this->format_pattern;
-        
+
         foreach ($variables as $key => $value) {
-            $pattern = str_replace('{' . $key . '}', $value, $pattern);
+            $pattern = str_replace('{'.$key.'}', $value, $pattern);
         }
-        
+
         return $pattern;
     }
 

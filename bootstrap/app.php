@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetTimeoutForLivewire::class,
             \App\Http\Middleware\EnsureLivewireAuthPersistence::class,
         ]);
-        
+
         $middleware->alias([
             'ensure.business.unit.selected' => \App\Http\Middleware\EnsureBusinessUnitSelected::class,
             'check.business.unit.access' => \App\Http\Middleware\CheckBusinessUnitAccess::class,

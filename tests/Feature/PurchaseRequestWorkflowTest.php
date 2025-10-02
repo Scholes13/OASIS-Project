@@ -2,33 +2,36 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrItem;
-use App\Models\Modules\WNS\PrApproval;
-use App\Services\Modules\WNS\PRNumberingService;
+use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\User;
 use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Services\Modules\WNS\PRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class PurchaseRequestWorkflowTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
     protected User $requestor;
+
     protected User $departmentHead;
+
     protected User $financeManager;
+
     protected BusinessUnit $businessUnit;
+
     protected Department $department;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create roles
         Role::create(['name' => 'user']);
         Role::create(['name' => 'department_head']);
@@ -104,7 +107,7 @@ class PurchaseRequestWorkflowTest extends TestCase
     public function user_can_create_purchase_request()
     {
         $this->actingAs($this->requestor);
-        
+
         // Set session context
         session([
             'current_business_unit_id' => $this->businessUnit->id,
@@ -146,7 +149,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $response = $this->post(route('purchase-requests.store'), $requestData);
 
         $response->assertRedirect();
-        
+
         // Check PR was created
         $this->assertDatabaseHas('purchase_requests', [
             'user_id' => $this->requestor->id,
@@ -160,19 +163,19 @@ class PurchaseRequestWorkflowTest extends TestCase
         // Check items were created
         $purchaseRequest = PurchaseRequest::where('user_id', $this->requestor->id)->first();
         $this->assertEquals(2, $purchaseRequest->items()->count());
-        
+
         // Check PR number format
-        $this->assertMatchesRegularExpression('/^PR\.' . $this->department->code . '\/\d{4}\/\d{2}\/\d{3}$/', $purchaseRequest->pr_number);
+        $this->assertMatchesRegularExpression('/^PR\.'.$this->department->code.'\/\d{4}\/\d{2}\/\d{3}$/', $purchaseRequest->pr_number);
     }
 
     /** @test */
     public function user_can_submit_purchase_request_for_approval()
     {
         $this->actingAs($this->requestor);
-        
+
         // Create a draft PR
         $purchaseRequest = $this->createSamplePurchaseRequest();
-        
+
         // Set session context
         session([
             'current_business_unit_id' => $this->businessUnit->id,
@@ -183,15 +186,15 @@ class PurchaseRequestWorkflowTest extends TestCase
         $response = $this->post(route('purchase-requests.submit', $purchaseRequest));
 
         $response->assertRedirect();
-        
+
         // Check status changed to submitted/in_approval
         $purchaseRequest->refresh();
         $this->assertContains($purchaseRequest->status, ['submitted', 'in_approval']);
         $this->assertNotNull($purchaseRequest->submitted_at);
-        
+
         // Check workflow was created
         $this->assertTrue($purchaseRequest->approvals()->exists());
-        
+
         // Check first approver is assigned
         $firstApproval = $purchaseRequest->approvals()->orderBy('step_order')->first();
         $this->assertEquals('pending', $firstApproval->status);
@@ -201,16 +204,16 @@ class PurchaseRequestWorkflowTest extends TestCase
     public function department_head_can_approve_purchase_request()
     {
         $this->actingAs($this->departmentHead);
-        
+
         // Create and submit a PR
         $purchaseRequest = $this->createSubmittedPurchaseRequest();
-        
+
         // Get the approval assigned to department head
         $approval = $purchaseRequest->approvals()
             ->where('approver_id', $this->departmentHead->id)
             ->where('status', 'pending')
             ->first();
-            
+
         $this->assertNotNull($approval, 'Department head should have a pending approval');
 
         $response = $this->post(route('approvals.process'), [
@@ -220,7 +223,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         ]);
 
         $response->assertJson(['success' => true]);
-        
+
         // Check approval was processed
         $approval->refresh();
         $this->assertEquals('approved', $approval->status);
@@ -232,10 +235,10 @@ class PurchaseRequestWorkflowTest extends TestCase
     public function department_head_can_reject_purchase_request()
     {
         $this->actingAs($this->departmentHead);
-        
+
         // Create and submit a PR
         $purchaseRequest = $this->createSubmittedPurchaseRequest();
-        
+
         // Get the approval assigned to department head
         $approval = $purchaseRequest->approvals()
             ->where('approver_id', $this->departmentHead->id)
@@ -249,11 +252,11 @@ class PurchaseRequestWorkflowTest extends TestCase
         ]);
 
         $response->assertJson(['success' => true]);
-        
+
         // Check approval was rejected
         $approval->refresh();
         $this->assertEquals('rejected', $approval->status);
-        
+
         // Check PR status changed to rejected
         $purchaseRequest->refresh();
         $this->assertEquals('rejected', $purchaseRequest->status);
@@ -265,23 +268,23 @@ class PurchaseRequestWorkflowTest extends TestCase
     {
         // Create a high-value PR that requires multiple approvals
         $purchaseRequest = $this->createHighValuePurchaseRequest();
-        
+
         // Submit the PR
         $this->actingAs($this->requestor);
         session(['current_business_unit_id' => $this->businessUnit->id]);
-        
+
         $this->post(route('purchase-requests.submit', $purchaseRequest));
-        
+
         $purchaseRequest->refresh();
-        
+
         // Should have multiple approval steps
         $this->assertGreaterThan(1, $purchaseRequest->approvals()->count());
-        
+
         // First approval - Department Head
         $deptHeadApproval = $purchaseRequest->approvals()
             ->where('approver_id', $this->departmentHead->id)
             ->first();
-            
+
         if ($deptHeadApproval) {
             $this->actingAs($this->departmentHead);
             $this->post(route('approvals.process'), [
@@ -290,12 +293,12 @@ class PurchaseRequestWorkflowTest extends TestCase
                 'notes' => 'Department head approval',
             ]);
         }
-        
+
         // Second approval - Finance Manager
         $financeApproval = $purchaseRequest->approvals()
             ->where('approver_id', $this->financeManager->id)
             ->first();
-            
+
         if ($financeApproval) {
             $this->actingAs($this->financeManager);
             $this->post(route('approvals.process'), [
@@ -304,11 +307,11 @@ class PurchaseRequestWorkflowTest extends TestCase
                 'notes' => 'Finance manager approval',
             ]);
         }
-        
+
         // Check final status
         $purchaseRequest->refresh();
         $pendingCount = $purchaseRequest->pendingApprovals()->count();
-        
+
         if ($pendingCount === 0) {
             $this->assertEquals('approved', $purchaseRequest->status);
             $this->assertNotNull($purchaseRequest->approved_at);
@@ -321,20 +324,20 @@ class PurchaseRequestWorkflowTest extends TestCase
     public function api_endpoints_work_correctly()
     {
         $this->actingAs($this->requestor);
-        
+
         // Test API list endpoint
         $response = $this->withHeaders([
             'X-Business-Unit-ID' => $this->businessUnit->id,
             'Accept' => 'application/json',
         ])->get('/api/v1/purchase-requests');
-        
+
         $response->assertStatus(200)
-                 ->assertJsonStructure([
-                     'success',
-                     'data',
-                     'meta',
-                     'links'
-                 ]);
+            ->assertJsonStructure([
+                'success',
+                'data',
+                'meta',
+                'links',
+            ]);
 
         // Test API create endpoint
         $requestData = [
@@ -359,23 +362,23 @@ class PurchaseRequestWorkflowTest extends TestCase
         ])->post('/api/v1/purchase-requests', $requestData);
 
         $response->assertStatus(201)
-                 ->assertJsonStructure([
-                     'success',
-                     'message',
-                     'data' => [
-                         'id',
-                         'pr_number',
-                         'status',
-                         'total_amount'
-                     ]
-                 ]);
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'id',
+                    'pr_number',
+                    'status',
+                    'total_amount',
+                ],
+            ]);
     }
 
     protected function createSamplePurchaseRequest(): PurchaseRequest
     {
         $numberingService = app(PRNumberingService::class);
         $prNumber = $numberingService->generatePRNumber($this->requestor);
-        
+
         $pr = PurchaseRequest::create([
             'pr_number' => $prNumber['formatted_number'],
             'business_unit_id' => $this->businessUnit->id,
@@ -403,17 +406,18 @@ class PurchaseRequestWorkflowTest extends TestCase
         ]);
 
         $pr->updateTotalAmount();
+
         return $pr;
     }
 
     protected function createSubmittedPurchaseRequest(): PurchaseRequest
     {
         $pr = $this->createSamplePurchaseRequest();
-        
+
         $workflowService = app(ApprovalWorkflowService::class);
         $pr->update(['status' => 'submitted', 'submitted_at' => now()]);
         $workflowService->createWorkflow($pr);
-        
+
         return $pr;
     }
 
@@ -421,7 +425,7 @@ class PurchaseRequestWorkflowTest extends TestCase
     {
         $numberingService = app(PRNumberingService::class);
         $prNumber = $numberingService->generatePRNumber($this->requestor);
-        
+
         $pr = PurchaseRequest::create([
             'pr_number' => $prNumber['formatted_number'],
             'business_unit_id' => $this->businessUnit->id,
@@ -449,6 +453,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         ]);
 
         $pr->updateTotalAmount();
+
         return $pr;
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestFontSizeReduction extends Command
 {
     protected $signature = 'test:font-reduction';
+
     protected $description = 'Test font size reduction and spacing improvements';
 
     public function handle()

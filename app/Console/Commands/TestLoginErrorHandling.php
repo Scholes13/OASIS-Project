@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestLoginErrorHandling extends Command
 {
     protected $signature = 'test:login-error-handling';
+
     protected $description = 'Test login error handling and loading overlay fixes';
 
     public function handle()
@@ -21,7 +22,7 @@ class TestLoginErrorHandling extends Command
             '✅ Loading overlay hides on authentication errors',
             '✅ Error messages display properly',
             '✅ Button states work correctly',
-            '✅ No infinite loading loops'
+            '✅ No infinite loading loops',
         ];
 
         foreach ($scenarios as $scenario) {

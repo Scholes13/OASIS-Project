@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -24,6 +24,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read int|null $activities_count
  * @property-read \App\Models\BusinessUnit $businessUnit
  * @property-read int $steps_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow default()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow forBusinessUnit($businessUnitId)
@@ -43,6 +44,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereModuleType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ApprovalWorkflow whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class ApprovalWorkflow extends Model
@@ -123,7 +125,7 @@ class ApprovalWorkflow extends Model
     public function getApproverIds(): array
     {
         $approverIds = [];
-        
+
         foreach ($this->approval_steps ?? [] as $step) {
             if (isset($step['approver_id'])) {
                 $approverIds[] = $step['approver_id'];
@@ -131,7 +133,7 @@ class ApprovalWorkflow extends Model
                 $approverIds = array_merge($approverIds, $step['approver_ids']);
             }
         }
-        
+
         return array_unique($approverIds);
     }
 
@@ -151,7 +153,7 @@ class ApprovalWorkflow extends Model
     public function removeStep(int $index): void
     {
         $steps = $this->approval_steps ?? [];
-        
+
         if (isset($steps[$index])) {
             unset($steps[$index]);
             $this->update(['approval_steps' => array_values($steps)]);
@@ -164,7 +166,7 @@ class ApprovalWorkflow extends Model
     public function updateStep(int $index, array $stepData): void
     {
         $steps = $this->approval_steps ?? [];
-        
+
         if (isset($steps[$index])) {
             $steps[$index] = array_merge($steps[$index], $stepData);
             $this->update(['approval_steps' => $steps]);
@@ -177,23 +179,23 @@ class ApprovalWorkflow extends Model
     public function matchesConditions(array $data): bool
     {
         $conditions = $this->conditions ?? [];
-        
+
         if (empty($conditions)) {
             return true; // No conditions means it matches everything
         }
-        
+
         foreach ($conditions as $condition) {
             $field = $condition['field'] ?? null;
             $operator = $condition['operator'] ?? '=';
             $value = $condition['value'] ?? null;
-            
-            if (!$field || !isset($data[$field])) {
+
+            if (! $field || ! isset($data[$field])) {
                 continue;
             }
-            
+
             $dataValue = $data[$field];
-            
-            $matches = match($operator) {
+
+            $matches = match ($operator) {
                 '=' => $dataValue == $value,
                 '!=' => $dataValue != $value,
                 '>' => $dataValue > $value,
@@ -201,16 +203,16 @@ class ApprovalWorkflow extends Model
                 '<' => $dataValue < $value,
                 '<=' => $dataValue <= $value,
                 'in' => in_array($dataValue, (array) $value),
-                'not_in' => !in_array($dataValue, (array) $value),
+                'not_in' => ! in_array($dataValue, (array) $value),
                 'contains' => str_contains((string) $dataValue, (string) $value),
                 default => false
             };
-            
-            if (!$matches) {
+
+            if (! $matches) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -249,7 +251,7 @@ class ApprovalWorkflow extends Model
         $cloned->name = $newName;
         $cloned->is_default = $setAsDefault;
         $cloned->save();
-        
+
         if ($setAsDefault) {
             // Remove default flag from other workflows
             self::where('business_unit_id', $this->business_unit_id)
@@ -257,7 +259,7 @@ class ApprovalWorkflow extends Model
                 ->where('id', '!=', $cloned->id)
                 ->update(['is_default' => false]);
         }
-        
+
         return $cloned;
     }
 

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class DiagnoseBlinkingIssue extends Command
 {
     protected $signature = 'debug:blinking-issue';
+
     protected $description = 'Diagnose and fix dashboard blinking issue';
 
     public function handle()

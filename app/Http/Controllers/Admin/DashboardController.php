@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
+use App\Models\User;
 use App\Models\UserBusinessUnit;
-use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -57,8 +56,8 @@ class DashboardController extends Controller
         $businessUnitStats = BusinessUnit::withCount(['userBusinessUnits as user_count' => function ($query) {
             $query->where('is_active', true);
         }])
-        ->where('is_active', true)
-        ->get();
+            ->where('is_active', true)
+            ->get();
 
         // User role distribution
         $roleStats = User::selectRaw('global_role, COUNT(*) as count')
@@ -69,7 +68,7 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', compact(
             'stats',
-            'recentUsers', 
+            'recentUsers',
             'businessUnitStats',
             'roleStats'
         ));
@@ -81,10 +80,10 @@ class DashboardController extends Controller
     private function userDashboard()
     {
         $user = auth()->user();
-        
+
         // Get user's accessible business units
         $accessibleBusinessUnits = $user->getAccessibleBusinessUnits();
-        
+
         // Get user's assignments
         $assignments = $user->activeBusinessUnits()->with(['businessUnit', 'department', 'position'])->get();
 

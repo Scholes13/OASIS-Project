@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSuperAdminSidebarFix extends Command
 {
     protected $signature = 'test:super-admin-sidebar-fix';
+
     protected $description = 'Test super admin sidebar blinking and clickability fixes';
 
     public function handle()

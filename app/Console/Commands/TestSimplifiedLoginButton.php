@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSimplifiedLoginButton extends Command
 {
     protected $signature = 'test:simplified-login-button';
+
     protected $description = 'Test simplified login button without loading animation';
 
     public function handle()

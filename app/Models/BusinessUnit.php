@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -44,6 +44,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read int|null $user_business_units_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
  * @property-read int|null $users_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit active()
  * @method static \Database\Factories\BusinessUnitFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit newModelQuery()
@@ -62,6 +63,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereParentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit wherePhone($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|BusinessUnit whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class BusinessUnit extends Model
@@ -198,12 +200,12 @@ class BusinessUnit extends Model
     public function getAccessibleBusinessUnits(): array
     {
         $accessible = [$this->id];
-        
+
         foreach ($this->descendants as $descendant) {
             $accessible[] = $descendant->id;
             $accessible = array_merge($accessible, $descendant->getAccessibleBusinessUnits());
         }
-        
+
         return array_unique($accessible);
     }
 

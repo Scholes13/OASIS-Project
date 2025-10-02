@@ -89,7 +89,7 @@ class BusinessUnitController extends Controller
             ->route('admin.business-units.index')
             ->with('success_create_unit', [
                 'title' => 'Success Create Business Unit',
-                'name' => $businessUnit->name
+                'name' => $businessUnit->name,
             ]);
     }
 
@@ -162,13 +162,13 @@ class BusinessUnitController extends Controller
             return back()->withErrors(['parent_id' => 'Business unit cannot be its own parent.']);
         }
 
-                $businessUnit->update($validatedData);
+        $businessUnit->update($validatedData);
 
         return redirect()
             ->route('admin.business-units.index')
             ->with('success_update_unit', [
                 'title' => 'Success Update Business Unit',
-                'name' => $businessUnit->name
+                'name' => $businessUnit->name,
             ]);
     }
 
@@ -222,7 +222,7 @@ class BusinessUnitController extends Controller
             ->route('admin.business-units.index')
             ->with('success_delete_unit', [
                 'title' => 'Success Delete Business Unit',
-                'name' => $businessUnitName
+                'name' => $businessUnitName,
             ]);
     }
 

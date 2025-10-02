@@ -20,7 +20,7 @@ return new class extends Migration
             $table->json('config')->nullable()->comment('Additional module configuration');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            
+
             // Unique constraint for module code per business unit
             $table->unique(['business_unit_id', 'module_code'], 'unique_module_per_bu');
         });

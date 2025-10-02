@@ -48,25 +48,25 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
         Route::get('/', [PurchaseRequestController::class, 'index'])->name('index');
 
-        // Universal Purchase Request Create Route
+        // Create Route - Loads Livewire component for creating new PR
         Route::get('/create', function () {
             return view('purchase-requests.create');
         })->name('create');
 
-        // Create with Reserved Number Route
-        Route::get('/create-with-number', function () {
-            return view('purchase-requests.create-with-number');
-        })->name('create-with-number');
-
-        Route::post('/', [PurchaseRequestController::class, 'store'])->name('store');
+        // View/Edit Routes (Livewire handles form submission)
         Route::get('/{purchaseRequest}', [PurchaseRequestController::class, 'show'])->name('show');
         Route::get('/{purchaseRequest}/edit', [PurchaseRequestController::class, 'edit'])->name('edit');
-        Route::put('/{purchaseRequest}', [PurchaseRequestController::class, 'update'])->name('update');
+        
+        // Action Routes (handled by controller)
         Route::delete('/{purchaseRequest}', [PurchaseRequestController::class, 'destroy'])->name('destroy');
-        Route::post('/{purchaseRequest}/submit', [PurchaseRequestController::class, 'submit'])->name('submit');
+        Route::post('/{purchaseRequest}/resubmit', [PurchaseRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
+        
+        // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
         Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestController::class, 'downloadPdf'])->name('download-pdf');
+        
+        // List all PRs (for admin/manager view)
         Route::get('/all/list', [PurchaseRequestController::class, 'all'])->name('all');
     });
 

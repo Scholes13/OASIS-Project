@@ -48,7 +48,7 @@ class PrNumberReservationController extends Controller
 
         $reservations = $query->latest('reserved_at')->paginate(15);
 
-        return view('purchase-requests.my-numbers', compact('reservations'));
+        return view('pr-numbers.index', compact('reservations'));
     }
 
     /**

@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Modules\WNS\PurchaseRequest;
 use App\Models\Modules\WNS\PrApproval;
+use App\Models\Modules\WNS\PurchaseRequest;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class QrCodeService
@@ -13,7 +13,7 @@ class QrCodeService
      */
     public function generateRequestorQrCode(PurchaseRequest $purchaseRequest): string
     {
-        if (!$purchaseRequest->submitted_at) {
+        if (! $purchaseRequest->submitted_at) {
             return $this->generatePlaceholderQr();
         }
 
@@ -24,7 +24,7 @@ class QrCodeService
         $publicUrl = route('purchase-requests.public', [
             'pr' => $purchaseRequest->id,
             'token' => $verificationToken,
-            'requestor' => $purchaseRequest->user_id
+            'requestor' => $purchaseRequest->user_id,
         ]);
 
         // Generate QR code as SVG for PDF embedding
@@ -50,7 +50,7 @@ class QrCodeService
         $publicUrl = route('purchase-requests.public', [
             'pr' => $approval->purchase_request_id,
             'token' => $verificationToken,
-            'approver' => $approval->approver_id
+            'approver' => $approval->approver_id,
         ]);
 
         // Generate QR code as SVG for PDF embedding
@@ -66,7 +66,8 @@ class QrCodeService
     public function generateRequestorQrCodeDataUrl(PurchaseRequest $purchaseRequest): string
     {
         $qrCodeSvg = $this->generateRequestorQrCode($purchaseRequest);
-        return 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
     }
 
     /**
@@ -75,7 +76,8 @@ class QrCodeService
     public function generateApproverQrCodeDataUrl(PrApproval $approval): string
     {
         $qrCodeSvg = $this->generateApproverQrCode($approval);
-        return 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
     }
 
     /**
@@ -87,10 +89,10 @@ class QrCodeService
             'pr_id' => $purchaseRequest->id,
             'user_id' => $purchaseRequest->user_id,
             'submitted_at' => $purchaseRequest->submitted_at?->timestamp,
-            'type' => 'requestor'
+            'type' => 'requestor',
         ];
 
-        return hash('sha256', json_encode($data) . config('app.key'));
+        return hash('sha256', json_encode($data).config('app.key'));
     }
 
     /**
@@ -103,10 +105,10 @@ class QrCodeService
             'pr_id' => $approval->purchase_request_id,
             'approver_id' => $approval->approver_id,
             'approved_at' => $approval->responded_at?->timestamp,
-            'type' => 'approval'
+            'type' => 'approval',
         ];
 
-        return hash('sha256', json_encode($data) . config('app.key'));
+        return hash('sha256', json_encode($data).config('app.key'));
     }
 
     /**
@@ -115,6 +117,7 @@ class QrCodeService
     public function verifyRequestorToken(PurchaseRequest $purchaseRequest, string $token): bool
     {
         $expectedToken = $this->generateRequestorToken($purchaseRequest);
+
         return hash_equals($expectedToken, $token);
     }
 
@@ -124,7 +127,36 @@ class QrCodeService
     public function verifyApprovalToken(PrApproval $approval, string $token): bool
     {
         $expectedToken = $this->generateApprovalToken($approval);
+
         return hash_equals($expectedToken, $token);
+    }
+
+    /**
+     * Generate public verification URL for an approval
+     */
+    public function generatePublicVerificationUrl(PrApproval $approval): string
+    {
+        $verificationToken = $this->generateApprovalToken($approval);
+
+        return route('purchase-requests.public', [
+            'pr' => $approval->purchase_request_id,
+            'token' => $verificationToken,
+            'approver' => $approval->approver_id,
+        ]);
+    }
+
+    /**
+     * Generate public verification URL for requestor
+     */
+    public function generateRequestorPublicVerificationUrl(PurchaseRequest $purchaseRequest): string
+    {
+        $verificationToken = $this->generateRequestorToken($purchaseRequest);
+
+        return route('purchase-requests.public', [
+            'pr' => $purchaseRequest->id,
+            'token' => $verificationToken,
+            'requestor' => $purchaseRequest->user_id,
+        ]);
     }
 
     /**
@@ -145,6 +177,7 @@ class QrCodeService
     public function generatePlaceholderQrDataUrl(): string
     {
         $qrCodeSvg = $this->generatePlaceholderQr();
-        return 'data:image/svg+xml;base64,' . base64_encode($qrCodeSvg);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
     }
 }

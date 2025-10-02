@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestHeaderSpacingFix extends Command
 {
     protected $signature = 'test:header-spacing-fix';
+
     protected $description = 'Test header spacing fix - proper distance from sidebar toggle button';
 
     public function handle()

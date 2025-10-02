@@ -2,61 +2,58 @@
 
 namespace App\Services;
 
-use App\Services\NumberingService;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
 use App\Models\NumberingModule;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
 use Carbon\Carbon;
 
 class UniversalPRNumberingService
 {
     protected NumberingService $numberingService;
+
     protected string $moduleCode = 'PR';
+
     protected string $formatPattern = 'PR.{BU_CODE}/{YYYYMM}/{SEQUENCE}';
-    
+
     public function __construct(NumberingService $numberingService)
     {
         $this->numberingService = $numberingService;
     }
-    
+
     /**
      * Generate PR number for any business unit
      * Format: PR.{BU_CODE}-{DEPT_CODE}/{YYYYMM}/{XX}
-     * 
-     * @param User $user
-     * @param int|null $businessUnitId - If null, uses session current_business_unit_id
-     * @param int|null $departmentId - If null, uses user's primary department in the BU
-     * @param Carbon|null $date
-     * @return array
+     *
+     * @param  int|null  $businessUnitId  - If null, uses session current_business_unit_id
+     * @param  int|null  $departmentId  - If null, uses user's primary department in the BU
      */
     public function generatePRNumber(
-        User $user, 
-        ?int $businessUnitId = null, 
-        ?int $departmentId = null, 
+        User $user,
+        ?int $businessUnitId = null,
+        ?int $departmentId = null,
         ?Carbon $date = null
     ): array {
         $date = $date ?? now();
-        
+
         // Determine business unit
         $businessUnit = $this->resolveBusinessUnit($user, $businessUnitId);
-        if (!$businessUnit) {
+        if (! $businessUnit) {
             throw new \Exception('Business unit not found or user has no access');
         }
-        
+
         // Determine department
         $department = $this->resolveDepartment($user, $businessUnit, $departmentId);
-        if (!$department) {
+        if (! $department) {
             throw new \Exception('Department not found or user has no access');
         }
-        
+
         // Ensure PR numbering module exists for this business unit
         $this->ensurePRModule($businessUnit);
-        
+
         // Generate sequence number
         // Use business unit only for continuous sequence per BU across all departments
-        
+
         $result = $this->numberingService->generateNumber(
             $businessUnit->id,
             $this->moduleCode,
@@ -64,7 +61,7 @@ class UniversalPRNumberingService
             $date->year,
             null  // No monthly reset - yearly reset only
         );
-        
+
         // Format the PR number with new simplified format
         $result['formatted_number'] = $this->formatUniversalPRNumber(
             $businessUnit->code,
@@ -72,7 +69,7 @@ class UniversalPRNumberingService
             $date->month,
             $result['sequence_number']
         );
-        
+
         // Add additional metadata
         $result['business_unit_code'] = $businessUnit->code;
         $result['business_unit_name'] = $businessUnit->name;
@@ -80,10 +77,10 @@ class UniversalPRNumberingService
         $result['department_name'] = $department->name;
         $result['year'] = $date->year;
         $result['month'] = $date->month;
-        
+
         return $result;
     }
-    
+
     /**
      * Resolve business unit from various sources
      */
@@ -96,7 +93,7 @@ class UniversalPRNumberingService
                 return $businessUnit;
             }
         }
-        
+
         // 2. Use session current business unit
         $sessionBuId = session('current_business_unit_id');
         if ($sessionBuId) {
@@ -105,20 +102,20 @@ class UniversalPRNumberingService
                 return $businessUnit;
             }
         }
-        
+
         // 3. For super admins, allow any active business unit (fallback to first active)
         if ($user->global_role === 'super_admin') {
             return BusinessUnit::where('is_active', true)->first();
         }
-        
+
         // 4. Use user's primary business unit
         if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
             return $user->primaryDepartment->businessUnit;
         }
-        
+
         return null;
     }
-    
+
     /**
      * Resolve department from various sources
      */
@@ -134,31 +131,31 @@ class UniversalPRNumberingService
                 return $department;
             }
         }
-        
+
         // 2. Use user's primary department if it's in this business unit
-        if ($user->primaryDepartment && 
+        if ($user->primaryDepartment &&
             $user->primaryDepartment->business_unit_id === $businessUnit->id) {
             return $user->primaryDepartment;
         }
-        
+
         // 3. For super admins, use any department in the business unit
         if ($user->global_role === 'super_admin') {
             return $businessUnit->activeDepartments()->first();
         }
-        
+
         // 4. Find user's department assignment in this business unit
         $userBuAssignment = $user->businessUnits()
             ->where('business_unit_id', $businessUnit->id)
             ->where('is_active', true)
             ->first();
-            
+
         if ($userBuAssignment && $userBuAssignment->department_id) {
             return Department::find($userBuAssignment->department_id);
         }
-        
+
         return null;
     }
-    
+
     /**
      * Check if user has access to business unit
      */
@@ -168,22 +165,22 @@ class UniversalPRNumberingService
         if ($user->global_role === 'super_admin') {
             return true;
         }
-        
+
         // Check if user has assignment to this business unit
         return $user->businessUnits()
             ->where('business_unit_id', $businessUnit->id)
             ->where('is_active', true)
             ->exists();
     }
-    
+
     /**
      * Format PR number with simplified format
      * Format: PR.{BU_CODE}/{YYYYMM}/{XXX}
      */
     protected function formatUniversalPRNumber(
-        string $buCode, 
-        int $year, 
-        int $month, 
+        string $buCode,
+        int $year,
+        int $month,
         int $sequence
     ): string {
         return sprintf(
@@ -194,7 +191,7 @@ class UniversalPRNumberingService
             $sequence
         );
     }
-    
+
     /**
      * Parse universal PR number to extract components
      */
@@ -202,12 +199,12 @@ class UniversalPRNumberingService
     {
         // Expected format: PR.BU/YYYYMM/XXX
         $pattern = '/^PR\.([A-Z]+)\/(\d{6})\/(\d{3})$/';
-        
+
         if (preg_match($pattern, $prNumber, $matches)) {
             $yearMonth = $matches[2];
             $year = (int) substr($yearMonth, 0, 4);
             $month = (int) substr($yearMonth, 4, 2);
-            
+
             return [
                 'business_unit_code' => $matches[1],
                 'year' => $year,
@@ -217,37 +214,38 @@ class UniversalPRNumberingService
                 'valid' => true,
             ];
         }
-        
+
         return ['valid' => false];
     }
-    
+
     /**
      * Validate universal PR number format
      */
     public function validatePRNumber(string $prNumber): bool
     {
         $parsed = $this->parseUniversalPRNumber($prNumber);
+
         return $parsed['valid'] ?? false;
     }
-    
+
     /**
      * Get next PR number preview
      */
     public function getNextPRNumberPreview(
-        User $user, 
-        ?int $businessUnitId = null, 
-        ?int $departmentId = null, 
+        User $user,
+        ?int $businessUnitId = null,
+        ?int $departmentId = null,
         ?Carbon $date = null
     ): array {
         $date = $date ?? now();
-        
+
         $businessUnit = $this->resolveBusinessUnit($user, $businessUnitId);
         $department = $this->resolveDepartment($user, $businessUnit, $departmentId);
-        
-        if (!$businessUnit || !$department) {
+
+        if (! $businessUnit || ! $department) {
             throw new \Exception('Cannot resolve business unit or department for preview');
         }
-        
+
         // Get sequence status
         $status = $this->numberingService->getSequenceStatus(
             $businessUnit->id,
@@ -256,16 +254,16 @@ class UniversalPRNumberingService
             $date->year,
             null  // No monthly separation
         );
-        
+
         // Handle null status
-        if (!$status) {
+        if (! $status) {
             $status = [
                 'current_number' => 0,
                 'next_number' => 1,
                 'available_numbers' => 999,
             ];
         }
-        
+
         // Format preview number
         $previewNumber = $this->formatUniversalPRNumber(
             $businessUnit->code,
@@ -273,7 +271,7 @@ class UniversalPRNumberingService
             $date->month,
             $status['next_number']
         );
-        
+
         return [
             'preview_number' => $previewNumber,
             'next_sequence' => $status['next_number'],
@@ -292,7 +290,7 @@ class UniversalPRNumberingService
             'available_numbers' => $status['available_numbers'] ?? 99,
         ];
     }
-    
+
     /**
      * Get user's available business units for PR creation
      */
@@ -323,7 +321,7 @@ class UniversalPRNumberingService
                 })
                 ->toArray();
         }
-        
+
         // Regular users - only their assigned business units
         return $user->businessUnits()
             ->with(['businessUnit.activeDepartments'])
@@ -331,6 +329,7 @@ class UniversalPRNumberingService
             ->get()
             ->map(function ($assignment) {
                 $bu = $assignment->businessUnit;
+
                 return [
                     'id' => $bu->id,
                     'code' => $bu->code,
@@ -351,7 +350,7 @@ class UniversalPRNumberingService
             })
             ->toArray();
     }
-    
+
     /**
      * Ensure PR numbering module exists for business unit
      */
@@ -377,22 +376,22 @@ class UniversalPRNumberingService
             ]
         );
     }
-    
+
     /**
      * Get PR statistics for business unit
      */
     public function getPRStatistics(int $businessUnitId, ?int $year = null, ?int $month = null): array
     {
         $businessUnit = BusinessUnit::find($businessUnitId);
-        if (!$businessUnit) {
+        if (! $businessUnit) {
             return [];
         }
-        
+
         $baseStats = $this->numberingService->getNumberingStatistics($businessUnit->id, $this->moduleCode);
-        
+
         // Add PR-specific statistics if PR model exists
         // This would need to be implemented based on your PR model structure
-        
+
         return array_merge($baseStats, [
             'business_unit' => [
                 'id' => $businessUnit->id,

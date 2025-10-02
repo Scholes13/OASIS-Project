@@ -78,7 +78,7 @@ class NumberingModuleSeeder extends Seeder
 
         // Create modules for each business unit
         $businessUnits = BusinessUnit::all();
-        
+
         foreach ($businessUnits as $businessUnit) {
             foreach ($modules as $moduleData) {
                 NumberingModule::firstOrCreate(
@@ -98,7 +98,7 @@ class NumberingModuleSeeder extends Seeder
 
         // Create specific modules for WNS (our focus business unit)
         $wns = BusinessUnit::where('code', 'WNS')->first();
-        
+
         if ($wns) {
             // Additional WNS-specific modules
             $wnsSpecificModules = [

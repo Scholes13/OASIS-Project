@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSidebarAlignment extends Command
 {
     protected $signature = 'test:sidebar-alignment';
+
     protected $description = 'Test sidebar alignment - Purchase Requests aligned with other menu items';
 
     public function handle()

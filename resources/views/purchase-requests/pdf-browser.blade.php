@@ -754,7 +754,7 @@
             <div class="approval-box">
                 <div class="approval-title">Created by</div>
 
-                @if($purchaseRequest->submitted_at)
+                @if($purchaseRequest->submitted_at && isset($qrCodes['requestor']))
                 <div class="qr-code-container">
                     <img src="{{ $qrCodes['requestor'] }}" alt="QR Code" style="width: 50px; height: 50px;">
                 </div>
@@ -783,9 +783,9 @@
                     
                     <div class="approval-title">{{ $title }}</div>
 
-                    @if($approval->status === 'approved')
+                    @if($approval->status === 'approved' && isset($qrCodes['approvals'][$approval->id]))
                         <div class="qr-code-container">
-                            <img src="{{ $qrCodes['approvals'][$approval->id] ?? $qrCodes['requestor'] }}" alt="Approval QR Code" style="width: 50px; height: 50px;">
+                            <img src="{{ $qrCodes['approvals'][$approval->id] }}" alt="Approval QR Code" style="width: 50px; height: 50px;">
                         </div>
                     @else
                         <div class="qr-code-container empty">&nbsp;</div>

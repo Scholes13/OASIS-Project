@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestHeaderFix extends Command
 {
     protected $signature = 'test:header-fix';
+
     protected $description = 'Test header fix - no more overlapping elements';
 
     public function handle()

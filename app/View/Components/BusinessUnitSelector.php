@@ -8,7 +8,9 @@ use Illuminate\View\View;
 class BusinessUnitSelector extends Component
 {
     public $businessUnits;
+
     public $selectedBusinessUnit;
+
     public $showAll;
 
     /**
@@ -17,7 +19,7 @@ class BusinessUnitSelector extends Component
     public function __construct($selectedBusinessUnit = null, $showAll = false)
     {
         $user = auth()->user();
-        
+
         if ($user) {
             if ($user->isSuperAdmin() && $showAll) {
                 // Super admin can see all business units
@@ -32,7 +34,7 @@ class BusinessUnitSelector extends Component
         } else {
             $this->businessUnits = collect();
         }
-        
+
         $this->selectedBusinessUnit = $selectedBusinessUnit;
         $this->showAll = $showAll;
     }

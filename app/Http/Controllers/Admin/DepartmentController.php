@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Department;
 use App\Models\BusinessUnit;
-use Illuminate\Http\Request;
+use App\Models\Department;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class DepartmentController extends Controller
 {
@@ -31,7 +31,7 @@ class DepartmentController extends Controller
     public function create(): View
     {
         $businessUnits = BusinessUnit::active()->orderBy('name')->get();
-        
+
         return view('admin.departments.create', compact('businessUnits'));
     }
 
@@ -69,7 +69,7 @@ class DepartmentController extends Controller
     public function show(Department $department): View
     {
         $department->load(['businessUnit', 'positions.users', 'users', 'numberSequences']);
-        
+
         return view('admin.departments.show', compact('department'));
     }
 
@@ -79,7 +79,7 @@ class DepartmentController extends Controller
     public function edit(Department $department): View
     {
         $businessUnits = BusinessUnit::active()->orderBy('name')->get();
-        
+
         return view('admin.departments.edit', compact('department', 'businessUnits'));
     }
 

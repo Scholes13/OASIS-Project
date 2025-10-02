@@ -3,12 +3,12 @@
 namespace Tests\Feature;
 
 use App\Livewire\PurchaseRequests\RequestNumber;
-use App\Models\User;
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Position;
-use App\Models\UserBusinessUnit;
 use App\Models\NumberingModule;
+use App\Models\Position;
+use App\Models\User;
+use App\Models\UserBusinessUnit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
@@ -19,13 +19,15 @@ class RequestNumberLivewireTest extends TestCase
     use RefreshDatabase;
 
     protected $user;
+
     protected $businessUnit;
+
     protected $department;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create test data
         $this->businessUnit = BusinessUnit::create([
             'code' => 'WNS',
@@ -142,11 +144,11 @@ class RequestNumberLivewireTest extends TestCase
         // Check that a number was generated
         $this->assertNotNull($component->get('generatedNumber'));
         $this->assertNotNull($component->get('numberDetails'));
-        
+
         // Check the format of generated number
         $generatedNumber = $component->get('generatedNumber');
         $this->assertMatchesRegularExpression('/^PR\.GA\/\d{4}\/\d{2}\/\d{3}$/', $generatedNumber);
-        
+
         // Check number details
         $details = $component->get('numberDetails');
         $this->assertEquals($generatedNumber, $details['formatted_number']);
@@ -169,7 +171,7 @@ class RequestNumberLivewireTest extends TestCase
 
         // During the call, loading should be managed properly
         $component->call('submitRequest');
-        
+
         // After successful generation, loading should be false again
         $this->assertFalse($component->get('isLoading'));
     }
@@ -180,17 +182,17 @@ class RequestNumberLivewireTest extends TestCase
         $this->actingAs($this->user);
 
         $component = Livewire::test(RequestNumber::class);
-        
+
         $preview = $component->call('getNextNumberPreview');
         $previewNumber = $component->get('getNextNumberPreview');
-        
+
         // Should match the expected format with current year/month
         $expectedPattern = sprintf(
             '/^PR\.GA\/%d\/%02d\/XXX$/',
             now()->year,
             now()->month
         );
-        
+
         $this->assertMatchesRegularExpression($expectedPattern, $previewNumber);
     }
 
@@ -265,7 +267,7 @@ class RequestNumberLivewireTest extends TestCase
         $this->actingAs($userWithoutDept);
 
         $component = Livewire::test(RequestNumber::class);
-        
+
         // Should show appropriate message for missing department
         $this->assertEquals('Department not set', $component->get('department_name'));
         $this->assertEquals('N/A', $component->get('department_code'));
@@ -278,7 +280,7 @@ class RequestNumberLivewireTest extends TestCase
 
         // Test purpose field length limit (500 chars)
         $longPurpose = str_repeat('a', 501);
-        
+
         Livewire::test(RequestNumber::class)
             ->set('purpose', $longPurpose)
             ->set('description', 'Valid description')
@@ -287,7 +289,7 @@ class RequestNumberLivewireTest extends TestCase
 
         // Test description field length limit (1000 chars)
         $longDescription = str_repeat('b', 1001);
-        
+
         Livewire::test(RequestNumber::class)
             ->set('purpose', 'Valid purpose')
             ->set('description', $longDescription)
@@ -297,7 +299,7 @@ class RequestNumberLivewireTest extends TestCase
         // Test valid lengths
         $validPurpose = str_repeat('a', 500);
         $validDescription = str_repeat('b', 1000);
-        
+
         Livewire::test(RequestNumber::class)
             ->set('purpose', $validPurpose)
             ->set('description', $validDescription)
@@ -323,7 +325,7 @@ class RequestNumberLivewireTest extends TestCase
         // Should handle the error gracefully
         $this->assertFalse($component->get('isLoading'));
         $this->assertNull($component->get('generatedNumber'));
-        
+
         // Should show error in session flash
         $this->assertNotNull(session('error'));
     }

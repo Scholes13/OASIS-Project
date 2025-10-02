@@ -3,9 +3,9 @@
 namespace Tests\Feature\Livewire\PurchaseRequests;
 
 use App\Livewire\PurchaseRequests\RequestNumber;
-use App\Models\User;
-use App\Models\Department;
 use App\Models\BusinessUnit;
+use App\Models\Department;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -15,13 +15,15 @@ class RequestNumberTest extends TestCase
     use RefreshDatabase;
 
     protected $user;
+
     protected $department;
+
     protected $businessUnit;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create test data
         $this->businessUnit = BusinessUnit::factory()->create([
             'code' => 'IT',
@@ -78,10 +80,10 @@ class RequestNumberTest extends TestCase
         $this->actingAs($this->user);
 
         $component = Livewire::test(RequestNumber::class);
-        
+
         // Test computed property
         $this->assertFalse($component->instance()->getIsFormValidProperty());
-        
+
         // Test UI reflects invalid state
         $component->assertSee('Lengkapi semua field yang diperlukan');
     }
@@ -94,10 +96,10 @@ class RequestNumberTest extends TestCase
         $component = Livewire::test(RequestNumber::class)
             ->set('purpose', 'ab') // Only 2 characters
             ->set('description', 'This is a valid description with more than 10 characters');
-        
+
         // Test computed property
         $this->assertFalse($component->instance()->getIsFormValidProperty());
-        
+
         // Test UI reflects invalid state
         $component->assertSee('Lengkapi semua field yang diperlukan');
     }
@@ -110,10 +112,10 @@ class RequestNumberTest extends TestCase
         $component = Livewire::test(RequestNumber::class)
             ->set('purpose', 'Valid purpose')
             ->set('description', 'short'); // Only 5 characters
-        
+
         // Test computed property
         $this->assertFalse($component->instance()->getIsFormValidProperty());
-        
+
         // Test UI reflects invalid state
         $component->assertSee('Lengkapi semua field yang diperlukan');
     }
@@ -126,10 +128,10 @@ class RequestNumberTest extends TestCase
         $component = Livewire::test(RequestNumber::class)
             ->set('purpose', 'Valid purpose for testing')
             ->set('description', 'This is a valid description with more than 10 characters for testing');
-        
+
         // Test computed property
         $this->assertTrue($component->instance()->getIsFormValidProperty());
-        
+
         // Test UI reflects valid state
         $component->assertSee('Klik generate untuk mereservasi nomor PR');
     }
@@ -142,7 +144,7 @@ class RequestNumberTest extends TestCase
         $component = Livewire::test(RequestNumber::class)
             ->set('purpose', '   abc   ') // 3 chars with whitespace
             ->set('description', '   This is valid   '); // Valid with whitespace
-        
+
         // Test computed property handles trimming
         $this->assertTrue($component->instance()->getIsFormValidProperty());
     }
@@ -155,7 +157,7 @@ class RequestNumberTest extends TestCase
         $component = Livewire::test(RequestNumber::class)
             ->set('purpose', '   ') // Only whitespace
             ->set('description', '          '); // Only whitespace
-        
+
         // Test computed property
         $this->assertFalse($component->instance()->getIsFormValidProperty());
     }
@@ -166,14 +168,14 @@ class RequestNumberTest extends TestCase
         $this->actingAs($this->user);
 
         $component = Livewire::test(RequestNumber::class);
-        
+
         // Initially invalid
         $this->assertFalse($component->instance()->getIsFormValidProperty());
-        
+
         // Set valid description first
         $component->set('description', 'This is a valid description with more than 10 characters');
         $this->assertFalse($component->instance()->getIsFormValidProperty()); // Still invalid due to purpose
-        
+
         // Now set valid purpose
         $component->set('purpose', 'Valid purpose');
         $this->assertTrue($component->instance()->getIsFormValidProperty()); // Now valid
@@ -185,11 +187,11 @@ class RequestNumberTest extends TestCase
         $this->actingAs($this->user);
 
         $component = Livewire::test(RequestNumber::class);
-        
+
         // Set valid purpose first
         $component->set('purpose', 'Valid purpose');
         $this->assertFalse($component->instance()->getIsFormValidProperty()); // Still invalid due to description
-        
+
         // Now set valid description
         $component->set('description', 'This is a valid description with more than 10 characters');
         $this->assertTrue($component->instance()->getIsFormValidProperty()); // Now valid
@@ -239,20 +241,20 @@ class RequestNumberTest extends TestCase
         $component = Livewire::test(RequestNumber::class)
             ->set('purpose', 'dasdadasdad') // From screenshot
             ->set('description', 'makan'); // From screenshot
-        
+
         // Debug output
         $purpose = $component->instance()->purpose;
         $description = $component->instance()->description;
         $isValid = $component->instance()->getIsFormValidProperty();
-        
+
         echo "\n=== DEBUG INFO ===\n";
-        echo "Purpose: '{$purpose}' (length: " . strlen(trim($purpose)) . ")\n";
-        echo "Description: '{$description}' (length: " . strlen(trim($description)) . ")\n";
-        echo "Is Valid: " . ($isValid ? 'TRUE' : 'FALSE') . "\n";
-        echo "Purpose >= 3: " . (strlen(trim($purpose)) >= 3 ? 'TRUE' : 'FALSE') . "\n";
-        echo "Description >= 10: " . (strlen(trim($description)) >= 10 ? 'TRUE' : 'FALSE') . "\n";
+        echo "Purpose: '{$purpose}' (length: ".strlen(trim($purpose)).")\n";
+        echo "Description: '{$description}' (length: ".strlen(trim($description)).")\n";
+        echo 'Is Valid: '.($isValid ? 'TRUE' : 'FALSE')."\n";
+        echo 'Purpose >= 3: '.(strlen(trim($purpose)) >= 3 ? 'TRUE' : 'FALSE')."\n";
+        echo 'Description >= 10: '.(strlen(trim($description)) >= 10 ? 'TRUE' : 'FALSE')."\n";
         echo "==================\n";
-        
+
         // The issue: description "makan" is only 5 characters, needs 10
         $this->assertFalse($isValid);
         $this->assertEquals(5, strlen(trim($description)));

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestSidebarFontUnification extends Command
 {
     protected $signature = 'test:sidebar-font-unification';
+
     protected $description = 'Test sidebar font unification - larger and consistent with content area';
 
     public function handle()

@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestFinalFontFix extends Command
 {
     protected $signature = 'test:final-font-fix';
+
     protected $description = 'Test final font fix with maximum CSS specificity';
 
     public function handle()

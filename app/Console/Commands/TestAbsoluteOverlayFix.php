@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class TestAbsoluteOverlayFix extends Command
 {
     protected $signature = 'test:absolute-overlay-fix';
+
     protected $description = 'Test absolute overlay fix implementation';
 
     public function handle()

@@ -6,7 +6,6 @@ use App\Models\Modules\WNS\PurchaseRequest;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 /**
  * @property int $id
@@ -151,9 +150,9 @@ class PrNumberReservation extends Model
     /**
      * Void the reservation
      */
-    public function void(string $reason, int $voidedBy = null): bool
+    public function void(string $reason, ?int $voidedBy = null): bool
     {
-        if (!$this->canBeVoided()) {
+        if (! $this->canBeVoided()) {
             return false;
         }
 
@@ -172,7 +171,7 @@ class PrNumberReservation extends Model
      */
     public function markAsUsed(int $purchaseRequestId): bool
     {
-        if (!$this->canBeUsed()) {
+        if (! $this->canBeUsed()) {
             return false;
         }
 

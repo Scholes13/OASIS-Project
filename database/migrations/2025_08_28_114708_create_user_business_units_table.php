@@ -22,7 +22,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->json('permissions')->nullable()->comment('Specific permissions for this business unit');
             $table->timestamps();
-            
+
             // Unique constraint for user-business unit-department combination
             $table->unique(['user_id', 'business_unit_id', 'department_id'], 'unique_user_bu_dept');
         });

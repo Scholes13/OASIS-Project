@@ -5,8 +5,8 @@ namespace App\Models\Modules\WNS;
 use App\Models\Department;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -31,6 +31,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read string $formatted_total_price
  * @property-read string $formatted_unit_price
  * @property-read \App\Models\Modules\WNS\PurchaseRequest $purchaseRequest
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem forPurchaseRequest($purchaseRequestId)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newQuery()
@@ -51,6 +52,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUnit($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUnitPrice($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class PrItem extends Model
@@ -156,7 +158,7 @@ class PrItem extends Model
      */
     public function getFormattedQuantityAttribute(): string
     {
-        return number_format($this->quantity, 2) . ' ' . $this->unit;
+        return number_format($this->quantity, 2).' '.$this->unit;
     }
 
     /**
@@ -164,7 +166,7 @@ class PrItem extends Model
      */
     public function getFormattedUnitPriceAttribute(): string
     {
-        return $this->currency . ' ' . number_format($this->unit_price, 2);
+        return $this->currency.' '.number_format($this->unit_price, 2);
     }
 
     /**
@@ -172,7 +174,7 @@ class PrItem extends Model
      */
     public function getFormattedTotalPriceAttribute(): string
     {
-        return $this->currency . ' ' . number_format($this->total_price, 2);
+        return $this->currency.' '.number_format($this->total_price, 2);
     }
 
     /**

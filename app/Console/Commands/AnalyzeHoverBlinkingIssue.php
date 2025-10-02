@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class AnalyzeHoverBlinkingIssue extends Command
 {
     protected $signature = 'debug:hover-blinking';
+
     protected $description = 'Analyze why blinking stops when cursor is on cards';
 
     public function handle()

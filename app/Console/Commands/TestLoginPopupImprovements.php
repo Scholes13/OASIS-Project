@@ -7,17 +7,18 @@ use Illuminate\Console\Command;
 class TestLoginPopupImprovements extends Command
 {
     protected $signature = 'test:login-popup-improvements';
+
     protected $description = 'Test login popup improvements with compact button and loading overlay';
 
     public function handle()
     {
         $this->info('🎬 Testing Login Popup Improvements...');
-        
+
         // Check login view for improvements
         $viewPath = resource_path('views/livewire/pages/auth/login.blade.php');
         if (file_exists($viewPath)) {
             $content = file_get_contents($viewPath);
-            
+
             $checks = [
                 'x-data="{ loggingIn: false }"' => 'Alpine.js state management',
                 'x-on:submit=' => 'Form submit handler with overlay creation',
@@ -29,9 +30,9 @@ class TestLoginPopupImprovements extends Command
                 'x-show="loggingIn"' => 'Alpine.js loading spinner visibility',
                 'x-bind:disabled="loggingIn"' => 'Alpine.js disabled state',
                 'backdrop-blur-sm' => 'Backdrop blur effect',
-                'usleep(500000)' => 'Increased delay for better animation visibility'
+                'usleep(500000)' => 'Increased delay for better animation visibility',
             ];
-            
+
             foreach ($checks as $pattern => $description) {
                 if (strpos($content, $pattern) !== false) {
                     $this->info("✅ {$description}");
@@ -40,7 +41,7 @@ class TestLoginPopupImprovements extends Command
                 }
             }
         }
-        
+
         $this->info('');
         $this->info('🎯 Login Popup Improvements:');
         $this->info('• Compact button design (not full width)');
@@ -50,7 +51,7 @@ class TestLoginPopupImprovements extends Command
         $this->info('• Dynamic overlay creation with JavaScript');
         $this->info('• Increased delay (500ms) for better animation visibility');
         $this->info('• Professional loading experience');
-        
+
         $this->info('');
         $this->info('📝 Test the login improvements:');
         $this->info('1. Go to login page');
@@ -62,7 +63,7 @@ class TestLoginPopupImprovements extends Command
         $this->info('   - Full-screen loading overlay popup');
         $this->info('   - "Signing in..." message in overlay');
         $this->info('   - Smooth redirect to dashboard');
-        
+
         return 0;
     }
 }

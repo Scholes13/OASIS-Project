@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -24,6 +24,7 @@ use Spatie\Activitylog\LogOptions;
  * @property-read \App\Models\Department $department
  * @property-read \App\Models\Position $position
  * @property-read \App\Models\User $user
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit active()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit forBusinessUnit($businessUnitId)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit newModelQuery()
@@ -40,6 +41,7 @@ use Spatie\Activitylog\LogOptions;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit wherePositionId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserBusinessUnit whereUserId($value)
+ *
  * @mixin \Eloquent
  */
 class UserBusinessUnit extends Model
@@ -118,14 +120,13 @@ class UserBusinessUnit extends Model
         return $query->where('business_unit_id', $businessUnitId);
     }
 
-
-
     /**
      * Check if user has specific permission
      */
     public function hasPermission(string $permission): bool
     {
         $permissions = $this->permissions ?? [];
+
         return in_array($permission, $permissions);
     }
 

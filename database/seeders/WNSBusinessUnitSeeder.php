@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\BusinessUnit;
 use App\Models\Department;
+use Illuminate\Database\Seeder;
 
 class WNSBusinessUnitSeeder extends Seeder
 {
@@ -28,7 +28,7 @@ class WNSBusinessUnitSeeder extends Seeder
         Department::firstOrCreate(
             [
                 'business_unit_id' => $wnsBusinessUnit->id,
-                'code' => 'IT'
+                'code' => 'IT',
             ],
             [
                 'name' => 'Information Technology',
@@ -48,7 +48,7 @@ class WNSBusinessUnitSeeder extends Seeder
             Department::firstOrCreate(
                 [
                     'business_unit_id' => $wnsBusinessUnit->id,
-                    'code' => $dept['code']
+                    'code' => $dept['code'],
                 ],
                 [
                     'name' => $dept['name'],

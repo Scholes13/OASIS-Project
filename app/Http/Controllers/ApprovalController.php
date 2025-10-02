@@ -105,23 +105,11 @@ class ApprovalController extends Controller
             abort(404, 'QR code is only available for approved requests.');
         }
 
-        // Generate unique verification token for this approval
-        $verificationToken = $this->generateVerificationToken($approval);
+        // Use QrCodeService for consistent QR code generation
+        $qrCodeService = new QrCodeService();
+        $qrCodeSvg = $qrCodeService->generateApproverQrCode($approval);
 
-        // Create public URL for PR verification
-        $publicUrl = route('purchase-requests.public', [
-            'pr' => $approval->purchase_request_id,
-            'token' => $verificationToken,
-            'approver' => $approval->approver_id
-        ]);
-
-        // Generate QR code
-        $qrCode = QrCode::format('svg')
-            ->size(200)
-            ->margin(1)
-            ->generate($publicUrl);
-
-        return response($qrCode, 200, [
+        return response($qrCodeSvg, 200, [
             'Content-Type' => 'image/svg+xml',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
         ]);
@@ -197,29 +185,7 @@ class ApprovalController extends Controller
         return view('purchase-requests.public', compact('purchaseRequest', 'verificationData'));
     }
 
-    /**
-     * Generate verification token for approval
-     */
-    protected function generateVerificationToken(PrApproval $approval): string
-    {
-        $data = [
-            'approval_id' => $approval->id,
-            'pr_id' => $approval->purchase_request_id,
-            'approver_id' => $approval->approver_id,
-            'approved_at' => $approval->responded_at?->timestamp,
-        ];
 
-        return hash('sha256', json_encode($data) . config('app.key'));
-    }
-
-    /**
-     * Verify token for approval
-     */
-    protected function verifyToken(PrApproval $approval, string $token): bool
-    {
-        $expectedToken = $this->generateVerificationToken($approval);
-        return hash_equals($expectedToken, $token);
-    }
 
     /**
      * List pending approvals for current user

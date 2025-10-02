@@ -327,8 +327,8 @@ class PurchaseRequestController extends Controller
      */
     public function downloadPdf(PurchaseRequest $purchaseRequest)
     {
-        // Try Browsershot PDF generation first, fallback to PDF view if fails
-        return redirect()->route('purchase-requests.download-pdf-public', $purchaseRequest);
+        // Directly call downloadPdfPublic to avoid redirect issues on hosting
+        return $this->downloadPdfPublic($purchaseRequest);
     }
 
     /**

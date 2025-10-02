@@ -2,6 +2,9 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Purchase Request - {{ $purchaseRequest->pr_number }}</title>
     <style>
         /* Global Styles */
@@ -498,6 +501,79 @@
             .items-table tr { page-break-inside: avoid; }
         }
 
+        /* Screen view - Force natural flow like print */
+        @media screen {
+            /* Override any height constraints on root elements */
+            html, body {
+                height: auto !important;
+                max-height: none !important;
+                min-height: auto !important;
+                overflow: visible !important;
+            }
+            
+            /* Force all containers to allow natural flow */
+            *, *::before, *::after {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            
+            /* Specific overrides for common containers */
+            .container, .wrapper, .content, .main, .page {
+                height: auto !important;
+                max-height: none !important;
+                min-height: auto !important;
+                overflow: visible !important;
+            }
+            
+            /* Remove height constraints from tables and sections */
+            .items-table, .approval-section, .approval-container,
+            .pr-info-section, .items-section {
+                height: auto !important;
+                max-height: none !important;
+                min-height: auto !important;
+                overflow: visible !important;
+            }
+            
+            /* Allow content to flow naturally */
+            .pdf-content, .main-content, .content-wrapper,
+            .document, .page-content {
+                height: auto !important;
+                max-height: none !important;
+                min-height: auto !important;
+                overflow: visible !important;
+            }
+            
+            /* Force table to break naturally */
+            table, tbody, thead, tr, td {
+                height: auto !important;
+                max-height: none !important;
+                page-break-inside: auto !important;
+            }
+            
+            /* Ensure natural spacing between sections */
+            .pr-info-section {
+                margin-bottom: 20px;
+            }
+            
+            .items-section {
+                margin-bottom: 25px;
+            }
+            
+            .approval-container {
+                margin-top: 25px;
+                page-break-before: auto;
+            }
+            
+            /* Add visual page break indication for screen */
+            .approval-container::before {
+                content: "";
+                display: block;
+                height: 40px;
+                border-top: 2px dashed #ccc;
+                margin: 20px 0;
+            }
+        }
+
         /* Utility Classes */
         .no-break { page-break-inside: avoid; }
         .break-before { page-break-before: always; }
@@ -614,7 +690,7 @@
                     <div class="info-row">
                         <span class="info-label">Designated Date</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $purchaseRequest->expected_date ? \Carbon\Carbon::parse($purchaseRequest->expected_date)->format('d-M-y') : 'N/A' }}</span>
+                        <span class="info-value">{{ $purchaseRequest->designated_date ? \Carbon\Carbon::parse($purchaseRequest->designated_date)->format('d-M-y') : 'N/A' }}</span>
                     </div>
             </div>
         </div>

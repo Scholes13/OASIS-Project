@@ -22,36 +22,33 @@ Route::get('/purchase-requests/{purchaseRequest}/pdf-public', [PurchaseRequestCo
 // Public download PDF route for browsershot (no auth middleware)
 Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [PurchaseRequestController::class, 'downloadPdfPublic'])->name('purchase-requests.download-pdf-public');
 
-// Test route for debugging Browsershot timeout
-Route::get('/test-browsershot', function () {
-    return '<html><body><h1>Test Page</h1><p>This is a simple test page for Browsershot.</p></body></html>';
-});
+// ============================================================================
+// DEBUG ROUTES - Only active in local environment
+// ============================================================================
+if (app()->environment('local')) {
+    // Auth Debug Helper - Check authentication state and session data
+    Route::get('/debug/auth', [App\Http\Controllers\AuthDebugController::class, 'debug'])
+        ->middleware('auth')
+        ->name('debug.auth');
 
-// Alternative PDF download route using job queue (for programmatic access)
-Route::get('/purchase-requests/{purchaseRequest}/pdf-download-queue', function (\App\Models\Modules\WNS\PurchaseRequest $purchaseRequest) {
-    // For future implementation: Queue PDF generation job
-    return response()->json([
-        'message' => 'PDF generation queued. This feature will be available soon.',
-        'redirect_to' => route('purchase-requests.pdf-public', $purchaseRequest)
-    ]);
-})->name('purchase-requests.pdf-queue');
+    // Livewire Component Debug - Test PR Create component initialization
+    Route::get('/debug/pr-create', function () {
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
 
-// Test route for QR codes (temporary)
-Route::get('/test-qr/{pr}', function ($prId) {
-    $pr = \App\Models\Modules\WNS\PurchaseRequest::with([
-        'user', 'department', 'businessUnit', 'items', 'approvals.approver'
-    ])->findOrFail($prId);
-    
-    $qrCodeService = new \App\Services\QrCodeService();
-    $qrCodes = [];
-    $qrCodes['requestor'] = $qrCodeService->generateRequestorQrCodeDataUrl($pr);
-    $qrCodes['approvals'] = [];
-    foreach ($pr->approvals as $approval) {
-        $qrCodes['approvals'][$approval->id] = $qrCodeService->generateApproverQrCodeDataUrl($approval);
-    }
-    
-    return view('test-qr', compact('qrCodes', 'pr'));
-})->name('test-qr');
+        $component = new \App\Livewire\Modules\Wns\PurchaseRequests\Create;
+        $component->mount();
+        $debugReport = $component->getDebugReport();
+
+        return response()->json($debugReport, 200, [], JSON_PRETTY_PRINT);
+    })->middleware('auth')->name('debug.pr-create');
+
+    // Browsershot Test - Simple page for testing PDF generation
+    Route::get('/test-browsershot', function () {
+        return '<html><body><h1>Test Page</h1><p>This is a simple test page for Browsershot.</p></body></html>';
+    })->name('test.browsershot');
+}
 
 // Dashboard with enhanced middleware
 Route::get('dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])
@@ -62,17 +59,6 @@ Route::get('dashboard', [\App\Http\Controllers\Admin\DashboardController::class,
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
-
-// Force refresh session (for debugging)
-Route::get('refresh-session', function () {
-    session()->flush();
-    Auth::logout();
-
-    return redirect()->route('login')->with('message', 'Session cleared. Please login again.');
-})->middleware(['auth'])->name('refresh-session');
-
-// Include Module Routes
-// require_once __DIR__.'/modules/wns.php'; // Disabled - using universal routes now
 
 // Legacy Purchase Request Routes (Backward Compatibility)
 Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(function () {

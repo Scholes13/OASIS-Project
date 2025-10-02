@@ -1,19 +1,22 @@
 <?php
 
-namespace App\Livewire\Modules\WNS\PurchaseRequests;
+namespace App\Livewire\Modules\Wns\PurchaseRequests;
 
 use App\Models\Department;
 use App\Models\Modules\WNS\PrItem;
 use App\Models\Modules\WNS\PurchaseRequest;
-use App\Services\Modules\WNS\ApprovalWorkflowService;
 use App\Services\UniversalPRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 class Create extends Component
 {
+    // Livewire listeners
+    protected $listeners = ['refreshComponent' => '$refresh'];
+
     // Form fields for complete PR
     public $business_unit_id = '';  // Selected business unit
 
@@ -25,35 +28,35 @@ class Create extends Component
 
     public $approval_notes = '';    // Approval notes
 
+    #[Validate('required|string|min:3|max:500')]
     public $purpose = '';           // Keperluan
 
+    #[Validate('required|string|min:10|max:1000')]
     public $used_for = '';         // Digunakan untuk
 
     public $expected_date = '';    // Expected delivery date
 
     public $currency = 'IDR';      // Currency
 
-    public $items = [];            // Items array
+    public $items = [];            // Items array (always initialized)
 
     public $departments = [];      // Available departments
 
     public $businessUnits = [];    // Available business units
 
-    // Approval Flow Settings
-    public $approvalFlow = 'automatic';     // 'automatic' or 'custom'
+    // Manual Approval Settings (simplified - no automatic flow)
+    public $customApprovalList = [];        // Array of custom approval items with approver_id and task_type
 
-    public $customApprovalList = [];        // NEW: Array of custom approval items with approver_id and task_type
-
-    public $availableApprovers = [];        // Available approvers for selection
+    public $availableApprovers = [];        // Available approvers for selection - CRITICAL: Always array
 
     // Auto-generated fields (display only)
-    public $submission_date;
+    public $submission_date = '';
 
-    public $department_name;
+    public $department_name = '';
 
-    public $department_code;
+    public $department_code = '';
 
-    public $user_name;
+    public $user_name = '';
 
     // State
     public $isLoading = false;
@@ -62,9 +65,469 @@ class Create extends Component
 
     public $isEdit = false;
 
+    #[\Livewire\Attributes\Locked]
     public $purchaseRequestId = null;
 
     protected $existingPurchaseRequest = null;
+
+    // Debug tracking properties
+    private $debugLog = [];
+
+    private $propertySetHistory = [];
+
+    /**
+     * Debug helper: Track when and where properties are set
+     */
+    private function debugTrackPropertySet(string $propertyName, $value, string $source, array $context = []): void
+    {
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+        $caller = $backtrace[1] ?? [];
+
+        $entry = [
+            'timestamp' => microtime(true),
+            'property' => $propertyName,
+            'value' => $value,
+            'source' => $source,
+            'caller_function' => $caller['function'] ?? 'unknown',
+            'caller_line' => $caller['line'] ?? 0,
+            'context' => $context,
+        ];
+
+        $this->propertySetHistory[] = $entry;
+
+        // Log to Laravel log in debug mode
+        if (config('app.debug')) {
+            \Illuminate\Support\Facades\Log::debug("PR Create Property Set: {$propertyName}", $entry);
+        }
+    }
+
+    /**
+     * Debug helper: Log component lifecycle events
+     */
+    private function debugLog(string $event, array $data = []): void
+    {
+        $entry = [
+            'timestamp' => microtime(true),
+            'event' => $event,
+            'data' => $data,
+            'memory' => memory_get_usage(true),
+        ];
+
+        $this->debugLog[] = $entry;
+
+        if (config('app.debug')) {
+            \Illuminate\Support\Facades\Log::debug("PR Create Lifecycle: {$event}", $entry);
+        }
+    }
+
+    /**
+     * Debug helper: Get property history for debugging
+     */
+    public function getPropertyHistory(?string $propertyName = null): array
+    {
+        if ($propertyName) {
+            return array_filter($this->propertySetHistory, fn ($entry) => $entry['property'] === $propertyName);
+        }
+
+        return $this->propertySetHistory;
+    }
+
+    /**
+     * Debug helper: Get full debug report
+     */
+    public function getDebugReport(): array
+    {
+        return [
+            'current_properties' => [
+                'user_name' => $this->user_name,
+                'department_name' => $this->department_name,
+                'department_code' => $this->department_code,
+                'submission_date' => $this->submission_date,
+            ],
+            'property_history' => $this->propertySetHistory,
+            'lifecycle_log' => $this->debugLog,
+            'auth_status' => [
+                'check' => Auth::check(),
+                'id' => Auth::id(),
+                'user_name' => Auth::user()?->name,
+            ],
+            'session' => [
+                'business_unit_id' => session('current_business_unit_id'),
+                'department_id' => session('current_department_id'),
+            ],
+        ];
+    }
+
+    /**
+     * Initialize component properties properly using Livewire 3 conventions
+     */
+    public function mount(?PurchaseRequest $purchaseRequest = null, string $mode = 'create')
+    {
+        $this->debugLog('mount_start', [
+            'mode' => $mode,
+            'has_purchase_request' => $purchaseRequest !== null,
+            'auth_check' => Auth::check(),
+            'auth_id' => Auth::id(),
+        ]);
+
+        // CRITICAL: Initialize ALL properties FIRST before any logic (hosting fix)
+        $this->items = [];
+        $this->customApprovalList = [];
+        $this->departments = [];
+        $this->businessUnits = [];
+        $this->availableApprovers = [];
+        $this->currency = 'IDR';
+        $this->isEdit = false;
+        $this->isLoading = false;
+
+        // Force session check before Auth check (hosting environment fix)
+        if (session()->isStarted()) {
+            session()->regenerate();
+        }
+
+        // Multi-layer authentication check for hosting environment
+        if (! $this->ensureAuthenticated()) {
+            $this->debugLog('mount_auth_failed', ['reason' => 'All authentication methods failed']);
+            session()->flash('error', 'Please login to continue.');
+
+            return redirect()->route('login');
+        }
+
+        // CRITICAL: Initialize user-dependent properties immediately
+        $this->debugLog('before_initializeUserProperties');
+        $this->initializeUserProperties();
+        $this->debugLog('after_initializeUserProperties', [
+            'user_name' => $this->user_name,
+            'department_name' => $this->department_name,
+            'department_code' => $this->department_code,
+        ]);
+
+        // Ensure proper initialization
+        $this->ensurePropertiesInitialized();
+
+        if ($mode === 'edit' && $purchaseRequest) {
+            $this->isEdit = true;
+            $this->purchaseRequestId = $purchaseRequest->id;
+            $this->existingPurchaseRequest = $purchaseRequest->load(['items', 'businessUnit', 'department', 'user']);
+
+            session([
+                'current_business_unit_id' => $this->existingPurchaseRequest->business_unit_id,
+                'current_department_id' => $this->existingPurchaseRequest->department_id,
+            ]);
+
+            $this->initializeEditState();
+        } else {
+            $this->initializeCreateState();
+        }
+    }
+
+    /**
+     * Livewire boot lifecycle - runs on EVERY request (hosting fix)
+     * This ensures properties are always initialized even in strict hosting environments
+     */
+    public function boot()
+    {
+        $this->debugLog('boot_lifecycle', ['auth_check' => Auth::check()]);
+
+        // CRITICAL: Force property initialization on EVERY request
+        // This prevents "property not initialized" errors in hosting environments
+        if (! is_array($this->items)) {
+            $this->items = [];
+        }
+        if (! is_array($this->customApprovalList)) {
+            $this->customApprovalList = [];
+        }
+        if (! is_array($this->availableApprovers)) {
+            $this->availableApprovers = [];
+        }
+        if (! is_array($this->departments)) {
+            $this->departments = [];
+        }
+        if (! is_array($this->businessUnits)) {
+            $this->businessUnits = [];
+        }
+
+        // Ensure scalar properties have defaults
+        $this->currency = $this->currency ?: 'IDR';
+        $this->isEdit = $this->isEdit ?? false;
+        $this->isLoading = $this->isLoading ?? false;
+
+        // Re-authenticate if needed (hosting session issues)
+        if (! Auth::check()) {
+            $this->ensureAuthenticated();
+        }
+    }
+
+    /**
+     * Livewire hydrate lifecycle - runs after component is hydrated from request
+     * This maintains state across Livewire requests in hosting environment
+     */
+    public function hydrate()
+    {
+        $this->debugLog('hydrate_lifecycle', [
+            'auth_check' => Auth::check(),
+            'items_count' => count($this->items ?? []),
+        ]);
+
+        // CRITICAL: Re-validate authentication after hydration
+        // Hosting environments may lose auth context between requests
+        if (! Auth::check()) {
+            $this->ensureAuthenticated();
+        }
+
+        // Ensure user-dependent properties are still valid
+        if (empty($this->user_name) || empty($this->department_name)) {
+            try {
+                $this->initializeUserProperties();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to re-initialize user properties in hydrate', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Re-ensure all properties are properly typed (hosting strict mode)
+        $this->ensurePropertiesInitialized();
+    }
+
+    /**
+     * Multi-layer authentication check for hosting environment compatibility
+     */
+    private function ensureAuthenticated(): bool
+    {
+        // Method 1: Standard Auth check
+        if (Auth::check()) {
+            return true;
+        }
+
+        // Method 2: Try web guard explicitly
+        if (Auth::guard('web')->check()) {
+            Auth::setUser(Auth::guard('web')->user());
+
+            return true;
+        }
+
+        // Method 3: Try session-based auth recovery
+        $userId = session('auth.user_id');
+        if ($userId) {
+            $user = \App\Models\User::find($userId);
+            if ($user && $user->is_active) {
+                Auth::login($user);
+                $this->debugLog('auth_recovered_from_session', ['user_id' => $userId]);
+
+                return true;
+            }
+        }
+
+        // Method 4: Try Laravel's session auth user_id
+        $sessionUserId = session()->get('_auth');
+        if ($sessionUserId) {
+            $user = \App\Models\User::find($sessionUserId);
+            if ($user && $user->is_active) {
+                Auth::login($user);
+                $this->debugLog('auth_recovered_from_laravel_session', ['user_id' => $sessionUserId]);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Initialize user-dependent properties with robust hosting environment authentication recovery
+     */
+    private function initializeUserProperties(): void
+    {
+        try {
+            // Multi-layer authentication check for hosting environments
+            $user = null;
+            $authAttempts = 0;
+            $maxAttempts = 5;
+
+            while ($authAttempts < $maxAttempts && ! $user) {
+                $authAttempts++;
+
+                // Try different authentication methods
+                if ($authAttempts === 1) {
+                    $user = Auth::user();
+                } elseif ($authAttempts === 2) {
+                    $user = Auth::guard('web')->user();
+                } elseif ($authAttempts === 3) {
+                    $user = request()->user();
+                } elseif ($authAttempts === 4) {
+                    // Try from session
+                    $userId = session('auth.id') ?? session()->get('login_web_'.sha1('web'));
+                    if ($userId) {
+                        $user = \App\Models\User::find($userId);
+                    }
+                } elseif ($authAttempts === 5) {
+                    // Last resort: try to find authenticated user from request
+                    if (Auth::check()) {
+                        $user = Auth::user();
+                    }
+                }
+
+                if ($user) {
+                    \Illuminate\Support\Facades\Log::info("Authentication successful on attempt {$authAttempts}", [
+                        'user_id' => $user->id,
+                        'user_name' => $user->name,
+                        'method' => "attempt_{$authAttempts}",
+                    ]);
+                    break;
+                }
+
+                usleep(50000); // 50ms delay between attempts
+            }
+
+            if (! $user) {
+                $this->debugLog('auth_failed_all_attempts', ['max_attempts' => $maxAttempts]);
+                throw new \Exception("User authentication failed after {$maxAttempts} attempts");
+            }
+
+            // Set user name immediately with additional validation
+            $userName = $user->name ?: 'User #'.$user->id;
+            $this->user_name = $userName;
+            $this->debugTrackPropertySet('user_name', $userName, 'initializeUserProperties', [
+                'user_id' => $user->id,
+                'auth_attempt' => $authAttempts,
+            ]);
+
+            $this->submission_date = Carbon::today()->format('d/m/Y');
+            $this->debugTrackPropertySet('submission_date', $this->submission_date, 'initializeUserProperties');
+
+            // Enhanced department loading with multiple fallback strategies
+            $departmentLoaded = false;
+
+            // Strategy 1: Primary department
+            if ($user->primaryDepartment) {
+                $this->department_name = $user->primaryDepartment->name;
+                $this->department_code = $user->primaryDepartment->code;
+                $departmentLoaded = true;
+
+                $this->debugTrackPropertySet('department_name', $this->department_name, 'initializeUserProperties:strategy1_primaryDepartment', [
+                    'user_id' => $user->id,
+                    'department_id' => $user->primaryDepartment->id,
+                ]);
+                $this->debugTrackPropertySet('department_code', $this->department_code, 'initializeUserProperties:strategy1_primaryDepartment');
+
+                \Illuminate\Support\Facades\Log::info('Department loaded from primary department', [
+                    'user_id' => $user->id,
+                    'department_name' => $this->department_name,
+                ]);
+            }
+
+            // Strategy 2: Try loading department by primary_department_id
+            if (! $departmentLoaded && $user->primary_department_id) {
+                $department = \App\Models\Department::find($user->primary_department_id);
+                if ($department) {
+                    $this->department_name = $department->name;
+                    $this->department_code = $department->code;
+                    $departmentLoaded = true;
+
+                    $this->debugTrackPropertySet('department_name', $this->department_name, 'initializeUserProperties:strategy2_primary_department_id', [
+                        'department_id' => $user->primary_department_id,
+                    ]);
+                    $this->debugTrackPropertySet('department_code', $this->department_code, 'initializeUserProperties:strategy2_primary_department_id');
+
+                    \Illuminate\Support\Facades\Log::info('Department loaded by primary_department_id', [
+                        'user_id' => $user->id,
+                        'department_id' => $user->primary_department_id,
+                        'department_name' => $this->department_name,
+                    ]);
+                }
+            }
+
+            // Strategy 3: Try from session data
+            if (! $departmentLoaded && session('current_department_id')) {
+                $department = \App\Models\Department::find(session('current_department_id'));
+                if ($department) {
+                    $this->department_name = $department->name;
+                    $this->department_code = $department->code;
+                    $departmentLoaded = true;
+
+                    \Illuminate\Support\Facades\Log::info('Department loaded from session', [
+                        'user_id' => $user->id,
+                        'session_dept_id' => session('current_department_id'),
+                        'department_name' => $this->department_name,
+                    ]);
+                }
+            }
+
+            // Strategy 4: Find first department where user has access
+            if (! $departmentLoaded) {
+                $userDepartments = \App\Models\Department::whereHas('users', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })->first();
+
+                if ($userDepartments) {
+                    $this->department_name = $userDepartments->name;
+                    $this->department_code = $userDepartments->code;
+                    $departmentLoaded = true;
+
+                    \Illuminate\Support\Facades\Log::info('Department loaded from user relationships', [
+                        'user_id' => $user->id,
+                        'department_name' => $this->department_name,
+                    ]);
+                }
+            }
+
+            // Final fallback
+            if (! $departmentLoaded) {
+                $this->department_name = 'Department not set';
+                $this->department_code = 'N/A';
+
+                \Illuminate\Support\Facades\Log::warning('No department found for user', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'primary_department_id' => $user->primary_department_id ?? 'null',
+                    'session_dept_id' => session('current_department_id') ?? 'null',
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            // Enhanced fallback logging for debugging hosting issues
+            \Illuminate\Support\Facades\Log::error('Critical authentication failure in PR create', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'session_data' => [
+                    'auth_id' => session('auth.id'),
+                    'current_user' => Auth::id(),
+                    'request_user' => request()->user() ? request()->user()->id : null,
+                ],
+                'environment' => [
+                    'app_env' => config('app.env'),
+                    'session_driver' => config('session.driver'),
+                    'auth_guards' => array_keys(config('auth.guards', [])),
+                ],
+            ]);
+
+            // Set fallback values with error indication
+            $this->user_name = 'Authentication Error - Please Refresh';
+            $this->department_name = 'Authentication Error';
+            $this->department_code = 'ERR';
+            $this->submission_date = Carbon::today()->format('d/m/Y');
+        }
+    }
+
+    /**
+     * Ensure properties are properly initialized following Livewire 3 patterns
+     * This is called after mount initialization for hosting environment compatibility
+     */
+    private function ensurePropertiesInitialized(): void
+    {
+        // Ensure all arrays are initialized (double-check for hosting)
+        $this->items = is_array($this->items) ? $this->items : [];
+        $this->customApprovalList = is_array($this->customApprovalList) ? $this->customApprovalList : [];
+        $this->departments = is_array($this->departments) ? $this->departments : [];
+        $this->businessUnits = is_array($this->businessUnits) ? $this->businessUnits : [];
+        $this->availableApprovers = is_array($this->availableApprovers) ? $this->availableApprovers : [];
+
+        // Ensure scalar properties have safe defaults
+        $this->currency = $this->currency ?: 'IDR';
+        $this->isEdit = (bool) $this->isEdit;
+        $this->isLoading = (bool) $this->isLoading;
+    }
 
     // Validation rules for complete PR
     protected $rules = [
@@ -102,24 +565,6 @@ class Create extends Component
         'items.*.unit_price.min' => 'Unit price must be 0 or greater.',
     ];
 
-    public function mount(?PurchaseRequest $purchaseRequest = null, string $mode = 'create')
-    {
-        if ($mode === 'edit' && $purchaseRequest) {
-            $this->isEdit = true;
-            $this->purchaseRequestId = $purchaseRequest->id;
-            $this->existingPurchaseRequest = $purchaseRequest->load(['items', 'businessUnit', 'department', 'user']);
-
-            session([
-                'current_business_unit_id' => $this->existingPurchaseRequest->business_unit_id,
-                'current_department_id' => $this->existingPurchaseRequest->department_id,
-            ]);
-
-            $this->initializeEditState();
-        } else {
-            $this->initializeCreateState();
-        }
-    }
-
     protected function resolveExistingPurchaseRequest(): PurchaseRequest
     {
         if ($this->existingPurchaseRequest instanceof PurchaseRequest) {
@@ -138,8 +583,14 @@ class Create extends Component
 
     protected function initializeCreateState(): void
     {
+        // Ensure session data is available first
+        $this->ensureSessionData();
+
+        // Session-based initialization
         $this->business_unit_id = session('current_business_unit_id', '');
         $this->department_id = session('current_department_id', '');
+
+        // Form field initialization
         $this->request_date = Carbon::today()->format('Y-m-d');
         $this->description = '';
         $this->approval_notes = '';
@@ -148,20 +599,16 @@ class Create extends Component
         $this->expected_date = null;
         $this->currency = 'IDR';
 
-        $this->approvalFlow = 'automatic';
+        // Workflow initialization
+        // Initialize with empty approval list - user must select approvers
         $this->customApprovalList = [];
+        $this->isEdit = false;
 
+        // Display fields initialization
         $this->submission_date = Carbon::today()->format('d/m/Y');
-        $this->user_name = Auth::user()->name;
 
-        $user = Auth::user();
-        if ($user && $user->primaryDepartment) {
-            $this->department_name = $user->primaryDepartment->name;
-            $this->department_code = $user->primaryDepartment->code;
-        } else {
-            $this->department_name = 'Department not set';
-            $this->department_code = 'N/A';
-        }
+        // Note: User and department info already set by initializeUserProperties()
+        // No need to override here - keeps authentication data from mount()
 
         $this->loadBusinessUnits();
         $this->loadDepartments();
@@ -185,7 +632,7 @@ class Create extends Component
         $this->expected_date = optional($purchaseRequest->designated_date)->format('Y-m-d');
         $this->currency = $purchaseRequest->currency ?? 'IDR';
 
-        $this->approvalFlow = $purchaseRequest->approval_workflow ? 'custom' : 'automatic';
+        // Always use custom approval flow (manual selection required)
         $this->customApprovalList = collect($purchaseRequest->approval_workflow['steps'] ?? [])->map(function ($step) {
             return [
                 'approver_id' => $step['approver_id'] ?? null,
@@ -195,7 +642,7 @@ class Create extends Component
         })->toArray();
 
         $this->submission_date = optional($purchaseRequest->date_of_request)->format('d/m/Y') ?? Carbon::parse($purchaseRequest->created_at)->format('d/m/Y');
-        $this->user_name = optional($purchaseRequest->user)->name ?? Auth::user()->name;
+        $this->user_name = optional($purchaseRequest->user)->name ?? (Auth::user() ? Auth::user()->name : 'Unknown User');
         $this->department_name = optional($purchaseRequest->department)->name ?? 'Department not set';
         $this->department_code = optional($purchaseRequest->department)->code ?? 'N/A';
 
@@ -264,54 +711,93 @@ class Create extends Component
         }
     }
 
-    public function loadAvailableApprovers()
+    /**
+     * Get available approvers for selection - internal method
+     */
+    protected function fetchAvailableApprovers()
     {
         $currentUser = Auth::user();
         $currentBusinessUnitId = session('current_business_unit_id');
 
-        // Get all users who can approve PRs from current business unit
-        $this->availableApprovers = \App\Models\User::where(function ($query) use ($currentBusinessUnitId) {
-            $query->whereHas('businessUnits', function ($subQuery) use ($currentBusinessUnitId) {
-                // Users who have access to the same business unit as the PR creator
-                $subQuery->where('business_unit_id', $currentBusinessUnitId)
+        if (! $currentUser || ! $currentBusinessUnitId) {
+            return [];
+        }
+
+        // Get current business unit and its hierarchy
+        $currentBU = \App\Models\BusinessUnit::with(['parent', 'children'])->find($currentBusinessUnitId);
+        $accessibleBusinessUnitIds = [$currentBusinessUnitId];
+
+        // Include parent business unit for top management access
+        if ($currentBU && $currentBU->parent) {
+            $accessibleBusinessUnitIds[] = $currentBU->parent->id;
+        }
+
+        // Include child business units for broader management access
+        if ($currentBU && $currentBU->children) {
+            foreach ($currentBU->children as $child) {
+                $accessibleBusinessUnitIds[] = $child->id;
+            }
+        }
+
+        $users = \App\Models\User::where(function ($query) use ($accessibleBusinessUnitIds) {
+            // Users assigned to business units via UserBusinessUnit pivot
+            $query->whereHas('businessUnits', function ($subQuery) use ($accessibleBusinessUnitIds) {
+                $subQuery->whereIn('business_unit_id', $accessibleBusinessUnitIds)
                     ->where('is_active', true);
             })
-            // OR users who are management from Werkudara Group (WG) - they can approve from any BU
-                ->orWhereHas('businessUnits', function ($subQuery) {
-                    $subQuery->whereHas('businessUnit', function ($subSubQuery) {
-                        $subSubQuery->where('code', 'WG'); // Werkudara Group
-                    })
-                        ->where('is_active', true);
+            // OR users whose primary department belongs to accessible business units
+                ->orWhereHas('primaryDepartment', function ($subQuery) use ($accessibleBusinessUnitIds) {
+                    $subQuery->whereIn('business_unit_id', $accessibleBusinessUnitIds);
                 });
         })
             ->where('is_active', true)
-            ->where('id', '!=', $currentUser->id) // Exclude current user (creator)
+            ->where('id', '!=', $currentUser->id)
+            ->with(['primaryDepartment'])
             ->orderBy('name')
-            ->get()
-            ->filter(function ($user) {
-                // Additional filter: user must have at least one business unit assignment
-                // This excludes users with "N/A" departments
-                return $user->businessUnits()->where('is_active', true)->count() > 0;
-            })
-            ->map(function ($user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'role' => ucfirst(str_replace('_', ' ', $user->global_role)),
-                    'department' => $user->primaryDepartment->name ?? 'N/A',
-                    'email' => $user->email,
-                ];
-            })
-            ->values() // Reset array keys after filter
+            ->get();
+
+        return $users->map(fn ($user) => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => ucfirst(str_replace('_', ' ', $user->global_role ?? 'staff')),
+            'department' => optional($user->primaryDepartment)->name ?? 'No Department',
+            'email' => $user->email,
+        ])
+            ->values()
             ->toArray();
+    }
+
+    /**
+     * Load available approvers - populates the availableApprovers property with caching
+     */
+    public function loadAvailableApprovers()
+    {
+        // Use caching to prevent excessive database calls
+        static $cachedApprovers = null;
+        static $lastLoadTime = 0;
+
+        $now = time();
+
+        // Cache for 30 seconds to prevent excessive DB calls
+        if ($cachedApprovers === null || ($now - $lastLoadTime) > 30) {
+            $cachedApprovers = $this->fetchAvailableApprovers();
+            $lastLoadTime = $now;
+        }
+
+        $this->availableApprovers = $cachedApprovers;
     }
 
     public function addItem()
     {
+        // Ensure items array is properly initialized
+        if (! is_array($this->items)) {
+            $this->items = [];
+        }
+
         $this->items[] = [
             'item_name' => '',
-            'brand' => '',
-            'description' => '',
+            'brand_name' => '',
+            'item_description' => '',
             'supplier_name' => '',
             'quantity' => 1,
             'unit' => 'pcs',
@@ -319,65 +805,41 @@ class Create extends Component
             'currency' => $this->currency,
         ];
 
-        $this->calculateTotals();
+        // Manual calculation trigger instead of automatic
+        $this->refreshTotals();
     }
 
     public function removeItem($index)
     {
-        if (count($this->items) > 1 && isset($this->items[$index])) {
+        if (is_array($this->items) && count($this->items) > 1 && isset($this->items[$index])) {
             unset($this->items[$index]);
             $this->items = array_values($this->items);
             $this->calculateTotals();
         }
     }
 
-    public function updatedItems()
-    {
-        $this->calculateTotals();
-    }
-
-    // Add specific updaters for item properties to ensure real-time calculation
+    // Optimized updater - only for quantity and unit_price that affect totals
     public function updatedItemsQuantity($value, $key)
     {
-        // Sanitize quantity input
+        // Only sanitize, don't auto-calculate to prevent loops
         $keyParts = explode('.', $key);
         if (count($keyParts) >= 2) {
             $index = $keyParts[0];
-            // Ensure quantity is numeric and positive integer
             $cleanValue = is_numeric($value) ? max(0, intval($value)) : 0;
             $this->items[$index]['quantity'] = $cleanValue;
         }
-        $this->calculateTotals();
     }
 
     public function updatedItemsUnitPrice($value, $key)
     {
-        // Sanitize price input
+        // Only sanitize, don't auto-calculate to prevent loops
         $keyParts = explode('.', $key);
         if (count($keyParts) >= 2) {
             $index = $keyParts[0];
-            // Remove all non-numeric characters and ensure it's numeric
             $cleanValue = preg_replace('/[^0-9]/', '', $value);
             $cleanValue = is_numeric($cleanValue) ? max(0, intval($cleanValue)) : 0;
             $this->items[$index]['unit_price'] = $cleanValue;
         }
-        $this->calculateTotals();
-    }
-
-    // Add listener for any item property changes
-    public function updatedItemsItemName()
-    {
-        $this->calculateTotals();
-    }
-
-    public function updatedItemsBrandName()
-    {
-        $this->calculateTotals();
-    }
-
-    public function updatedItemsUnit()
-    {
-        $this->calculateTotals();
     }
 
     public function updatedCurrency()
@@ -386,27 +848,10 @@ class Create extends Component
         foreach ($this->items as $index => $item) {
             $this->items[$index]['currency'] = $this->currency;
         }
-        $this->calculateTotals();
+        // No auto-calculation to prevent loops - user can manually trigger if needed
     }
 
-    public function updatedApprovalFlow()
-    {
-        // Reset custom approval settings when switching to automatic
-        if ($this->approvalFlow === 'automatic') {
-            $this->customApprovalList = [];
-        } elseif (empty($this->customApprovalList)) {
-            // Initialize with first approval row if empty
-            $this->customApprovalList = [['approver_id' => '', 'task_type' => 'approval']];
-        }
-
-        // Reload available approvers when switching to custom
-        if ($this->approvalFlow === 'custom') {
-            $this->loadAvailableApprovers();
-        }
-
-        // Force re-render to ensure UI updates
-        $this->dispatch('approval-flow-changed');
-    }
+    // Approval flow updater removed - only manual approval supported
 
     public function addCustomApproval()
     {
@@ -420,7 +865,7 @@ class Create extends Component
 
     public function removeCustomApproval($index)
     {
-        if (count($this->customApprovalList) > 1) {
+        if (is_array($this->customApprovalList) && count($this->customApprovalList) > 1) {
             unset($this->customApprovalList[$index]);
             $this->customApprovalList = array_values($this->customApprovalList);
         }
@@ -430,6 +875,11 @@ class Create extends Component
 
     protected function createCustomApprovalWorkflow(PurchaseRequest $purchaseRequest)
     {
+        // Ensure customApprovalList is an array
+        if (! is_array($this->customApprovalList)) {
+            $this->customApprovalList = [];
+        }
+
         // Validate that custom approvers are selected
         $validApprovals = array_filter($this->customApprovalList, function ($approval) {
             return ! empty($approval['approver_id']);
@@ -503,6 +953,11 @@ class Create extends Component
 
     protected function validateCustomApproval()
     {
+        // Ensure customApprovalList is an array
+        if (! is_array($this->customApprovalList)) {
+            $this->customApprovalList = [];
+        }
+
         $validApprovals = array_filter($this->customApprovalList, function ($approval) {
             return ! empty($approval['approver_id']);
         });
@@ -533,88 +988,79 @@ class Create extends Component
         }
     }
 
+    /**
+     * Calculate totals and clean item data with throttling to prevent loops
+     */
     public function calculateTotals()
     {
-        $this->totalAmount = 0;
+        // Add a simple throttling mechanism
+        static $lastCalculation = 0;
+        $now = microtime(true);
 
-        foreach ($this->items as $index => $item) {
-            // Ensure quantity is numeric and integer
-            $quantity = 0;
-            if (isset($item['quantity']) && is_numeric($item['quantity'])) {
-                $quantity = intval($item['quantity']);
-            }
+        // Throttle to max 2 calculations per second
+        if ($now - $lastCalculation < 0.5) {
+            return;
+        }
+        $lastCalculation = $now;
 
-            // Ensure unit_price is numeric and integer (no decimals)
-            $unitPrice = 0;
-            if (isset($item['unit_price'])) {
-                // Remove all non-numeric characters
-                $cleanPrice = preg_replace('/[^0-9]/', '', $item['unit_price']);
-                if (is_numeric($cleanPrice)) {
-                    $unitPrice = intval($cleanPrice);
-                }
-            }
-
-            // Calculate item total and add to grand total
-            $itemTotal = $quantity * $unitPrice;
-            $this->totalAmount += $itemTotal;
-
-            // Update the item in the array with clean values
-            $this->items[$index]['quantity'] = $quantity;
-            $this->items[$index]['unit_price'] = $unitPrice;
+        if (! is_array($this->items)) {
+            $this->items = [];
         }
 
-        // Force re-render to ensure UI updates
+        // Clean and validate items data
+        foreach ($this->items as $index => $item) {
+            $this->items[$index]['quantity'] = intval($item['quantity'] ?? 0);
+            $this->items[$index]['unit_price'] = intval(preg_replace('/[^0-9]/', '', $item['unit_price'] ?? 0));
+        }
+
+        // Total is now computed automatically via computed property
+        $this->totalAmount = $this->grandTotal();
         $this->dispatch('totals-updated');
     }
 
-    public function getGrandTotal()
+    /**
+     * Manual calculation method for user-triggered updates
+     */
+    public function refreshTotals()
+    {
+        $this->calculateTotals();
+    }
+
+    /**
+     * Computed property for grand total - cached for performance
+     */
+    #[\Livewire\Attributes\Computed]
+    public function grandTotal()
     {
         $total = 0;
 
+        if (! is_array($this->items)) {
+            return 0;
+        }
+
         foreach ($this->items as $item) {
-            $quantity = 0;
-            if (isset($item['quantity']) && is_numeric($item['quantity'])) {
-                $quantity = intval($item['quantity']);
-            }
-
-            $unitPrice = 0;
-            if (isset($item['unit_price'])) {
-                // Remove all non-numeric characters
-                $cleanPrice = preg_replace('/[^0-9]/', '', $item['unit_price']);
-                if (is_numeric($cleanPrice)) {
-                    $unitPrice = intval($cleanPrice);
-                }
-            }
-
+            $quantity = intval($item['quantity'] ?? 0);
+            $unitPrice = intval(preg_replace('/[^0-9]/', '', $item['unit_price'] ?? 0));
             $total += $quantity * $unitPrice;
         }
 
         return $total;
     }
 
+    /**
+     * Legacy method for backward compatibility
+     */
+    public function getGrandTotal()
+    {
+        return $this->grandTotal();
+    }
+
+    /**
+     * Livewire 3 property accessor - uses computed property
+     */
     public function getTotalAmountProperty()
     {
-        $total = 0;
-
-        foreach ($this->items as $item) {
-            $quantity = 0;
-            if (isset($item['quantity']) && is_numeric($item['quantity'])) {
-                $quantity = intval($item['quantity']);
-            }
-
-            $unitPrice = 0;
-            if (isset($item['unit_price'])) {
-                // Remove all non-numeric characters
-                $cleanPrice = preg_replace('/[^0-9]/', '', $item['unit_price']);
-                if (is_numeric($cleanPrice)) {
-                    $unitPrice = intval($cleanPrice);
-                }
-            }
-
-            $total += $quantity * $unitPrice;
-        }
-
-        return $total;
+        return $this->grandTotal();
     }
 
     public function saveDraft()
@@ -626,11 +1072,8 @@ class Create extends Component
         }
 
         try {
-            // Validate basic fields
-            $this->validate([
-                'purpose' => 'required|string|min:3|max:500',
-                'used_for' => 'required|string|min:10|max:1000',
-            ]);
+            // Validate using Livewire 3 attributes (validation will be automatic)
+            $this->validate();
 
             DB::beginTransaction();
 
@@ -809,10 +1252,8 @@ class Create extends Component
             // Validate the complete form with enhanced error reporting
             $this->validateForm();
 
-            // Additional validation for custom approval
-            if ($this->approvalFlow === 'custom') {
-                $this->validateCustomApproval();
-            }
+            // Validate custom approval (required for all requests)
+            $this->validateCustomApproval();
 
             DB::beginTransaction();
 
@@ -863,14 +1304,8 @@ class Create extends Component
             // Update total amount
             $purchaseRequest->updateTotalAmount();
 
-            // Create approval workflow based on selected flow
-            if ($this->approvalFlow === 'custom') {
-                $this->createCustomApprovalWorkflow($purchaseRequest);
-            } else {
-                // Use automatic approval workflow
-                $workflowService = app(ApprovalWorkflowService::class);
-                $workflowService->createWorkflow($purchaseRequest);
-            }
+            // Create manual approval workflow (required for all requests)
+            $this->createCustomApprovalWorkflow($purchaseRequest);
 
             DB::commit();
 
@@ -943,9 +1378,8 @@ class Create extends Component
 
             $this->validateForm();
 
-            if ($this->approvalFlow === 'custom') {
-                $this->validateCustomApproval();
-            }
+            // Validate custom approval (required for all requests)
+            $this->validateCustomApproval();
 
             DB::beginTransaction();
 
@@ -961,12 +1395,8 @@ class Create extends Component
                 'last_modified_by' => Auth::id(),
             ]);
 
-            if ($this->approvalFlow === 'custom') {
-                $this->createCustomApprovalWorkflow($purchaseRequest);
-            } else {
-                $workflowService = app(ApprovalWorkflowService::class);
-                $workflowService->createWorkflow($purchaseRequest);
-            }
+            // Create manual approval workflow
+            $this->createCustomApprovalWorkflow($purchaseRequest);
 
             DB::commit();
 
@@ -1011,15 +1441,19 @@ class Create extends Component
     }
 
     /**
-     * Ensure session data is available from authenticated user
+     * Ensure session data is available from authenticated user with robust error handling
      */
     private function ensureSessionData()
     {
-        if (! session('current_business_unit_id') || ! session('current_department_id')) {
-            $user = Auth::user();
+        try {
+            if (! session('current_business_unit_id') || ! session('current_department_id')) {
+                $user = Auth::user();
 
-            if ($user) {
-                // Get user's primary business unit and department
+                if (! $user) {
+                    throw new \Exception('User not authenticated in ensureSessionData');
+                }
+
+                // Get user's primary business unit and department with error handling
                 if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
                     session([
                         'current_business_unit_id' => $user->primaryDepartment->businessUnit->id,
@@ -1028,6 +1462,13 @@ class Create extends Component
                         'current_department_id' => $user->primaryDepartment->id,
                         'current_user_role' => $user->global_role,
                     ]);
+
+                    \Illuminate\Support\Facades\Log::info('Session data initialized from user primary department', [
+                        'user_id' => $user->id,
+                        'business_unit_id' => $user->primaryDepartment->businessUnit->id,
+                        'department_id' => $user->primaryDepartment->id,
+                    ]);
+
                 } elseif ($user->global_role === 'super_admin') {
                     // For super admin, use WG business unit as fallback
                     $wgBusinessUnit = \App\Models\BusinessUnit::where('code', 'WG')->first();
@@ -1043,8 +1484,36 @@ class Create extends Component
                             'current_department_id' => $corporateDept ? $corporateDept->id : null,
                             'current_user_role' => 'super_admin',
                         ]);
+
+                        \Illuminate\Support\Facades\Log::info('Session data initialized for super admin', [
+                            'user_id' => $user->id,
+                            'business_unit_id' => $wgBusinessUnit->id,
+                        ]);
                     }
+                } else {
+                    // User without proper department setup
+                    \Illuminate\Support\Facades\Log::warning('User without proper department setup accessing PR', [
+                        'user_id' => $user->id,
+                        'user_email' => $user->email,
+                        'primary_department_id' => $user->primary_department_id,
+                    ]);
+
+                    throw new \Exception('User does not have proper department setup');
                 }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to ensure session data', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Set minimal session data to prevent further errors
+            if (! session('current_business_unit_id')) {
+                session(['current_business_unit_id' => 1]); // Default to first BU
+            }
+            if (! session('current_department_id')) {
+                session(['current_department_id' => 1]); // Default to first dept
             }
         }
     }
@@ -1121,8 +1590,113 @@ class Create extends Component
         }
     }
 
+    /**
+     * Force refresh user properties from current authentication - for hosting environment
+     */
+    /**
+     * Get available approvers using computed property pattern for Blade access
+     */
+    #[\Livewire\Attributes\Computed]
+    public function getAvailableApproversProperty()
+    {
+        // Ensure property is always initialized as array
+        if (! is_array($this->availableApprovers) || empty($this->availableApprovers)) {
+            $this->loadAvailableApprovers();
+        }
+
+        return is_array($this->availableApprovers) ? $this->availableApprovers : [];
+    }
+
     public function render()
     {
-        return view('livewire.modules.wns.purchase-requests.create');
+        try {
+            // Simple authentication check
+            if (! Auth::check()) {
+                \Illuminate\Support\Facades\Log::warning('Unauthenticated user accessing PR create component');
+
+                return redirect()->route('login');
+            }
+
+            // Note: User properties already set by mount() -> initializeUserProperties()
+            // No need to re-initialize or refresh here - trust the mount() data
+
+            // Ensure session data is available
+            if (! session('current_business_unit_id') || ! session('current_department_id')) {
+                $this->ensureSessionData();
+            }
+
+            // CRITICAL: Ensure all properties are always initialized
+            if (! is_array($this->availableApprovers)) {
+                $this->availableApprovers = [];
+                try {
+                    $this->loadAvailableApprovers();
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to load available approvers in render', [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $this->availableApprovers = [];
+                }
+            }
+
+            // Ensure items array is properly initialized
+            if (! is_array($this->items)) {
+                $this->items = [
+                    [
+                        'item_name' => '',
+                        'brand_name' => '',
+                        'item_description' => '',
+                        'supplier_name' => '',
+                        'quantity' => 1,
+                        'unit' => 'pcs',
+                        'unit_price' => 0,
+                        'currency' => $this->currency ?? 'IDR',
+                    ],
+                ];
+            }
+
+            // Ensure critical boolean properties have safe defaults
+            $this->isEdit = $this->isEdit ?? false;
+            $this->isLoading = $this->isLoading ?? false;
+
+            // Use computed property for reliable access in Blade
+            $availableApprovers = $this->getAvailableApproversProperty();
+
+            // Reduced logging - only log on first render or errors
+            static $renderCount = 0;
+            if ($renderCount++ === 0) {
+                \Illuminate\Support\Facades\Log::info('PR Create component first render completed', [
+                    'user_name' => $this->user_name ?? 'NULL',
+                    'items_count' => count($this->items ?? []),
+                ]);
+            }
+
+            // Note: All public properties are automatically available in the view
+            // No need to pass them explicitly - Livewire handles this
+            return view('livewire.modules.wns.purchase-requests.create', [
+                'availableApprovers' => $availableApprovers, // Computed property
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Critical error in render method', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+            ]);
+
+            // Fallback render with minimal data
+            return view('livewire.modules.wns.purchase-requests.create', [
+                'isEdit' => false,
+                'isLoading' => false,
+                'items' => [],
+                'customApprovalList' => [],
+                'availableApprovers' => [],
+                'totalAmount' => 0,
+                'currency' => 'IDR',
+                'user_name' => 'System Error - Please Refresh',
+                'department_name' => 'System Error',
+                'department_code' => 'ERR',
+                'submission_date' => \Carbon\Carbon::today()->format('d/m/Y'),
+            ]);
+        }
     }
 }

@@ -3,11 +3,16 @@
 ## System Overview
 This is an enterprise **Purchase Request Management System** built with Laravel 12 + Livewire 3, specifically for WNS (Werkudara Nusantara Sejahtera) business operations. The system handles multi-level approval workflows with hierarchical organizational structure.
 
+**Environment Context:**
+- **Development**: Windows (case-insensitive filesystem)
+- **Production**: Linux hosting at devlopment.werkudara.com (case-sensitive filesystem) 
+- **Critical**: Always follow proper Laravel naming conventions for cross-platform compatibility
+
 ## Core Architecture Patterns
 
 ### 1. Service-Oriented Architecture
-- **Naming Services**: `app/Services/Modules/WNS/PRNumberingService.php` - Handles sequential PR number generation per business unit
-- **Workflow Services**: `app/Services/Modules/WNS/ApprovalWorkflowService.php` - Core approval engine with rule-based approver assignment
+- **Naming Services**: `app/Services/Modules/Wns/PRNumberingService.php` - Handles sequential PR number generation per business unit
+- **Workflow Services**: `app/Services/Modules/Wns/ApprovalWorkflowService.php` - Core approval engine with rule-based approver assignment
 - **QR Services**: `app/Services/QrCodeService.php` - PDF verification and tracking
 
 ### 2. Livewire Hybrid Architecture (Critical Pattern)
@@ -18,15 +23,20 @@ wire:model.blur="items.{{ $index }}.quantity"
 // + JavaScript calculateRowTotal() for instant feedback
 oninput="calculateRowTotal({{ $index }});"
 ```
-- Files: `resources/views/livewire/purchase-requests/create-form.blade.php`, `request-number.blade.php`
+- Files: `resources/views/livewire/modules/wns/purchase-requests/create.blade.php`
 - **Why**: Reduces server requests by 90%, prevents input lag during fast typing
+- **Pattern**: Client-side JS for instant feedback + server-side validation on blur
 
 ### 3. Modular Domain Structure
 ```
-app/Models/Modules/WNS/
+app/Models/Modules/Wns/
 ├── PurchaseRequest.php    # Main entity with workflow states
 ├── PrItem.php            # Line items with expense department tracking  
 └── PrApproval.php        # Approval step tracking
+
+app/Livewire/Modules/Wns/
+└── PurchaseRequests/
+    └── Create.php         # Main PR creation component (1703 lines)
 ```
 
 ## Business Logic Essentials
@@ -119,22 +129,183 @@ All PR changes logged automatically via `LogsActivity` trait
 ## Key Files for AI Context
 
 ### Core Business Logic
-- `app/Services/Modules/WNS/ApprovalWorkflowService.php` - Approval engine
-- `app/Models/Modules/WNS/PurchaseRequest.php` - Main domain model
+- `app/Services/Modules/Wns/ApprovalWorkflowService.php` - Approval engine
+- `app/Models/Modules/Wns/PurchaseRequest.php` - Main domain model
+- `app/Livewire/Modules/Wns/PurchaseRequests/Create.php` - PR creation component (1703 lines)
 
 ### UI Components  
-- `resources/views/livewire/purchase-requests/create-form.blade.php` - Optimized form
+- `resources/views/livewire/modules/wns/purchase-requests/create.blade.php` - Main form view (759 lines)
 - `resources/views/layouts/app.blade.php` - Toast notification system
+- `resources/views/purchase-requests/pdf.blade.php` - PDF template with QR codes
 
 ### API Endpoints
 - `app/Http/Controllers/Api/PurchaseRequestController.php` - RESTful operations
 - `routes/api.php` - Business unit scoped routes
 
+### Diagnostic Tools
+- `public/check-hosting.php` - Production hosting diagnostic script (keep this file!)
+
 ## Common Pitfalls
+
+### Critical: Case-Sensitivity Issues
+- **Linux vs Windows**: Linux is case-sensitive, Windows is NOT
+- **Always use proper casing**: `Wns` not `WNS` or `wns` for folder names
+- **Livewire convention**: `<livewire:modules.wns.purchase-requests.create />` resolves to `Modules/Wns/PurchaseRequests/`
+- **Example of correct casing**:
+  ```
+  ✅ Correct: app/Livewire/Modules/Wns/PurchaseRequests/Create.php
+  ❌ Wrong:   app/Livewire/Modules/WNS/PurchaseRequests/Create.php
+  ❌ Wrong:   app/Livewire/Modules/wns/PurchaseRequests/Create.php
+  ```
+- **Why it matters**: Works on Windows (all variations) but breaks on Linux (only exact match)
+
+### Database & Relations
 - **Never use** `departmentUsers()` relation - use `primary_department_id` field instead  
 - **Always validate** business unit context before operations
 - **Use transactions** for all multi-model operations
 - **Test workflow** with different approval amounts to verify rule engine
+
+### Livewire Hosting Compatibility
+- **Defensive initialization required**: Always implement `boot()` and `hydrate()` methods in Livewire components
+- **Example pattern**:
+  ```php
+  public function boot(): void
+  {
+      if (!$this->businessUnit) {
+          $this->businessUnit = auth()->user()->currentBusinessUnit ?? 
+                               auth()->user()->businessUnits->first();
+      }
+  }
+  
+  public function hydrate(): void
+  {
+      if (!$this->businessUnit) {
+          $this->businessUnit = auth()->user()->currentBusinessUnit ?? 
+                               auth()->user()->businessUnits->first();
+      }
+  }
+  ```
+- **Why**: Prevents null pointer errors during Livewire state hydration on hosting environments
+
+### Storage & Assets
+- **Storage symlink**: Always create `php artisan storage:link` on hosting
+- **Livewire 3 assets**: Served via routes (/livewire/livewire.js), no publishing needed
+- **Config**: `config/livewire.php` has `'inject_assets' => true` (auto-injection enabled)
+
+## Production Deployment Checklist
+
+### Pre-Deployment (Local)
+1. ✅ Verify folder casing matches Laravel convention (e.g., `Wns` not `WNS`)
+2. ✅ Run `vendor/bin/pint` to format code
+3. ✅ Run tests: `php artisan test`
+4. ✅ Build assets: `npm run build`
+5. ✅ Clear local caches: `php artisan optimize:clear`
+6. ✅ Test on local: `php artisan serve`
+7. ✅ Commit & push: `git add -A && git commit -m "..." && git push`
+
+### Deployment (Hosting)
+1. 📤 Upload changed files via FTP/SFTP
+2. 🗑️ Delete old incorrectly-cased folders (e.g., old `WNS/` if renamed to `Wns/`)
+3. 🔧 SSH Commands:
+   ```bash
+   cd /path/to/project
+   composer dump-autoload    # CRITICAL after namespace changes!
+   php artisan storage:link  # If storage not linked yet
+   php artisan optimize:clear # Clear all caches
+   php artisan config:cache
+   php artisan route:cache
+   php artisan view:cache
+   ```
+
+### Post-Deployment Verification
+1. ✅ Visit application URL
+2. ✅ Check browser console (F12) for errors
+3. ✅ Test key features (PR creation, approval workflow)
+4. ✅ Run diagnostic: `/check-hosting.php` if issues occur
+5. ✅ Check logs: `tail -50 storage/logs/laravel.log`
+
+### Common Deployment Issues & Solutions
+
+**Issue: "Class not found" or "Missing component"**
+- **Cause**: Folder casing mismatch or autoload not rebuilt
+- **Fix**: 
+  1. Verify folder casing matches Laravel convention
+  2. Run `composer dump-autoload` on hosting
+  3. Clear caches: `php artisan optimize:clear`
+
+**Issue: "File not found" for uploads/PDFs**
+- **Cause**: Storage symlink not created
+- **Fix**: Run `php artisan storage:link` on hosting
+
+**Issue: Livewire JS 404 error**
+- **Cause**: Route caching or Livewire not properly installed
+- **Fix**: 
+  1. `php artisan route:clear`
+  2. Verify `config/livewire.php` exists
+  3. Check Livewire is in `composer.json`
+
+**Issue: Changes not reflected**
+- **Cause**: Cached views/config/routes
+- **Fix**: `php artisan optimize:clear` then rebuild caches
+
+## Project Maintenance Best Practices
+
+### Keep Root Directory Clean
+**Essential Files Only** (20-25 files recommended):
+- ✅ `README.md` - Main documentation
+- ✅ `composer.json`, `package.json` - Dependencies
+- ✅ `.env`, `.env.example` - Environment configs
+- ✅ `phpunit.xml` - Test configuration
+- ✅ `artisan` - CLI entry point
+- ✅ Configuration files (tailwind, vite, postcss configs)
+- ❌ Avoid: Test scripts, temporary .md files, debug scripts in root
+
+### Files to Keep
+- **Diagnostic tools**: `public/check-hosting.php` (useful for production debugging)
+- **Documentation**: `README.md` only (consolidate other docs into it or delete)
+- **Application code**: All `app/`, `resources/`, `config/`, `database/`, `routes/`, `tests/` folders
+
+### Files to Delete After Use
+- ❌ Temporary documentation files (DEPLOYMENT-*.md, HOSTING-*.md, CLAUDE.md, etc.)
+- ❌ Debug/verification scripts (verify-*.php, debug-*.php, hosting-*.php in root)
+- ❌ Deployment scripts (fix-hosting-*.bat/sh/ps1, emergency-*.ps1)
+- ❌ Test PDF files in root or storage/ (keep only generated PDFs from actual usage)
+- ❌ Backup files (*-backup.php)
+- ❌ Cleanup scripts after execution
+
+### Regular Cleanup Commands
+```bash
+# After debugging session, clean up temporary files:
+# 1. Review files in root
+Get-ChildItem -File  # Windows PowerShell
+ls -la               # Linux/Mac
+
+# 2. Remove temporary docs/scripts (careful!)
+Remove-Item *.md -Exclude README.md  # Windows
+rm *.md !("README.md")               # Linux
+
+# 3. Clean test PDFs
+Remove-Item storage/*.pdf            # Keep only generated PDFs
+
+# 4. Clear Laravel caches
+php artisan optimize:clear
+```
+
+### Git Best Practices
+```bash
+# Before committing cleanup:
+git status                    # Review what will be deleted
+git add -A                    # Stage all changes
+git commit -m "chore: cleanup temporary files"
+
+# Add to .gitignore:
+*.pdf                         # Except specific docs
+*-backup.php
+verify-*.php
+debug-*.php
+DEPLOYMENT-*.md
+HOSTING-*.md
+```
 
 ===
 

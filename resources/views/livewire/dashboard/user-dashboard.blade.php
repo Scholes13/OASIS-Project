@@ -1,6 +1,10 @@
 <div>
-    <!-- Business Units Monitor Info -->
-    @if(count($businessUnits) > 1)
+    <!-- Business Units Monitor Info - Only for Management (users with parent BU access) -->
+    @php
+        $hasParentAccess = collect($businessUnits)->contains('parent_id', null);
+    @endphp
+    
+    @if(count($businessUnits) > 1 && $hasParentAccess)
         <div class="mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-200 p-4 lg:p-6">
             <div class="flex items-start gap-3">
                 <div class="flex-shrink-0">

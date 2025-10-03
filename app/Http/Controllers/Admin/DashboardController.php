@@ -7,6 +7,7 @@ use App\Models\BusinessUnit;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\UserBusinessUnit;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -20,7 +21,7 @@ class DashboardController extends Controller
      */
     public function index()
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
         // Super Admin Dashboard
         if ($user->isSuperAdmin()) {
@@ -79,14 +80,7 @@ class DashboardController extends Controller
      */
     private function userDashboard()
     {
-        $user = auth()->user();
-
-        // Get user's accessible business units
-        $accessibleBusinessUnits = $user->getAccessibleBusinessUnits();
-
-        // Get user's assignments
-        $assignments = $user->activeBusinessUnits()->with(['businessUnit', 'department', 'position'])->get();
-
-        return view('dashboard', compact('user', 'accessibleBusinessUnits', 'assignments'));
+        // Use Livewire component for dynamic dashboard
+        return view('dashboard');
     }
 }

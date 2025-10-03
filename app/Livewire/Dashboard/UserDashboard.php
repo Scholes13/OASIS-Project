@@ -21,6 +21,9 @@ class UserDashboard extends Component
 
     public $customRange = false;
 
+    // Active Business Unit (single selection, not filter)
+    public $activeBusinessUnitId;
+
     // Stats properties
     public $stats = [];
 
@@ -33,6 +36,15 @@ class UserDashboard extends Component
     public function mount(): void
     {
         $this->initializeDates();
+        $this->businessUnits = $this->getAccessibleBusinessUnits();
+
+        // Set default active BU to parent (WG - Werkudara Group)
+        // Find parent BU (one with parent_id = null)
+        $parentBU = collect($this->businessUnits)->firstWhere('parent_id', null);
+
+        // If no parent, use first available BU
+        $this->activeBusinessUnitId = $parentBU['id'] ?? $this->businessUnits[0]['id'];
+
         $this->loadDashboardData();
     }
 
@@ -88,22 +100,60 @@ class UserDashboard extends Component
         $this->loadDashboardData();
     }
 
+    /**
+     * Switch active business unit (single selection)
+     */
+    public function switchBusinessUnit(int $businessUnitId): void
+    {
+        // Simply switch to the clicked business unit
+        $this->activeBusinessUnitId = $businessUnitId;
+
+        $this->loadDashboardData();
+    }
+
     public function loadDashboardData(): void
     {
         $this->stats = $this->getStats();
         $this->recentActivities = $this->getRecentActivities();
         $this->chartData = $this->getChartData();
-        $this->businessUnits = $this->getAccessibleBusinessUnits();
 
         // Dispatch event to update charts on frontend
         $this->dispatch('chartDataUpdated', chartData: $this->chartData);
     }
 
+    /**
+     * Get active business unit ID and its descendants
+     */
+    protected function getFilteredBusinessUnitIds(): array
+    {
+        // If no active BU set, return all accessible
+        if (! $this->activeBusinessUnitId) {
+            return $this->getAccessibleBusinessUnitIds();
+        }
+
+        // Get the active business unit
+        $businessUnit = BusinessUnit::find($this->activeBusinessUnitId);
+
+        if (! $businessUnit) {
+            return $this->getAccessibleBusinessUnitIds();
+        }
+
+        $ids = [$businessUnit->id];
+
+        // If this is a parent business unit, include all descendants
+        if ($businessUnit->children()->exists()) {
+            $descendants = $this->getAllDescendantIds($businessUnit);
+            $ids = array_merge($ids, $descendants);
+        }
+
+        return $ids;
+    }
+
     protected function getStats(): array
     {
         $userId = Auth::id();
-        // Get accessible business unit IDs (includes children for parent BUs)
-        $businessUnitIds = $this->getAccessibleBusinessUnitIds();
+        // Get filtered business unit IDs based on user selection
+        $businessUnitIds = $this->getFilteredBusinessUnitIds();
 
         return [
             // Active PRs (submitted or in approval) - by business unit
@@ -152,8 +202,8 @@ class UserDashboard extends Component
 
     protected function getRecentActivities(): array
     {
-        // Get accessible business unit IDs (includes children for parent BUs)
-        $businessUnitIds = $this->getAccessibleBusinessUnitIds();
+        // Get filtered business unit IDs based on user selection
+        $businessUnitIds = $this->getFilteredBusinessUnitIds();
 
         // Simplified approach: Get all activities first, then filter in PHP
         // This avoids complex whereHasMorph issues with mixed class names
@@ -309,8 +359,8 @@ class UserDashboard extends Component
      */
     protected function getChartData(): array
     {
-        // Get accessible business unit IDs (includes children for parent BUs)
-        $businessUnitIds = $this->getAccessibleBusinessUnitIds();
+        // Get filtered business unit IDs based on user selection
+        $businessUnitIds = $this->getFilteredBusinessUnitIds();
 
         // Get daily PR count for the selected period - by business unit
         $dailyStats = PurchaseRequest::whereIn('business_unit_id', $businessUnitIds)

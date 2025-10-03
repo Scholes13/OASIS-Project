@@ -1068,12 +1068,13 @@ class Create extends Component
      */
     public function getIsRejectedProperty(): bool
     {
-        if (!$this->isEdit) {
+        if (! $this->isEdit) {
             return false;
         }
 
         try {
             $pr = $this->resolveExistingPurchaseRequest();
+
             return $pr->status === 'rejected';
         } catch (\Exception $e) {
             return false;
@@ -1406,14 +1407,14 @@ class Create extends Component
             // Keep rejected status if PR was rejected (don't auto-resubmit)
             $targetStatus = $wasRejected ? 'rejected' : 'submitted';
             $data = $this->buildRequestPayload($targetStatus);
-            
+
             $service = app(\App\Services\PurchaseRequestService::class);
             $purchaseRequest = $service->updatePurchaseRequest($existingPR, $data);
 
             $this->existingPurchaseRequest = $purchaseRequest;
 
             // Only update timestamps and workflow if NOT rejected
-            if (!$wasRejected) {
+            if (! $wasRejected) {
                 $purchaseRequest->update([
                     'status' => 'submitted',
                     'submitted_at' => now(),
@@ -1745,7 +1746,7 @@ class Create extends Component
 
         try {
             // Must be in edit mode
-            if (!$this->isEdit) {
+            if (! $this->isEdit) {
                 $this->dispatch('notify',
                     message: 'This action is only available in edit mode.',
                     type: 'error',
@@ -1760,7 +1761,7 @@ class Create extends Component
             // Only allow for rejected PRs (STRICT CHECK)
             if ($purchaseRequest->status !== 'rejected') {
                 $this->dispatch('notify',
-                    message: 'Only rejected purchase requests can be resubmitted. Current status: ' . $purchaseRequest->status,
+                    message: 'Only rejected purchase requests can be resubmitted. Current status: '.$purchaseRequest->status,
                     type: 'error',
                     duration: 5000
                 );
@@ -1821,12 +1822,12 @@ class Create extends Component
             if ($totalErrors > 1) {
                 $errorList = [];
                 foreach ($errors->all() as $error) {
-                    $errorList[] = '• ' . $error;
+                    $errorList[] = '• '.$error;
                 }
-                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>" . implode('<br>', array_slice($errorList, 0, 5));
+                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>".implode('<br>', array_slice($errorList, 0, 5));
 
                 if ($totalErrors > 5) {
-                    $consolidatedMessage .= '<br>• ... and ' . ($totalErrors - 5) . ' more errors';
+                    $consolidatedMessage .= '<br>• ... and '.($totalErrors - 5).' more errors';
                 }
 
                 $this->dispatch('notify',
@@ -1836,24 +1837,23 @@ class Create extends Component
                 );
             } else {
                 $this->dispatch('notify',
-                    message: 'Validation Error: ' . $errors->first(),
+                    message: 'Validation Error: '.$errors->first(),
                     type: 'error',
                     duration: 8000
                 );
             }
 
             throw $e;
-
         } catch (\Exception $e) {
             DB::rollBack();
 
             $this->dispatch('notify',
-                message: 'Failed to resubmit: ' . $e->getMessage(),
+                message: 'Failed to resubmit: '.$e->getMessage(),
                 type: 'error',
                 duration: 8000
             );
 
-            session()->flash('error', 'Failed to resubmit purchase request: ' . $e->getMessage());
+            session()->flash('error', 'Failed to resubmit purchase request: '.$e->getMessage());
         } finally {
             $this->isLoading = false;
         }

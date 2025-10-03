@@ -5,27 +5,54 @@
             <div class="flex items-start gap-3">
                 <div class="flex-shrink-0">
                     <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Monitoring Multiple Business Units</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Switch Business Unit View</h3>
                     <p class="text-sm text-gray-600 mb-3">
-                        You are viewing consolidated data from <strong>{{ count($businessUnits) }} business units</strong>:
+                        You have access to <strong>{{ count($businessUnits) }} business units</strong>. 
+                        Click to switch view:
                     </p>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap gap-2 mb-2">
                         @foreach($businessUnits as $bu)
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium 
-                                {{ $bu['parent_id'] === null ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-700 border border-indigo-300' }}">
-                                @if($bu['parent_id'] === null)
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            @php
+                                $isActive = $bu['id'] === $activeBusinessUnitId;
+                                $isParent = $bu['parent_id'] === null;
+                            @endphp
+                            <button 
+                                type="button"
+                                wire:click="switchBusinessUnit({{ $bu['id'] }})"
+                                wire:loading.attr="disabled"
+                                wire:target="switchBusinessUnit"
+                                class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 transform hover:scale-105 
+                                    {{ $isActive 
+                                        ? ($isParent 
+                                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg ring-4 ring-indigo-200' 
+                                            : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg ring-4 ring-purple-200')
+                                        : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-indigo-400 hover:shadow-md' }}">
+                                @if($isParent)
+                                    <svg class="w-4 h-4 mr-1.5 {{ $isActive ? 'text-white' : 'text-indigo-600' }}" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
                                     </svg>
                                 @endif
-                                {{ $bu['code'] }} - {{ $bu['name'] }}
-                            </span>
+                                <span class="font-bold">{{ $bu['code'] }}</span>
+                                <span class="mx-1.5">-</span>
+                                <span>{{ $bu['name'] }}</span>
+                                @if($isActive)
+                                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                @endif
+                            </button>
                         @endforeach
                     </div>
+                    <p class="text-xs text-gray-500 italic flex items-center">
+                        <svg class="w-3.5 h-3.5 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Currently viewing: <strong class="ml-1 text-indigo-700">{{ collect($businessUnits)->firstWhere('id', $activeBusinessUnitId)['name'] ?? 'N/A' }}</strong>
+                    </p>
                 </div>
             </div>
         </div>
@@ -79,6 +106,18 @@
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:gap-6 mb-6">
+        <!-- Loading Overlay -->
+        <div wire:loading.flex wire:target="switchBusinessUnit,updatedDateFilter,applyCustomDateRange" 
+             class="col-span-full fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center">
+            <div class="bg-white rounded-xl shadow-2xl p-6 flex items-center space-x-4">
+                <svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-lg font-semibold text-gray-700">Switching business unit...</span>
+            </div>
+        </div>
+        
         <!-- Active PRs Card -->
         <div class="group bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-200 transform hover:scale-[1.02]">
             <div class="flex items-center">

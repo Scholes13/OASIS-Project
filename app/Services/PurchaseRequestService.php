@@ -242,17 +242,18 @@ class PurchaseRequestService
 
     /**
      * Submit an EXISTING DRAFT Purchase Request for approval
-     * 
+     *
      * ⚠️ CURRENTLY UNUSED - Kept for future "Save as Draft" feature
-     * 
+     *
      * Purpose: Transitions EXISTING draft PR from 'draft' → 'submitted' status
      * Different from: Livewire Create::submitPurchaseRequest() (creates NEW PRs)
-     * 
+     *
      * Current Flow: App creates PRs directly as 'submitted' (no draft step)
      * Future Use: If "Save as Draft" feature added, this submits those drafts
-     * 
-     * @param PurchaseRequest $purchaseRequest MUST be in 'draft' status
+     *
+     * @param  PurchaseRequest  $purchaseRequest  MUST be in 'draft' status
      * @return PurchaseRequest Updated PR in 'submitted' status with workflow
+     *
      * @throws \Exception If PR not in submittable state
      */
     public function submitPurchaseRequest(PurchaseRequest $purchaseRequest): PurchaseRequest

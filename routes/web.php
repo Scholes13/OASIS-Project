@@ -56,16 +56,16 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // View/Edit Routes (Livewire handles form submission)
         Route::get('/{purchaseRequest}', [PurchaseRequestController::class, 'show'])->name('show');
         Route::get('/{purchaseRequest}/edit', [PurchaseRequestController::class, 'edit'])->name('edit');
-        
+
         // Action Routes (handled by controller)
         Route::delete('/{purchaseRequest}', [PurchaseRequestController::class, 'destroy'])->name('destroy');
         Route::post('/{purchaseRequest}/resubmit', [PurchaseRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
-        
+
         // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
         Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestController::class, 'downloadPdf'])->name('download-pdf');
-        
+
         // List all PRs (for admin/manager view)
         Route::get('/all/list', [PurchaseRequestController::class, 'all'])->name('all');
     });
@@ -85,13 +85,17 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{reservation}/void', [\App\Http\Controllers\PrNumberReservationController::class, 'void'])->name('void');
     });
 
-    // Reports Routes (placeholder)
-    Route::prefix('reports')->name('reports.')->group(function () {
+    // Reports Routes (Top Management Only - Coming Soon)
+    Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
         Route::get('/purchase-requests', function () {
-            return view('reports.purchase-requests');
+            return view('reports.purchase-requests', [
+                'message' => 'Report feature will be available soon for top management.',
+            ]);
         })->name('purchase-requests');
         Route::get('/approvals', function () {
-            return view('reports.approvals');
+            return view('reports.approvals', [
+                'message' => 'Report feature will be available soon for top management.',
+            ]);
         })->name('approvals');
     });
 

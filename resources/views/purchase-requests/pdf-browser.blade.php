@@ -671,7 +671,7 @@
                     <div class="info-row">
                         <span class="info-label">Request No.</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $purchaseRequest->sequence_id ?? 1 }}</span>
+                        <span class="info-value">{{ (int) substr(strrchr($purchaseRequest->pr_number, '/'), 1) }}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Date of Request</span>

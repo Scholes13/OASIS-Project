@@ -3,8 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Modules\WNS\PrApproval;
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PrApproval;
+use App\Models\Modules\Wns\PurchaseRequest;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

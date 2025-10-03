@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Modules\WNS\PrApproval;
-use App\Models\Modules\WNS\PurchaseRequest;
-use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Models\Modules\Wns\PrApproval;
+use App\Models\Modules\Wns\PurchaseRequest;
+use App\Services\Modules\Wns\ApprovalWorkflowService;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

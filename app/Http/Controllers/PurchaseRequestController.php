@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PurchaseRequest;
 use App\Services\PurchaseRequestService;
 use App\Services\QrCodeService;
 use Illuminate\Http\Request;

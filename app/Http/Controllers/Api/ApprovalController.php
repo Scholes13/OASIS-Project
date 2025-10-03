@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Modules\WNS\PrApproval;
-use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Models\Modules\Wns\PrApproval;
+use App\Services\Modules\Wns\ApprovalWorkflowService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

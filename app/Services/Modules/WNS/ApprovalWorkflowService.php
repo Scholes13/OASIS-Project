@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Services\Modules\WNS;
+namespace App\Services\Modules\Wns;
 
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Modules\WNS\PrApproval;
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PrApproval;
+use App\Models\Modules\Wns\PurchaseRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;

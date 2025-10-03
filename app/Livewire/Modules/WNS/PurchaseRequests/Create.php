@@ -3,8 +3,8 @@
 namespace App\Livewire\Modules\Wns\PurchaseRequests;
 
 use App\Models\Department;
-use App\Models\Modules\WNS\PrItem;
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PrItem;
+use App\Models\Modules\Wns\PurchaseRequest;
 use App\Services\UniversalPRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -910,7 +910,7 @@ class Create extends Component
             }
 
             // Create approval record
-            \App\Models\Modules\WNS\PrApproval::create([
+            \App\Models\Modules\Wns\PrApproval::create([
                 'purchase_request_id' => $purchaseRequest->id,
                 'approver_id' => $approverId,
                 'step_order' => $stepOrder,

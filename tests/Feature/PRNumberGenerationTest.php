@@ -8,7 +8,7 @@ use App\Models\NumberingModule;
 use App\Models\Position;
 use App\Models\User;
 use App\Models\UserBusinessUnit;
-use App\Services\Modules\WNS\PRNumberingService;
+use App\Services\Modules\Wns\PRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;

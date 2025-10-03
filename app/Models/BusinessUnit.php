@@ -38,7 +38,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NumberingModule> $numberingModules
  * @property-read int|null $numbering_modules_count
  * @property-read BusinessUnit|null $parent
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PurchaseRequest> $purchaseRequests
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Wns\PurchaseRequest> $purchaseRequests
  * @property-read int|null $purchase_requests_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserBusinessUnit> $userBusinessUnits
  * @property-read int|null $user_business_units_count
@@ -149,7 +149,7 @@ class BusinessUnit extends Model
      */
     public function purchaseRequests()
     {
-        return $this->hasMany(\App\Models\Modules\WNS\PurchaseRequest::class, 'business_unit_id');
+        return $this->hasMany(\App\Models\Modules\Wns\PurchaseRequest::class, 'business_unit_id');
     }
 
     /**

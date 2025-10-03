@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Modules\WNS;
+namespace App\Models\Modules\Wns;
 
 use App\Models\Department;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +30,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read string $formatted_quantity
  * @property-read string $formatted_total_price
  * @property-read string $formatted_unit_price
- * @property-read \App\Models\Modules\WNS\PurchaseRequest $purchaseRequest
+ * @property-read \App\Models\Modules\Wns\PurchaseRequest $purchaseRequest
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem forPurchaseRequest($purchaseRequestId)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newModelQuery()

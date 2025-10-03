@@ -4,11 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\BusinessUnit;
 use App\Models\Department;
-use App\Models\Modules\WNS\PrItem;
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PrItem;
+use App\Models\Modules\Wns\PurchaseRequest;
 use App\Models\User;
-use App\Services\Modules\WNS\ApprovalWorkflowService;
-use App\Services\Modules\WNS\PRNumberingService;
+use App\Services\Modules\Wns\ApprovalWorkflowService;
+use App\Services\Modules\Wns\PRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Spatie\Permission\Models\Role;

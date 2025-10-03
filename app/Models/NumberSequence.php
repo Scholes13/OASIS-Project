@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PurchaseRequest;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

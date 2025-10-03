@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Modules\WNS\PrApproval;
-use App\Models\Modules\WNS\PurchaseRequest;
+use App\Models\Modules\Wns\PrApproval;
+use App\Models\Modules\Wns\PurchaseRequest;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class QrCodeService

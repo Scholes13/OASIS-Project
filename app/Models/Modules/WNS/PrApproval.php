@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Modules\WNS;
+namespace App\Models\Modules\Wns;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -29,7 +29,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read User $approver
  * @property-read string|null $formatted_due_date
  * @property-read string $status_color
- * @property-read \App\Models\Modules\WNS\PurchaseRequest $purchaseRequest
+ * @property-read \App\Models\Modules\Wns\PurchaseRequest $purchaseRequest
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval approved()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval dueSoon()

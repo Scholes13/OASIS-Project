@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Modules\WNS;
+namespace App\Models\Modules\Wns;
 
 use App\Models\BusinessUnit;
 use App\Models\Department;
@@ -38,14 +38,14 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property \Illuminate\Support\Carbon|null $expected_date
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PrApproval> $approvals
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Wns\PrApproval> $approvals
  * @property-read int|null $approvals_count
  * @property-read BusinessUnit $businessUnit
  * @property-read Department $department
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PrItem> $items
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Wns\PrItem> $items
  * @property-read int|null $items_count
  * @property-read User|null $lastModifiedBy
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\WNS\PrApproval> $pendingApprovals
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Wns\PrApproval> $pendingApprovals
  * @property-read int|null $pending_approvals_count
  * @property-read NumberSequence $sequence
  * @property-read User $user

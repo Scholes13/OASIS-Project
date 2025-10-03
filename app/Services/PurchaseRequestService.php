@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Department;
-use App\Models\Modules\WNS\PrItem;
-use App\Models\Modules\WNS\PurchaseRequest;
-use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Models\Modules\Wns\PrItem;
+use App\Models\Modules\Wns\PurchaseRequest;
+use App\Services\Modules\Wns\ApprovalWorkflowService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

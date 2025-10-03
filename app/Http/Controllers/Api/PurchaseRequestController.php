@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Modules\WNS\PrItem;
-use App\Models\Modules\WNS\PurchaseRequest;
-use App\Services\Modules\WNS\ApprovalWorkflowService;
+use App\Models\Modules\Wns\PrItem;
+use App\Models\Modules\Wns\PurchaseRequest;
+use App\Services\Modules\Wns\ApprovalWorkflowService;
 use App\Services\UniversalPRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;

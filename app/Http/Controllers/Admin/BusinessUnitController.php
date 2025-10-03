@@ -63,6 +63,7 @@ class BusinessUnitController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:10|unique:business_units,code',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
             'description' => 'nullable|string|max:1000',
             'address' => 'nullable|string|max:500',
             'phone' => 'nullable|string|max:20',
@@ -71,10 +72,17 @@ class BusinessUnitController extends Controller
             'manager_id' => 'nullable|exists:users,id',
         ]);
 
+        // Handle logo upload
+        $logoPath = null;
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('business-units', 'public');
+        }
+
         // Create business unit only
         $businessUnit = BusinessUnit::create([
             'name' => $request->name,
             'code' => strtoupper($request->code),
+            'logo' => $logoPath,
             'description' => $request->description,
             'address' => $request->address,
             'phone' => $request->phone,
@@ -147,6 +155,8 @@ class BusinessUnitController extends Controller
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'code' => ['required', 'string', 'max:10', Rule::unique('business_units')->ignore($businessUnit->id)],
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
+            'remove_logo' => 'nullable|boolean',
             'description' => 'nullable|string|max:1000',
             'address' => 'nullable|string|max:500',
             'phone' => 'nullable|string|max:20',
@@ -160,6 +170,21 @@ class BusinessUnitController extends Controller
         // Prevent setting parent to itself or creating circular reference
         if ($request->parent_id == $businessUnit->id) {
             return back()->withErrors(['parent_id' => 'Business unit cannot be its own parent.']);
+        }
+
+        // Handle logo removal
+        if ($request->boolean('remove_logo') && $businessUnit->logo) {
+            \Storage::disk('public')->delete($businessUnit->logo);
+            $validatedData['logo'] = null;
+        }
+
+        // Handle logo upload
+        if ($request->hasFile('logo')) {
+            // Delete old logo if exists
+            if ($businessUnit->logo) {
+                \Storage::disk('public')->delete($businessUnit->logo);
+            }
+            $validatedData['logo'] = $request->file('logo')->store('business-units', 'public');
         }
 
         $businessUnit->update($validatedData);

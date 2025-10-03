@@ -73,6 +73,7 @@ class BusinessUnit extends Model
     protected $fillable = [
         'code',
         'name',
+        'logo',
         'description',
         'address',
         'phone',

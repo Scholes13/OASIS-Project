@@ -5,7 +5,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Purchase Request - {{ $purchaseRequest->pr_number }}</title>
+    <title>Purchase Request - <?php echo e($purchaseRequest->pr_number); ?></title>
     <style>
         /* Global Styles */
         * {
@@ -623,18 +623,20 @@
         <tr>
             <!-- Logo Section (Left) -->
             <td class="logo-section">
-                @if($purchaseRequest->businessUnit && $purchaseRequest->businessUnit->logo)
-                    <img src="{{ asset('storage/' . $purchaseRequest->businessUnit->logo) }}" alt="{{ $purchaseRequest->businessUnit->name }} Logo" class="business-logo">
-                @else
+                <?php if($purchaseRequest->businessUnit && $purchaseRequest->businessUnit->logo): ?>
+                    <img src="<?php echo e(asset('storage/' . $purchaseRequest->businessUnit->logo)); ?>" alt="<?php echo e($purchaseRequest->businessUnit->name); ?> Logo" class="business-logo">
+                <?php else: ?>
                     <div class="default-logo">
                         <div class="logo-circle">
-                            {{ substr($purchaseRequest->businessUnit->code ?? 'WG', 0, 2) }}
+                            <?php echo e(substr($purchaseRequest->businessUnit->code ?? 'WG', 0, 2)); ?>
+
                         </div>
                         <div class="logo-text">
-                            {{ $purchaseRequest->businessUnit->name ?? 'WERKUDARA GROUP' }}
+                            <?php echo e($purchaseRequest->businessUnit->name ?? 'WERKUDARA GROUP'); ?>
+
                         </div>
                     </div>
-                @endif
+                <?php endif; ?>
             </td>
 
             <!-- Center Title -->
@@ -671,7 +673,8 @@
     <!-- PR Number and Basic Info -->
     <div class="pr-info-section">
         <div class="pr-number-line">
-            No. {{ $purchaseRequest->pr_number }}
+            No. <?php echo e($purchaseRequest->pr_number); ?>
+
         </div>
         
         <div class="basic-info-grid">
@@ -680,22 +683,22 @@
                     <div class="info-row">
                         <span class="info-label">Created by</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $purchaseRequest->user->name }}</span>
+                        <span class="info-value"><?php echo e($purchaseRequest->user->name); ?></span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Department of PR</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $purchaseRequest->department->code ?? 'N/A' }}</span>
+                        <span class="info-value"><?php echo e($purchaseRequest->department->code ?? 'N/A'); ?></span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Request No.</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ (int) substr(strrchr($purchaseRequest->pr_number, '/'), 1) }}</span>
+                        <span class="info-value"><?php echo e((int) substr(strrchr($purchaseRequest->pr_number, '/'), 1)); ?></span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Date of Request</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ \Carbon\Carbon::parse($purchaseRequest->date_of_request)->format('d-M-y') }}</span>
+                        <span class="info-value"><?php echo e(\Carbon\Carbon::parse($purchaseRequest->date_of_request)->format('d-M-y')); ?></span>
                     </div>
             </div>
 
@@ -704,12 +707,12 @@
                     <div class="info-row">
                         <span class="info-label">Used for</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value wide">{{ $purchaseRequest->used_for }}</span>
+                        <span class="info-value wide"><?php echo e($purchaseRequest->used_for); ?></span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Designated Date</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $purchaseRequest->designated_date ? \Carbon\Carbon::parse($purchaseRequest->designated_date)->format('d-M-y') : 'N/A' }}</span>
+                        <span class="info-value"><?php echo e($purchaseRequest->designated_date ? \Carbon\Carbon::parse($purchaseRequest->designated_date)->format('d-M-y') : 'N/A'); ?></span>
                     </div>
             </div>
         </div>
@@ -734,26 +737,26 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($purchaseRequest->items as $index => $item)
-                <tr class="{{ $index % 2 == 0 ? 'row-even' : 'row-odd' }}">
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $item->item_name }}</td>
-                    <td>{{ $item->brand_name ?: '-' }}</td>
-                    <td>{{ $item->item_description ?: '-' }}</td>
-                    <td>{{ $item->supplier_name ?: '-' }}</td>
-                    <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
-                    <td class="text-center">{{ $item->unit }}</td>
-                    <td class="text-right">{{ number_format($item->unit_price, 0) }}</td>
-                    <td class="text-center">{{ $item->currency }}</td>
-                    <td class="text-right">{{ number_format($item->quantity * $item->unit_price, 0) }}</td>
+                <?php $__currentLoopData = $purchaseRequest->items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <tr class="<?php echo e($index % 2 == 0 ? 'row-even' : 'row-odd'); ?>">
+                    <td class="text-center"><?php echo e($index + 1); ?></td>
+                    <td><?php echo e($item->item_name); ?></td>
+                    <td><?php echo e($item->brand_name ?: '-'); ?></td>
+                    <td><?php echo e($item->item_description ?: '-'); ?></td>
+                    <td><?php echo e($item->supplier_name ?: '-'); ?></td>
+                    <td class="text-center"><?php echo e(number_format($item->quantity, 0)); ?></td>
+                    <td class="text-center"><?php echo e($item->unit); ?></td>
+                    <td class="text-right"><?php echo e(number_format($item->unit_price, 0)); ?></td>
+                    <td class="text-center"><?php echo e($item->currency); ?></td>
+                    <td class="text-right"><?php echo e(number_format($item->quantity * $item->unit_price, 0)); ?></td>
                     <td>-</td>
                 </tr>
-                @endforeach
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 
                 <!-- Total Row -->
                 <tr class="total-row">
                     <td colspan="9" class="total-label"><strong>Total Amount:</strong></td>
-                    <td class="text-right total-amount"><strong>{{ number_format($purchaseRequest->total_amount, 0) }}</strong></td>
+                    <td class="text-right total-amount"><strong><?php echo e(number_format($purchaseRequest->total_amount, 0)); ?></strong></td>
                     <td>&nbsp;</td>
                 </tr>
             </tbody>
@@ -762,35 +765,35 @@
 
     <!-- Modern Approval Section using Flexbox -->
     <div class="approval-section">
-        @php
+        <?php
             // Get all approvals sorted by step_order
             $approvals = $purchaseRequest->approvals->sortBy('step_order');
             $totalApprovals = $approvals->count();
-        @endphp
+        ?>
 
         <div class="approval-container">
             <!-- Created by Section (Always shows) -->
             <div class="approval-box">
                 <div class="approval-title">Created by</div>
 
-                @if($purchaseRequest->submitted_at && isset($qrCodes['requestor']))
+                <?php if($purchaseRequest->submitted_at && isset($qrCodes['requestor'])): ?>
                 <div class="qr-code-container">
-                    <img src="{{ $qrCodes['requestor'] }}" alt="QR Code" style="width: 50px; height: 50px;">
+                    <img src="<?php echo e($qrCodes['requestor']); ?>" alt="QR Code" style="width: 50px; height: 50px;">
                 </div>
-                @else
+                <?php else: ?>
                 <div class="qr-code-container empty">&nbsp;</div>
-                @endif
+                <?php endif; ?>
 
                 <div class="approver-info">
-                    <div class="approver-name">{{ $purchaseRequest->user->name }}</div>
-                    <div class="approver-dept">{{ $purchaseRequest->department->code ?? 'BAS' }}</div>
+                    <div class="approver-name"><?php echo e($purchaseRequest->user->name); ?></div>
+                    <div class="approver-dept"><?php echo e($purchaseRequest->department->code ?? 'BAS'); ?></div>
                 </div>
             </div>
 
             <!-- Dynamic Approval Sections based on actual approval data -->
-            @foreach($approvals as $index => $approval)
-                <div class="approval-box {{ $loop->last ? 'last-approval' : '' }}">
-                    @php
+            <?php $__currentLoopData = $approvals; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $approval): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <div class="approval-box <?php echo e($loop->last ? 'last-approval' : ''); ?>">
+                    <?php
                         // Determine title based on approval_type from database directly
                         $title = match($approval->approval_type) {
                             'knowledge' => 'Acknowledged by',
@@ -798,24 +801,24 @@
                             'approval' => 'Approved by',
                             default => 'Approved by'
                         };
-                    @endphp
+                    ?>
                     
-                    <div class="approval-title">{{ $title }}</div>
+                    <div class="approval-title"><?php echo e($title); ?></div>
 
-                    @if($approval->status === 'approved' && isset($qrCodes['approvals'][$approval->id]))
+                    <?php if($approval->status === 'approved' && isset($qrCodes['approvals'][$approval->id])): ?>
                         <div class="qr-code-container">
-                            <img src="{{ $qrCodes['approvals'][$approval->id] }}" alt="Approval QR Code" style="width: 50px; height: 50px;">
+                            <img src="<?php echo e($qrCodes['approvals'][$approval->id]); ?>" alt="Approval QR Code" style="width: 50px; height: 50px;">
                         </div>
-                    @else
+                    <?php else: ?>
                         <div class="qr-code-container empty">&nbsp;</div>
-                    @endif
+                    <?php endif; ?>
 
                     <div class="approver-info">
-                        <div class="approver-name">{{ $approval->approver->name }}</div>
-                        <div class="approver-dept">{{ $approval->approver->primaryDepartment->code ?? 'DEP' }}</div>
+                        <div class="approver-name"><?php echo e($approval->approver->name); ?></div>
+                        <div class="approver-dept"><?php echo e($approval->approver->primaryDepartment->code ?? 'DEP'); ?></div>
                     </div>
                 </div>
-            @endforeach
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
             <!-- No empty slots - only show actual approvals from database -->
         </div>
@@ -823,7 +826,7 @@
 
     <!-- Footer -->
     <div class="pdf-footer">
-        <p>This document was generated on {{ now()->format('d F Y, H:i') }} | Purchase Request System v1.0</p>
+        <p>This document was generated on <?php echo e(now()->format('d F Y, H:i')); ?> | Purchase Request System v1.0</p>
     </div>
 </body>
-</html>
+</html><?php /**PATH E:\Learning\WGProject\Numbering\resources\views/purchase-requests/pdf-browser.blade.php ENDPATH**/ ?>

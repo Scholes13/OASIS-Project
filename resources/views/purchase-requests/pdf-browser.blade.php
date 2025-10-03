@@ -99,25 +99,40 @@
         .logo-section {
             display: table-cell;
             width: 150px;
+            min-width: 150px;
+            max-width: 150px;
             border-right: 1px solid #000000;
             padding: 15px;
             text-align: center;
             vertical-align: middle;
+            overflow: hidden;
         }
         
         .business-logo {
+            width: auto;
+            height: auto;
             max-width: 120px;
             max-height: 60px;
             object-fit: contain;
+            display: block;
+            margin: 0 auto;
         }
         
         .default-logo {
             text-align: center;
+            width: 100%;
+            height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         
         .logo-circle {
             width: 50px;
             height: 50px;
+            min-width: 50px;
+            min-height: 50px;
             background: linear-gradient(135deg, #4a5568, #718096);
             border-radius: 50%;
             display: flex;
@@ -126,7 +141,8 @@
             color: white;
             font-weight: bold;
             font-size: 18px;
-            margin: 0 auto 8px;
+            margin: 0 auto 5px;
+            flex-shrink: 0;
         }
         
         .logo-text {
@@ -134,6 +150,9 @@
             font-weight: bold;
             color: #4a5568;
             line-height: 1.2;
+            max-height: 20px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         /* Center Title Section */

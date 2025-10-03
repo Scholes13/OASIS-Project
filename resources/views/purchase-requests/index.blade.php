@@ -44,12 +44,12 @@
     </x-slot>
 
     <!-- Combined History List -->
-    <div class="w-full">
+    <div class="w-full space-y-6">
         @php
-            // Combine and sort all items by date
+            // Combine and sort all items by date from current page only
             $allItems = collect();
             
-            // Add purchase requests
+            // Add purchase requests from current page
             foreach($purchaseRequests as $pr) {
                 $allItems->push([
                     'type' => 'purchase_request',
@@ -66,7 +66,7 @@
                 ]);
             }
             
-            // Add reservations
+            // Add reservations from current page
             foreach($reservations as $reservation) {
                 $allItems->push([
                     'type' => 'reservation',
@@ -211,6 +211,23 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Pagination Section -->
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing <span class="font-medium">{{ $purchaseRequests->firstItem() ?? 0 }}</span>
+                            to <span class="font-medium">{{ $purchaseRequests->lastItem() ?? 0 }}</span>
+                            of <span class="font-medium">{{ $purchaseRequests->total() }}</span> PRs
+                            @if($reservations->total() > 0)
+                                | <span class="font-medium">{{ $reservations->total() }}</span> Reservations
+                            @endif
+                        </div>
+                        <div>
+                            {{ $purchaseRequests->links() }}
+                        </div>
+                    </div>
                 </div>
             </div>
         @else

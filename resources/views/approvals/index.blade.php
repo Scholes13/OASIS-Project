@@ -195,6 +195,22 @@
                     </div>
                     @endforeach
                 </div>
+
+                <!-- Pagination Links for Pending Approvals -->
+                @if($pendingApprovals->hasPages())
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing <span class="font-medium">{{ $pendingApprovals->firstItem() ?? 0 }}</span>
+                            to <span class="font-medium">{{ $pendingApprovals->lastItem() ?? 0 }}</span>
+                            of <span class="font-medium">{{ $pendingApprovals->total() }}</span> pending approvals
+                        </div>
+                        <div>
+                            {{ $pendingApprovals->appends(['tab' => 'pending'])->links() }}
+                        </div>
+                    </div>
+                </div>
+                @endif
             @endif
 
         @elseif($tab === 'history')
@@ -298,6 +314,22 @@
                     </div>
                     @endforeach
                 </div>
+
+                <!-- Pagination Links for Approval History -->
+                @if($approvalHistory->hasPages())
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing <span class="font-medium">{{ $approvalHistory->firstItem() ?? 0 }}</span>
+                            to <span class="font-medium">{{ $approvalHistory->lastItem() ?? 0 }}</span>
+                            of <span class="font-medium">{{ $approvalHistory->total() }}</span> completed approvals
+                        </div>
+                        <div>
+                            {{ $approvalHistory->appends(['tab' => 'history'])->links() }}
+                        </div>
+                    </div>
+                </div>
+                @endif
             @endif
         @endif
     </div>

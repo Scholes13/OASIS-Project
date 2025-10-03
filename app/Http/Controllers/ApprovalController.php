@@ -190,8 +190,8 @@ class ApprovalController extends Controller
     {
         $tab = $request->get('tab', 'pending');
 
-        $pendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user());
-        $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user());
+        $pendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user())->paginate(10);
+        $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user())->paginate(10);
         $approvalStats = $this->workflowService->getApprovalStatistics(Auth::user());
 
         return view('approvals.index', compact('pendingApprovals', 'approvalHistory', 'approvalStats', 'tab'));

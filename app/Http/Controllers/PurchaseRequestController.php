@@ -25,7 +25,7 @@ class PurchaseRequestController extends Controller
     public function index()
     {
         $query = $this->purchaseRequestService->getPurchaseRequestsQuery();
-        $purchaseRequests = $query->latest('created_at')->get();
+        $purchaseRequests = $query->latest('created_at')->paginate(10);
 
         // Get PR Number Reservations using same hierarchy logic
         $user = Auth::user();
@@ -54,7 +54,7 @@ class PurchaseRequestController extends Controller
                 break;
         }
 
-        $reservations = $reservationQuery->latest('reserved_at')->get();
+        $reservations = $reservationQuery->latest('reserved_at')->paginate(10);
 
         return view('purchase-requests.index', compact('purchaseRequests', 'reservations'));
     }
@@ -74,7 +74,7 @@ class PurchaseRequestController extends Controller
         }
 
         $query = $this->purchaseRequestService->getPurchaseRequestsQuery();
-        $purchaseRequests = $query->latest('created_at')->paginate(20);
+        $purchaseRequests = $query->latest('created_at')->paginate(10);
 
         return view('purchase-requests.all', compact('purchaseRequests'));
     }
@@ -87,7 +87,6 @@ class PurchaseRequestController extends Controller
     /**
      * Display the specified purchase request
      */
-
     public function show(PurchaseRequest $purchaseRequest)
     {
         $purchaseRequest->load(['department', 'user', 'items.expenseDepartment', 'approvals.approver']);
@@ -128,7 +127,6 @@ class PurchaseRequestController extends Controller
     /**
      * Resubmit rejected purchase request (reset workflow)
      */
-
     public function resubmit(PurchaseRequest $purchaseRequest)
     {
         // Check if PR can be resubmitted (must be rejected)

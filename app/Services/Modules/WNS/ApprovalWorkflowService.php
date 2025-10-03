@@ -515,8 +515,9 @@ class ApprovalWorkflowService
 
     /**
      * Get pending approvals for a user
+     * Returns query builder to allow pagination in controller
      */
-    public function getPendingApprovalsForUser(User $user): Collection
+    public function getPendingApprovalsForUser(User $user)
     {
         return PrApproval::with([
             'purchaseRequest.user',
@@ -528,14 +529,14 @@ class ApprovalWorkflowService
             ->whereHas('purchaseRequest', function ($query) {
                 $query->where('status', 'in_approval');
             })
-            ->orderBy('assigned_at', 'asc')
-            ->get();
+            ->orderBy('assigned_at', 'asc');
     }
 
     /**
      * Get approval history for a user (completed approvals)
+     * Returns query builder to allow pagination in controller
      */
-    public function getApprovalHistoryForUser(User $user, int $limit = 50): Collection
+    public function getApprovalHistoryForUser(User $user)
     {
         return PrApproval::with([
             'purchaseRequest.user',
@@ -546,9 +547,7 @@ class ApprovalWorkflowService
             ->where('approver_id', $user->id)
             ->whereIn('status', ['approved', 'rejected'])
             ->whereNotNull('responded_at')
-            ->orderBy('responded_at', 'desc')
-            ->limit($limit)
-            ->get();
+            ->orderBy('responded_at', 'desc');
     }
 
     /**

@@ -7,6 +7,7 @@ This is an enterprise **Purchase Request Management System** built with Laravel 
 - **Development**: Windows (case-insensitive filesystem)
 - **Production**: Linux hosting at devlopment.werkudara.com (case-sensitive filesystem) 
 - **Critical**: Always follow proper Laravel naming conventions for cross-platform compatibility
+- **Current Version**: v.2 (October 2025) - Complete resubmit flow with QR reusability & scrollbar stability
 
 ## Core Architecture Patterns
 
@@ -87,6 +88,19 @@ php artisan config:cache && php artisan route:cache
 
 ## UI/UX Conventions
 
+### Scrollbar Stability (v.2)
+**Critical**: Content must NOT shift horizontally when scrollbar appears/disappears
+```css
+/* In resources/css/app.css */
+html {
+    overflow-y: scroll;           /* Always show scrollbar space */
+    scrollbar-gutter: stable;     /* Modern approach to reserve space */
+}
+```
+- Implementation: `resources/css/app.css` lines 5-58
+- Layout: `resources/views/layouts/app.blade.php` - body allows scroll, container manages overflow
+- Result: Zero horizontal layout shift, consistent content width
+
 ### Toast Notification System
 ```php
 // Livewire component dispatch
@@ -112,9 +126,11 @@ function calculateRowTotal(index) {
 ## Integration Points
 
 ### PDF Generation (Barryvdh/DomPDF)
-- Templates: `resources/views/purchase-requests/pdf.blade.php`
+- Templates: `resources/views/purchase-requests/pdf-browser.blade.php` (current active template)
 - QR codes embedded for verification
 - Custom CSS for print formatting
+- **IMPORTANT**: QR tokens are REUSABLE - based on preserved `submitted_at` timestamp
+- QR Token Formula: `hash('sha256', json_encode(['pr_id', 'user_id', 'submitted_at', 'type']) . app.key)`
 
 ### Authentication & Authorization (Spatie)
 ```php
@@ -135,8 +151,9 @@ All PR changes logged automatically via `LogsActivity` trait
 
 ### UI Components  
 - `resources/views/livewire/modules/wns/purchase-requests/create.blade.php` - Main form view (759 lines)
-- `resources/views/layouts/app.blade.php` - Toast notification system
-- `resources/views/purchase-requests/pdf.blade.php` - PDF template with QR codes
+- `resources/views/layouts/app.blade.php` - Toast notification system & scrollbar stability
+- `resources/views/purchase-requests/pdf-browser.blade.php` - Active PDF template with QR codes
+- `resources/views/pr-numbers/index.blade.php` - PR number reservation page (moved from purchase-requests)
 
 ### API Endpoints
 - `app/Http/Controllers/Api/PurchaseRequestController.php` - RESTful operations
@@ -186,6 +203,236 @@ All PR changes logged automatically via `LogsActivity` trait
   }
   ```
 - **Why**: Prevents null pointer errors during Livewire state hydration on hosting environments
+
+### Storage & Assets
+- **Storage symlink**: Always create `php artisan storage:link` on hosting
+- **Livewire 3 assets**: Served via routes (/livewire/livewire.js), no publishing needed
+- **Config**: `config/livewire.php` has `'inject_assets' => true` (auto-injection enabled)
+
+## Version 2.0 Features (October 2025)
+
+### Complete Resubmit Workflow
+**Background**: Previous implementation had critical bugs where editing rejected PRs would auto-resubmit them, and QR tokens would change after resubmit.
+
+**Key Changes**:
+
+1. **Separate Edit and Resubmit Actions**
+   - **Edit**: Updates PR data while keeping `status = 'rejected'`
+   - **Resubmit**: Resets workflow and changes `status = 'submitted'`
+   - File: `app/Livewire/Modules/Wns/PurchaseRequests/Create.php`
+   ```php
+   protected function submitUpdatedRequest()
+   {
+       $wasRejected = $existingPR->status === 'rejected';
+       $targetStatus = $wasRejected ? 'rejected' : 'submitted';
+       
+       if ($wasRejected) {
+           // Just update data, keep rejected status
+           $purchaseRequest->update(['last_modified_by' => Auth::id()]);
+       } else {
+           // Full submit workflow
+           $purchaseRequest->update(['status' => 'submitted', 'submitted_at' => now()]);
+       }
+   }
+   ```
+
+2. **QR Token Reusability**
+   - **Problem**: QR tokens were changing after resubmit (different timestamp)
+   - **Solution**: Preserve original `submitted_at` timestamp
+   - File: `app/Services/PurchaseRequestService.php`
+   ```php
+   public function resubmitPurchaseRequest(PurchaseRequest $pr): PurchaseRequest
+   {
+       $originalSubmittedAt = $pr->submitted_at; // PRESERVE timestamp
+       
+       $pr->update([
+           'status' => 'submitted',
+           'submitted_at' => $originalSubmittedAt ?? now(), // REUSE
+           'rejected_at' => null,
+       ]);
+       
+       // QR token = hash(pr_id + user_id + submitted_at + type + app.key)
+       // Same submitted_at = Same QR token ✅
+   }
+   ```
+
+3. **Custom Workflow Preservation**
+   - **Problem**: Custom approval workflows were lost after reset
+   - **Solution**: Preserve `approval_workflow` JSON and recreate from it
+   - File: `app/Services/Modules/Wns/ApprovalWorkflowService.php`
+   ```php
+   public function resetWorkflow(PurchaseRequest $pr): bool
+   {
+       $pr->approvals()->delete();
+       $pr->update([
+           'status' => 'draft',
+           // approval_workflow is PRESERVED (not set to null)
+           'submitted_at' => null,
+       ]);
+   }
+   
+   protected function recreateWorkflowFromJson(PurchaseRequest $pr): bool
+   {
+       foreach ($pr->approval_workflow as $stepData) {
+           PrApproval::create([
+               'purchase_request_id' => $pr->id,
+               'approver_id' => $stepData['approver_id'],
+               'step_order' => $stepData['step_order'],
+               'approval_type' => $stepData['approval_type'],
+               // ... recreate exact workflow
+           ]);
+       }
+   }
+   ```
+
+4. **UI Improvements**
+   - Orange alert box in rejected PR show page
+   - "Save Changes (Rejected)" button in edit form
+   - "Resubmit for Approval" button in show page
+   - Clear user feedback messages
+
+### Scrollbar Stability Fix
+
+**Problem**: Content shifted horizontally when scrollbar appeared/disappeared during navigation.
+
+**Solution**: Always reserve space for scrollbar
+- File: `resources/css/app.css` (lines 5-58)
+```css
+@layer base {
+    html {
+        overflow-y: scroll;        /* Always show scrollbar space */
+        scrollbar-gutter: stable;  /* Modern CSS approach */
+    }
+    
+    html, body {
+        overflow-x: hidden;        /* Prevent horizontal scroll */
+        max-width: 100vw;
+    }
+    
+    /* Custom scrollbar styling for better UX */
+    ::-webkit-scrollbar { width: 12px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { 
+        background: #888; 
+        border-radius: 6px;
+    }
+    
+    /* Firefox scrollbar */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: #888 #f1f1f1;
+    }
+}
+```
+
+- Layout Fix: `resources/views/layouts/app.blade.php`
+```blade
+<!-- BEFORE: overflow-hidden on body prevented scroll -->
+<body class="h-full font-inter antialiased overflow-hidden">
+
+<!-- AFTER: body allows scroll, container manages overflow -->
+<body class="h-full font-inter antialiased">
+<div class="h-full flex overflow-hidden">
+    <!-- sidebar -->
+    <main class="flex-1 overflow-y-auto">
+        <!-- content scrolls here -->
+    </main>
+</div>
+```
+
+**Result**: Zero horizontal layout shift, consistent viewport width across all pages.
+
+### Massive Code Cleanup
+
+**Statistics**:
+- **168 files changed**
+- **+2,465 insertions**
+- **-5,412 deletions**
+- **Net reduction: -2,947 lines**
+
+**Deleted Files** (4 total):
+1. `resources/views/purchase-requests/pdf.blade.php` (342 lines - obsolete, replaced by pdf-browser.blade.php)
+2. `resources/views/purchase-requests/create-with-number.blade.php` (missing component)
+3. `resources/views/purchase-requests/create-integrated.blade.php` (empty file)
+4. `storage/framework/views/*` (15 compiled view cache files)
+
+**Reorganized Files**:
+1. **MOVED**: `purchase-requests/my-numbers.blade.php` → `pr-numbers/index.blade.php`
+   - Reason: Route is `/pr-numbers` not `/purchase-requests/my-numbers`
+   - Updated: `app/Http/Controllers/PrNumberReservationController.php` line 52
+
+**Routes Cleanup** (14 → 10 routes):
+- **DELETED**:
+  - `POST /purchase-requests` (store - handled by Livewire)
+  - `PUT /purchase-requests/{id}` (update - handled by Livewire)
+  - `POST /purchase-requests/{id}/submit` (submit - handled by Livewire)
+  - `GET /purchase-requests/create-with-number` (obsolete view)
+
+**Controller Cleanup** (16 → 12 methods):
+- **DELETED**: `app/Http/Controllers/PurchaseRequestController.php`
+  - `create()` - Livewire handles creation
+  - `store()` - Livewire handles storage
+  - `update()` - Livewire handles updates
+  - `submit()` - Livewire handles submission
+
+**Service Documentation**:
+- `app/Services/PurchaseRequestService.php::submitPurchaseRequest()`
+  - Added comprehensive PHPDoc explaining method is UNUSED
+  - Kept for future "Save as Draft" feature
+  - Different from Livewire Create::submitPurchaseRequest()
+
+### Bug Fixes in v.2
+
+1. **Linter Error Fix**
+   - File: `app/Http/Controllers/PurchaseRequestController.php` line 140
+   - Changed: `auth()->id()` → `Auth::id()`
+   - Reason: Better IDE support, use imported facade
+
+2. **Override Bug Fix**
+   - File: `app/Livewire/Modules/Wns/PurchaseRequests/Create.php`
+   - Issue: `submitUpdatedRequest()` always changed status to 'submitted'
+   - Fix: Check `$wasRejected` flag, preserve 'rejected' status when editing
+
+3. **QR Token Change Bug**
+   - File: `app/Services/PurchaseRequestService.php`
+   - Issue: `submitted_at = now()` created new timestamp → different QR token
+   - Fix: `submitted_at = $originalSubmittedAt ?? now()` preserves timestamp
+
+4. **Workflow Loss Bug**
+   - File: `app/Services/Modules/Wns/ApprovalWorkflowService.php`
+   - Issue: `resetWorkflow()` set `approval_workflow = null`
+   - Fix: Don't set to null, create `recreateWorkflowFromJson()` method
+
+### Testing Checklist for v.2
+
+When working with PR resubmit features, always test:
+
+1. **Edit Rejected PR**
+   - ✅ Status remains 'rejected' after save
+   - ✅ Data updates successfully
+   - ✅ "Resubmit for Approval" button still visible
+   - ✅ QR code matches original
+
+2. **Resubmit Rejected PR**
+   - ✅ Status changes to 'submitted' → 'in_approval'
+   - ✅ Old approvals deleted
+   - ✅ New approvals created from JSON
+   - ✅ `submitted_at` timestamp preserved
+   - ✅ QR code remains identical (token reusable)
+   - ✅ Custom workflow preserved (same approvers, order, types)
+
+3. **Scrollbar Stability**
+   - ✅ Navigate from short page to long page
+   - ✅ Content doesn't shift horizontally
+   - ✅ Scrollbar track always visible
+   - ✅ Smooth scrolling behavior
+   - ✅ Works on Chrome, Firefox, Edge
+
+4. **File Organization**
+   - ✅ No unused view files in `resources/views/purchase-requests/`
+   - ✅ PR numbers page at `resources/views/pr-numbers/index.blade.php`
+   - ✅ Only active routes in `routes/web.php`
+   - ✅ Only active methods in controllers
 
 ### Storage & Assets
 - **Storage symlink**: Always create `php artisan storage:link` on hosting

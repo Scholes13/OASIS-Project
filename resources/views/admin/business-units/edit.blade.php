@@ -11,8 +11,8 @@
         </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <form action="{{ route('admin.business-units.update', $businessUnit) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 @method('PUT')
@@ -24,7 +24,7 @@
                         <p class="mt-1 text-sm text-gray-600">Update the basic details for the business unit.</p>
                     </div>
                     <div class="p-6 space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <!-- Code -->
                             <div>
                                 <label for="code" class="block text-sm font-medium text-gray-700">Code *</label>
@@ -40,7 +40,7 @@
                             </div>
 
                             <!-- Name -->
-                            <div>
+                            <div class="md:col-span-2">
                                 <label for="name" class="block text-sm font-medium text-gray-700">Name *</label>
                                 <input type="text" 
                                        name="name" 
@@ -166,7 +166,7 @@
                             @enderror
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <!-- Phone -->
                             <div>
                                 <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
@@ -181,7 +181,7 @@
                             </div>
 
                             <!-- Email -->
-                            <div>
+                            <div class="md:col-span-2">
                                 <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
                                 <input type="email" 
                                        name="email" 

@@ -16,8 +16,8 @@
         </div>
     </x-slot>
 
-    <div class="pb-6">
-        <div class="w-full">
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <form action="{{ route('admin.business-units.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 
@@ -33,7 +33,7 @@
                         <div class="mb-6">
                             <h4 class="text-md font-medium text-gray-900 mb-4">Basic Information</h4>
                             
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                                 <!-- Code -->
                                 <div>
                                     <label for="code" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -53,7 +53,7 @@
                                 </div>
 
                                 <!-- Name -->
-                                <div>
+                                <div class="lg:col-span-2">
                                     <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
                                         Business Unit Name <span class="text-red-500">*</span>
                                     </label>

@@ -28,8 +28,9 @@
                                 type="button"
                                 wire:click="switchBusinessUnit({{ $bu['id'] }})"
                                 wire:loading.attr="disabled"
+                                wire:loading.class="opacity-50 cursor-not-allowed"
                                 wire:target="switchBusinessUnit"
-                                class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 transform hover:scale-105 
+                                class="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 transform hover:scale-105 disabled:transform-none
                                     {{ $isActive 
                                         ? ($isParent 
                                             ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg ring-4 ring-indigo-200' 
@@ -48,6 +49,10 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                                     </svg>
                                 @endif
+                                <svg wire:loading wire:target="switchBusinessUnit" class="animate-spin h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
                             </button>
                         @endforeach
                     </div>
@@ -68,7 +73,9 @@
             <div class="flex-1">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Date Range Filter</label>
                 <select wire:model.live="dateFilter" 
-                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        wire:loading.class="opacity-50"
+                        wire:target="dateFilter"
+                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-opacity duration-200">
                     <option value="today">Today</option>
                     <option value="this_week">This Week</option>
                     <option value="this_month">This Month</option>
@@ -76,33 +83,53 @@
                     <option value="this_year">This Year</option>
                     <option value="custom">Custom Range</option>
                 </select>
+                <div wire:loading wire:target="dateFilter" class="mt-1 text-xs text-indigo-600 flex items-center">
+                    <svg class="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating data...
+                </div>
             </div>
 
             @if($customRange)
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
                     <input type="date" 
-                           wire:model="startDate" 
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                           wire:model.blur="startDate"
+                           wire:loading.class="opacity-50"
+                           wire:target="applyCustomDateRange"
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-opacity duration-200">
                 </div>
 
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
                     <input type="date" 
-                           wire:model="endDate" 
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                           wire:model.blur="endDate"
+                           wire:loading.class="opacity-50"
+                           wire:target="applyCustomDateRange"
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-opacity duration-200">
                 </div>
 
                 <div>
                     <button wire:click="applyCustomDateRange" 
+                            wire:loading.attr="disabled"
+                            wire:target="applyCustomDateRange"
                             type="button"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium">
-                        Apply Filter
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span wire:loading.remove wire:target="applyCustomDateRange">Apply Filter</span>
+                        <span wire:loading wire:target="applyCustomDateRange" class="flex items-center">
+                            <svg class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Applying...
+                        </span>
                     </button>
                 </div>
             @endif
 
-            <div class="text-sm text-gray-600">
+            <div class="text-sm text-gray-600" wire:ignore.self>
                 <strong>Period:</strong> {{ date('M j, Y', strtotime($startDate)) }} - {{ date('M j, Y', strtotime($endDate)) }}
             </div>
         </div>
@@ -110,15 +137,19 @@
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:gap-6 mb-6">
-        <!-- Loading Overlay -->
-        <div wire:loading.flex wire:target="switchBusinessUnit,updatedDateFilter,applyCustomDateRange" 
-             class="col-span-full fixed inset-0 bg-gray-900 bg-opacity-50 z-50 items-center justify-center">
-            <div class="bg-white rounded-xl shadow-2xl p-6 flex items-center space-x-4">
-                <svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+        <!-- ✅ IMPROVED: Full-screen loading overlay with better visibility -->
+        <div wire:loading.flex 
+             wire:target="switchBusinessUnit,handleBusinessUnitSwitch,updatedDateFilter,applyCustomDateRange" 
+             class="col-span-full fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm z-50 items-center justify-center transition-all duration-300">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4 transform transition-all duration-300 scale-110">
+                <svg class="animate-spin h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span class="text-lg font-semibold text-gray-700">Switching business unit...</span>
+                <div class="text-center">
+                    <div class="text-xl font-bold text-gray-800 mb-1">Loading Dashboard...</div>
+                    <div class="text-sm text-gray-500">Please wait while we update your data</div>
+                </div>
             </div>
         </div>
         
@@ -134,10 +165,17 @@
                 </div>
                 <div class="ml-4 flex-1 min-w-0">
                     <h3 class="text-sm font-medium text-gray-900 truncate">Active Purchase Requests</h3>
-                    <p class="text-2xl lg:text-3xl font-bold text-gray-900" wire:loading.class="opacity-50">
-                        {{ $stats['active_prs'] ?? 0 }}
-                    </p>
-                    <p class="text-xs text-gray-500">{{ $stats['draft_prs'] ?? 0 }} drafts</p>
+                    <!-- ✅ IMPROVED: Add loading skeleton -->
+                    <div wire:loading wire:target="switchBusinessUnit,handleBusinessUnitSwitch" class="animate-pulse">
+                        <div class="h-8 lg:h-10 bg-gray-200 rounded w-16 mb-1"></div>
+                        <div class="h-3 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div wire:loading.remove wire:target="switchBusinessUnit,handleBusinessUnitSwitch">
+                        <p class="text-2xl lg:text-3xl font-bold text-gray-900">
+                            {{ $stats['active_prs'] ?? 0 }}
+                        </p>
+                        <p class="text-xs text-gray-500">{{ $stats['draft_prs'] ?? 0 }} drafts</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -154,16 +192,23 @@
                 </div>
                 <div class="ml-4 flex-1 min-w-0">
                     <h3 class="text-sm font-medium text-gray-900 truncate">Pending Approvals</h3>
-                    <p class="text-2xl lg:text-3xl font-bold text-gray-900" wire:loading.class="opacity-50">
-                        {{ $stats['pending_approvals'] ?? 0 }}
-                    </p>
-                    <p class="text-xs text-gray-500">
-                        @if(($stats['overdue_approvals'] ?? 0) > 0)
-                            <span class="text-red-600 font-semibold">{{ $stats['overdue_approvals'] }} overdue</span>
-                        @else
-                            Awaiting your review
-                        @endif
-                    </p>
+                    <!-- ✅ IMPROVED: Add loading skeleton -->
+                    <div wire:loading wire:target="switchBusinessUnit,handleBusinessUnitSwitch" class="animate-pulse">
+                        <div class="h-8 lg:h-10 bg-gray-200 rounded w-16 mb-1"></div>
+                        <div class="h-3 bg-gray-200 rounded w-24"></div>
+                    </div>
+                    <div wire:loading.remove wire:target="switchBusinessUnit,handleBusinessUnitSwitch">
+                        <p class="text-2xl lg:text-3xl font-bold text-gray-900">
+                            {{ $stats['pending_approvals'] ?? 0 }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            @if(($stats['overdue_approvals'] ?? 0) > 0)
+                                <span class="text-red-600 font-semibold">{{ $stats['overdue_approvals'] }} overdue</span>
+                            @else
+                                Awaiting your review
+                            @endif
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -180,12 +225,19 @@
                 </div>
                 <div class="ml-4 flex-1 min-w-0">
                     <h3 class="text-sm font-medium text-gray-900 truncate">Selected Period</h3>
-                    <p class="text-2xl lg:text-3xl font-bold text-gray-900" wire:loading.class="opacity-50">
-                        {{ $stats['period_prs'] ?? 0 }}
-                    </p>
-                    <p class="text-xs text-gray-500">
-                        {{ $stats['approved_prs'] ?? 0 }} approved, {{ $stats['rejected_prs'] ?? 0 }} rejected
-                    </p>
+                    <!-- ✅ IMPROVED: Add loading skeleton -->
+                    <div wire:loading wire:target="switchBusinessUnit,handleBusinessUnitSwitch" class="animate-pulse">
+                        <div class="h-8 lg:h-10 bg-gray-200 rounded w-16 mb-1"></div>
+                        <div class="h-3 bg-gray-200 rounded w-32"></div>
+                    </div>
+                    <div wire:loading.remove wire:target="switchBusinessUnit,handleBusinessUnitSwitch">
+                        <p class="text-2xl lg:text-3xl font-bold text-gray-900">
+                            {{ $stats['period_prs'] ?? 0 }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ $stats['approved_prs'] ?? 0 }} approved, {{ $stats['rejected_prs'] ?? 0 }} rejected
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -202,10 +254,17 @@
                 </div>
                 <div class="ml-4 flex-1 min-w-0">
                     <h3 class="text-sm font-medium text-gray-900 truncate">Total Amount</h3>
-                    <p class="text-2xl lg:text-3xl font-bold text-gray-900" wire:loading.class="opacity-50">
-                        Rp {{ number_format($stats['total_amount'] ?? 0, 0, ',', '.') }}
-                    </p>
-                    <p class="text-xs text-gray-500">Selected period</p>
+                    <!-- ✅ IMPROVED: Add loading skeleton -->
+                    <div wire:loading wire:target="switchBusinessUnit,handleBusinessUnitSwitch" class="animate-pulse">
+                        <div class="h-8 lg:h-10 bg-gray-200 rounded w-24 mb-1"></div>
+                        <div class="h-3 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div wire:loading.remove wire:target="switchBusinessUnit,handleBusinessUnitSwitch">
+                        <p class="text-2xl lg:text-3xl font-bold text-gray-900">
+                            Rp {{ number_format($stats['total_amount'] ?? 0, 0, ',', '.') }}
+                        </p>
+                        <p class="text-xs text-gray-500">Selected period</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -359,11 +418,22 @@
         </div>
     </div>
 
+    {{-- Lazy Load Chart.js only when dashboard is loaded --}}
     @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @once
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+    @endonce
     <script>
         document.addEventListener('livewire:init', () => {
-            initializeCharts(@json($chartData));
+            // Wait for Chart.js to load if deferred
+            if (typeof Chart !== 'undefined') {
+                initializeCharts(@json($chartData));
+            } else {
+                // Wait for Chart.js to load (deferred script)
+                window.addEventListener('load', () => {
+                    initializeCharts(@json($chartData));
+                });
+            }
         });
 
         Livewire.on('chartDataUpdated', (event) => {
@@ -380,7 +450,9 @@
             
             // Check if Chart.js is loaded
             if (typeof Chart === 'undefined') {
-                console.error('Chart.js is not loaded!');
+                console.error('Chart.js is not loaded yet, waiting...');
+                // Retry after a short delay
+                setTimeout(() => initializeCharts(chartData), 100);
                 return;
             }
             

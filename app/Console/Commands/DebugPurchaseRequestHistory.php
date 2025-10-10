@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Modules\Wns\PurchaseRequest;
-use App\Models\PrNumberReservation;
-use App\Models\User;
+use App\Models\Core\User;
+use App\Models\Modules\PurchaseRequest\PrNumberReservation;
+use App\Models\Modules\PurchaseRequest\PurchaseRequest;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 

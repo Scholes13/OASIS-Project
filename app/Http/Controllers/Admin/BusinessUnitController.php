@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessUnit;
+use App\Models\Core\BusinessUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -47,10 +47,8 @@ class BusinessUnitController extends Controller
             ->get();
 
         // Get users who can be General Managers
-        $managers = \App\Models\User::where('is_active', true)
-            ->whereIn('global_role', ['super_admin', 'admin', 'manager'])
-            ->orderBy('name')
-            ->get();
+        $managers = \App\Models\Core\User::where('is_active', true)
+            ->get(['id', 'name', 'email']);
 
         return view('admin.business-units.create', compact('parentBusinessUnits', 'managers'));
     }
@@ -140,7 +138,7 @@ class BusinessUnitController extends Controller
             ->orderBy('name')
             ->get();
 
-        $managers = \App\Models\User::where('is_active', true)
+        $managers = \App\Models\Core\User::where('is_active', true)
             ->orderBy('name')
             ->get();
 

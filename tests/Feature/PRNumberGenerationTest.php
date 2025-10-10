@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\BusinessUnit;
-use App\Models\Department;
-use App\Models\NumberingModule;
-use App\Models\Position;
-use App\Models\User;
-use App\Models\UserBusinessUnit;
-use App\Services\Modules\Wns\PRNumberingService;
+use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
+use App\Models\Core\NumberingModule;
+use App\Models\Core\Position;
+use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
+use App\Services\Modules\PurchaseRequest\UniversalPRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -100,7 +100,7 @@ class PRNumberGenerationTest extends TestCase
         ]);
 
         // Initialize the service
-        $this->prNumberingService = app(PRNumberingService::class);
+        $this->prNumberingService = app(UniversalPRNumberingService::class);
     }
 
     /** @test */

@@ -34,7 +34,7 @@ new #[Layout('layouts.guest')] class extends Component
     }
 }; ?>
 
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8" 
+<div class="min-h-screen flex relative" 
      x-data="{ 
          loggingIn: false,
          hideOverlay() {
@@ -47,51 +47,59 @@ new #[Layout('layouts.guest')] class extends Component
      }"
      x-on:livewire:load="hideOverlay()">
 
-    <div class="max-w-md w-full space-y-8">
-        
-        <!-- Logo & Header -->
-        <div class="text-center">
-            <div class="mx-auto w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center shadow-xl transform hover:scale-105 transition-transform duration-300">
-                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                </svg>
-            </div>
-            <h2 class="mt-6 text-center text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Welcome to NumberSys
-            </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                Enterprise Document Numbering & Approval System
-            </p>
+    <!-- Logo Header - Fixed Top Left of Page -->
+    <div class="absolute top-3.5 left-3.5 sm:top-5 sm:left-5 z-50 flex items-center gap-2 sm:gap-3">
+        <img src="{{ asset('storage/business-units/aDNLhQNtI0R0KiPTv6oFWC2NwLu11tewYoJwjhTg.png') }}" 
+             alt="Werkudara Logo" 
+             class="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 object-contain">
+        <div class="text-gray-700 text-xs sm:text-sm lg:text-base">
+            <span class="font-bold">Werkudara</span> Group
         </div>
-        
-        <!-- Login Form Card -->
-        <div class="bg-white/80 backdrop-blur-sm py-8 px-6 shadow-2xl rounded-3xl border border-gray-200/50 transform hover:shadow-3xl transition-all duration-300">
-            
-            <!-- Session Status -->
-            @if (session('status'))
-                <div class="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span class="text-green-800 text-sm font-medium">{{ session('status') }}</span>
-                    </div>
-                </div>
-            @endif
-            
-            <!-- Error Messages -->
-            @if (session('error'))
-                <div class="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span class="text-red-800 text-sm font-medium">{{ session('error') }}</span>
-                    </div>
-                </div>
-            @endif
+    </div>
 
-            <form wire:submit="login" class="space-y-6" 
+    <!-- Left Side - Login Form (40%) -->
+        <!-- Left Side - Login Form (40%) -->
+    <div class="w-full lg:w-2/5 flex items-center justify-center bg-white px-6 py-8 sm:px-8 lg:px-10">
+        <div class="w-full max-w-sm space-y-8">
+            
+            <!-- Header -->
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                    Welcome to OASIS
+                </h1>
+                <p class="text-base sm:text-lg text-gray-600">
+                    Sign into your account
+                </p>
+            </div>
+            
+            <!-- Login Form -->
+            <div class="mt-8">
+                
+                <!-- Session Status -->
+                @if (session('status'))
+                    <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-green-800 text-sm font-medium">{{ session('status') }}</span>
+                        </div>
+                    </div>
+                @endif
+                
+                <!-- Error Messages -->
+                @if (session('error'))
+                    <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-red-800 text-sm font-medium">{{ session('error') }}</span>
+                        </div>
+                    </div>
+                @endif
+
+                <form wire:submit="login" class="space-y-5" 
                   x-data="{ 
                       showOverlay() {
                           loggingIn = true;
@@ -121,113 +129,169 @@ new #[Layout('layouts.guest')] class extends Component
                   }"
                   x-on:submit="showOverlay()">
 
-                
-                <!-- Email Input -->
-                <div class="space-y-2">
-                    <label for="email" class="block text-sm font-semibold text-gray-700">
-                        Email Address
-                    </label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
-                            </svg>
-                        </div>
+                    
+                    <!-- Email Input -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                            Phone or Email address
+                        </label>
                         <input wire:model="form.email" 
                                id="email"
                                type="email" 
                                required 
                                autofocus
                                autocomplete="username"
-                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gray-50/50 focus:bg-white"
-                               placeholder="Enter your email address">
+                               class="w-full px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                               placeholder="Phone or Email address">
+                        @error('form.email') 
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
-                    @error('form.email') 
-                        <p class="text-sm text-red-600 flex items-center mt-1">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-                
-                <!-- Password Input -->
-                <div class="space-y-2">
-                    <label for="password" class="block text-sm font-semibold text-gray-700">
-                        Password
-                    </label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                            </svg>
-                        </div>
+                    
+                    <!-- Password Input -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                            Password
+                        </label>
                         <input wire:model="form.password" 
                                id="password"
                                type="password" 
                                required 
                                autocomplete="current-password"
-                               class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gray-50/50 focus:bg-white"
-                               placeholder="Enter your password">
-                    </div>
-                    @error('form.password') 
-                        <p class="text-sm text-red-600 flex items-center mt-1">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-                
-                <!-- Remember Me & Forgot Password -->
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <input wire:model="form.remember" 
-                               id="remember" 
-                               type="checkbox" 
-                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200">
-                        <label for="remember" class="ml-3 block text-sm text-gray-700 font-medium">
-                            Remember me
-                        </label>
+                               class="w-full px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                               placeholder="Password">
+                        @error('form.password') 
+                            <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
                     
+                    <!-- Login Button -->
+                    <div>
+                        <button type="submit" 
+                                class="w-full py-2.5 sm:py-3 px-6 border border-transparent rounded-lg text-sm sm:text-base font-semibold text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                            Log In
+                        </button>
+                    </div>
+                    
+                    <!-- Forgot Password -->
                     @if (Route::has('password.request'))
-                        <div class="text-sm">
+                        <div class="text-center">
                             <a href="{{ route('password.request') }}" 
                                wire:navigate
-                               class="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors duration-200 hover:underline">
+                               class="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors duration-200">
                                 Forgot password?
                             </a>
                         </div>
                     @endif
-                </div>
-                
-                <!-- Login Button -->
-                <div class="space-y-4 flex flex-col items-center">
-                    <button type="submit" 
-                            class="inline-flex justify-center items-center py-3 px-6 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                        <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-                        </svg>
-                        <span class="whitespace-nowrap">Sign In</span>
-                    </button>
-                    
-                    <!-- System Admin Note -->
-                    <div class="text-center pt-4 border-t border-gray-200">
-                        <p class="text-xs text-gray-500">
-                            Need access? Contact your System Administrator
-                        </p>
-                    </div>
-                </div>
-            </form>
+                </form>
+            </div>
+            
+            <!-- Footer -->
+            <div class="mt-6 sm:mt-8 text-center">
+                <p class="text-xs text-gray-500">
+                    © {{ date('Y') }} OASIS. Secure office administration system.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side - Illustration (60%) -->
+    <div class="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 relative overflow-hidden items-center justify-center p-6 lg:p-8 xl:p-10">
+        <!-- Decorative Background Elements -->
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute top-10 left-10 w-1/3 h-1/3 bg-white rounded-full blur-3xl"></div>
+            <div class="absolute bottom-10 right-10 w-1/2 h-1/2 bg-cyan-300 rounded-full blur-3xl"></div>
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2/5 h-2/5 bg-purple-400 rounded-full blur-3xl"></div>
         </div>
         
-        <!-- Footer -->
-        <div class="text-center">
-            <p class="text-xs text-gray-500">
-                © {{ date('Y') }} NumberSys. Secure enterprise document management.
+        <!-- Isometric Illustration -->
+        <div class="relative z-10 text-center text-white w-full max-w-3xl 2xl:max-w-4xl">
+            <div class="mb-6 xl:mb-8 2xl:mb-10">
+                <svg class="w-full h-auto mx-auto" viewBox="0 0 600 450" preserveAspectRatio="xMidYMid meet" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Abstract OASIS Illustration -->
+                    <g opacity="0.95">
+                        <!-- Central Circle - Representing "O" in OASIS -->
+                        <circle cx="300" cy="225" r="120" fill="#60A5FA" opacity="0.3"/>
+                        <circle cx="300" cy="225" r="90" fill="#93C5FD" opacity="0.4"/>
+                        <circle cx="300" cy="225" r="60" fill="#DBEAFE" opacity="0.5"/>
+                        
+                        <!-- Floating Documents - Left -->
+                        <g transform="translate(100, 150) rotate(-15)">
+                            <rect x="0" y="0" width="80" height="100" rx="8" fill="#F472B6" opacity="0.9"/>
+                            <line x1="15" y1="20" x2="65" y2="20" stroke="white" stroke-width="3" opacity="0.7"/>
+                            <line x1="15" y1="35" x2="65" y2="35" stroke="white" stroke-width="3" opacity="0.6"/>
+                            <line x1="15" y1="50" x2="55" y2="50" stroke="white" stroke-width="3" opacity="0.5"/>
+                        </g>
+                        
+                        <!-- Approval Checkmark - Top Right -->
+                        <g transform="translate(450, 100)">
+                            <circle cx="0" cy="0" r="50" fill="#10B981" opacity="0.95"/>
+                            <path d="M-20 0 L-8 12 L20 -20" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </g>
+                        
+                        <!-- Analytics Chart - Top Left -->
+                        <g transform="translate(120, 100)">
+                            <rect x="0" y="0" width="90" height="110" rx="8" fill="#A78BFA" opacity="0.9"/>
+                            <path d="M15 75 L30 50 L45 60 L60 35 L75 45" stroke="#DBEAFE" stroke-width="4" stroke-linecap="round"/>
+                            <!-- Bar chart -->
+                            <rect x="15" y="85" width="8" height="20" fill="#DBEAFE" opacity="0.8"/>
+                            <rect x="28" y="75" width="8" height="30" fill="#DBEAFE" opacity="0.8"/>
+                            <rect x="41" y="80" width="8" height="25" fill="#DBEAFE" opacity="0.8"/>
+                            <rect x="54" y="70" width="8" height="35" fill="#DBEAFE" opacity="0.8"/>
+                        </g>
+                        
+                        <!-- File/Folder - Right -->
+                        <g transform="translate(450, 280) rotate(10)">
+                            <rect x="0" y="0" width="85" height="105" rx="8" fill="#34D399" opacity="0.9"/>
+                            <line x1="15" y1="25" x2="70" y2="25" stroke="white" stroke-width="3" opacity="0.7"/>
+                            <line x1="15" y1="40" x2="70" y2="40" stroke="white" stroke-width="3" opacity="0.6"/>
+                            <line x1="15" y1="55" x2="60" y2="55" stroke="white" stroke-width="3" opacity="0.5"/>
+                            <line x1="15" y1="70" x2="70" y2="70" stroke="white" stroke-width="3" opacity="0.4"/>
+                        </g>
+                        
+                        <!-- Notification Badge - Bottom Left -->
+                        <g transform="translate(130, 330)">
+                            <rect x="0" y="0" width="100" height="70" rx="10" fill="#6366F1" opacity="0.9"/>
+                            <circle cx="20" cy="25" r="8" fill="white"/>
+                            <line x1="35" y1="20" x2="85" y2="20" stroke="white" stroke-width="3" opacity="0.8"/>
+                            <line x1="35" y1="30" x2="75" y2="30" stroke="white" stroke-width="3" opacity="0.6"/>
+                            <line x1="15" y1="50" x2="85" y2="50" stroke="white" stroke-width="3" opacity="0.5"/>
+                        </g>
+                        
+                        <!-- Task Completed - Bottom Right -->
+                        <g transform="translate(420, 340)">
+                            <rect x="0" y="0" width="90" height="65" rx="10" fill="#EC4899" opacity="0.9"/>
+                            <path d="M25 35 L38 48 L65 20" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </g>
+                        
+                        <!-- Central Icon - OASIS Symbol -->
+                        <g transform="translate(300, 225)">
+                            <!-- Letter "O" stylized as circular flow -->
+                            <circle cx="0" cy="0" r="35" stroke="#1E40AF" stroke-width="6" fill="none" opacity="0.8"/>
+                            <!-- Arrow indicating flow/system -->
+                            <path d="M25 -5 L35 0 L25 5" fill="#1E40AF" opacity="0.8"/>
+                            <circle cx="0" cy="0" r="12" fill="#3B82F6" opacity="0.9"/>
+                        </g>
+                        
+                        <!-- Connecting Lines - Showing System Integration -->
+                        <line x1="240" y1="180" x2="180" y2="150" stroke="#DBEAFE" stroke-width="2" stroke-dasharray="5,5" opacity="0.3"/>
+                        <line x1="360" y1="180" x2="450" y2="150" stroke="#DBEAFE" stroke-width="2" stroke-dasharray="5,5" opacity="0.3"/>
+                        <line x1="240" y1="270" x2="180" y2="330" stroke="#DBEAFE" stroke-width="2" stroke-dasharray="5,5" opacity="0.3"/>
+                        <line x1="360" y1="270" x2="470" y2="340" stroke="#DBEAFE" stroke-width="2" stroke-dasharray="5,5" opacity="0.3"/>
+                        
+                        <!-- Floating Particles/Dots -->
+                        <circle cx="250" cy="120" r="4" fill="white" opacity="0.6"/>
+                        <circle cx="350" cy="140" r="3" fill="white" opacity="0.5"/>
+                        <circle cx="200" cy="250" r="5" fill="white" opacity="0.4"/>
+                        <circle cx="400" cy="260" r="4" fill="white" opacity="0.5"/>
+                        <circle cx="320" cy="360" r="3" fill="white" opacity="0.6"/>
+                    </g>
+                </svg>
+            </div>
+            
+            <h2 class="text-2xl sm:text-3xl xl:text-4xl 2xl:text-5xl font-bold mb-3 xl:mb-4 2xl:mb-6">Streamline Your Office Workflow</h2>
+            <p class="text-base sm:text-lg xl:text-xl 2xl:text-2xl text-blue-100 max-w-xl xl:max-w-2xl mx-auto px-4">
+                Manage documents, approvals, and administration tasks efficiently in one place
             </p>
         </div>
     </div>

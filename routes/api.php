@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\ApprovalController;
-use App\Http\Controllers\Api\PurchaseRequestController;
+use App\Http\Controllers\Modules\PurchaseRequest\Api\ApprovalController;
+use App\Http\Controllers\Modules\PurchaseRequest\Api\PurchaseRequestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -61,7 +61,7 @@ Route::prefix('v1')->group(function () {
 
         // Business Units API
         Route::get('/business-units', function () {
-            $businessUnits = \App\Models\BusinessUnit::where('is_active', true)
+            $businessUnits = \App\Models\Core\BusinessUnit::where('is_active', true)
                 ->with(['departments' => function ($query) {
                     $query->where('is_active', true);
                 }])
@@ -75,7 +75,7 @@ Route::prefix('v1')->group(function () {
 
         // Departments API
         Route::get('/departments', function (Request $request) {
-            $query = \App\Models\Department::where('is_active', true);
+            $query = \App\Models\Core\Department::where('is_active', true);
 
             if ($request->filled('business_unit_id')) {
                 $query->where('business_unit_id', $request->business_unit_id);

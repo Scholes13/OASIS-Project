@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Modules\Wns\PrApproval;
-use App\Models\User;
-use App\Services\Modules\Wns\ApprovalWorkflowService;
+use App\Models\Core\User;
+use App\Models\Modules\PurchaseRequest\PrApproval;
+use App\Services\Modules\PurchaseRequest\ApprovalWorkflowService;
 use Illuminate\Console\Command;
 
 class DebugApprovalHistory extends Command

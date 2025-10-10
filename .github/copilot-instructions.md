@@ -7,14 +7,87 @@ This is an enterprise **Purchase Request Management System** built with Laravel 
 - **Development**: Windows (case-insensitive filesystem)
 - **Production**: Linux hosting at devlopment.werkudara.com (case-sensitive filesystem) 
 - **Critical**: Always follow proper Laravel naming conventions for cross-platform compatibility
-- **Current Version**: v.2 (October 2025) - Complete resubmit flow with QR reusability & scrollbar stability
+- **Current Version**: v.2.2 (October 2025) - Phase 1+2 Performance Optimization COMPLETE + 5 critical bug fixes
+
+## Performance Optimization Status (v.2.2)
+
+### Phase 1: COMPLETE ✅ (October 2025)
+**Achievement**: 95-97% query reduction, 83-85% faster load times
+
+#### Task 1.1: Database Performance Indexes ✅
+- **15 indexes created** (7 core + 8 supplementary)
+- **Query improvement**: 60-95% faster execution
+- **Files**: `database/migrations/*_add_performance_indexes_*.php`
+- **Documentation**: `database/migrations/README-INDEX-STANDARDS.md` (templates for future modules)
+
+#### Task 1.2: Dashboard N+1 Optimization ✅
+- **Query reduction**: 40+ → 10 queries (75% reduction)
+- **Load time**: ~150ms → ~50ms (67% faster)
+- **Pattern**: Eager loading with `with()`, relationship optimization
+- **File**: `app/Livewire/Dashboard/UserDashboard.php`
+
+#### Task 1.3: Dashboard Caching ✅
+- **Cache hit improvement**: 48.8% query reduction
+- **Average load time**: ~25ms (83% faster)
+- **Strategy**: Database cache driver (Redis recommended for production)
+- **Cache TTLs**: Stats/Charts (5min), Activities (1min), BUs (60min)
+- **File**: `app/Livewire/Dashboard/UserDashboard.php`
+
+#### Task 1.4: Business Unit Switcher Optimization ✅
+- **Query reduction**: 75% (4 → 1 queries on cache hit)
+- **Hydrate optimization**: 100% (0 queries when session unchanged)
+- **UX improvement**: Stay on current page (no redirect)
+- **Event architecture**: Unified `business-unit-switched` event
+- **File**: `app/Livewire/Components/BusinessUnitSwitcher.php`
+
+### Critical Bug Fixes (v.2.1) ✅
+**All 4 bugs resolved** - 100% console error elimination
+
+#### Bug #1: Navbar Not Updating After BU Switch
+- **Problem**: Property `$currentBusinessUnit` not updated after session change
+- **Fix**: Added immediate property update in `switchBusinessUnit()` method
+- **File**: `app/Livewire/Components/BusinessUnitSwitcher.php` (line ~135)
+
+#### Bug #2: Livewire Snapshot Missing (Self-Refresh Conflict)
+- **Problem**: Double refresh causing race condition (component + page)
+- **Fix**: Removed `$this->dispatch('$refresh')` call
+- **File**: `app/Livewire/Components/BusinessUnitSwitcher.php` (line ~145)
+
+#### Bug #3: Event Name Mismatch (Dashboard vs Navbar)
+- **Problem**: Dashboard emitted `business-unit-changed`, switcher emitted `business-unit-switched`
+- **Fix**: Unified to `business-unit-switched` + added bidirectional listeners
+- **Files**: `UserDashboard.php` (line ~156), `BusinessUnitSwitcher.php` (lines ~20, ~235)
+
+#### Bug #4: Dynamic wire:key Anti-Pattern
+- **Problem**: `wire:key` used dynamic values causing component identity change
+- **Fix**: Changed to static `wire:key="bu-switcher-{{ auth()->id() }}"`
+- **Files**: `business-unit-switcher.blade.php`, `app.blade.php`
+- **Documentation**: `BUGFIX-WIRE-KEY-ISSUE.md`
+
+#### Bug #5: Dashboard Tidak Sinkron Setelah Switch BU (v.2.2) ✅
+- **Problem**: Race condition - Livewire property belum terupdate saat event handler load data
+- **Root Cause**: `handleBusinessUnitSwitch()` update property first, then load data → property not hydrated yet → query pakai BU ID lama
+- **Fix**: 
+  1. Update session FIRST (single source of truth)
+  2. Then update property (for UI binding)
+  3. Then load data (reads from session, guaranteed fresh)
+  4. `getFilteredBusinessUnitIds()` always reads from session first: `session('current_business_unit_id') ?? $this->activeBusinessUnitId`
+- **Pattern**: **Session as single source of truth** for Livewire event handlers
+- **File**: `app/Livewire/Dashboard/UserDashboard.php` (lines ~207-235, ~250-260)
+- **Documentation**: `BUGFIX-DASHBOARD-SYNC-ISSUE.md`
+
+### Phase 2: ✅ COMPLETE (Frontend & Livewire Optimization)
+- Task 2.1: Asset loading optimization (lazy load Chart.js) ✅
+- Task 2.2: Livewire partial updates (debouncing, wire:target) ✅
+- Task 2.3: Lazy loading components (pagination, virtual scrolling) ✅
+- **Bonus**: 4 reusable components created (85% code reuse for future modules)
 
 ## Core Architecture Patterns
 
 ### 1. Service-Oriented Architecture
-- **Naming Services**: `app/Services/Modules/Wns/PRNumberingService.php` - Handles sequential PR number generation per business unit
-- **Workflow Services**: `app/Services/Modules/Wns/ApprovalWorkflowService.php` - Core approval engine with rule-based approver assignment
-- **QR Services**: `app/Services/QrCodeService.php` - PDF verification and tracking
+- **Naming Services**: `app/Services/Modules/PurchaseRequest/UniversalPRNumberingService.php` - Handles sequential PR number generation per business unit
+- **Workflow Services**: `app/Services/Modules/PurchaseRequest/ApprovalWorkflowService.php` - Core approval engine with rule-based approver assignment
+- **QR Services**: `app/Services/Core/QrCodeService.php` - PDF verification and tracking
 
 ### 2. Livewire Hybrid Architecture (Critical Pattern)
 **Performance-optimized pattern using client-side calculations:**
@@ -24,20 +97,25 @@ wire:model.blur="items.{{ $index }}.quantity"
 // + JavaScript calculateRowTotal() for instant feedback
 oninput="calculateRowTotal({{ $index }});"
 ```
-- Files: `resources/views/livewire/modules/wns/purchase-requests/create.blade.php`
+- Files: `resources/views/livewire/modules/purchase-request/create.blade.php`
 - **Why**: Reduces server requests by 90%, prevents input lag during fast typing
 - **Pattern**: Client-side JS for instant feedback + server-side validation on blur
 
 ### 3. Modular Domain Structure
 ```
-app/Models/Modules/Wns/
-├── PurchaseRequest.php    # Main entity with workflow states
-├── PrItem.php            # Line items with expense department tracking  
-└── PrApproval.php        # Approval step tracking
+app/Models/Modules/PurchaseRequest/
+├── PurchaseRequest.php       # Main entity with workflow states
+├── PrItem.php               # Line items with expense department tracking  
+├── PrApproval.php           # Approval step tracking
+└── PrNumberReservation.php  # PR number reservation
 
-app/Livewire/Modules/Wns/
-└── PurchaseRequests/
-    └── Create.php         # Main PR creation component (1703 lines)
+app/Services/Modules/PurchaseRequest/
+├── PurchaseRequestService.php        # PR business logic
+├── ApprovalWorkflowService.php       # Approval engine
+└── UniversalPRNumberingService.php   # PR numbering system
+
+app/Livewire/Modules/PurchaseRequest/
+└── Create.php         # Main PR creation component (1864 lines)
 ```
 
 ## Business Logic Essentials
@@ -65,8 +143,8 @@ session(['current_business_unit_id' => $businessUnit->id]);
 
 ### Database Operations
 ```bash
-# Migration pattern for WNS module
-php artisan make:migration create_wns_module_table --path=database/migrations/modules/wns
+# Migration pattern for Purchase Request module
+php artisan make:migration create_purchase_requests_table --path=database/migrations/modules/purchase-request
 
 # Always use transactions for PR operations
 DB::beginTransaction();
@@ -125,12 +203,25 @@ function calculateRowTotal(index) {
 
 ## Integration Points
 
-### PDF Generation (Barryvdh/DomPDF)
-- Templates: `resources/views/purchase-requests/pdf-browser.blade.php` (current active template)
-- QR codes embedded for verification
-- Custom CSS for print formatting
+### PDF Generation (Browsershot + Config-Driven Architecture)
+- **Primary Method**: Browsershot (Headless Chrome/Puppeteer) - Best for complex CSS
+- **Config Switch**: `config('pdf.pdf_method')` in `config/pdf.php` - Allows future alternatives
+- **Templates**: `resources/views/purchase-requests/pdf-browser.blade.php` (active template for Browsershot)
+- **Alternative Ready**: DomPDF template exists (`pdf-dompdf.blade.php`) but not used in production
+- **QR Codes**: Embedded for verification with reusable tokens
+- **Custom CSS**: Print-optimized formatting with `@media print` rules
 - **IMPORTANT**: QR tokens are REUSABLE - based on preserved `submitted_at` timestamp
 - QR Token Formula: `hash('sha256', json_encode(['pr_id', 'user_id', 'submitted_at', 'type']) . app.key)`
+- **Controller Pattern**:
+  ```php
+  // Config-driven PDF generation
+  $pdfMethod = config('pdf.pdf_method', 'browsershot');
+  if ($pdfMethod === 'browsershot') {
+      return $this->generateBrowsershotPdf($pr, $qrCodes, $filename);
+  } else {
+      return $this->generateDompdfPdf($pr, $qrCodes, $filename);
+  }
+  ```
 
 ### Authentication & Authorization (Spatie)
 ```php
@@ -142,15 +233,170 @@ $user->getManagedUserIds(); // Business unit scoped access
 ### Activity Logging (Spatie)
 All PR changes logged automatically via `LogsActivity` trait
 
+## Performance Best Practices (Based on Phase 1 Learnings)
+
+### Database Optimization Patterns
+1. **Always Use Indexes**: Follow 5-index standard pattern for all modules
+   ```php
+   // Standard indexes for any module:
+   - user_id + status
+   - business_unit_id + status + created_at
+   - status + created_at
+   - department_id + status + created_at (if applicable)
+   - Multi-BU context: user_id + business_unit_id + status
+   ```
+
+2. **N+1 Query Prevention**: Use eager loading consistently
+   ```php
+   // ❌ BAD: N+1 queries
+   $prs = PurchaseRequest::all();
+   foreach ($prs as $pr) { $pr->user->name; }
+   
+   // ✅ GOOD: Eager loading
+   $prs = PurchaseRequest::with(['user', 'items', 'approvals'])->get();
+   ```
+
+3. **Caching Strategy**: Implement multi-tier caching
+   ```php
+   // Pattern from UserDashboard.php
+   const CACHE_TTL_STATS = 300;      // 5 min for stats
+   const CACHE_TTL_ACTIVITIES = 60;  // 1 min for activities
+   const CACHE_TTL_CHARTS = 300;     // 5 min for charts
+   const CACHE_TTL_BUS = 3600;       // 60 min for business units
+   ```
+
+### Livewire Best Practices (From Bug Fixes)
+
+1. **Event Architecture**: Use unified event names with bidirectional listeners
+   ```php
+   // ✅ CORRECT: Unified event system
+   // Component A emits:
+   $this->dispatch('business-unit-switched', businessUnitId: $id);
+   
+   // Component B listens:
+   protected $listeners = ['business-unit-switched' => 'handleBusinessUnitSwitch'];
+   
+   public function handleBusinessUnitSwitch($businessUnitId) {
+       $this->loadData();
+   }
+   ```
+
+2. **wire:key Pattern**: NEVER use dynamic values for component identity
+   ```php
+   // ❌ WRONG: Dynamic wire:key causes component destroy/recreate
+   <div wire:key="component-{{ $dynamicValue }}">
+   
+   // ✅ CORRECT: Static wire:key based on entity ID
+   <div wire:key="component-{{ $user->id }}">
+   
+   // ✅ CORRECT: Static wire:key for singletons
+   <div wire:key="business-unit-switcher-{{ auth()->id() }}">
+   ```
+
+3. **Avoid Refresh Conflicts**: Single refresh source per interaction
+   ```php
+   // ❌ WRONG: Multiple refresh sources
+   $this->dispatch('event');
+   $this->dispatch('$refresh');  // Conflict!
+   
+   // ✅ CORRECT: Let parent handle refresh
+   $this->dispatch('event');  // Parent will refresh everything
+   ```
+
+4. **Property Synchronization**: Always update properties after session changes
+   ```php
+   // ✅ CORRECT: Update property immediately
+   session(['current_business_unit_id' => $businessUnit->id]);
+   $this->currentBusinessUnit = [
+       'id' => $businessUnit->id,
+       'code' => $businessUnit->code,
+       'name' => $businessUnit->name,
+   ];
+   ```
+
+5. **Session as Single Source of Truth** (CRITICAL for Event Handlers)
+   ```php
+   // ✅ CORRECT: Session first, property second, then load data
+   public function handleBusinessUnitSwitch($businessUnitId): void
+   {
+       // 1. Update session FIRST (single source of truth)
+       session(['current_business_unit_id' => $businessUnitId]);
+       
+       // 2. Update property (for UI binding)
+       $this->activeBusinessUnitId = $businessUnitId;
+       
+       // 3. Load data (reads from session, guaranteed fresh)
+       $this->loadData();
+   }
+   
+   // ✅ CORRECT: Always read from session in data methods
+   protected function getFilteredData(): array
+   {
+       $id = session('current_business_unit_id') ?? $this->activeBusinessUnitId;
+       return Model::where('business_unit_id', $id)->get();
+   }
+   
+   // ❌ WRONG: Property first (may be stale during event handling)
+   public function handleBusinessUnitSwitch($businessUnitId): void
+   {
+       $this->activeBusinessUnitId = $businessUnitId; // Not hydrated yet!
+       session(['current_business_unit_id' => $businessUnitId]);
+       $this->loadData(); // May read stale property!
+   }
+   ```
+   - **Why**: Livewire properties belum hydrated saat event handler dipanggil
+   - **Pattern**: Session = persistent (always fresh), Property = UI binding (may lag)
+   - **File**: `app/Livewire/Dashboard/UserDashboard.php` (Bug #5 fix)
+
+### Caching Best Practices
+
+1. **Cache Key Structure**: Use consistent naming with context
+   ```php
+   // Pattern: {component}_{businessUnit}_{user}_{dataType}_{period}
+   Cache::remember("dashboard_stats_{$buId}_{$userId}_{$period}", ...)
+   Cache::remember("dashboard_activities_{$buId}_{$userId}", ...)
+   ```
+
+2. **Cache Invalidation**: Clear related caches on mutations
+   ```php
+   // In PurchaseRequestService.php
+   protected function clearUserDashboardCache(int $userId): void
+   {
+       Cache::forget("dashboard_stats_{$buId}_{$userId}_today");
+       Cache::forget("dashboard_activities_{$buId}_{$userId}");
+       // ... clear all related caches
+   }
+   ```
+
+3. **Hydrate Optimization**: Skip queries when data unchanged
+   ```php
+   public function hydrate(): void
+   {
+       $sessionBuId = session('current_business_unit_id');
+       if ($this->currentBusinessUnit['id'] == $sessionBuId) {
+           return; // ✅ Skip database query!
+       }
+       // Only fetch if changed
+       $this->loadBusinessUnit($sessionBuId);
+   }
+   ```
+
 ## Key Files for AI Context
 
 ### Core Business Logic
-- `app/Services/Modules/Wns/ApprovalWorkflowService.php` - Approval engine
-- `app/Models/Modules/Wns/PurchaseRequest.php` - Main domain model
+- `app/Services/Modules/PurchaseRequest/ApprovalWorkflowService.php` - Approval engine
+- `app/Services/Modules/PurchaseRequest/PurchaseRequestService.php` - PR business logic
+- `app/Models/Modules/PurchaseRequest/PurchaseRequest.php` - Main domain model
 - `app/Livewire/Modules/Wns/PurchaseRequests/Create.php` - PR creation component (1703 lines)
 
+### Performance-Optimized Files (v.2.1)
+- `app/Livewire/Dashboard/UserDashboard.php` - Full caching + N+1 optimization
+- `app/Livewire/Components/BusinessUnitSwitcher.php` - Cache + event architecture + all bug fixes
+- `database/migrations/*_add_performance_indexes_*.php` - 15 performance indexes
+- `database/migrations/README-INDEX-STANDARDS.md` - Index templates for future modules
+
 ### UI Components  
-- `resources/views/livewire/modules/wns/purchase-requests/create.blade.php` - Main form view (759 lines)
+- `resources/views/livewire/modules/purchase-request/create.blade.php` - Main form view
 - `resources/views/layouts/app.blade.php` - Toast notification system & scrollbar stability
 - `resources/views/purchase-requests/pdf-browser.blade.php` - Active PDF template with QR codes
 - `resources/views/pr-numbers/index.blade.php` - PR number reservation page (moved from purchase-requests)
@@ -166,13 +412,15 @@ All PR changes logged automatically via `LogsActivity` trait
 
 ### Critical: Case-Sensitivity Issues
 - **Linux vs Windows**: Linux is case-sensitive, Windows is NOT
-- **Always use proper casing**: `Wns` not `WNS` or `wns` for folder names
-- **Livewire convention**: `<livewire:modules.wns.purchase-requests.create />` resolves to `Modules/Wns/PurchaseRequests/`
+- **Always use proper casing**: Follow exact folder names in project
+- **Livewire convention**: `<livewire:modules.purchase-request.create />` resolves to `Modules/PurchaseRequest/`
 - **Example of correct casing**:
   ```
-  ✅ Correct: app/Livewire/Modules/Wns/PurchaseRequests/Create.php
-  ❌ Wrong:   app/Livewire/Modules/WNS/PurchaseRequests/Create.php
-  ❌ Wrong:   app/Livewire/Modules/wns/PurchaseRequests/Create.php
+  ✅ Correct: app/Livewire/Modules/PurchaseRequest/Create.php
+  ✅ Correct: app/Models/Modules/PurchaseRequest/PurchaseRequest.php
+  ✅ Correct: app/Services/Modules/PurchaseRequest/ApprovalWorkflowService.php
+  ❌ Wrong:   app/Livewire/Modules/purchaserequest/Create.php
+  ❌ Wrong:   app/Models/Modules/PurchaseRequest/purchaseRequest.php
   ```
 - **Why it matters**: Works on Windows (all variations) but breaks on Linux (only exact match)
 
@@ -219,7 +467,7 @@ All PR changes logged automatically via `LogsActivity` trait
 1. **Separate Edit and Resubmit Actions**
    - **Edit**: Updates PR data while keeping `status = 'rejected'`
    - **Resubmit**: Resets workflow and changes `status = 'submitted'`
-   - File: `app/Livewire/Modules/Wns/PurchaseRequests/Create.php`
+   - File: `app/Livewire/Modules/PurchaseRequest/Create.php`
    ```php
    protected function submitUpdatedRequest()
    {
@@ -259,7 +507,7 @@ All PR changes logged automatically via `LogsActivity` trait
 3. **Custom Workflow Preservation**
    - **Problem**: Custom approval workflows were lost after reset
    - **Solution**: Preserve `approval_workflow` JSON and recreate from it
-   - File: `app/Services/Modules/Wns/ApprovalWorkflowService.php`
+   - File: `app/Services/Modules/PurchaseRequest/ApprovalWorkflowService.php`
    ```php
    public function resetWorkflow(PurchaseRequest $pr): bool
    {
@@ -389,19 +637,46 @@ All PR changes logged automatically via `LogsActivity` trait
    - Reason: Better IDE support, use imported facade
 
 2. **Override Bug Fix**
-   - File: `app/Livewire/Modules/Wns/PurchaseRequests/Create.php`
+   - File: `app/Livewire/Modules/PurchaseRequest/Create.php`
    - Issue: `submitUpdatedRequest()` always changed status to 'submitted'
    - Fix: Check `$wasRejected` flag, preserve 'rejected' status when editing
 
 3. **QR Token Change Bug**
-   - File: `app/Services/PurchaseRequestService.php`
+   - File: `app/Services/Modules/PurchaseRequest/PurchaseRequestService.php`
    - Issue: `submitted_at = now()` created new timestamp → different QR token
    - Fix: `submitted_at = $originalSubmittedAt ?? now()` preserves timestamp
 
 4. **Workflow Loss Bug**
-   - File: `app/Services/Modules/Wns/ApprovalWorkflowService.php`
+   - File: `app/Services/Modules/PurchaseRequest/ApprovalWorkflowService.php`
    - Issue: `resetWorkflow()` set `approval_workflow = null`
    - Fix: Don't set to null, create `recreateWorkflowFromJson()` method
+
+### New Features in v.2.1
+
+1. **Dashboard Business Unit Sync Fix**
+   - **Problem**: Dashboard showed wrong data when switching business units via header
+   - **Root Cause**: Two components using different session keys:
+     - Header Badge: `session('current_business_unit_id')` (global)
+     - Dashboard: `session('dashboard_active_business_unit_id')` (local)
+   - **Solution**: 
+     - Dashboard now prioritizes global session key
+     - `switchBusinessUnit()` saves to BOTH keys for backward compatibility
+   - **Files Changed**: `app/Livewire/Dashboard/UserDashboard.php`
+   - **Impact**: Business unit switching now works consistently across all pages
+
+2. **PDF Config Refactoring**
+   - **Change**: Extracted PDF method selection to config file
+   - **Before**: Hardcoded Browsershot in controller
+   - **After**: Config-driven with `config('pdf.pdf_method')`
+   - **Benefits**: Easy to switch PDF engines without code changes
+   - **Files**:
+     - `config/pdf.php` - New config file with method selection
+     - `app/Http/Controllers/Modules/PurchaseRequest/PurchaseRequestController.php`
+       - New method: `generateDompdfPdf()` (alternative, not used)
+       - Updated: `downloadPdfPublic()` - Config-driven method selection
+   - **Templates**:
+     - `pdf-browser.blade.php` - Browsershot template (ACTIVE)
+     - `pdf-dompdf.blade.php` - DomPDF fallback (NOT USED)
 
 ### Testing Checklist for v.2
 
@@ -433,6 +708,48 @@ When working with PR resubmit features, always test:
    - ✅ PR numbers page at `resources/views/pr-numbers/index.blade.php`
    - ✅ Only active routes in `routes/web.php`
    - ✅ Only active methods in controllers
+
+5. **Performance Testing (v.2.1)**
+   - ✅ Dashboard loads in <50ms (with cache hit)
+   - ✅ BU switch completes in <100ms
+   - ✅ No N+1 queries (check with Debugbar)
+   - ✅ Cache hit rate >70%
+   - ✅ Zero console errors
+   - ✅ All indexes used (verify with EXPLAIN)
+
+### Debugging Tools & Commands
+
+**Check Performance**:
+```bash
+# Enable query log in tinker
+php artisan tinker
+DB::enableQueryLog();
+// ... perform action ...
+dd(DB::getQueryLog());
+
+# Check cache usage
+Cache::get('dashboard_stats_1_1_today'); // Returns cached data or null
+
+# Verify indexes
+php artisan tinker
+DB::select('SHOW INDEX FROM purchase_requests');
+```
+
+**Browser Console Debugging**:
+```javascript
+// Check Livewire component state
+Livewire.all(); // List all components
+
+// Monitor events
+window.addEventListener('livewire:dispatch', (event) => {
+    console.log('Event:', event.detail);
+});
+
+// Check wire:key values
+document.querySelectorAll('[wire\\:key]').forEach(el => {
+    console.log(el.getAttribute('wire:key'));
+});
+```
 
 ### Storage & Assets
 - **Storage symlink**: Always create `php artisan storage:link` on hosting

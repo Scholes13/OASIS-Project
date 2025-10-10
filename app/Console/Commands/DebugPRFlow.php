@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Modules\Wns\PurchaseRequest;
-use App\Models\NumberSequence;
-use App\Models\User;
+use App\Models\Core\NumberSequence;
+use App\Models\Core\User;
+use App\Models\Modules\PurchaseRequest\PurchaseRequest;
 use Illuminate\Console\Command;
 
 class DebugPRFlow extends Command

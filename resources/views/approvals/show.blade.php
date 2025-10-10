@@ -276,7 +276,7 @@
                         <p class="text-xs text-gray-500 mb-4">This QR code is unique to your approval and cannot be replicated</p>
                         
                         @php
-                            $qrCodeService = new \App\Services\QrCodeService();
+                            $qrCodeService = new \App\Services\Core\QrCodeService();
                             $publicUrl = $qrCodeService->generatePublicVerificationUrl($approval);
                         @endphp
                         

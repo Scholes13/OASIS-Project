@@ -54,5 +54,5 @@
     </x-slot>
 
     <!-- Purchase Request Create Form -->
-    <livewire:modules.wns.purchase-requests.create />
+    <livewire:modules.purchase-request.create />
 </x-app-layout>

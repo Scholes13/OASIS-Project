@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessUnit;
-use App\Models\Department;
-use App\Models\Modules\Wns\PrApproval;
-use App\Models\Modules\Wns\PurchaseRequest;
-use App\Models\NumberSequence;
-use App\Models\User;
+use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
+use App\Models\Core\NumberSequence;
+use App\Models\Core\User;
+use App\Models\Modules\PurchaseRequest\PrApproval;
+use App\Models\Modules\PurchaseRequest\PurchaseRequest;
 use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
@@ -26,7 +26,7 @@ class AdminController extends Controller
             'total_business_units' => BusinessUnit::count(),
             'active_business_units' => BusinessUnit::where('is_active', true)->count(),
             'total_departments' => Department::count(),
-            'total_assignments' => \App\Models\UserBusinessUnit::where('is_active', true)->count(),
+            'total_assignments' => \App\Models\Core\UserBusinessUnit::where('is_active', true)->count(),
             'total_purchase_requests' => PurchaseRequest::count(),
             'pending_approvals' => PrApproval::where('status', 'pending')->count(),
             'active_sequences' => NumberSequence::where('is_active', true)->count(),

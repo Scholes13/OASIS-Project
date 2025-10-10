@@ -1,0 +1,19 @@
+{
+    "php.validate.enable": true,
+    "php.suggest.basic": true,
+    "intelephense.diagnostics.undefinedMethods": false,
+    "files.associations": {
+        "*.blade.php": "blade",
+        "*.php": "php"
+    },
+    "emmet.includeLanguages": {
+        "blade": "html"
+    },
+    "tailwindCSS.includeLanguages": {
+        "blade": "html"
+    },
+    "tailwindCSS.experimental.classRegex": [
+        ["class(?:Name)?\\s*=\\s*['\"]([^'\"]*)['\"]", "['\"]([^'\"]*)"],
+        ["@apply\\s+([^;]+);", "([\\w-]+)"]
+    ]
+}

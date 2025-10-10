@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
-use App\Services\UniversalPRNumberingService;
+use App\Models\Core\User;
+use App\Services\Modules\PurchaseRequest\UniversalPRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 

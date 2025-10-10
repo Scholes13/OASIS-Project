@@ -1,7 +1,7 @@
 <div class="relative" 
      x-data="{ open: false }" 
      x-on:click.away="open = false"
-     wire:key="bu-switcher-{{ $currentBusinessUnit['id'] ?? 'none' }}-{{ auth()->id() }}">
+     wire:key="bu-switcher-{{ auth()->id() }}">
     @if(count($availableBusinessUnits) > 1)
         <!-- Business Unit Switcher Button -->
         <button 

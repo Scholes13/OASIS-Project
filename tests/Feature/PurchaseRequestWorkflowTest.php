@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\BusinessUnit;
-use App\Models\Department;
-use App\Models\Modules\Wns\PrItem;
-use App\Models\Modules\Wns\PurchaseRequest;
-use App\Models\User;
-use App\Services\Modules\Wns\ApprovalWorkflowService;
-use App\Services\Modules\Wns\PRNumberingService;
+use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
+use App\Models\Core\User;
+use App\Models\Modules\PurchaseRequest\PrItem;
+use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Services\Modules\PurchaseRequest\ApprovalWorkflowService;
+use App\Services\Modules\PurchaseRequest\UniversalPRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Spatie\Permission\Models\Role;
@@ -376,7 +376,7 @@ class PurchaseRequestWorkflowTest extends TestCase
 
     protected function createSamplePurchaseRequest(): PurchaseRequest
     {
-        $numberingService = app(PRNumberingService::class);
+        $numberingService = app(UniversalPRNumberingService::class);
         $prNumber = $numberingService->generatePRNumber($this->requestor);
 
         $pr = PurchaseRequest::create([
@@ -423,7 +423,7 @@ class PurchaseRequestWorkflowTest extends TestCase
 
     protected function createHighValuePurchaseRequest(): PurchaseRequest
     {
-        $numberingService = app(PRNumberingService::class);
+        $numberingService = app(UniversalPRNumberingService::class);
         $prNumber = $numberingService->generatePRNumber($this->requestor);
 
         $pr = PurchaseRequest::create([

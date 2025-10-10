@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PrNumberReservation;
+use App\Models\Modules\PurchaseRequest\PrNumberReservation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 

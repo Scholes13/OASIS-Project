@@ -8,16 +8,21 @@
         <title>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'NumberSys') }}</title>
         <meta name="description" content="Enterprise Document Numbering & Approval System">
 
-        <!-- Fonts -->
+        <!-- Fonts - Preconnect for faster loading -->
         <link rel="preconnect" href="https://fonts.bunny.net">
+        <link rel="dns-prefetch" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
-        <!-- FontAwesome -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <!-- FontAwesome - Preload for critical icons -->
+        <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
 
-        <!-- Scripts -->
+        <!-- Scripts - Vite with automatic versioning -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
+        
+        <!-- Dynamic script stack for lazy loading (Chart.js, etc) -->
+        @stack('scripts')
     </head>
     <body class="h-full font-inter antialiased" x-data="{ sidebarOpen: false, sidebarMinimized: false }" @resize.window="if ($el.clientWidth >= 1024) sidebarOpen = false">
         <div class="h-full flex overflow-hidden">
@@ -118,7 +123,7 @@
                         <!-- Right side of top nav -->
                         <div class="flex items-center gap-x-4 lg:gap-x-6">
                             <!-- Business Unit Switcher -->
-                            <div wire:key="business-unit-switcher-{{ auth()->id() }}-{{ session('current_business_unit_id', 'none') }}">
+                            <div wire:key="business-unit-switcher-{{ auth()->id() }}">
                                 <livewire:components.business-unit-switcher />
                             </div>
                             

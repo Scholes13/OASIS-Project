@@ -3,8 +3,8 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
-use App\Http\Controllers\ApprovalController;
-use App\Http\Controllers\PurchaseRequestController;
+use App\Http\Controllers\Modules\PurchaseRequest\ApprovalController;
+use App\Http\Controllers\Modules\PurchaseRequest\PurchaseRequestController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 

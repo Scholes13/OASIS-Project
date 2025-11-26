@@ -234,6 +234,36 @@ class User extends Authenticatable
     }
 
     /**
+     * ========================================
+     * Sales CRM Relationships (v2.5)
+     * ========================================
+     */
+
+    /**
+     * Get sales activities created by this user
+     */
+    public function salesActivities(): HasMany
+    {
+        return $this->hasMany(\App\Models\Modules\SalesCrm\Activity::class);
+    }
+
+    /**
+     * Get contacts assigned to this user
+     */
+    public function assignedContacts(): HasMany
+    {
+        return $this->hasMany(\App\Models\Modules\SalesCrm\Contact::class, 'assigned_to');
+    }
+
+    /**
+     * Get contacts created by this user
+     */
+    public function createdContacts(): HasMany
+    {
+        return $this->hasMany(\App\Models\Modules\SalesCrm\Contact::class, 'created_by');
+    }
+
+    /**
      * Scope for active users
      */
     public function scopeActive($query)
@@ -383,14 +413,14 @@ class User extends Authenticatable
         }
 
         if ($accessLevel === 'department_head') {
-            return $this->primary_department_id == $departmentId;
+            return $this->primary_department_id === $departmentId;
         }
 
         if ($accessLevel === 'team_leader') {
-            return $this->primary_department_id == $departmentId;
+            return $this->primary_department_id === $departmentId;
         }
 
-        return $this->primary_department_id == $departmentId;
+        return $this->primary_department_id === $departmentId;
     }
 
     /**
@@ -541,6 +571,41 @@ class User extends Authenticatable
         }
 
         return null;
+    }
+
+    /**
+     * ========================================
+     * Sales CRM Helper Methods (v2.5)
+     * ========================================
+     */
+
+    /**
+     * Check if user has Sales role
+     */
+    public function isSales(): bool
+    {
+        return $this->hasRole('sales');
+    }
+
+    /**
+     * Check if user can manage Sales CRM
+     * (Super Admin or Admin only)
+     */
+    public function canManageSalesCRM(): bool
+    {
+        return $this->hasPermissionTo('manage_sales_crm');
+    }
+
+    /**
+     * Check if user can access Sales CRM features
+     */
+    public function canAccessSalesCRM(): bool
+    {
+        return $this->hasAnyPermission([
+            'view_activities',
+            'view_contacts',
+            'manage_sales_crm',
+        ]);
     }
 
     /**

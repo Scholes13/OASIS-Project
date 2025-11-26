@@ -85,6 +85,27 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{reservation}/void', [\App\Http\Controllers\PrNumberReservationController::class, 'void'])->name('void');
     });
 
+    // ============================================================================
+    // Sales CRM Routes (v2.5)
+    // ============================================================================
+    Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {
+        // Activities
+        Route::prefix('activities')->name('activities.')->group(function () {
+            Route::get('/', \App\Livewire\Modules\SalesCrm\ActivityIndex::class)->name('index');
+            Route::get('/create', \App\Livewire\Modules\SalesCrm\ActivityForm::class)->name('create');
+            Route::get('/{activityId}', \App\Livewire\Modules\SalesCrm\ActivityForm::class)->name('show');
+            Route::get('/{activityId}/edit', \App\Livewire\Modules\SalesCrm\ActivityForm::class)->name('edit');
+        });
+
+        // Contacts
+        Route::prefix('contacts')->name('contacts.')->middleware('can:view_contacts')->group(function () {
+            Route::get('/', \App\Livewire\Modules\SalesCrm\ContactIndex::class)->name('index');
+            Route::get('/create', \App\Livewire\Modules\SalesCrm\ContactForm::class)->name('create');
+            Route::get('/{contactId}', \App\Livewire\Modules\SalesCrm\ContactForm::class)->name('show');
+            Route::get('/{contactId}/edit', \App\Livewire\Modules\SalesCrm\ContactForm::class)->name('edit');
+        });
+    });
+
     // Reports Routes (Top Management Only - Coming Soon)
     Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
         Route::get('/purchase-requests', function () {

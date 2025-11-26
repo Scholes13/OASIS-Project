@@ -21,9 +21,6 @@
         <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
         <?php echo \Livewire\Mechanisms\FrontendAssets\FrontendAssets::styles(); ?>
 
-        
-        <!-- Dynamic script stack for lazy loading (Chart.js, etc) -->
-        <?php echo $__env->yieldPushContent('scripts'); ?>
     </head>
     <body class="h-full font-inter antialiased" x-data="{ sidebarOpen: false, sidebarMinimized: false }" @resize.window="if ($el.clientWidth >= 1024) sidebarOpen = false">
         <div class="h-full flex overflow-hidden">

@@ -166,6 +166,7 @@ class Department extends Model
                 [
                     'name' => $position['name'],
                     'level' => $position['level'],
+                    'access_level' => $position['access_level'],
                     'hierarchy_level' => $position['hierarchy_level'],
                     'is_active' => true,
                 ]
@@ -194,6 +195,11 @@ class Department extends Model
      */
     public function getFullNameAttribute(): string
     {
+        // Add null safety check for businessUnit relationship
+        if (! $this->businessUnit) {
+            return $this->name;
+        }
+
         return $this->businessUnit->name.' - '.$this->name;
     }
 

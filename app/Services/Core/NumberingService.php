@@ -185,14 +185,33 @@ class NumberingService
 
     /**
      * Extract sequence number from formatted number
+     * Improved to handle different format patterns dynamically
      */
     protected function extractNumberFromFormatted(string $formattedNumber, NumberingModule $module): ?int
     {
-        // This is a simplified extraction - in production you might want more robust parsing
-        $parts = explode('/', $formattedNumber);
+        // Get the format pattern from module
+        $pattern = $module->format_pattern;
 
-        if (count($parts) >= 4) {
-            return (int) $parts[3]; // Assuming format like "PR.GA/2025/07/080"
+        // Find where {SEQUENCE} is in the pattern
+        $patternParts = explode('/', $pattern);
+        $numberParts = explode('/', $formattedNumber);
+
+        // Find the position of {SEQUENCE} in pattern
+        foreach ($patternParts as $index => $part) {
+            if (stripos($part, '{SEQUENCE}') !== false || stripos($part, 'SEQUENCE') !== false) {
+                // Extract number from corresponding position
+                if (isset($numberParts[$index])) {
+                    // Remove leading zeros and convert to int
+                    return (int) ltrim($numberParts[$index], '0') ?: 0;
+                }
+            }
+        }
+
+        // Fallback: try to find any numeric part (backwards compatibility)
+        foreach ($numberParts as $part) {
+            if (is_numeric($part)) {
+                return (int) ltrim($part, '0') ?: 0;
+            }
         }
 
         return null;
@@ -212,15 +231,31 @@ class NumberingService
 
     /**
      * Acquire distributed lock using Cache (fallback for Redis)
+     * CRITICAL: Throws exception if lock cannot be acquired to prevent race conditions
      */
     protected function acquireLock(string $lockKey): bool
     {
         try {
             // Use cache-based locking as primary method
-            return Cache::add($lockKey, time(), $this->lockTimeout);
+            $acquired = Cache::add($lockKey, time(), $this->lockTimeout);
+
+            if (! $acquired) {
+                throw new \RuntimeException('Lock is currently held by another process. Please try again.');
+            }
+
+            return true;
+
+        } catch (\RuntimeException $e) {
+            // Re-throw runtime exceptions (lock acquisition failures)
+            throw $e;
         } catch (\Exception $e) {
-            // If cache fails, we still try to proceed
-            return true; // Allow operation to proceed
+            // CRITICAL: If cache system fails, DO NOT proceed
+            // This prevents race conditions when cache is down
+            throw new \RuntimeException(
+                'Unable to acquire lock due to cache system failure. Please try again later.',
+                0,
+                $e
+            );
         }
     }
 

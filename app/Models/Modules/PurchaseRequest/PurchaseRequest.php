@@ -526,17 +526,30 @@ class PurchaseRequest extends Model
 
     /**
      * Trigger resequencing for voided PR
+     * ✅ FIX: Use regex for robust number extraction (format-agnostic)
      */
     protected function triggerResequencing(): void
     {
-        // This would dispatch a job to handle resequencing
-        // For now, we'll add the number to void list
+        // Add number to void list for resequencing
         if ($this->sequence) {
-            // Extract number from PR number (e.g., from "PR.GA/2025/07/080" get 80)
-            $parts = explode('/', $this->pr_number);
-            if (count($parts) === 4) {
-                $number = (int) $parts[3];
-                $this->sequence->addVoidNumber($number);
+            try {
+                // Use regex to extract the last numeric segment from PR number
+                // Works with any format: "PR.GA/2025/07/080", "PR-GA-2025-080", etc.
+                if (preg_match('/(\d+)(?!.*\d)/', $this->pr_number, $matches)) {
+                    $number = (int) $matches[1];
+                    $this->sequence->addVoidNumber($number);
+                } else {
+                    \Log::warning('Failed to extract number from PR for resequencing', [
+                        'pr_number' => $this->pr_number,
+                        'pr_id' => $this->id,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error during resequencing trigger', [
+                    'pr_id' => $this->id,
+                    'pr_number' => $this->pr_number,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }

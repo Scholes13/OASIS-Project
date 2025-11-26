@@ -47,15 +47,26 @@ class ApprovalWorkflowService
 
             DB::commit();
 
-            // Send notifications to first approver
-            $this->notifyNextApprover($purchaseRequest);
-
-            return true;
-
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
         }
+
+        // Send notifications AFTER transaction commits
+        // This prevents transaction rollback if notification fails
+        // TODO: Consider queueing this for better performance
+        try {
+            $this->notifyNextApprover($purchaseRequest);
+        } catch (\Exception $e) {
+            // Log notification failure but don't fail the workflow
+            Log::warning('Failed to send approval notification', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return true;
     }
 
     /**
@@ -90,10 +101,8 @@ class ApprovalWorkflowService
             'status' => 'in_approval',
         ]);
 
-        DB::commit();
-
-        // Send notifications to first approver
-        $this->notifyNextApprover($purchaseRequest);
+        // Note: DB::commit() handled by parent createWorkflow() method
+        // Notification will be sent by parent after transaction commits
 
         return true;
     }
@@ -107,54 +116,68 @@ class ApprovalWorkflowService
         $amount = $purchaseRequest->total_amount;
         $department = $purchaseRequest->department;
 
-        // Rule 1: Department Head approval (if amount > 500,000)
-        if ($amount > 500000) {
+        if (! $department) {
+            throw new \RuntimeException(
+                "Purchase request #{$purchaseRequest->id} has no associated department"
+            );
+        }
+
+        // Get thresholds from config for maintainability
+        $thresholds = config('approval.thresholds', [
+            'department_head' => 500000,
+            'finance_manager' => 1000000,
+            'general_manager' => 5000000,
+            'director' => 10000000,
+        ]);
+
+        // Rule 1: Department Head approval (if amount > threshold)
+        if ($amount > $thresholds['department_head']) {
             $deptHead = $this->getDepartmentHead($department);
             if ($deptHead) {
                 $approvers->push([
                     'user' => $deptHead,
                     'step_order' => 1,
                     'approval_type' => 'department_head',
-                    'reason' => 'Department Head approval required for amount > IDR 500,000',
+                    'reason' => 'Department Head approval required for amount > IDR '.number_format($thresholds['department_head'], 0, ',', '.'),
                 ]);
             }
         }
 
-        // Rule 2: Finance Manager approval (if amount > 1,000,000)
-        if ($amount > 1000000) {
+        // Rule 2: Finance Manager approval (if amount > threshold)
+        if ($amount > $thresholds['finance_manager']) {
             $financeManager = $this->getFinanceManager($purchaseRequest->businessUnit);
             if ($financeManager) {
                 $approvers->push([
                     'user' => $financeManager,
                     'step_order' => $approvers->count() + 1,
                     'approval_type' => 'finance_manager',
-                    'reason' => 'Finance Manager approval required for amount > IDR 1,000,000',
+                    'reason' => 'Finance Manager approval required for amount > IDR '.number_format($thresholds['finance_manager'], 0, ',', '.'),
                 ]);
             }
         }
 
-        // Rule 3: General Manager approval (if amount > 5,000,000)
-        if ($amount > 5000000) {
+        // Rule 3: General Manager approval (if amount > threshold)
+        if ($amount > $thresholds['general_manager']) {
             $generalManager = $this->getGeneralManager($purchaseRequest->businessUnit);
             if ($generalManager) {
                 $approvers->push([
                     'user' => $generalManager,
                     'step_order' => $approvers->count() + 1,
                     'approval_type' => 'general_manager',
-                    'reason' => 'General Manager approval required for amount > IDR 5,000,000',
+                    'reason' => 'General Manager approval required for amount > IDR '.number_format($thresholds['general_manager'], 0, ',', '.'),
                 ]);
             }
         }
 
-        // Rule 4: Director approval (if amount > 10,000,000)
-        if ($amount > 10000000) {
+        // Rule 4: Director approval (if amount > threshold)
+        if ($amount > $thresholds['director']) {
             $director = $this->getDirector($purchaseRequest->businessUnit);
             if ($director) {
                 $approvers->push([
                     'user' => $director,
                     'step_order' => $approvers->count() + 1,
                     'approval_type' => 'director',
-                    'reason' => 'Director approval required for amount > IDR 10,000,000',
+                    'reason' => 'Director approval required for amount > IDR '.number_format($thresholds['director'], 0, ',', '.'),
                 ]);
             }
         }
@@ -322,22 +345,44 @@ class ApprovalWorkflowService
     }
 
     /**
-     * Get special category approver (for IT equipment, vehicles, etc.)
+     * Get special category approver based on item categories
+     * Uses config-driven approach for maintainability
      */
     protected function getSpecialCategoryApprover(PurchaseRequest $purchaseRequest): ?User
     {
-        $specialItems = $purchaseRequest->items()->where(function ($query) {
-            $query->where('item_name', 'like', '%computer%')
-                ->orWhere('item_name', 'like', '%laptop%')
-                ->orWhere('item_name', 'like', '%server%')
-                ->orWhere('item_name', 'like', '%vehicle%')
-                ->orWhere('item_name', 'like', '%car%')
-                ->orWhere('item_name', 'like', '%software%');
-        })->exists();
+        // Get special category keywords from config
+        $categoryKeywords = config('approval.special_categories', [
+            'it' => ['computer', 'laptop', 'server', 'software', 'hardware'],
+            'vehicle' => ['vehicle', 'car', 'truck', 'motorcycle'],
+        ]);
 
-        if ($specialItems) {
-            return User::whereHas('roles', function ($query) {
-                $query->where('name', 'it_manager');
+        $hasSpecialItems = false;
+        $categoryType = null;
+
+        // Check if any item matches special categories
+        foreach ($categoryKeywords as $type => $keywords) {
+            $hasMatch = false;
+
+            // Use database-agnostic LIKE queries instead of MySQL REGEXP
+            $matchingItems = $purchaseRequest->items()->where(function ($query) use ($keywords) {
+                foreach ($keywords as $keyword) {
+                    $query->orWhereRaw('LOWER(item_name) LIKE ?', ['%'.strtolower($keyword).'%']);
+                }
+            })->exists();
+
+            if ($matchingItems) {
+                $hasSpecialItems = true;
+                $categoryType = $type;
+                break;
+            }
+        }
+
+        if ($hasSpecialItems && $categoryType) {
+            // Get approver role from config based on category type
+            $approverRole = config("approval.special_category_approvers.{$categoryType}", 'it_manager');
+
+            return User::whereHas('roles', function ($query) use ($approverRole) {
+                $query->where('name', $approverRole);
             })
                 ->where('is_active', true)
                 ->first();
@@ -351,6 +396,14 @@ class ApprovalWorkflowService
      */
     public function processApproval(PrApproval $approval, string $action, ?string $notes = null): bool
     {
+        // Validate action parameter
+        $validActions = ['approved', 'rejected'];
+        if (! in_array($action, $validActions, true)) {
+            throw new \InvalidArgumentException(
+                "Invalid approval action: {$action}. Must be one of: ".implode(', ', $validActions)
+            );
+        }
+
         try {
             DB::beginTransaction();
 
@@ -362,6 +415,10 @@ class ApprovalWorkflowService
             ]);
 
             $purchaseRequest = $approval->purchaseRequest;
+
+            if (! $purchaseRequest) {
+                throw new \RuntimeException('Purchase request not found for approval ID: '.$approval->id);
+            }
 
             if ($action === 'approved') {
                 $this->handleApprovalStep($purchaseRequest);
@@ -469,8 +526,8 @@ class ApprovalWorkflowService
         Log::info('PR rejected', [
             'pr_number' => $purchaseRequest->pr_number,
             'requestor_id' => $purchaseRequest->user_id,
-            'requestor_email' => $purchaseRequest->user->email,
-            'rejected_by' => $rejectedApproval?->approver->email,
+            'requestor_email' => $purchaseRequest->user?->email,
+            'rejected_by' => $rejectedApproval?->approver?->email,
             'rejection_reason' => $rejectedApproval?->notes,
             'rejected_at' => $purchaseRequest->rejected_at,
         ]);
@@ -516,20 +573,28 @@ class ApprovalWorkflowService
     /**
      * Get pending approvals for a user
      * Returns query builder to allow pagination in controller
+     * Shows all approvals in PRs where user is involved
      */
     public function getPendingApprovalsForUser(User $user)
     {
+        // Get PR IDs where user has any approval
+        $prIds = PrApproval::where('approver_id', $user->id)
+            ->whereHas('purchaseRequest', function ($query) {
+                $query->where('status', 'in_approval');
+            })
+            ->pluck('purchase_request_id')
+            ->unique();
+
+        // Get all approvals for those PRs
         return PrApproval::with([
             'purchaseRequest.user',
             'purchaseRequest.department',
             'purchaseRequest.items',
+            'approver',
         ])
-            ->where('approver_id', $user->id)
-            ->where('status', 'pending')
-            ->whereHas('purchaseRequest', function ($query) {
-                $query->where('status', 'in_approval');
-            })
-            ->orderBy('assigned_at', 'asc');
+            ->whereIn('purchase_request_id', $prIds)
+            ->orderBy('purchase_request_id', 'desc')
+            ->orderBy('step_order', 'asc');
     }
 
     /**
@@ -543,6 +608,7 @@ class ApprovalWorkflowService
             'purchaseRequest.department',
             'purchaseRequest.businessUnit',
             'purchaseRequest.items',
+            'approver',
         ])
             ->where('approver_id', $user->id)
             ->whereIn('status', ['approved', 'rejected'])
@@ -590,6 +656,11 @@ class ApprovalWorkflowService
         }
 
         $totalHours = $respondedApprovals->sum(function ($approval) {
+            // Add null safety check for assigned_at
+            if (! $approval->assigned_at || ! $approval->responded_at) {
+                return 0;
+            }
+
             return $approval->assigned_at->diffInHours($approval->responded_at);
         });
 

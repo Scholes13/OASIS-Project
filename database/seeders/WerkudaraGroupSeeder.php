@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\BusinessUnit;
-use App\Models\Department;
-use App\Models\Position;
-use App\Models\User;
-use App\Models\UserBusinessUnit;
+use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
+use App\Models\Core\Position;
+use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use Illuminate\Database\Seeder;
 
 class WerkudaraGroupSeeder extends Seeder

@@ -152,8 +152,12 @@ class PrNumberReservation extends Model
 
     /**
      * Void the reservation
+     * ✅ FIX: Made voidedBy required to prevent Auth::id() failures in CLI/queue contexts
+     *
+     * @param  string  $reason  Reason for voiding
+     * @param  int  $voidedBy  User ID who is voiding (required)
      */
-    public function void(string $reason, ?int $voidedBy = null): bool
+    public function void(string $reason, int $voidedBy): bool
     {
         if (! $this->canBeVoided()) {
             return false;
@@ -163,7 +167,7 @@ class PrNumberReservation extends Model
             'status' => 'voided',
             'voided_at' => now(),
             'void_reason' => $reason,
-            'voided_by' => $voidedBy ?? Auth::id(),
+            'voided_by' => $voidedBy,
         ]);
 
         return true;

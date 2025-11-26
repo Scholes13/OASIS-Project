@@ -135,6 +135,11 @@ class PurchaseRequestController extends Controller
             return back()->with('error', 'Only rejected purchase requests can be resubmitted.');
         }
 
+        // Validate business unit context (prevent cross-tenant access)
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
         // Check if user owns this PR
         if ($purchaseRequest->user_id !== Auth::id()) {
             abort(403, 'You are not authorized to resubmit this purchase request.');
@@ -149,7 +154,17 @@ class PurchaseRequestController extends Controller
                 ->with('success', 'Purchase request has been resubmitted for approval. Approval workflow has been reset.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to resubmit purchase request: '.$e->getMessage());
+            // Log detailed error for debugging (not exposed to user)
+            Log::error('Failed to resubmit purchase request', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Return generic error message to user (no internal details)
+            return back()->with('error', 'Failed to resubmit purchase request. Please try again or contact support.');
         }
     }
 
@@ -162,6 +177,25 @@ class PurchaseRequestController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
+        // Validate business unit context (prevent cross-tenant access)
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        // Check if PR can be voided (not already approved/rejected/voided)
+        if (in_array($purchaseRequest->status, ['approved', 'voided'])) {
+            return back()->with('error', 'This purchase request cannot be voided.');
+        }
+
+        // Authorization: Only owner or admin can void
+        $user = Auth::user();
+        $canVoid = $purchaseRequest->user_id === $user->id ||
+                   in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
+
+        if (! $canVoid) {
+            abort(403, 'You are not authorized to void this purchase request.');
+        }
+
         try {
             $this->purchaseRequestService->voidPurchaseRequest($purchaseRequest, $request->reason);
 
@@ -170,7 +204,18 @@ class PurchaseRequestController extends Controller
                 ->with('success', 'Purchase request has been voided.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to void purchase request: '.$e->getMessage());
+            // Log detailed error for debugging (not exposed to user)
+            Log::error('Failed to void purchase request', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'user_id' => Auth::id(),
+                'reason' => $request->reason,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Return generic error message to user (no internal details)
+            return back()->with('error', 'Failed to void purchase request. Please try again or contact support.');
         }
     }
 
@@ -179,8 +224,19 @@ class PurchaseRequestController extends Controller
      */
     public function destroy(PurchaseRequest $purchaseRequest)
     {
+        // Validate business unit context (prevent cross-tenant access)
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        // Check if PR can be deleted
         if (! $purchaseRequest->canBeEdited()) {
             return back()->with('error', 'This purchase request cannot be deleted.');
+        }
+
+        // Authorization: Only owner can delete draft/rejected PRs
+        if ($purchaseRequest->user_id !== Auth::id()) {
+            abort(403, 'You are not authorized to delete this purchase request.');
         }
 
         $purchaseRequest->delete();
@@ -341,12 +397,15 @@ class PurchaseRequestController extends Controller
                 ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
 
         } catch (\Exception $e) {
-            // Log error and return proper error response
-            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
+            // Log detailed error for debugging (not exposed to user)
+            Log::error('Browsershot PDF generation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
+            // Return generic error message to user (no internal details)
             return response()->json([
-                'error' => 'PDF generation failed. Please try again later.',
-                'message' => 'Browsershot encountered an error: '.$e->getMessage(),
+                'error' => 'PDF generation failed. Please try again later or contact support.',
             ], 500);
         }
     }

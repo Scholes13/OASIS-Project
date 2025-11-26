@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessUnit;
-use App\Models\Department;
-use App\Models\User;
-use App\Models\UserBusinessUnit;
+use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
+use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;

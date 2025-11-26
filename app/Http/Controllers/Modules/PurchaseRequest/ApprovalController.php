@@ -191,7 +191,14 @@ class ApprovalController extends Controller
     {
         $tab = $request->get('tab', 'pending');
 
-        $pendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user())->paginate(10);
+        // Get all approvals for PRs that involve current user
+        $allPendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user())->get();
+        
+        // Group by purchase_request_id to show all approvers per PR
+        $pendingApprovals = $allPendingApprovals->groupBy('purchase_request_id')->map(function ($approvals) {
+            return $approvals->sortBy('step_order');
+        })->values(); // Reset keys to avoid issues
+
         $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user())->paginate(10);
         $approvalStats = $this->workflowService->getApprovalStatistics(Auth::user());
 

@@ -72,7 +72,14 @@ class UserDashboard extends Component
                 $primaryUserBU = $user->businessUnits->firstWhere('is_primary', true);
 
                 // If user has primary BU, use it; otherwise use first available BU
-                $this->activeBusinessUnitId = $primaryUserBU?->business_unit_id ?? $this->businessUnits[0]['id'];
+                // ✅ FIX: Add null safety check for empty business units
+                if (! empty($this->businessUnits)) {
+                    $this->activeBusinessUnitId = $primaryUserBU?->business_unit_id ?? $this->businessUnits[0]['id'];
+                } else {
+                    // User has no business unit assignments - handle gracefully
+                    $this->activeBusinessUnitId = null;
+                    \Log::warning('User has no business unit assignments', ['user_id' => $user->id]);
+                }
             }
 
             // Store in both sessions for consistency

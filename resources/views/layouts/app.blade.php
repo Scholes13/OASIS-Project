@@ -20,9 +20,6 @@
         <!-- Scripts - Vite with automatic versioning -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
-        
-        <!-- Dynamic script stack for lazy loading (Chart.js, etc) -->
-        @stack('scripts')
     </head>
     <body class="h-full font-inter antialiased" x-data="{ sidebarOpen: false, sidebarMinimized: false }" @resize.window="if ($el.clientWidth >= 1024) sidebarOpen = false">
         <div class="h-full flex overflow-hidden">

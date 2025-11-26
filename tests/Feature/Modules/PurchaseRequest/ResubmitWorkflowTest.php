@@ -175,7 +175,8 @@ class ResubmitWorkflowTest extends TestCase
         $this->assertEquals('rejected', $pr->status, 'Status should remain rejected after edit');
         $this->assertEquals($originalRejectedAt->timestamp, $pr->rejected_at->timestamp, 'Rejected timestamp should not change');
         $this->assertEquals('Updated purpose after rejection', $pr->keperluan);
-        $this->assertNull($pr->submitted_at, 'Should not have submitted_at when rejected');
+        // v2.0 Design: submitted_at is preserved for QR token reusability
+        $this->assertNotNull($pr->submitted_at, 'submitted_at should be preserved for QR token');
     }
 
     /**
@@ -248,7 +249,7 @@ class ResubmitWorkflowTest extends TestCase
         $pr = $this->createRejectedPurchaseRequest();
 
         $originalSubmittedAt = $pr->submitted_at;
-        $this->assertNull($originalSubmittedAt, 'Rejected PR should not have submitted_at initially');
+        $this->assertNotNull($originalSubmittedAt, 'Rejected PR should have submitted_at preserved (v2.0 design)');
 
         // Act: Resubmit the PR
         $this->actingAs($this->requestor);
@@ -502,8 +503,9 @@ class ResubmitWorkflowTest extends TestCase
                 'approved_at' => now()->subDay(),
             ]);
         } elseif ($status === 'rejected') {
+            // v2.0 Design: Keep submitted_at for QR token reusability
             $pr->update([
-                'submitted_at' => null, // Rejected PRs don't have submitted_at initially
+                'submitted_at' => now()->subWeek(), // Preserve original submission timestamp
                 'rejected_at' => now()->subDay(),
             ]);
         }
@@ -538,10 +540,11 @@ class ResubmitWorkflowTest extends TestCase
         ]);
 
         // Update PR to rejected
+        // IMPORTANT: Keep submitted_at to preserve QR token (v2.0 design)
         $pr->update([
             'status' => 'rejected',
             'rejected_at' => now()->subDays(3),
-            'submitted_at' => null, // Clear submitted_at when rejected
+            // submitted_at is preserved for QR token reusability
         ]);
 
         return $pr->refresh();

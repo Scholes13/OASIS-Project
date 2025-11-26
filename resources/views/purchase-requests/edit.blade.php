@@ -12,8 +12,8 @@
                 <a href="{{ route('purchase-requests.index') }}"
                    wire:navigate
                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     Back to List
                 </a>
@@ -26,7 +26,7 @@
             <div class="flex items-center">
                 <a href="{{ route('dashboard') }}" wire:navigate class="text-gray-400 hover:text-gray-500">
                     <svg class="flex-shrink-0 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2z" />
                     </svg>
                     <span class="sr-only">Dashboard</span>
                 </a>
@@ -52,5 +52,5 @@
         </li>
     </x-slot>
 
-    <livewire:modules.wns.purchase-requests.create :purchase-request="$purchaseRequest" mode="edit" />
+    <livewire:modules.purchase-request.create :purchase-request="$purchaseRequest" mode="edit" />
 </x-app-layout>

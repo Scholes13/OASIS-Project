@@ -66,6 +66,8 @@ class Create extends Component
 
     public $isEdit = false;
 
+    public $isRejected = false;
+
     #[\Livewire\Attributes\Locked]
     public $purchaseRequestId = null;
 
@@ -81,6 +83,11 @@ class Create extends Component
      */
     private function debugTrackPropertySet(string $propertyName, $value, string $source, array $context = []): void
     {
+        // Only enable in local environment to prevent sensitive data leakage
+        if (!app()->environment('local')) {
+            return;
+        }
+
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
         $caller = $backtrace[1] ?? [];
 
@@ -107,6 +114,11 @@ class Create extends Component
      */
     private function debugLog(string $event, array $data = []): void
     {
+        // Only enable in local environment to prevent sensitive data leakage
+        if (!app()->environment('local')) {
+            return;
+        }
+
         $entry = [
             'timestamp' => microtime(true),
             'event' => $event,
@@ -292,7 +304,7 @@ class Create extends Component
     }
 
     /**
-     * Multi-layer authentication check for hosting environment compatibility
+     * Authentication check using standard Laravel methods only
      */
     private function ensureAuthenticated(): bool
     {
@@ -308,90 +320,29 @@ class Create extends Component
             return true;
         }
 
-        // Method 3: Try session-based auth recovery
-        $userId = session('auth.user_id');
-        if ($userId) {
-            $user = \App\Models\Core\User::find($userId);
-            if ($user && $user->is_active) {
-                Auth::login($user);
-                $this->debugLog('auth_recovered_from_session', ['user_id' => $userId]);
-
-                return true;
-            }
-        }
-
-        // Method 4: Try Laravel's session auth user_id
-        $sessionUserId = session()->get('_auth');
-        if ($sessionUserId) {
-            $user = \App\Models\Core\User::find($sessionUserId);
-            if ($user && $user->is_active) {
-                Auth::login($user);
-                $this->debugLog('auth_recovered_from_laravel_session', ['user_id' => $sessionUserId]);
-
-                return true;
-            }
-        }
-
+        // If authentication fails, user must login properly
+        // REMOVED: Methods 3 & 4 (manual auth from session) - security vulnerability
         return false;
     }
 
     /**
-     * Initialize user-dependent properties with robust hosting environment authentication recovery
+     * Initialize user-dependent properties from authenticated user
      */
     private function initializeUserProperties(): void
     {
         try {
-            // Multi-layer authentication check for hosting environments
-            $user = null;
-            $authAttempts = 0;
-            $maxAttempts = 5;
+            // Get authenticated user - single source of truth
+            $user = Auth::user();
 
-            while ($authAttempts < $maxAttempts && ! $user) {
-                $authAttempts++;
-
-                // Try different authentication methods
-                if ($authAttempts === 1) {
-                    $user = Auth::user();
-                } elseif ($authAttempts === 2) {
-                    $user = Auth::guard('web')->user();
-                } elseif ($authAttempts === 3) {
-                    $user = request()->user();
-                } elseif ($authAttempts === 4) {
-                    // Try from session
-                    $userId = session('auth.id') ?? session()->get('login_web_'.sha1('web'));
-                    if ($userId) {
-                        $user = \App\Models\Core\User::find($userId);
-                    }
-                } elseif ($authAttempts === 5) {
-                    // Last resort: try to find authenticated user from request
-                    if (Auth::check()) {
-                        $user = Auth::user();
-                    }
-                }
-
-                if ($user) {
-                    \Illuminate\Support\Facades\Log::info("Authentication successful on attempt {$authAttempts}", [
-                        'user_id' => $user->id,
-                        'user_name' => $user->name,
-                        'method' => "attempt_{$authAttempts}",
-                    ]);
-                    break;
-                }
-
-                usleep(50000); // 50ms delay between attempts
+            if (!$user) {
+                throw new \Exception('User must be authenticated to access this page');
             }
 
-            if (! $user) {
-                $this->debugLog('auth_failed_all_attempts', ['max_attempts' => $maxAttempts]);
-                throw new \Exception("User authentication failed after {$maxAttempts} attempts");
-            }
-
-            // Set user name immediately with additional validation
+            // Set user name immediately with validation
             $userName = $user->name ?: 'User #'.$user->id;
             $this->user_name = $userName;
             $this->debugTrackPropertySet('user_name', $userName, 'initializeUserProperties', [
                 'user_id' => $user->id,
-                'auth_attempt' => $authAttempts,
             ]);
 
             $this->submission_date = Carbon::today()->format('d/m/Y');
@@ -632,12 +583,34 @@ class Create extends Component
         $this->used_for = $purchaseRequest->used_for ?? '';
         $this->expected_date = optional($purchaseRequest->designated_date)->format('Y-m-d');
         $this->currency = $purchaseRequest->currency ?? 'IDR';
+        
+        // Track if PR is rejected for UI
+        $this->isRejected = ($purchaseRequest->status === 'rejected');
 
-        // Always use custom approval flow (manual selection required)
-        $this->customApprovalList = collect($purchaseRequest->approval_workflow['steps'] ?? [])->map(function ($step) {
+        // Load existing approval workflow from approval_workflow JSON or from approvals table
+        $workflowData = is_array($purchaseRequest->approval_workflow) 
+            ? $purchaseRequest->approval_workflow 
+            : json_decode($purchaseRequest->approval_workflow ?? '[]', true);
+
+        // If approval_workflow is empty, load from pr_approvals table
+        if (empty($workflowData) && $purchaseRequest->exists) {
+            $workflowData = $purchaseRequest->approvals()
+                ->orderBy('step_order')
+                ->get()
+                ->map(function ($approval) {
+                    return [
+                        'approver_id' => $approval->approver_id,
+                        'approval_type' => $approval->approval_type,
+                        'step_order' => $approval->step_order,
+                    ];
+                })
+                ->toArray();
+        }
+
+        $this->customApprovalList = collect($workflowData)->map(function ($step) {
             return [
                 'approver_id' => $step['approver_id'] ?? null,
-                'task_type' => $step['task_type'] ?? 'approval',
+                'task_type' => $step['approval_type'] ?? $step['task_type'] ?? 'approval',
                 'amount_threshold' => $step['amount_threshold'] ?? null,
             ];
         })->toArray();
@@ -769,23 +742,22 @@ class Create extends Component
     }
 
     /**
-     * Load available approvers - populates the availableApprovers property with caching
+     * Load available approvers - populates the availableApprovers property with user-scoped caching
      */
     public function loadAvailableApprovers()
     {
-        // Use caching to prevent excessive database calls
-        static $cachedApprovers = null;
-        static $lastLoadTime = 0;
+        // Use Laravel Cache with user-scoped key to prevent data leakage between users
+        $cacheKey = sprintf(
+            'approvers:bu:%s:user:%s',
+            session('current_business_unit_id', 0),
+            Auth::id()
+        );
 
-        $now = time();
-
-        // Cache for 30 seconds to prevent excessive DB calls
-        if ($cachedApprovers === null || ($now - $lastLoadTime) > 30) {
-            $cachedApprovers = $this->fetchAvailableApprovers();
-            $lastLoadTime = $now;
-        }
-
-        $this->availableApprovers = $cachedApprovers;
+        $this->availableApprovers = \Illuminate\Support\Facades\Cache::remember(
+            $cacheKey,
+            300, // 5 minutes
+            fn() => $this->fetchAvailableApprovers()
+        );
     }
 
     public function addItem()
@@ -1346,12 +1318,12 @@ class Create extends Component
                 // Create consolidated error message
                 $errorList = [];
                 foreach ($errors->all() as $error) {
-                    $errorList[] = '� '.$error;
+                    $errorList[] = '• '.e($error);
                 }
-                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>".implode('<br>', array_slice($errorList, 0, 5));
+                $consolidatedMessage = "Found {$totalErrors} validation errors:\n".implode("\n", array_slice($errorList, 0, 5));
 
                 if ($totalErrors > 5) {
-                    $consolidatedMessage .= '<br>� ... and '.($totalErrors - 5).' more errors';
+                    $consolidatedMessage .= "\n• ... and ".($totalErrors - 5).' more errors';
                 }
 
                 $this->dispatch('notify',
@@ -1360,9 +1332,9 @@ class Create extends Component
                     duration: 10000
                 );
             } else {
-                // Single error message
+                // Single error message - escape HTML
                 $this->dispatch('notify',
-                    message: 'Validation Error: '.$errors->first(),
+                    message: 'Validation Error: '.e($errors->first()),
                     type: 'error',
                     duration: 8000
                 );
@@ -1584,15 +1556,15 @@ class Create extends Component
             $totalErrors = $errors->count();
 
             if ($totalErrors > 1) {
-                // Create consolidated error message
+                // Create consolidated error message - escape HTML to prevent XSS
                 $errorList = [];
                 foreach ($errors->all() as $error) {
-                    $errorList[] = '• '.$error;
+                    $errorList[] = '• '.e($error);
                 }
-                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>".implode('<br>', array_slice($errorList, 0, 5));
+                $consolidatedMessage = "Found {$totalErrors} validation errors:\n".implode("\n", array_slice($errorList, 0, 5));
 
                 if ($totalErrors > 5) {
-                    $consolidatedMessage .= '<br>• ... and '.($totalErrors - 5).' more errors';
+                    $consolidatedMessage .= "\n• ... and ".($totalErrors - 5).' more errors';
                 }
 
                 $this->dispatch('notify',
@@ -1601,9 +1573,9 @@ class Create extends Component
                     duration: 12000
                 );
             } else {
-                // Show specific error for single issue
+                // Show specific error for single issue - escape HTML
                 $this->dispatch('notify',
-                    message: 'Validation Error: '.$errors->first(),
+                    message: 'Validation Error: '.e($errors->first()),
                     type: 'error',
                     duration: 8000
                 );
@@ -1799,14 +1771,17 @@ class Create extends Component
             $purchaseRequest = $service->updatePurchaseRequest($purchaseRequest->fresh(['items', 'approvals']), $data);
 
             // Step 2: Reset workflow (delete old approvals)
+            $originalSubmittedAt = $purchaseRequest->submitted_at; // PRESERVE for QR token reusability
             $workflowService = app(\App\Services\Modules\PurchaseRequest\ApprovalWorkflowService::class);
             $workflowService->resetWorkflow($purchaseRequest);
 
-            // Step 3: Update PR status to submitted (AFTER workflow reset)
+            // Step 3: Update PR status to submitted (PRESERVE submitted_at for QR token)
             $purchaseRequest->update([
                 'status' => 'submitted',
-                'submitted_at' => now(),
+                'submitted_at' => $originalSubmittedAt ?? now(), // PRESERVE original timestamp
                 'rejected_at' => null,
+                'rejected_by' => null,
+                'rejection_reason' => null,
                 'last_modified_by' => Auth::id(),
             ]);
 
@@ -1827,14 +1802,15 @@ class Create extends Component
             $totalErrors = $errors->count();
 
             if ($totalErrors > 1) {
+                // Escape HTML to prevent XSS
                 $errorList = [];
                 foreach ($errors->all() as $error) {
-                    $errorList[] = '• '.$error;
+                    $errorList[] = '• '.e($error);
                 }
-                $consolidatedMessage = "Found {$totalErrors} validation errors:<br>".implode('<br>', array_slice($errorList, 0, 5));
+                $consolidatedMessage = "Found {$totalErrors} validation errors:\n".implode("\n", array_slice($errorList, 0, 5));
 
                 if ($totalErrors > 5) {
-                    $consolidatedMessage .= '<br>• ... and '.($totalErrors - 5).' more errors';
+                    $consolidatedMessage .= "\n• ... and ".($totalErrors - 5).' more errors';
                 }
 
                 $this->dispatch('notify',
@@ -1844,7 +1820,7 @@ class Create extends Component
                 );
             } else {
                 $this->dispatch('notify',
-                    message: 'Validation Error: '.$errors->first(),
+                    message: 'Validation Error: '.e($errors->first()),
                     type: 'error',
                     duration: 8000
                 );

@@ -153,10 +153,14 @@ class Position extends Model
 
     /**
      * Get full position name with department
+     * ✅ OPTIMIZED: Added null safety to prevent N+1 query crash
      */
     public function getFullNameAttribute(): string
     {
-        return $this->department->name.' - '.$this->name;
+        // Use null coalescing to prevent N+1 query crash if department not eager-loaded
+        $departmentName = $this->department?->name ?? 'Unknown Department';
+
+        return $departmentName.' - '.$this->name;
     }
 
     /**

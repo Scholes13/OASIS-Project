@@ -85,6 +85,40 @@ class Sidebar extends Component
             ],
         ];
 
+        // Add Sales CRM section (permission-based)
+        if ($user && ($user->can('view_activities') || $user->can('view_contacts'))) {
+            $salesCrmChildren = [];
+
+            // Activities menu item
+            if ($user->can('view_activities')) {
+                $salesCrmChildren[] = [
+                    'name' => 'Activities',
+                    'href' => route('sales-crm.activities.index'),
+                    'current' => str_starts_with($this->currentRoute, 'sales-crm.activities'),
+                ];
+            }
+
+            // Contacts menu item
+            if ($user->can('view_contacts')) {
+                $salesCrmChildren[] = [
+                    'name' => 'Contacts',
+                    'href' => route('sales-crm.contacts.index'),
+                    'current' => str_starts_with($this->currentRoute, 'sales-crm.contacts'),
+                ];
+            }
+
+            // Only add Sales CRM section if user has at least one permission
+            if (!empty($salesCrmChildren)) {
+                $navigation[] = [
+                    'name' => 'Sales CRM',
+                    'href' => $salesCrmChildren[0]['href'], // First available menu
+                    'icon' => 'briefcase',
+                    'current' => str_starts_with($this->currentRoute, 'sales-crm'),
+                    'children' => $salesCrmChildren,
+                ];
+            }
+        }
+
         // Add admin sections for managers and admins
         if (in_array($currentRole, ['manager', 'admin', 'super_admin'])) {
             $reportsChildren = [];

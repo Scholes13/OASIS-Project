@@ -122,12 +122,13 @@ class UserBusinessUnit extends Model
 
     /**
      * Check if user has specific permission
+     * ✅ FIX: Added strict comparison to prevent type juggling
      */
     public function hasPermission(string $permission): bool
     {
         $permissions = $this->permissions ?? [];
 
-        return in_array($permission, $permissions);
+        return in_array($permission, $permissions, true);
     }
 
     /**

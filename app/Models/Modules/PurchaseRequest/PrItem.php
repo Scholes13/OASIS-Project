@@ -133,7 +133,10 @@ class PrItem extends Model
         });
 
         static::deleted(function ($item) {
-            $item->purchaseRequest->updateTotalAmount();
+            // ✅ FIX: Add null safety check to prevent crash during cascade delete
+            if ($item->purchaseRequest) {
+                $item->purchaseRequest->updateTotalAmount();
+            }
         });
     }
 

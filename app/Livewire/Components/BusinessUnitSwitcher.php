@@ -152,8 +152,8 @@ class BusinessUnitSwitcher extends Component
             // Mark as not loaded to force refresh on next hydrate
             $this->isLoaded = false;
 
-            // ✅ Clear dashboard cache for this user (if they view dashboard later)
-            $this->clearUserDashboardCache($user->id);
+            // ✅ Clear business unit cache when switching (not dashboard cache)
+            $this->clearBusinessUnitCache($user->id);
 
             // Flash success message
             session()->flash('success', "Switched to {$businessUnit->name} ({$businessUnit->code})");
@@ -172,62 +172,19 @@ class BusinessUnitSwitcher extends Component
     }
 
     /**
-     * Clear dashboard cache for specific user
-     * ✅ Prevent stale data when BU switches
+     * Clear business unit cache for specific user
+     * ✅ Ensures fresh BU list loaded after switch
      */
-    protected function clearUserDashboardCache(int $userId): void
+    protected function clearBusinessUnitCache(int $userId): void
     {
-        // Clear all dashboard cache keys for this user
-        $dateFilters = ['today', 'this_week', 'this_month', 'this_year', 'last_7_days', 'last_30_days', 'custom'];
-
-        foreach ($dateFilters as $filter) {
-            $dates = $this->getFilterDates($filter);
-
-            // We don't know exact BU hash, so we'll rely on dashboard component to clear its own cache
-            // when it detects BU change. This is a fallback safety measure.
-        }
-
         // Clear business units cache for this user (will reload on next request)
         Cache::forget("business_units.user.{$userId}");
 
-        \Log::info("✅ Business unit cache cleared for user {$userId}");
-    }
+        // Note: Dashboard cache is managed by Dashboard component itself
+        // Dashboard detects BU change via session and clears its own cache
+        // This method only handles BU switcher's cache
 
-    /**
-     * Helper to get date ranges for cache clearing
-     */
-    protected function getFilterDates(string $filter): array
-    {
-        return match ($filter) {
-            'today' => [
-                'start' => now()->format('Y-m-d'),
-                'end' => now()->format('Y-m-d'),
-            ],
-            'this_week' => [
-                'start' => now()->startOfWeek()->format('Y-m-d'),
-                'end' => now()->endOfWeek()->format('Y-m-d'),
-            ],
-            'this_month' => [
-                'start' => now()->startOfMonth()->format('Y-m-d'),
-                'end' => now()->endOfMonth()->format('Y-m-d'),
-            ],
-            'this_year' => [
-                'start' => now()->startOfYear()->format('Y-m-d'),
-                'end' => now()->endOfYear()->format('Y-m-d'),
-            ],
-            'last_7_days' => [
-                'start' => now()->subDays(7)->format('Y-m-d'),
-                'end' => now()->format('Y-m-d'),
-            ],
-            'last_30_days' => [
-                'start' => now()->subDays(30)->format('Y-m-d'),
-                'end' => now()->format('Y-m-d'),
-            ],
-            default => [
-                'start' => now()->startOfMonth()->format('Y-m-d'),
-                'end' => now()->endOfMonth()->format('Y-m-d'),
-            ],
-        };
+        \Log::info("✅ Business unit cache cleared for user {$userId}");
     }
 
     /**

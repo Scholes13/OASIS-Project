@@ -186,25 +186,50 @@ class BusinessUnit extends Model
 
     /**
      * Check if this business unit is a parent of given business unit
+     * Includes cycle detection to prevent infinite recursion
      */
-    public function isParentOf(BusinessUnit $businessUnit): bool
+    public function isParentOf(BusinessUnit $businessUnit, array $visited = []): bool
     {
-        return $this->children()->where('id', $businessUnit->id)->exists() ||
-               $this->children()->get()->contains(function ($child) use ($businessUnit) {
-                   return $child->isParentOf($businessUnit);
-               });
+        // Cycle detection: prevent infinite recursion
+        if (in_array($this->id, $visited, true)) {
+            return false;
+        }
+
+        $visited[] = $this->id;
+
+        // Direct child check
+        if ($this->children()->where('id', $businessUnit->id)->exists()) {
+            return true;
+        }
+
+        // Recursive check with visited tracking
+        return $this->children()->get()->contains(function ($child) use ($businessUnit, $visited) {
+            return $child->isParentOf($businessUnit, $visited);
+        });
     }
 
     /**
      * Get all business units that this user can access (including children)
+     * Includes cycle detection to prevent infinite loops
      */
-    public function getAccessibleBusinessUnits(): array
+    public function getAccessibleBusinessUnits(array $visited = []): array
     {
+        // Cycle detection: prevent infinite loops
+        if (in_array($this->id, $visited, true)) {
+            return [];
+        }
+
+        $visited[] = $this->id;
         $accessible = [$this->id];
 
         foreach ($this->descendants as $descendant) {
+            // Skip if already visited (circular reference)
+            if (in_array($descendant->id, $visited, true)) {
+                continue;
+            }
+
             $accessible[] = $descendant->id;
-            $accessible = array_merge($accessible, $descendant->getAccessibleBusinessUnits());
+            $accessible = array_merge($accessible, $descendant->getAccessibleBusinessUnits($visited));
         }
 
         return array_unique($accessible);

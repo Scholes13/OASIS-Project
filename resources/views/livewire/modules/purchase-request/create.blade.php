@@ -513,10 +513,10 @@
                                             <button 
                                                 wire:click="removeCustomApproval({{ $index }})" 
                                                 type="button"
-                                                class="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 transition-colors"
+                                                class="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="Remove this approval step">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                 </svg>
                                             </button>
                                         </div>
@@ -587,26 +587,49 @@
             type="button"
             onclick="showSavingState(this);"
             class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
-            {{ ($isEdit ?? false) ? 'Update Draft' : 'Save as Draft' }}
+            @if($isEdit ?? false)
+                Save as Draft
+            @else
+                Save as Draft
+            @endif
         </button>
 
         <div class="flex items-center space-x-3">
-            <!-- Save Changes (for edit mode, keeps rejected status if PR was rejected) -->
-            <button 
-                wire:click="submitPurchaseRequest" 
-                type="button"
-                onclick="showSubmittingState(this);"
-                class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                @if($isEdit ?? false)
-                    @if($this->isRejected ?? false)
-                        Save Changes (Rejected)
-                    @else
-                        Save Changes
-                    @endif
+            @if($isEdit ?? false)
+                @if($this->isRejected ?? false)
+                    <!-- For rejected PR: Show "Save & Resubmit" as primary action -->
+                    <button 
+                        wire:click="saveAndResubmit" 
+                        type="button"
+                        onclick="showResubmittingState(this);"
+                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Save & Resubmit
+                        </span>
+                    </button>
                 @else
-                    Submit for Approval
+                    <!-- For non-rejected PR: Normal save -->
+                    <button 
+                        wire:click="submitPurchaseRequest" 
+                        type="button"
+                        onclick="showSubmittingState(this);"
+                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                        Save Changes
+                    </button>
                 @endif
-            </button>
+            @else
+                <!-- Create mode: Submit for approval -->
+                <button 
+                    wire:click="submitPurchaseRequest" 
+                    type="button"
+                    onclick="showSubmittingState(this);"
+                    class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                    Submit for Approval
+                </button>
+            @endif
         </div>
     </div>
 </div>

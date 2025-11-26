@@ -1,1 +1,10 @@
+# .gitignore self-reference
 .gitignore
+
+# Laravel Compiled Views (Issue #1 fix)
+/storage/framework/views/*.php
+
+# Other Laravel generated files
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/logs/*.log

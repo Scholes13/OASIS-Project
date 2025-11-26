@@ -105,8 +105,11 @@ class UniversalPRNumberingService
         }
 
         // 3. For super admins, allow any active business unit (fallback to first active)
+        // Use deterministic ORDER BY to ensure consistent results
         if ($user->global_role === 'super_admin') {
-            return BusinessUnit::where('is_active', true)->first();
+            return BusinessUnit::where('is_active', true)
+                ->orderBy('id', 'asc')
+                ->first();
         }
 
         // 4. Use user's primary business unit
@@ -140,8 +143,11 @@ class UniversalPRNumberingService
         }
 
         // 3. For super admins, use any department in the business unit
+        // Use deterministic ORDER BY to ensure consistent results
         if ($user->global_role === 'super_admin') {
-            return $businessUnit->activeDepartments()->first();
+            return $businessUnit->activeDepartments()
+                ->orderBy('id', 'asc')
+                ->first();
         }
 
         // 4. Find user's department assignment in this business unit

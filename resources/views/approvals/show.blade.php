@@ -10,7 +10,7 @@
                 </div>
                 <div class="text-right">
                     <div class="text-sm text-gray-500">PR Number</div>
-                    <div class="text-2xl font-bold text-indigo-600">{{ $approval->purchaseRequest->pr_number }}</div>
+                    <div class="text-2xl font-bold text-indigo-600">{{ $approval->purchaseRequest?->pr_number ?? 'N/A' }}</div>
                 </div>
             </div>
         </div>
@@ -50,15 +50,15 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Requestor</label>
-                                <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest->user->name }}</p>
+                                <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest?->user?->name ?? 'Unknown' }}</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Department</label>
-                                <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest->department->name }}</p>
+                                <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest?->department?->name ?? 'N/A' }}</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Business Unit</label>
-                                <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest->businessUnit->name }}</p>
+                                <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest?->businessUnit?->name ?? 'N/A' }}</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Request Date</label>
@@ -142,7 +142,7 @@
                                     </div>
                                 </div>
                                 <div class="ml-3 flex-1">
-                                    <div class="text-sm font-medium text-gray-900">{{ $approval->purchaseRequest->user->name }}</div>
+                                    <div class="text-sm font-medium text-gray-900">{{ $approval->purchaseRequest?->user?->name ?? 'Unknown' }}</div>
                                     <div class="text-xs text-gray-500">Requestor</div>
                                 </div>
                                 <div class="flex-shrink-0">
@@ -171,7 +171,7 @@
                                     </div>
                                 </div>
                                 <div class="ml-3 flex-1">
-                                    <div class="text-sm font-medium text-gray-900">{{ $step->approver->name }}</div>
+                                    <div class="text-sm font-medium text-gray-900">{{ $step->approver?->name ?? 'Unknown Approver' }}</div>
                                     <div class="text-xs text-gray-500">{{ ucfirst(str_replace('_', ' ', $step->approval_type ?? 'Approver')) }}</div>
                                     @if($step->responded_at)
                                         <div class="text-xs text-gray-400">{{ $step->responded_at->format('d/m/Y H:i') }}</div>
@@ -276,8 +276,18 @@
                         <p class="text-xs text-gray-500 mb-4">This QR code is unique to your approval and cannot be replicated</p>
                         
                         @php
-                            $qrCodeService = new \App\Services\Core\QrCodeService();
-                            $publicUrl = $qrCodeService->generatePublicVerificationUrl($approval);
+                            // Generate public verification URL with proper token
+                            $token = hash('sha256', json_encode([
+                                'pr_id' => $approval->purchaseRequest->id,
+                                'approver_id' => $approval->approver_id,
+                                'responded_at' => $approval->responded_at?->timestamp,
+                                'type' => 'approval'
+                            ]) . config('app.key'));
+                            $publicUrl = route('purchase-requests.public', [
+                                'pr' => $approval->purchaseRequest->id,
+                                'token' => $token,
+                                'approver' => $approval->approver_id
+                            ]);
                         @endphp
                         
                         <a href="{{ $publicUrl }}" 

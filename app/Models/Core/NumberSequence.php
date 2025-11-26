@@ -116,7 +116,10 @@ class NumberSequence extends Model
 
             // Check if we've exceeded the maximum
             if ($nextNumber > $sequence->max_number) {
-                throw new \Exception('Maximum number reached for this sequence');
+                throw new \RuntimeException(
+                    "Maximum number ({$sequence->max_number}) reached for sequence ID {$sequence->id}. ".
+                    'Please contact administrator to increase the limit.'
+                );
             }
 
             // Update the current number
@@ -133,7 +136,8 @@ class NumberSequence extends Model
     {
         $voidNumbers = $this->void_numbers ?? [];
 
-        if (! in_array($number, $voidNumbers)) {
+        // Use strict comparison to prevent type juggling issues
+        if (! in_array($number, $voidNumbers, true)) {
             $voidNumbers[] = $number;
             sort($voidNumbers);
             $this->update(['void_numbers' => $voidNumbers]);
@@ -147,7 +151,8 @@ class NumberSequence extends Model
     {
         $voidNumbers = $this->void_numbers ?? [];
 
-        if (($key = array_search($number, $voidNumbers)) !== false) {
+        // Use strict comparison to prevent type juggling issues
+        if (($key = array_search($number, $voidNumbers, true)) !== false) {
             unset($voidNumbers[$key]);
             $this->update(['void_numbers' => array_values($voidNumbers)]);
         }

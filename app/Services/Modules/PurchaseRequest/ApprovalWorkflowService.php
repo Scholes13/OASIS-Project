@@ -479,19 +479,24 @@ class ApprovalWorkflowService
         $nextApproval = $purchaseRequest->currentApproval();
 
         if ($nextApproval) {
-            // Here you would integrate with your notification system
-            // For now, we'll just log the notification
-            Log::info('Approval notification sent', [
-                'pr_number' => $purchaseRequest->pr_number,
-                'approver_id' => $nextApproval->approver_id,
-                'approver_email' => $nextApproval->approver->email,
-                'step_order' => $nextApproval->step_order,
-                'due_date' => $nextApproval->due_date,
-            ]);
+            try {
+                $emailService = app(\App\Services\Core\EmailNotificationService::class);
+                $emailService->sendApprovalRequested($nextApproval);
 
-            // TODO: Send email notification
-            // TODO: Send in-app notification
-            // TODO: Send SMS notification (if configured)
+                Log::info('Approval notification sent successfully', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'approver_id' => $nextApproval->approver_id,
+                    'approver_email' => $nextApproval->approver->email,
+                    'step_order' => $nextApproval->step_order,
+                    'due_date' => $nextApproval->due_date,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to send approval notification (fallback to database saved)', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'approver_email' => $nextApproval->approver->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -500,17 +505,24 @@ class ApprovalWorkflowService
      */
     protected function notifyCompletion(PurchaseRequest $purchaseRequest): void
     {
-        Log::info('PR approval completed', [
-            'pr_number' => $purchaseRequest->pr_number,
-            'requestor_id' => $purchaseRequest->user_id,
-            'requestor_email' => $purchaseRequest->user->email,
-            'approved_at' => $purchaseRequest->approved_at,
-            'total_amount' => $purchaseRequest->total_amount,
-        ]);
+        try {
+            $emailService = app(\App\Services\Core\EmailNotificationService::class);
+            $emailService->sendApprovalCompleted($purchaseRequest);
 
-        // TODO: Send completion notification to requestor
-        // TODO: Send notification to procurement team
-        // TODO: Send notification to finance team
+            Log::info('PR approval completion notification sent successfully', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'requestor_id' => $purchaseRequest->user_id,
+                'requestor_email' => $purchaseRequest->user->email,
+                'approved_at' => $purchaseRequest->approved_at,
+                'total_amount' => $purchaseRequest->total_amount,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to send completion notification (fallback to database saved)', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'requestor_email' => $purchaseRequest->user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -523,17 +535,27 @@ class ApprovalWorkflowService
             ->orderBy('responded_at', 'desc')
             ->first();
 
-        Log::info('PR rejected', [
-            'pr_number' => $purchaseRequest->pr_number,
-            'requestor_id' => $purchaseRequest->user_id,
-            'requestor_email' => $purchaseRequest->user?->email,
-            'rejected_by' => $rejectedApproval?->approver?->email,
-            'rejection_reason' => $rejectedApproval?->notes,
-            'rejected_at' => $purchaseRequest->rejected_at,
-        ]);
+        if ($rejectedApproval) {
+            try {
+                $emailService = app(\App\Services\Core\EmailNotificationService::class);
+                $emailService->sendApprovalRejected($rejectedApproval);
 
-        // TODO: Send rejection notification to requestor
-        // TODO: Send notification to relevant stakeholders
+                Log::info('PR rejection notification sent successfully', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'requestor_id' => $purchaseRequest->user_id,
+                    'requestor_email' => $purchaseRequest->user?->email,
+                    'rejected_by' => $rejectedApproval->approver->email,
+                    'rejection_reason' => $rejectedApproval->notes,
+                    'rejected_at' => $purchaseRequest->rejected_at,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to send rejection notification (fallback to database saved)', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'requestor_email' => $purchaseRequest->user?->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

@@ -186,6 +186,15 @@ class Sidebar extends Component
                 'current' => str_starts_with($this->currentRoute, 'admin.departments'),
                 'children' => [],
             ];
+
+            // Email Notifications
+            $navigation[] = [
+                'name' => 'Email Notifications',
+                'href' => route('admin.notification-settings.index'),
+                'icon' => 'mail',
+                'current' => str_starts_with($this->currentRoute, 'admin.notification-settings'),
+                'children' => [],
+            ];
         }
 
         return $navigation;

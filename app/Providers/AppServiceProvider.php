@@ -24,8 +24,55 @@ class AppServiceProvider extends ServiceProvider
         // Register PDF Layout Component
         Blade::component('pdf-layout', \App\View\Components\PdfLayout::class);
 
+        // Configure dynamic SMTP settings from database
+        $this->configureDynamicMailer();
+
         // Define Gates for authorization
         $this->defineGates();
+    }
+
+    /**
+     * Configure mail settings dynamically from database
+     */
+    protected function configureDynamicMailer(): void
+    {
+        try {
+            // Only configure if database is accessible
+            if (!\Illuminate\Support\Facades\Schema::hasTable('notification_settings')) {
+                return;
+            }
+
+            $settings = \App\Models\Core\NotificationSetting::getInstance();
+
+            // Only configure if email is enabled
+            if (!$settings->email_enabled) {
+                return;
+            }
+
+            // Configure mail dynamically
+            config([
+                'mail.default' => 'dynamic_smtp',
+                'mail.mailers.dynamic_smtp' => [
+                    'transport' => 'smtp',
+                    'host' => $settings->smtp_host,
+                    'port' => $settings->smtp_port,
+                    'encryption' => $settings->smtp_encryption,
+                    'username' => $settings->smtp_username,
+                    'password' => $settings->smtp_password, // Auto-decrypted by accessor
+                    'timeout' => 30,
+                ],
+                'mail.from' => [
+                    'address' => $settings->mail_from_address,
+                    'name' => $settings->mail_from_name,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            // Silently fail during migrations or when table doesn't exist
+            \Illuminate\Support\Facades\Log::debug('Dynamic mailer configuration skipped', [
+                'reason' => $e->getMessage()
+            ]);
+        }
     }
 
     /**

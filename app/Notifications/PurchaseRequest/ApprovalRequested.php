@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Notifications\PurchaseRequest;
+
+use App\Models\Modules\PurchaseRequest\PrApproval;
+use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\URL;
+
+class ApprovalRequested extends Notification
+{
+    use Queueable;
+
+    protected PrApproval $approval;
+
+    public function __construct(PrApproval $approval)
+    {
+        $this->approval = $approval;
+    }
+
+    /**
+     * Get the notification's delivery channels.
+     */
+    public function via($notifiable): array
+    {
+        return ['mail', 'database'];
+    }
+
+    /**
+     * Get the mail representation of the notification.
+     */
+    public function toMail($notifiable): MailMessage
+    {
+        $pr = $this->approval->purchaseRequest;
+        $expiryDays = config('notification.link_expiry_days', 3);
+
+        // Generate signed URL valid for configured days
+        $publicUrl = URL::temporarySignedRoute(
+            'approvals.public.approve',
+            now()->addDays($expiryDays),
+            ['approval' => $this->approval->id]
+        );
+
+        return (new MailMessage)
+            ->subject('Purchase Request Approval Required - PR #' . $pr->pr_number)
+            ->view('emails.purchase-request.approval-requested', [
+                'approval' => $this->approval,
+                'pr' => $pr,
+                'approver' => $notifiable,
+                'publicUrl' => $publicUrl,
+                'expiryDays' => $expiryDays,
+            ]);
+    }
+
+    /**
+     * Get the array representation of the notification (for database).
+     */
+    public function toArray($notifiable): array
+    {
+        $pr = $this->approval->purchaseRequest;
+
+        return [
+            'type' => 'approval_requested',
+            'pr_id' => $pr->id,
+            'pr_number' => $pr->pr_number,
+            'approval_id' => $this->approval->id,
+            'step_order' => $this->approval->step_order,
+            'approval_type' => $this->approval->approval_type,
+            'amount' => $pr->total_amount,
+            'requestor_name' => $pr->user->name,
+            'due_date' => $this->approval->due_date?->toISOString(),
+            'message' => "Purchase Request #{$pr->pr_number} requires your approval",
+            'action_url' => route('approvals.show', $this->approval->id),
+        ];
+    }
+}

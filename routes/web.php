@@ -22,6 +22,14 @@ Route::get('/purchase-requests/{purchaseRequest}/pdf-public', [PurchaseRequestCo
 // Public download PDF route for browsershot (no auth middleware)
 Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [PurchaseRequestController::class, 'downloadPdfPublic'])->name('purchase-requests.download-pdf-public');
 
+// Public approval routes (signed URL with expiry)
+Route::middleware('signed')->group(function () {
+    Route::get('/approvals/{approval}/public', [ApprovalController::class, 'showPublicApproval'])->name('approvals.public.approve');
+    Route::post('/approvals/{approval}/public/process', [ApprovalController::class, 'processPublicApproval'])
+        ->middleware('throttle:5,1')
+        ->name('approvals.public.process');
+});
+
 // ============================================================================
 // DEBUG ROUTES - Only active in local environment
 // ============================================================================
@@ -139,6 +147,12 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Department Management
         Route::resource('departments', DepartmentController::class);
+
+        // Notification Settings (Super Admin Only)
+        Route::get('/notification-settings', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'index'])->name('notification-settings.index');
+        Route::post('/notification-settings', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'update'])->name('notification-settings.update');
+        Route::post('/notification-settings/test', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'sendTest'])->name('notification-settings.test');
+        Route::get('/notification-settings/statistics', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'statistics'])->name('notification-settings.statistics');
 
         // Number Sequence Management (placeholder routes)
         Route::get('/number-sequences', function () {

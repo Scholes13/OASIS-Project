@@ -924,6 +924,78 @@ class Create extends Component
         ]);
     }
 
+    /**
+     * Send approval notifications to pending approvers
+     */
+    protected function sendApprovalNotifications(PurchaseRequest $purchaseRequest)
+    {
+        try {
+            // Get pending approvals (only first step for sequential approval)
+            $pendingApprovals = $purchaseRequest->approvals()
+                ->where('status', 'pending')
+                ->orderBy('step_order')
+                ->get();
+
+            if ($pendingApprovals->isEmpty()) {
+                \Illuminate\Support\Facades\Log::warning('No pending approvals found for PR', [
+                    'pr_number' => $purchaseRequest->pr_number,
+                ]);
+                return;
+            }
+
+            // For sequential approval, only notify first step
+            if ($purchaseRequest->is_sequential_approval) {
+                $firstApproval = $pendingApprovals->first();
+                $approver = $firstApproval->approver;
+
+                if ($approver) {
+                    $approver->notify(new \App\Notifications\PurchaseRequest\ApprovalRequested($firstApproval));
+                    
+                    \Illuminate\Support\Facades\Log::info('Approval notification sent', [
+                        'pr_number' => $purchaseRequest->pr_number,
+                        'approver_email' => $approver->email,
+                        'step_order' => $firstApproval->step_order,
+                    ]);
+
+                    // Update notification statistics
+                    $settings = \App\Models\Core\NotificationSetting::getInstance();
+                    $settings->increment('total_sent');
+                    $settings->update(['last_email_sent_at' => now()]);
+                }
+            } else {
+                // For parallel approval, notify all pending approvers
+                foreach ($pendingApprovals as $approval) {
+                    $approver = $approval->approver;
+                    if ($approver) {
+                        $approver->notify(new \App\Notifications\PurchaseRequest\ApprovalRequested($approval));
+                        
+                        \Illuminate\Support\Facades\Log::info('Approval notification sent', [
+                            'pr_number' => $purchaseRequest->pr_number,
+                            'approver_email' => $approver->email,
+                            'step_order' => $approval->step_order,
+                        ]);
+                    }
+                }
+
+                // Update notification statistics (batch)
+                $settings = \App\Models\Core\NotificationSetting::getInstance();
+                $settings->increment('total_sent', $pendingApprovals->count());
+                $settings->update(['last_email_sent_at' => now()]);
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the entire request
+            \Illuminate\Support\Facades\Log::error('Failed to send approval notifications', [
+                'pr_number' => $purchaseRequest->pr_number,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Update failed email statistics
+            $settings = \App\Models\Core\NotificationSetting::getInstance();
+            $settings->increment('total_failed');
+        }
+    }
+
     protected function validateCustomApproval()
     {
         // Ensure customApprovalList is an array
@@ -1299,6 +1371,9 @@ class Create extends Component
             $this->createCustomApprovalWorkflow($purchaseRequest);
 
             DB::commit();
+
+            // ✅ Send email notifications to approvers
+            $this->sendApprovalNotifications($purchaseRequest);
 
             // ✅ Clear dashboard cache for affected users
             app(PurchaseRequestService::class)->clearDashboardCache($purchaseRequest);
@@ -1789,6 +1864,9 @@ class Create extends Component
             $this->createCustomApprovalWorkflow($purchaseRequest);
 
             DB::commit();
+
+            // ✅ Send email notifications to approvers (for resubmit)
+            $this->sendApprovalNotifications($purchaseRequest);
 
             session()->flash('success', "Purchase Request {$purchaseRequest->pr_number} has been updated and resubmitted for approval. Approval workflow has been reset.");
 

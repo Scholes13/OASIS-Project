@@ -18,6 +18,9 @@
         <div class="max-w-2xl w-full">
             <div class="bg-white rounded-2xl shadow-xl p-12 text-center">
                 <!-- Icon -->
+                @php
+                    $color = $color ?? 'gray'; // Default color if not provided
+                @endphp
                 <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full mb-6
                     @if($color === 'red') bg-red-100
                     @elseif($color === 'green') bg-green-100

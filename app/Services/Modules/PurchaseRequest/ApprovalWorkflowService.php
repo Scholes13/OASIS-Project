@@ -481,19 +481,31 @@ class ApprovalWorkflowService
         if ($nextApproval) {
             try {
                 $emailService = app(\App\Services\Core\EmailNotificationService::class);
-                $emailService->sendApprovalRequested($nextApproval);
-
-                Log::info('Approval notification sent successfully', [
-                    'pr_number' => $purchaseRequest->pr_number,
-                    'approver_id' => $nextApproval->approver_id,
-                    'approver_email' => $nextApproval->approver->email,
-                    'step_order' => $nextApproval->step_order,
-                    'due_date' => $nextApproval->due_date,
-                ]);
+                
+                // Dispatch to queue untuk tidak blocking response
+                dispatch(function () use ($emailService, $nextApproval, $purchaseRequest) {
+                    try {
+                        $emailService->sendApprovalRequested($nextApproval);
+                        
+                        Log::info('Approval notification sent successfully', [
+                            'pr_number' => $purchaseRequest->pr_number,
+                            'approver_id' => $nextApproval->approver_id,
+                            'approver_email' => $nextApproval->approver?->email,
+                            'step_order' => $nextApproval->step_order,
+                            'due_date' => $nextApproval->due_date,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to send approval notification', [
+                            'pr_number' => $purchaseRequest->pr_number,
+                            'approver_email' => $nextApproval->approver?->email,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                })->afterResponse(); // Send after HTTP response
+                
             } catch (\Exception $e) {
-                Log::warning('Failed to send approval notification (fallback to database saved)', [
+                Log::warning('Failed to queue approval notification', [
                     'pr_number' => $purchaseRequest->pr_number,
-                    'approver_email' => $nextApproval->approver->email,
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -507,19 +519,31 @@ class ApprovalWorkflowService
     {
         try {
             $emailService = app(\App\Services\Core\EmailNotificationService::class);
-            $emailService->sendApprovalCompleted($purchaseRequest);
-
-            Log::info('PR approval completion notification sent successfully', [
-                'pr_number' => $purchaseRequest->pr_number,
-                'requestor_id' => $purchaseRequest->user_id,
-                'requestor_email' => $purchaseRequest->user->email,
-                'approved_at' => $purchaseRequest->approved_at,
-                'total_amount' => $purchaseRequest->total_amount,
-            ]);
+            
+            // Dispatch to queue untuk tidak blocking response
+            dispatch(function () use ($emailService, $purchaseRequest) {
+                try {
+                    $emailService->sendApprovalCompleted($purchaseRequest);
+                    
+                    Log::info('PR approval completion notification sent successfully', [
+                        'pr_number' => $purchaseRequest->pr_number,
+                        'requestor_id' => $purchaseRequest->user_id,
+                        'requestor_email' => $purchaseRequest->user?->email,
+                        'approved_at' => $purchaseRequest->approved_at,
+                        'total_amount' => $purchaseRequest->total_amount,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to send completion notification', [
+                        'pr_number' => $purchaseRequest->pr_number,
+                        'requestor_email' => $purchaseRequest->user?->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            })->afterResponse(); // Send after HTTP response
+            
         } catch (\Exception $e) {
-            Log::warning('Failed to send completion notification (fallback to database saved)', [
+            Log::warning('Failed to queue completion notification', [
                 'pr_number' => $purchaseRequest->pr_number,
-                'requestor_email' => $purchaseRequest->user->email,
                 'error' => $e->getMessage(),
             ]);
         }
@@ -538,20 +562,30 @@ class ApprovalWorkflowService
         if ($rejectedApproval) {
             try {
                 $emailService = app(\App\Services\Core\EmailNotificationService::class);
-                $emailService->sendApprovalRejected($rejectedApproval);
-
-                Log::info('PR rejection notification sent successfully', [
-                    'pr_number' => $purchaseRequest->pr_number,
-                    'requestor_id' => $purchaseRequest->user_id,
-                    'requestor_email' => $purchaseRequest->user?->email,
-                    'rejected_by' => $rejectedApproval->approver->email,
-                    'rejection_reason' => $rejectedApproval->notes,
-                    'rejected_at' => $purchaseRequest->rejected_at,
-                ]);
+                
+                // Dispatch to queue untuk tidak blocking response
+                dispatch(function () use ($emailService, $rejectedApproval, $purchaseRequest) {
+                    try {
+                        $emailService->sendApprovalRejected($rejectedApproval);
+                        
+                        Log::info('PR rejection notification sent successfully', [
+                            'pr_number' => $purchaseRequest->pr_number,
+                            'requestor_id' => $purchaseRequest->user_id,
+                            'requestor_email' => $purchaseRequest->user?->email,
+                            'rejected_by' => $rejectedApproval->approver?->email,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to send rejection notification', [
+                            'pr_number' => $purchaseRequest->pr_number,
+                            'requestor_email' => $purchaseRequest->user?->email,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                })->afterResponse(); // Send after HTTP response
+                
             } catch (\Exception $e) {
-                Log::warning('Failed to send rejection notification (fallback to database saved)', [
+                Log::warning('Failed to queue rejection notification', [
                     'pr_number' => $purchaseRequest->pr_number,
-                    'requestor_email' => $purchaseRequest->user?->email,
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -573,14 +607,14 @@ class ApprovalWorkflowService
             'total_steps' => $totalSteps,
             'completed_steps' => $completedSteps,
             'current_step' => $currentStep?->step_order,
-            'current_approver' => $currentStep?->approver->name,
+            'current_approver' => $currentStep?->approver?->name,
             'progress_percentage' => $totalSteps > 0 ? round(($completedSteps / $totalSteps) * 100, 2) : 0,
             'status' => $purchaseRequest->status,
             'is_complete' => in_array($purchaseRequest->status, ['approved', 'rejected']),
             'workflow_steps' => $approvals->map(function ($approval) {
                 return [
                     'step_order' => $approval->step_order,
-                    'approver_name' => $approval->approver->name,
+                    'approver_name' => $approval->approver?->name,
                     'approval_type' => $approval->approval_type ?? 'general',
                     'status' => $approval->status,
                     'assigned_at' => $approval->assigned_at,

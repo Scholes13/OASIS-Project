@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -802,7 +802,7 @@
             <div class="form-group">
                 <label for="notes" class="form-label">
                     Notes / Comments
-                    <span style="color: #ef4444;" id="required-indicator" style="display: none;">*</span>
+                    <span style="color: #ef4444; display: none;" id="required-indicator">*</span>
                 </label>
                 <textarea name="notes" 
                           id="notes" 

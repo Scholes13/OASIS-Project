@@ -136,13 +136,7 @@
                     <a href="{{ config('app.url') }}" 
                        class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 shadow-lg">
                         <i class="fas fa-home mr-2"></i>
-                        Go to Dashboard
-                    </a>
-                    
-                    <a href="{{ config('app.url') . '/approvals' }}" 
-                       class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
-                        <i class="fas fa-clipboard-list mr-2"></i>
-                        View All Approvals
+                        Close This Page
                     </a>
                 </div>
 

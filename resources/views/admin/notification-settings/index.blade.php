@@ -257,11 +257,15 @@
                                         required>
                                     <option value="tls" {{ old('smtp_encryption', $settings->smtp_encryption) === 'tls' ? 'selected' : '' }}>TLS (Recommended - Port 587)</option>
                                     <option value="ssl" {{ old('smtp_encryption', $settings->smtp_encryption) === 'ssl' ? 'selected' : '' }}>SSL (Port 465)</option>
-                                    <option value="none" {{ old('smtp_encryption', $settings->smtp_encryption) === 'none' ? 'selected' : '' }}>None (Not Recommended)</option>
+                                    <option value="none" {{ old('smtp_encryption', $settings->smtp_encryption) === 'none' ? 'selected' : '' }}>⚠️ None - Unencrypted (Development Only)</option>
                                 </select>
                                 @error('smtp_encryption')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
+                                <p class="mt-2 text-sm text-amber-600">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>Security Notice:</strong> Unencrypted SMTP sends credentials in plaintext. Only use for local development or trusted internal networks.
+                                </p>
                             </div>
                         </div>
                     </div>

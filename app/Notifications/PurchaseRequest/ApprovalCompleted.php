@@ -31,11 +31,18 @@ class ApprovalCompleted extends Notification
      */
     public function toMail($notifiable): MailMessage
     {
+        // Eager load approvals to avoid N+1 query in view
+        $approvals = $this->purchaseRequest->approvals()
+            ->where('status', 'approved')
+            ->with('approver')
+            ->get();
+
         return (new MailMessage)
             ->subject('Purchase Request Fully Approved - PR #' . $this->purchaseRequest->pr_number)
             ->view('emails.purchase-request.approval-completed', [
                 'pr' => $this->purchaseRequest,
                 'recipient' => $notifiable,
+                'approvals' => $approvals,  // Pass pre-loaded approvals
             ]);
     }
 

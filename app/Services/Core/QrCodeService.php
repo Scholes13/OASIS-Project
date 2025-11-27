@@ -104,7 +104,7 @@ class QrCodeService
     /**
      * Generate verification token for approval
      */
-    protected function generateApprovalToken(PrApproval $approval): string
+    public function generateApprovalToken(PrApproval $approval): string
     {
         $data = [
             'approval_id' => $approval->id,

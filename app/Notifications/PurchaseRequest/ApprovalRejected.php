@@ -48,15 +48,16 @@ class ApprovalRejected extends Notification
     public function toArray($notifiable): array
     {
         $pr = $this->approval->purchaseRequest;
+        $approverName = $this->approval->approver?->name ?? 'Unknown Approver';
 
         return [
             'type' => 'approval_rejected',
             'pr_id' => $pr->id,
             'pr_number' => $pr->pr_number,
             'approval_id' => $this->approval->id,
-            'approver_name' => $this->approval->approver->name,
+            'approver_name' => $approverName,
             'rejection_notes' => $this->approval->notes,
-            'message' => "Your Purchase Request #{$pr->pr_number} has been rejected by {$this->approval->approver->name}",
+            'message' => "Your Purchase Request #{$pr->pr_number} has been rejected by {$approverName}",
             'action_url' => route('purchase-requests.show', $pr->id),
         ];
     }

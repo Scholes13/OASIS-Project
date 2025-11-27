@@ -7,7 +7,7 @@
 
 @section('content')
     <p style="margin: 0 0 15px 0; font-size: 16px; color: #333333;">
-        Dear <strong style="color: #212529;">{{ $approver->name }}</strong>,
+        Dear <strong style="color: #212529;">{{ $approver?->name ?? 'Approver' }}</strong>,
     </p>
     
     <p style="margin: 0 0 20px 0; font-size: 15px; color: #495057; line-height: 1.6;">
@@ -31,7 +31,7 @@
                 <table role="presentation" width="100%" cellpadding="8" cellspacing="0" border="0" style="border-bottom: 1px solid #e9ecef;">
                     <tr>
                         <td style="font-weight: 600; color: #495057; font-size: 14px; padding: 10px 0;">Requested By:</td>
-                        <td align="right" style="color: #212529; font-size: 14px; padding: 10px 0;">{{ $pr->user->name }}</td>
+                        <td align="right" style="color: #212529; font-size: 14px; padding: 10px 0;">{{ $pr->user?->name ?? 'Unknown User' }}</td>
                     </tr>
                 </table>
                 
@@ -39,7 +39,7 @@
                 <table role="presentation" width="100%" cellpadding="8" cellspacing="0" border="0" style="border-bottom: 1px solid #e9ecef;">
                     <tr>
                         <td style="font-weight: 600; color: #495057; font-size: 14px; padding: 10px 0;">Business Unit:</td>
-                        <td align="right" style="color: #212529; font-size: 14px; padding: 10px 0;">{{ $pr->businessUnit->name }}</td>
+                        <td align="right" style="color: #212529; font-size: 14px; padding: 10px 0;">{{ $pr->businessUnit?->name ?? 'N/A' }}</td>
                     </tr>
                 </table>
                 

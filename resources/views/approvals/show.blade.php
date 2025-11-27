@@ -276,13 +276,9 @@
                         <p class="text-xs text-gray-500 mb-4">This QR code is unique to your approval and cannot be replicated</p>
                         
                         @php
-                            // Generate public verification URL with proper token
-                            $token = hash('sha256', json_encode([
-                                'pr_id' => $approval->purchaseRequest->id,
-                                'approver_id' => $approval->approver_id,
-                                'responded_at' => $approval->responded_at?->timestamp,
-                                'type' => 'approval'
-                            ]) . config('app.key'));
+                            // Use QrCodeService to generate token (same as QR code)
+                            $qrService = app(\App\Services\Core\QrCodeService::class);
+                            $token = $qrService->generateApprovalToken($approval);
                             $publicUrl = route('purchase-requests.public', [
                                 'pr' => $approval->purchaseRequest->id,
                                 'token' => $token,

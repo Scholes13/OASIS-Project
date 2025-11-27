@@ -33,12 +33,19 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Configure mail settings dynamically from database
+     * Cached to prevent schema check on every request
      */
     protected function configureDynamicMailer(): void
     {
         try {
-            // Only configure if database is accessible
-            if (!\Illuminate\Support\Facades\Schema::hasTable('notification_settings')) {
+            // Only configure if database is accessible (cached for 1 hour)
+            $hasTable = \Illuminate\Support\Facades\Cache::remember(
+                'schema_has_notification_settings_table',
+                3600, // 1 hour cache
+                fn() => \Illuminate\Support\Facades\Schema::hasTable('notification_settings')
+            );
+
+            if (!$hasTable) {
                 return;
             }
 

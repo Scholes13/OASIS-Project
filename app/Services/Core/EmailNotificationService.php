@@ -5,7 +5,6 @@ namespace App\Services\Core;
 use App\Models\Core\NotificationSetting;
 use App\Models\Modules\PurchaseRequest\PrApproval;
 use App\Notifications\PurchaseRequest\ApprovalRequested;
-use App\Notifications\PurchaseRequest\ApprovalApproved;
 use App\Notifications\PurchaseRequest\ApprovalRejected;
 use App\Notifications\PurchaseRequest\ApprovalCompleted;
 use Illuminate\Support\Facades\Cache;
@@ -133,8 +132,8 @@ class EmailNotificationService
         $emailSent = false;
 
         try {
-            // Always save to database (fallback)
-            if ($this->settings->fallback_to_database) {
+            // Always save to database (fallback) if enabled and settings available
+            if ($this->settings && $this->settings->fallback_to_database) {
                 $notifiable->notify($notification);
             }
 
@@ -160,8 +159,10 @@ class EmailNotificationService
 
                 $emailSent = true;
 
-                // Update statistics
-                $this->settings->incrementSent();
+                // Update statistics if settings available
+                if ($this->settings) {
+                    $this->settings->incrementSent();
+                }
 
                 // Mark approval email as sent
                 if ($approval) {
@@ -230,6 +231,6 @@ class EmailNotificationService
      */
     public function getLinkExpiryDays(): int
     {
-        return $this->settings->link_expiry_days ?? 3;
+        return $this->settings?->link_expiry_days ?? 3;
     }
 }

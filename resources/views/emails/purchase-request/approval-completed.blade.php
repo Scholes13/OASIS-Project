@@ -29,16 +29,12 @@
         </div>
     </div>
 
-    @php
-        $approvals = $pr->approvals()->where('status', 'approved')->with('approver')->get();
-    @endphp
-
     @if($approvals->count() > 0)
     <div style="background-color: #d1e7dd; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
         <div style="font-weight: 600; color: #0f5132; margin-bottom: 10px;">Approval Chain:</div>
         @foreach($approvals as $index => $approval)
             <div style="padding: 5px 0; color: #0f5132;">
-                {{ $index + 1 }}. <strong>{{ $approval->approver->name }}</strong> 
+                {{ $index + 1 }}. <strong>{{ $approval->approver?->name ?? 'Unknown Approver' }}</strong> 
                 - {{ ucwords(str_replace('_', ' ', $approval->approval_type)) }} 
                 <span style="font-size: 12px;">({{ $approval->responded_at?->format('d M Y') }})</span>
             </div>

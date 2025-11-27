@@ -24,13 +24,28 @@ class ApprovalController extends Controller
      */
     public function show($approvalId)
     {
+        // Optimized: Only load necessary relationships
         $approval = PrApproval::with([
-            'purchaseRequest.user',
-            'purchaseRequest.department',
-            'purchaseRequest.businessUnit',
-            'purchaseRequest.items',
-            'purchaseRequest.approvals.approver',
-            'approver',
+            'purchaseRequest' => function ($query) {
+                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id', 
+                              'keperluan', 'used_for', 'total_amount', 'currency', 'status', 
+                              'date_of_request', 'designated_date', 'submitted_at', 'approved_at');
+            },
+            'purchaseRequest.user:id,name,email',
+            'purchaseRequest.department:id,name,code',
+            'purchaseRequest.businessUnit:id,name,code,logo',
+            'purchaseRequest.items' => function ($query) {
+                $query->select('id', 'purchase_request_id', 'item_name', 'brand_name', 
+                              'item_description', 'supplier_name', 'quantity', 'unit', 
+                              'unit_price', 'currency');
+            },
+            'purchaseRequest.approvals' => function ($query) {
+                $query->select('id', 'purchase_request_id', 'approver_id', 'step_order', 
+                              'approval_type', 'status', 'notes', 'responded_at')
+                      ->orderBy('step_order');
+            },
+            'purchaseRequest.approvals.approver:id,name,email',
+            'approver:id,name,email',
         ])->findOrFail($approvalId);
 
         // Check if current user is the approver
@@ -55,7 +70,10 @@ class ApprovalController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $approval = PrApproval::with('purchaseRequest')->findOrFail($approvalId);
+        // Optimized: Only load minimal data needed for processing
+        $approval = PrApproval::with([
+            'purchaseRequest:id,pr_number,status,user_id',
+        ])->findOrFail($approvalId);
 
         // Check if current user is the approver
         if ($approval->approver_id !== Auth::id()) {
@@ -190,6 +208,7 @@ class ApprovalController extends Controller
     public function index(Request $request)
     {
         $tab = $request->get('tab', 'pending');
+        $filter = $request->get('filter');
 
         // Get all approvals for PRs that involve current user
         $allPendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user())->get();
@@ -202,7 +221,65 @@ class ApprovalController extends Controller
         $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user())->paginate(10);
         $approvalStats = $this->workflowService->getApprovalStatistics(Auth::user());
 
-        return view('approvals.index', compact('pendingApprovals', 'approvalHistory', 'approvalStats', 'tab'));
+        // Process and combine approvals (moved from view for better performance)
+        $filteredApprovals = $this->processAndFilterApprovals(
+            $pendingApprovals, 
+            $approvalHistory, 
+            $filter
+        );
+
+        return view('approvals.index', compact(
+            'pendingApprovals', 
+            'approvalHistory', 
+            'approvalStats', 
+            'tab',
+            'filteredApprovals',
+            'filter'
+        ));
+    }
+
+    /**
+     * Process and filter approvals for display
+     * Moved from view to controller for better performance and testability
+     */
+    protected function processAndFilterApprovals($pendingApprovals, $approvalHistory, ?string $filter): \Illuminate\Support\Collection
+    {
+        $allApprovals = collect();
+        
+        // Add pending PRs
+        foreach($pendingApprovals as $approvals) {
+            $firstApproval = $approvals->first();
+            if ($firstApproval) {
+                $allApprovals->push([
+                    'type' => 'pending',
+                    'approval' => $firstApproval,
+                    'approvals' => $approvals,
+                    'pr' => $firstApproval->purchaseRequest,
+                    'date' => $firstApproval->assigned_at,
+                ]);
+            }
+        }
+        
+        // Add history
+        foreach($approvalHistory as $approval) {
+            $allApprovals->push([
+                'type' => 'history',
+                'approval' => $approval,
+                'pr' => $approval->purchaseRequest,
+                'date' => $approval->responded_at,
+            ]);
+        }
+        
+        // Sort by date descending
+        $allApprovals = $allApprovals->sortByDesc('date');
+        
+        // Apply filter if present
+        return match($filter) {
+            'pending' => $allApprovals->where('type', 'pending'),
+            'approved' => $allApprovals->filter(fn($item) => $item['type'] === 'history' && $item['approval']->status === 'approved'),
+            'rejected' => $allApprovals->filter(fn($item) => $item['type'] === 'history' && $item['approval']->status === 'rejected'),
+            default => $allApprovals
+        };
     }
 
     /**

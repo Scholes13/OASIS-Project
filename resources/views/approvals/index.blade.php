@@ -79,45 +79,6 @@
 
         <!-- All Documents Table -->
         <div class="px-6 py-4">
-            @php
-                // Combine pending and history
-                $allApprovals = collect();
-                
-                // Add pending PRs
-                foreach($pendingApprovals as $prId => $approvals) {
-                    $firstApproval = $approvals->first();
-                    $allApprovals->push([
-                        'type' => 'pending',
-                        'approval' => $firstApproval,
-                        'approvals' => $approvals,
-                        'pr' => $firstApproval->purchaseRequest,
-                        'date' => $firstApproval->assigned_at,
-                    ]);
-                }
-                
-                // Add history
-                foreach($approvalHistory as $approval) {
-                    $allApprovals->push([
-                        'type' => 'history',
-                        'approval' => $approval,
-                        'pr' => $approval->purchaseRequest,
-                        'date' => $approval->responded_at,
-                    ]);
-                }
-                
-                // Sort by date descending
-                $allApprovals = $allApprovals->sortByDesc('date');
-                
-                // Apply filter if present
-                $filter = request('filter');
-                $filteredApprovals = match($filter) {
-                    'pending' => $allApprovals->where('type', 'pending'),
-                    'approved' => $allApprovals->filter(fn($item) => $item['type'] === 'history' && $item['approval']->status === 'approved'),
-                    'rejected' => $allApprovals->filter(fn($item) => $item['type'] === 'history' && $item['approval']->status === 'rejected'),
-                    default => $allApprovals
-                };
-            @endphp
-
             @if($filteredApprovals->isEmpty())
                 <div class="py-12 text-center">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -179,7 +140,13 @@
                                     <div class="text-xs text-gray-400 mt-0.5">{{ $completedApprovals }}/{{ $totalApprovals }} done</div>
                                 @else
                                     <div class="text-sm text-gray-700">
-                                        {{ $approval->status === 'approved' ? 'Completed' : 'Voided' }}
+                                        @if($pr->status === 'voided')
+                                            Voided
+                                        @elseif($approval->status === 'approved')
+                                            Completed
+                                        @else
+                                            Rejected
+                                        @endif
                                     </div>
                                     @if($pr->status === 'approved')
                                     <div class="text-xs text-gray-400 mt-0.5">{{ $completedApprovals }}/{{ $totalApprovals }} done</div>
@@ -187,7 +154,7 @@
                                 @endif
                             </td>
                             <td class="px-3 py-4">
-                                <div class="text-sm text-gray-900">{{ $item['date']->format('d M Y, H:i') }}</div>
+                                <div class="text-sm text-gray-900">{{ $item['date'] ? $item['date']->format('d M Y, H:i') : '-' }}</div>
                             </td>
                             <td class="px-3 py-4 text-right">
                                 <div class="text-sm font-medium text-gray-900">{{ $pr->currency }} {{ number_format($pr->total_amount, 0) }}</div>

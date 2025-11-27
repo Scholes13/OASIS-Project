@@ -11,7 +11,7 @@
     </p>
     
     <p style="margin: 0 0 20px 0; font-size: 15px; color: #495057; line-height: 1.6;">
-        Unfortunately, your Purchase Request has been <strong style="color: #dc3545;">REJECTED</strong> by <strong>{{ $approval->approver->name }}</strong>.
+        Unfortunately, your Purchase Request has been <strong style="color: #dc3545;">REJECTED</strong> by <strong>{{ $approval->approver?->name ?? 'Approver' }}</strong>.
     </p>
     
     <!-- PR Information Table -->
@@ -38,7 +38,7 @@
                 <table role="presentation" width="100%" cellpadding="8" cellspacing="0" border="0" style="border-bottom: 1px solid #f1aeb5;">
                     <tr>
                         <td style="font-weight: 600; color: #842029; font-size: 14px; padding: 10px 0;">Rejected By:</td>
-                        <td align="right" style="color: #212529; font-size: 14px; padding: 10px 0;">{{ $approval->approver->name }}</td>
+                        <td align="right" style="color: #212529; font-size: 14px; padding: 10px 0;">{{ $approval->approver?->name ?? 'Unknown' }}</td>
                     </tr>
                 </table>
                 

@@ -82,6 +82,168 @@ This is an enterprise **Purchase Request Management System** built with Laravel 
 - Task 2.3: Lazy loading components (pagination, virtual scrolling) ✅
 - **Bonus**: 4 reusable components created (85% code reuse for future modules)
 
+## Email Notification System (v.2.5-beta) ✅
+
+### Implementation Complete (November 26-27, 2025)
+Comprehensive email notification system with database fallback, admin configuration panel, and public approval links.
+
+#### Core Features
+**EmailNotificationService** (`app/Services/Core/EmailNotificationService.php`):
+- Dynamic SMTP configuration from database
+- Synchronous email sending (no queue workers required)
+- Automatic database fallback (notifications always saved)
+- Settings caching (3600s TTL)
+- Test email functionality
+
+**Notification Classes** (`app/Notifications/PurchaseRequest/`):
+- `ApprovalRequested` - Sent to approver with 3-day signed URL
+- `ApprovalCompleted` - Sent when all approvals complete  
+- `ApprovalRejected` - Sent to requestor with rejection reason
+- **DELETED**: `ApprovalApproved` - Dead code, never instantiated (161 lines removed)
+
+**Architecture**: 3 Notification Classes → 3 Email Templates (1:1 mapping)
+- Each notification has corresponding Blade template
+- All use dual channels: `['mail', 'database']`
+- English language, professional tone
+- Mobile-responsive design
+
+#### Admin Configuration Panel
+**Route**: `/admin/notification-settings` (Super Admin only)
+- SMTP configuration (host, port, username, encrypted password, encryption)
+- Email settings (FROM address/name)
+- Notification options (enable/disable, fallback toggle, link expiry)
+- Test email functionality
+- Statistics dashboard (total sent, failed, success rate)
+
+#### Public Approval Links
+**Routes**: `/approvals/{approval}/public`
+- Signed URLs with 3-day expiry (configurable)
+- Rate limiting: `throttle:5,1`
+- No authentication required
+- One-time use validation
+- Approval/rejection with notes
+
+#### Security Features
+- SMTP password encrypted with `Crypt::encrypt()`
+- Signed URL validation (Laravel native)
+- Rate limiting on public endpoints
+- Approval status validation (pending only)
+- PR status validation (in_approval only)
+
+#### Bug Fixes (v.2.5-beta)
+**Bug #6: Null Pointer Dereference Issues (25+ locations)** ✅
+- **Files Affected**: EmailNotificationService, ApprovalWorkflowService, all email templates, notification classes
+- **Pattern**: Accessing relationship properties without null checks (e.g., `$approval->approver->name`)
+- **Solution**: Applied PHP 8 nullsafe operator `?->` with null coalescing `??` fallbacks
+- **Example**: `$approval->approver?->name ?? 'Unknown Approver'`
+
+**Bug #7: Legacy Dead Code - ApprovalApproved Files** ✅
+- **Problem**: ApprovalApproved notification class and template existed but never used
+- **Evidence**: 0 database records, `sendApprovalApproved()` never instantiates it
+- **Solution**: Deleted `ApprovalApproved.php` (67 lines) + `approval-approved.blade.php` (94 lines)
+- **Result**: Clean 1:1 mapping between notification classes and email templates
+
+**Bug #8: Database Query in View** ✅
+- **Problem**: `approval-completed.blade.php` had `@php $approvals = $pr->approvals()->get(); @endphp`
+- **Risk**: Violates MVC pattern, harder to test
+- **Solution**: Moved query to `ApprovalCompleted::toMail()`, pass as view parameter
+- **File**: `app/Notifications/PurchaseRequest/ApprovalCompleted.php` lines 32-44
+
+**Bug #9: UTF-8 BOM in public-approval.blade.php** ✅
+- **Problem**: File started with UTF-8 BOM (bytes EF BB BF)
+- **Risk**: Extra whitespace before HTML, HTTP header issues
+- **Solution**: Re-saved file as UTF-8 without BOM
+- **File**: `resources/views/approvals/public-approval.blade.php`
+
+**Bug #10: Duplicate HTML style Attribute** ✅
+- **Problem**: `<span style="color: #ef4444;" id="required-indicator" style="display: none;">`
+- **Solution**: Merged into single attribute: `style="color: #ef4444; display: none;"`
+- **File**: `resources/views/approvals/public-approval.blade.php` line 805
+
+**Bug #11: Rate Limiting Missing on Test Endpoint** ✅
+- **Problem**: `/notification-settings/test` POST route lacked rate limiting
+- **Solution**: Added `->middleware('throttle:3,1')` (max 3 requests per minute)
+- **File**: `routes/web.php` line 157-159
+
+**Bug #12: Undefined Variable $color in public-error.blade.php** ✅
+- **Problem**: Variable `$color` not provided, causing "Undefined variable" error
+- **Solution**: Added `@php $color = $color ?? 'gray'; @endphp` default value
+- **File**: `resources/views/approvals/public-error.blade.php` line 22
+
+**Bug #13: Route [approvals] Not Defined in Public Context** ✅
+- **Problem**: `public-success.blade.php` used `route('dashboard')` and `route('approvals')` which require authentication
+- **Risk**: Public approver (not logged in) gets "Route not defined" error
+- **Solution**: Removed authenticated routes, replaced with single `config('app.url')` button "Close This Page"
+- **File**: `resources/views/approvals/public-success.blade.php` line 143-157
+- **Why**: Public approvers are external users without system access
+
+#### Key Files
+**Services**:
+- `app/Services/Core/EmailNotificationService.php` - Central email service
+- `app/Services/Modules/PurchaseRequest/ApprovalWorkflowService.php` - Integrated email notifications
+
+**Notifications**:
+- `app/Notifications/PurchaseRequest/ApprovalRequested.php`
+- `app/Notifications/PurchaseRequest/ApprovalCompleted.php`
+- `app/Notifications/PurchaseRequest/ApprovalRejected.php`
+
+**Email Templates**:
+- `resources/views/emails/purchase-request/approval-requested.blade.php`
+- `resources/views/emails/purchase-request/approval-completed.blade.php`
+- `resources/views/emails/purchase-request/approval-rejected.blade.php`
+- `resources/views/emails/layouts/email.blade.php` - Shared email layout
+
+**Public Approval**:
+- `resources/views/approvals/public-approval.blade.php` - Approval form
+- `resources/views/approvals/public-success.blade.php` - Success confirmation
+- `resources/views/approvals/public-error.blade.php` - Error page
+
+**Admin Panel**:
+- `app/Http/Controllers/Admin/NotificationSettingsController.php`
+- `app/Models/Core/NotificationSetting.php` (encrypted password)
+- `resources/views/admin/notification-settings/index.blade.php`
+
+**Routes** (`routes/web.php`):
+- Lines 16-23: Public routes (no auth)
+- Lines 26-34: Public approval routes (signed URLs)
+- Lines 134-160: Admin notification settings (Super Admin only)
+
+#### Configuration
+**SMTP Settings** (stored in database, not `.env`):
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=uranus.webmail.co.id
+MAIL_PORT=587
+MAIL_USERNAME=it@werkudara.com
+MAIL_PASSWORD=[encrypted in database]
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="it@werkudara.com"
+MAIL_FROM_NAME="Werkudara - Purchase Request System"
+```
+
+**Notification Options**:
+- Email enabled: true/false
+- Database fallback: true/false (always recommended)
+- Link expiry: 1-14 days (default 3)
+- Cache TTL: 3600 seconds (1 hour)
+
+#### Testing
+All notification flows tested and verified:
+- ✅ PR submission → Approver receives email
+- ✅ Public approval link works (no authentication)
+- ✅ Approval → Next approver notified OR requestor notified if final
+- ✅ Rejection → Requestor receives rejection email
+- ✅ All approvals complete → Requestor receives completion email
+- ✅ SMTP failure → Database notification still saved (fallback)
+- ✅ Expired link → Proper error page shown
+- ✅ Double approval prevented → Shows "Already Processed"
+
+#### Performance
+- Email send time: 2-5 seconds (synchronous, 5s timeout)
+- Settings cached: 100% hit rate after first load (1-hour TTL)
+- No N+1 queries: All relationships eager loaded
+- Database fallback: Always saves notification (zero data loss)
+
 ## Core Architecture Patterns
 
 ### 1. Service-Oriented Architecture

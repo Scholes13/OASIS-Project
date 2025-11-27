@@ -800,6 +800,9 @@ class Create extends Component
             $index = $keyParts[0];
             $cleanValue = is_numeric($value) ? max(0, intval($value)) : 0;
             $this->items[$index]['quantity'] = $cleanValue;
+            
+            // CRITICAL: Update totalAmount after quantity change
+            $this->totalAmount = $this->grandTotal();
         }
     }
 
@@ -812,6 +815,9 @@ class Create extends Component
             $cleanValue = preg_replace('/[^0-9]/', '', $value);
             $cleanValue = is_numeric($cleanValue) ? max(0, intval($cleanValue)) : 0;
             $this->items[$index]['unit_price'] = $cleanValue;
+            
+            // CRITICAL: Update totalAmount after price change
+            $this->totalAmount = $this->grandTotal();
         }
     }
 

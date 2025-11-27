@@ -298,11 +298,10 @@
                                         <!-- Quantity -->
                                         <td class="px-3 py-3">
                                             <input 
-                                                wire:model.blur="items.{{ $index }}.quantity" 
+                                                wire:model.live.debounce.500ms="items.{{ $index }}.quantity" 
                                                 type="number"
                                                 step="1"
                                                 min="1"
-                                                value="{{ $item['quantity'] ?? 1 }}"
                                                 class="w-full px-3 py-2 text-sm border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-center"
                                                 placeholder="1"
                                                 oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }});"
@@ -333,10 +332,9 @@
                                         <!-- Price -->
                                         <td class="px-3 py-3">
                                             <input 
-                                                wire:model.blur="items.{{ $index }}.unit_price" 
+                                                wire:model.live.debounce.500ms="items.{{ $index }}.unit_price" 
                                                 type="text"
                                                 inputmode="decimal"
-                                                value="{{ $item['unit_price'] ?? 0 }}"
                                                 class="w-full px-3 py-2 text-sm border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-right"
                                                 placeholder="0"
                                                 oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }});"

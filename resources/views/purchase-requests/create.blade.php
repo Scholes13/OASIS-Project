@@ -55,4 +55,163 @@
 
     <!-- Purchase Request Create Form -->
     <livewire:modules.purchase-request.create />
+    
+    {{-- INLINE SCRIPT: Global calculation functions for PR items --}}
+    <script>
+        console.log('🎯 PR CREATE PAGE SCRIPT LOADED');
+        
+        // Format number with Indonesian locale
+        window.formatNumber = function(num) {
+            return new Intl.NumberFormat('id-ID').format(num);
+        };
+        
+        // Calculate grand total from all row totals
+        window.calculateGrandTotal = function() {
+            let grandTotal = 0;
+            
+            document.querySelectorAll('span[id^="total-"]').forEach(function(span) {
+                if (span.id === 'js-grand-total' || span.id === 'grand-total') return;
+                const val = parseFloat(span.dataset.value) || 0;
+                grandTotal += val;
+            });
+            
+            // Try both possible IDs
+            let grandTotalElement = document.getElementById('js-grand-total') || document.getElementById('grand-total');
+            if (grandTotalElement) {
+                grandTotalElement.dataset.value = grandTotal;
+                grandTotalElement.textContent = window.formatNumber(grandTotal);
+                grandTotalElement.style.color = '#4f46e5';
+                setTimeout(() => { grandTotalElement.style.color = ''; }, 200);
+            }
+            
+            console.log('💰 Grand total:', grandTotal);
+            return grandTotal;
+        };
+        
+        // Calculate row total - called from oninput with 'this' as element
+        window.calculateRowTotal = function(index, element) {
+            console.log('🔢 calculateRowTotal:', index, 'hasElement:', !!element);
+            
+            let row = null;
+            
+            // Method 1: Get row from the element that triggered the event
+            if (element && typeof element.closest === 'function') {
+                row = element.closest('tr');
+            }
+            
+            // Method 2: If element is a string or number, find by total span id
+            if (!row && (typeof index === 'number' || typeof index === 'string')) {
+                const totalSpan = document.getElementById('total-' + index);
+                if (totalSpan) {
+                    row = totalSpan.closest('tr');
+                }
+            }
+            
+            if (!row) {
+                console.log('❌ No row found');
+                return;
+            }
+            
+            // Find inputs by class within this row
+            const qtyInput = row.querySelector('.item-quantity');
+            const priceInput = row.querySelector('.item-price');
+            const totalSpan = row.querySelector('span[id^="total-"]');
+            
+            console.log('  qtyInput:', !!qtyInput, qtyInput ? qtyInput.value : 'N/A');
+            console.log('  priceInput:', !!priceInput, priceInput ? priceInput.value : 'N/A');
+            console.log('  totalSpan:', !!totalSpan);
+            
+            if (qtyInput && priceInput && totalSpan) {
+                const qty = parseFloat(qtyInput.value.replace(/[^0-9.]/g, '')) || 0;
+                const price = parseFloat(priceInput.value.replace(/[^0-9.]/g, '')) || 0;
+                const total = Math.round(qty * price);
+                
+                console.log('🧮 Calc:', qty, 'x', price, '=', total);
+                
+                totalSpan.dataset.value = total;
+                totalSpan.textContent = window.formatNumber(total);
+                totalSpan.style.color = '#4f46e5';
+                setTimeout(() => { totalSpan.style.color = ''; }, 200);
+                
+                window.calculateGrandTotal();
+            } else {
+                console.log('❌ Missing elements in row');
+            }
+        };
+        
+        // Recalculate all totals - only updates if values exist
+        window.recalculateAllTotals = function(forceUpdate = false) {
+            console.log('🔄 recalculateAllTotals, force:', forceUpdate);
+            
+            // Find all item rows by looking for total spans
+            const totalSpans = document.querySelectorAll('span[id^="total-"]:not(#js-grand-total):not(#grand-total)');
+            console.log('  Found total spans:', totalSpans.length);
+            
+            let hasCalculations = false;
+            
+            totalSpans.forEach(function(span) {
+                const row = span.closest('tr');
+                if (!row) return;
+                
+                const qtyInput = row.querySelector('.item-quantity');
+                const priceInput = row.querySelector('.item-price');
+                
+                if (qtyInput && priceInput) {
+                    const qty = parseFloat(qtyInput.value.replace(/[^0-9.]/g, '')) || 0;
+                    const price = parseFloat(priceInput.value.replace(/[^0-9.]/g, '')) || 0;
+                    
+                    // Only update if we have actual values or forcing update
+                    if ((qty > 0 && price > 0) || forceUpdate) {
+                        const total = Math.round(qty * price);
+                        span.dataset.value = total;
+                        span.textContent = window.formatNumber(total);
+                        console.log('  Row:', span.id, qty, 'x', price, '=', total);
+                        hasCalculations = true;
+                    } else if (span.dataset.value && parseFloat(span.dataset.value) > 0) {
+                        // Keep existing value if it's already calculated
+                        hasCalculations = true;
+                        console.log('  Row:', span.id, 'keeping existing value:', span.dataset.value);
+                    }
+                }
+            });
+            
+            if (hasCalculations) {
+                window.calculateGrandTotal();
+            }
+        };
+        
+        // Button state functions
+        window.showSavingState = function(button) {
+            if (button) { button.disabled = true; button.classList.add('opacity-75'); }
+        };
+        window.showSubmittingState = function(button) {
+            if (button) { button.disabled = true; button.classList.add('opacity-75'); }
+        };
+        window.showResubmittingState = function(button) {
+            if (button) { button.disabled = true; button.classList.add('opacity-75'); }
+        };
+        
+        // Init on various events
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📌 DOMContentLoaded');
+            setTimeout(window.recalculateAllTotals, 500);
+        });
+        
+        window.addEventListener('load', function() {
+            console.log('📌 Window load');
+            setTimeout(window.recalculateAllTotals, 500);
+        });
+        
+        document.addEventListener('livewire:initialized', function() {
+            console.log('📌 Livewire initialized');
+            setTimeout(window.recalculateAllTotals, 500);
+        });
+        
+        document.addEventListener('livewire:navigated', function() {
+            console.log('📌 Livewire navigated');
+            setTimeout(window.recalculateAllTotals, 500);
+        });
+        
+        console.log('✅ All PR calculation functions ready');
+    </script>
 </x-app-layout>

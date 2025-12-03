@@ -220,13 +220,9 @@
                     </div>
                 </div>
                 
-                <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div class="mt-6">
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Purpose / Requirements</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->keperluan }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Detailed Description</dt>
+                        <dt class="text-sm font-medium text-gray-500">Purpose / Used For</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->used_for }}</dd>
                     </div>
                 </div>
@@ -271,59 +267,64 @@
             
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead style="background-color: #1e40af;">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Details</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expense Dept</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-12">No</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Item Name</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Brand Name</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Item Description / Specification</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Supplier Name</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-16">QT</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-16">UN</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Unit Price</th>
+                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-14">CR</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Total Price</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($purchaseRequest->items as $item)
-                            <tr class="hover:bg-gray-50 transition-colors duration-200">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $item->item_order }}
+                        @foreach($purchaseRequest->items as $index => $item)
+                            <tr class="{{ $index % 2 == 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-gray-100 transition-colors duration-200">
+                                <td class="px-3 py-3 text-center text-sm text-gray-900">
+                                    {{ $index + 1 }}
                                 </td>
-                                <td class="px-6 py-4">
-                                    <div class="text-sm font-medium text-gray-900">{{ $item->item_name }}</div>
-                                    @if($item->brand_name)
-                                        <div class="text-sm text-gray-500">Brand: {{ $item->brand_name }}</div>
-                                    @endif
-                                    @if($item->item_description)
-                                        <div class="text-sm text-gray-500 mt-1">{{ $item->item_description }}</div>
-                                    @endif
+                                <td class="px-3 py-3 text-sm text-gray-900">
+                                    {{ $item->item_name }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $item->supplier_name ?: 'Not specified' }}
+                                <td class="px-3 py-3 text-sm text-gray-900">
+                                    {{ $item->brand_name ?: '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ number_format($item->quantity, 2) }} {{ $item->unit }}
+                                <td class="px-3 py-3 text-sm text-gray-900">
+                                    {{ $item->item_description ?: '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $item->currency }} {{ number_format($item->unit_price, 2) }}
+                                <td class="px-3 py-3 text-sm text-gray-900">
+                                    {{ $item->supplier_name ?: '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ $item->currency }} {{ number_format($item->total_price, 2) }}
+                                <td class="px-3 py-3 text-center text-sm text-gray-900">
+                                    {{ number_format($item->quantity, 0) }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $item->expenseDepartment->name ?? 'N/A' }}
+                                <td class="px-3 py-3 text-center text-sm text-gray-900">
+                                    {{ $item->unit }}
+                                </td>
+                                <td class="px-3 py-3 text-right text-sm text-gray-900">
+                                    {{ number_format($item->unit_price, 0) }}
+                                </td>
+                                <td class="px-3 py-3 text-center text-sm text-gray-900">
+                                    {{ $item->currency }}
+                                </td>
+                                <td class="px-3 py-3 text-right text-sm font-medium text-gray-900">
+                                    {{ number_format($item->quantity * $item->unit_price, 0) }}
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
-                    <tfoot class="bg-gray-50">
+                    <tfoot class="bg-gray-100">
                         <tr>
-                            <td colspan="5" class="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                            <td colspan="9" class="px-3 py-3 text-right text-sm font-bold text-gray-900">
                                 Total Amount:
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                                {{ $purchaseRequest->currency }} {{ number_format($purchaseRequest->total_amount, 2) }}
+                            <td class="px-3 py-3 text-right text-sm font-bold text-gray-900">
+                                {{ number_format($purchaseRequest->total_amount, 0) }}
                             </td>
-                            <td class="px-6 py-4"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -403,6 +404,67 @@
                                 </li>
                             @endforeach
                         </ul>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Offline Approval Section - Only PR owner can mark as offline approved -->
+        @if(in_array($purchaseRequest->status, ['submitted', 'in_approval']) && $purchaseRequest->user_id === Auth::id())
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Offline / Manual Approval</h3>
+                    <p class="text-sm text-gray-600 mt-1">Mark this PR as approved outside the system</p>
+                </div>
+                <div class="px-6 py-4">
+                    <p class="text-sm text-gray-600 mb-4">
+                        Use this if the digital approval is taking too long. This will mark the <strong>entire PR as approved</strong> at once.
+                    </p>
+                    
+                    <form method="POST" action="{{ route('purchase-requests.mark-offline-approved', $purchaseRequest) }}">
+                        @csrf
+                        <div class="mb-4">
+                            <label for="offline_notes" class="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
+                            <textarea name="notes" id="offline_notes" rows="2"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                      placeholder="e.g., Approved via physical signature on printed document, dated..."></textarea>
+                        </div>
+                        <button type="submit" 
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                                onclick="return confirm('This will mark the entire PR as approved offline/manually. All pending approval steps will be completed. Continue?')">
+                            <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Mark as Approved Offline
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endif
+
+        {{-- Show Offline Approval Info if PR was approved offline --}}
+        @if($purchaseRequest->isOfflineApproved())
+            <div class="bg-purple-50 rounded-xl shadow-sm border border-purple-200">
+                <div class="px-6 py-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-semibold text-purple-900 mb-1">Approved Offline/Manually</h3>
+                            <p class="text-sm text-purple-700">
+                                This PR was marked as approved offline by 
+                                <strong>{{ $purchaseRequest->offlineApprovedBy?->name ?? 'Unknown' }}</strong>
+                                on <strong>{{ $purchaseRequest->offline_approved_at?->format('M d, Y \a\t H:i') }}</strong>
+                            </p>
+                            @if($purchaseRequest->offline_approval_notes)
+                                <p class="text-sm text-purple-600 mt-2 italic">
+                                    "{{ $purchaseRequest->offline_approval_notes }}"
+                                </p>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>

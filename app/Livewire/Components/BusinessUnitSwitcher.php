@@ -155,15 +155,13 @@ class BusinessUnitSwitcher extends Component
             // ✅ Clear business unit cache when switching (not dashboard cache)
             $this->clearBusinessUnitCache($user->id);
 
-            // Flash success message
-            session()->flash('success', "Switched to {$businessUnit->name} ({$businessUnit->code})");
-
             // ✅ UX IMPROVED: Emit event to refresh current page instead of redirecting
+            // Each component that listens will process and dispatch 'complete' when done
             $this->dispatch('business-unit-switched', businessUnitId: $businessUnit->id);
 
-            // ✅ FIX: Remove self-refresh to prevent race condition
-            // Dashboard and other listeners will handle the refresh
-            // $this->dispatch('$refresh'); // ❌ REMOVED - causes "snapshot missing" error
+            // NOTE: Do NOT dispatch 'business-unit-switched-complete' here!
+            // Each page component should dispatch it AFTER their data is fully loaded
+            // This prevents loader hiding before data is ready
 
             return;
         }

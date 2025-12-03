@@ -88,7 +88,6 @@ class PurchaseRequestController extends Controller
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'keperluan' => 'required|string|max:500',
             'used_for' => 'required|string|max:1000',
             'date_of_request' => 'required|date',
             'items' => 'required|array|min:1',
@@ -121,7 +120,6 @@ class PurchaseRequestController extends Controller
                 'department_id' => Auth::user()->primary_department_id,
                 'user_id' => Auth::id(),
                 'sequence_id' => $prNumber['sequence_id'],
-                'keperluan' => $validatedData['keperluan'],
                 'used_for' => $validatedData['used_for'],
                 'date_of_request' => $validatedData['date_of_request'],
                 'status' => 'draft',
@@ -211,7 +209,6 @@ class PurchaseRequestController extends Controller
         }
 
         $validatedData = $request->validate([
-            'keperluan' => 'required|string|max:500',
             'used_for' => 'required|string|max:1000',
             'date_of_request' => 'required|date',
             'items' => 'required|array|min:1',
@@ -231,7 +228,6 @@ class PurchaseRequestController extends Controller
         try {
             // Update purchase request
             $purchaseRequest->update([
-                'keperluan' => $validatedData['keperluan'],
                 'used_for' => $validatedData['used_for'],
                 'date_of_request' => $validatedData['date_of_request'],
                 'currency' => $validatedData['items'][0]['currency'],

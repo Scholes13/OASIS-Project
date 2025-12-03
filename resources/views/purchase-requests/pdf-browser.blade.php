@@ -370,8 +370,7 @@
         .col-unit { width: 5%; }
         .col-price { width: 8%; }
         .col-cr { width: 4%; }
-        .col-total { width: 8%; }
-        .col-remark { width: 8%; }
+        .col-total { width: 10%; }
         
         .row-even {
             background: #ffffff;
@@ -702,7 +701,7 @@
             <!-- Right Column -->
             <div class="info-column right-column">
                     <div class="info-row">
-                        <span class="info-label">Used for</span>
+                        <span class="info-label">Purpose / Used For</span>
                         <span class="info-colon">:</span>
                         <span class="info-value wide">{{ $purchaseRequest->used_for }}</span>
                     </div>
@@ -730,7 +729,6 @@
                     <th class="col-price">UNIT PRICE</th>
                     <th class="col-cr">CR</th>
                     <th class="col-total">TOTAL PRICE</th>
-                    <th class="col-remark">REMARK</th>
                 </tr>
             </thead>
             <tbody>
@@ -746,7 +744,6 @@
                     <td class="text-right">{{ number_format($item->unit_price, 0) }}</td>
                     <td class="text-center">{{ $item->currency }}</td>
                     <td class="text-right">{{ number_format($item->quantity * $item->unit_price, 0) }}</td>
-                    <td>-</td>
                 </tr>
                 @endforeach
                 
@@ -754,7 +751,6 @@
                 <tr class="total-row">
                     <td colspan="9" class="total-label"><strong>Total Amount:</strong></td>
                     <td class="text-right total-amount"><strong>{{ number_format($purchaseRequest->total_amount, 0) }}</strong></td>
-                    <td>&nbsp;</td>
                 </tr>
             </tbody>
         </table>

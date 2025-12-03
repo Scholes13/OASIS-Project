@@ -1,4 +1,4 @@
-<div>
+<div wire:init="loadData">
     <!-- Business Units Monitor Info - Only for Management (users with parent BU access) -->
     @php
         $hasParentAccess = collect($businessUnits)->contains('parent_id', null);
@@ -135,6 +135,7 @@
         </div>
     </div>
 
+    @if($readyToLoad)
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:gap-6 mb-6">
         <!-- ✅ IMPROVED: Full-screen loading overlay with better visibility -->
@@ -366,7 +367,7 @@
             </div>
             <div class="p-4 lg:p-6">
                 <div class="space-y-3">
-                    <a href="{{ route('pr-numbers.index') }}" class="group block p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200 transform hover:scale-[1.02]">
+                    <a href="{{ route('purchase-requests.create') }}" class="group block p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200 transform hover:scale-[1.02]">
                         <div class="flex items-center space-x-3">
                             <div class="flex-shrink-0">
                                 <div class="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center group-hover:from-indigo-200 group-hover:to-indigo-300 transition-colors duration-200">
@@ -376,8 +377,8 @@
                                 </div>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <h4 class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Request PR Number</h4>
-                                <p class="text-xs text-gray-500">Start by requesting a PR number first</p>
+                                <h4 class="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Create New PR</h4>
+                                <p class="text-xs text-gray-500">Start a new purchase request</p>
                             </div>
                         </div>
                     </a>
@@ -417,6 +418,77 @@
             </div>
         </div>
     </div>
+    @else
+    {{-- Loading Skeleton --}}
+    <div class="space-y-6">
+        {{-- Stats Cards Skeleton --}}
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:gap-6 mb-6 animate-pulse">
+            @for($i = 0; $i < 4; $i++)
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-gray-200 rounded-xl"></div>
+                    <div class="ml-4 flex-1">
+                        <div class="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                        <div class="h-8 bg-gray-300 rounded w-16 mb-1"></div>
+                        <div class="h-3 bg-gray-200 rounded w-20"></div>
+                    </div>
+                </div>
+            </div>
+            @endfor
+        </div>
+
+        {{-- Charts Skeleton --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 animate-pulse">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                <div class="h-64 bg-gray-100 rounded flex items-center justify-center">
+                    <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                <div class="h-64 bg-gray-100 rounded flex items-center justify-center">
+                    <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        {{-- Activity & Actions Skeleton --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-pulse">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="h-6 bg-gray-200 rounded w-40 mb-4"></div>
+                <div class="space-y-4">
+                    @for($i = 0; $i < 5; $i++)
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-gray-200 rounded-full"></div>
+                        <div class="flex-1">
+                            <div class="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                            <div class="h-3 bg-gray-100 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    @for($i = 0; $i < 4; $i++)
+                    <div class="bg-gray-100 rounded-lg p-4">
+                        <div class="w-10 h-10 bg-gray-200 rounded-full mx-auto mb-3"></div>
+                        <div class="h-4 bg-gray-200 rounded w-20 mx-auto mb-1"></div>
+                        <div class="h-3 bg-gray-100 rounded w-16 mx-auto"></div>
+                    </div>
+                    @endfor
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Lazy Load Chart.js only when dashboard is loaded --}}
     @push('scripts')
@@ -441,24 +513,23 @@
         });
 
         function initializeCharts(chartData) {
-            console.log('=== CHART INITIALIZATION DEBUG ===');
-            console.log('Raw chartData:', chartData);
-            console.log('chartData type:', typeof chartData);
-            console.log('chartData.daily:', chartData?.daily);
-            console.log('chartData.status:', chartData?.status);
-            console.log('chartData JSON:', JSON.stringify(chartData, null, 2));
-            
             // Check if Chart.js is loaded
             if (typeof Chart === 'undefined') {
-                console.error('Chart.js is not loaded yet, waiting...');
+                console.log('Chart.js is not loaded yet, waiting...');
                 // Retry after a short delay
                 setTimeout(() => initializeCharts(chartData), 100);
                 return;
             }
             
-            // Validate chartData
-            if (!chartData || !chartData.daily || !chartData.status) {
-                console.error('Invalid chart data:', chartData);
+            // Validate chartData structure (daily and status are required keys)
+            if (!chartData || typeof chartData.daily === 'undefined' || typeof chartData.status === 'undefined') {
+                console.log('Chart data not ready yet, skipping initialization');
+                return;
+            }
+
+            // Skip if data is empty (valid empty state during lazy load)
+            if (chartData.daily.length === 0 && Object.keys(chartData.status).length === 0) {
+                console.log('Chart data is empty, waiting for data load...');
                 return;
             }
             

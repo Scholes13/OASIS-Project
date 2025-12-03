@@ -1,5 +1,23 @@
 <div class="relative" 
-     x-data="{ open: false }" 
+     x-data="{ 
+        open: false,
+        showLoaderAndSwitch(businessUnitId) {
+            // Use global function with fallback timeout protection
+            if (typeof window.showGlobalBuLoader === 'function') {
+                window.showGlobalBuLoader();
+            } else {
+                // Fallback if global function not ready yet
+                const loader = document.getElementById('global-bu-loader');
+                if (loader) {
+                    loader.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+            console.log('⚡ INSTANT: Loader shown on click');
+            // Close dropdown
+            this.open = false;
+        }
+     }" 
      x-on:click.away="open = false"
      wire:key="bu-switcher-{{ auth()->id() }}">
     @if(count($availableBusinessUnits) > 1)
@@ -34,14 +52,9 @@
 
         <!-- Dropdown Menu -->
         <div x-show="open" 
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="transform opacity-0 scale-95"
-             x-transition:enter-end="transform opacity-100 scale-100"
-             x-transition:leave="transition ease-in duration-75"
-             x-transition:leave-start="transform opacity-100 scale-100"
-             x-transition:leave-end="transform opacity-0 scale-95"
-             class="absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-             style="display: none;">
+             x-cloak
+             x-transition
+             class="absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
              
             <div class="px-4 py-3 border-b border-gray-200">
                 <p class="text-sm font-medium text-gray-900">Switch Business Unit</p>
@@ -51,8 +64,8 @@
             <div class="max-h-60 overflow-y-auto">
                 @foreach($availableBusinessUnits as $businessUnit)
                     <button 
+                        x-on:click="showLoaderAndSwitch({{ $businessUnit['id'] }})"
                         wire:click="switchBusinessUnit({{ $businessUnit['id'] }})"
-                        x-on:click="open = false"
                         class="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors duration-200 border-l-4 {{ $businessUnit['id'] == $currentBusinessUnit['id'] ? 'border-indigo-500 bg-indigo-50' : 'border-transparent' }}">
                         
                         <div class="flex items-center justify-between">

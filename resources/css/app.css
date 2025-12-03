@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Alpine.js x-cloak - hide elements until Alpine initializes */
+[x-cloak] { display: none !important; }
+
 /* ============================================================================
    SCROLLBAR STABILITY FIX - Prevent Layout Shift
    ============================================================================

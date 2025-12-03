@@ -3,48 +3,37 @@
 @endphp
 
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">My Purchase Requests</h1>
-                <p class="text-sm text-gray-600 mt-1">Manage your purchase requests for {{ session('current_business_unit_name') }}</p>
+    <!-- Clean header style matching All Requests page -->
+    <div class="min-h-screen bg-white">
+        <div class="w-full">
+            <!-- Header -->
+            <div class="border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-900">My History</h1>
+                        <p class="text-sm text-gray-500 mt-0.5">{{ session('current_business_unit_name') }}</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <a href="{{ url()->current() }}" class="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </a>
+                        <a href="{{ route('purchase-requests.create') }}" 
+                           wire:navigate
+                           class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Create New PR
+                        </a>
+                    </div>
+                </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <a href="{{ route('purchase-requests.create') }}" 
-                   wire:navigate
-                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Create New PR
-                </a>
-            </div>
-        </div>
-    </x-slot>
 
-    <x-slot name="breadcrumbs">
-        <li class="flex">
-            <div class="flex items-center">
-                <a href="{{ route('dashboard') }}" wire:navigate class="text-gray-400 hover:text-gray-500">
-                    <svg class="flex-shrink-0 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
-                    </svg>
-                    <span class="sr-only">Dashboard</span>
-                </a>
-            </div>
-        </li>
-        <li class="flex">
-            <div class="flex items-center">
-                <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="ml-4 text-sm font-medium text-gray-500">Purchase Requests</span>
-            </div>
-        </li>
-    </x-slot>
-
-    <!-- Combined History List -->
-    <div class="w-full space-y-6">
+            <!-- Content -->
+            <div class="px-6 py-4 space-y-6">
         @php
             // Combine and sort all items by date from current page only
             $allItems = collect();
@@ -57,7 +46,7 @@
                     'sort_date' => $pr->created_at,
                     'pr_number' => $pr->pr_number,
                     'status' => $pr->status,
-                    'purpose' => $pr->keperluan,
+                    'purpose' => $pr->used_for,
                     'description' => $pr->used_for,
                     'department' => $pr->department,
                     'user' => $pr->user,
@@ -88,8 +77,8 @@
         @endphp
 
         @if($allItems->count() > 0)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200">
+            <div class="bg-white border-t border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                     <h3 class="text-lg font-semibold text-gray-900">Purchase Request History</h3>
                     <p class="text-sm text-gray-600 mt-1">{{ $allItems->count() }} total items ({{ $purchaseRequests->count() }} completed PRs, {{ $reservations->count() }} reservations)</p>
                 </div>
@@ -232,7 +221,7 @@
             </div>
         @else
             <!-- Empty State -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="bg-white border-t border-gray-200">
                 <div class="text-center py-12">
                     <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
                         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,6 +241,8 @@
                 </div>
             </div>
         @endif
+        </div>
+        </div>
     </div>
 
     <!-- Void Modal -->

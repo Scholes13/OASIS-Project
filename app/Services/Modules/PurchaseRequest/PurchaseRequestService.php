@@ -115,6 +115,53 @@ class PurchaseRequestService
     }
 
     /**
+     * Get ALL Purchase Requests in current business unit without hierarchy filtering.
+     * Used for "All Requests" page where all users in a BU can see all PRs.
+     *
+     * @param  array  $filters  Optional filters (status, date_from, date_to, etc.)
+     */
+    public function getAllPurchaseRequestsQuery(array $filters = []): \Illuminate\Database\Eloquent\Builder
+    {
+        $currentBusinessUnitId = session('current_business_unit_id');
+
+        // Base query - ALL PRs in current business unit (no hierarchy filtering)
+        $query = PurchaseRequest::with(['department', 'user', 'items', 'approvals', 'category'])
+            ->where('business_unit_id', $currentBusinessUnitId);
+
+        // Apply optional filters
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (isset($filters['user_id'])) {
+            $query->where('user_id', $filters['user_id']);
+        }
+
+        if (isset($filters['department_id'])) {
+            $query->where('department_id', $filters['department_id']);
+        }
+
+        if (isset($filters['category_id'])) {
+            $query->where('category_id', $filters['category_id']);
+        }
+
+        if (isset($filters['date_from'])) {
+            $query->whereDate('date_of_request', '>=', $filters['date_from']);
+        }
+
+        if (isset($filters['date_to'])) {
+            $query->whereDate('date_of_request', '<=', $filters['date_to']);
+        }
+
+        // Apply sorting
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortOrder = $filters['sort_order'] ?? 'desc';
+        $query->orderBy($sortBy, $sortOrder);
+
+        return $query;
+    }
+
+    /**
      * Create a new Purchase Request
      */
     public function createPurchaseRequest(array $data): PurchaseRequest
@@ -197,6 +244,7 @@ class PurchaseRequestService
             $purchaseRequest->update([
                 'keperluan' => $data['keperluan'],
                 'used_for' => $data['used_for'],
+                'category_id' => $data['category_id'] ?? $purchaseRequest->category_id,
                 'date_of_request' => $data['date_of_request'],
                 'currency' => $data['items'][0]['currency'] ?? $purchaseRequest->currency,
                 'last_modified_by' => Auth::id(),
@@ -540,5 +588,57 @@ class PurchaseRequestService
                 'end' => now()->endOfMonth()->format('Y-m-d'),
             ],
         };
+    }
+
+    /**
+     * Mark a Purchase Request as approved offline/manually
+     * 
+     * This is used when the digital approval process is too slow and the user
+     * has exported the PR for manual/offline approval. This marks the entire PR
+     * as approved in one action (not step by step).
+     * 
+     * @param PurchaseRequest $purchaseRequest
+     * @param string|null $notes Optional notes explaining why offline approval was used
+     * @return PurchaseRequest
+     */
+    public function markAsOfflineApproved(PurchaseRequest $purchaseRequest, ?string $notes = null): PurchaseRequest
+    {
+        return DB::transaction(function () use ($purchaseRequest, $notes) {
+            $user = Auth::user();
+
+            // Update all pending approvals to approved (mark as offline)
+            // Note: pr_approvals uses 'responded_at' not 'approved_at'
+            $purchaseRequest->approvals()
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'approved',
+                    'responded_at' => now(),
+                    'notes' => 'Approved offline/manually',
+                ]);
+
+            // Update the PR status to approved with offline approval info
+            $purchaseRequest->update([
+                'status' => 'approved',
+                'approved_at' => now(),
+                'offline_approved_at' => now(),
+                'offline_approved_by' => $user->id,
+                'offline_approval_notes' => $notes,
+            ]);
+
+            // Log activity
+            activity()
+                ->performedOn($purchaseRequest)
+                ->causedBy($user)
+                ->withProperties([
+                    'action' => 'offline_approved',
+                    'notes' => $notes,
+                    'previous_status' => $purchaseRequest->getOriginal('status'),
+                ])
+                ->log('PR marked as approved offline/manually');
+
+            \Log::info("PR #{$purchaseRequest->pr_number} marked as offline approved by user {$user->id}");
+
+            return $purchaseRequest->fresh();
+        });
     }
 }

@@ -1,4 +1,4 @@
-{{-- HOSTING ENVIRONMENT FIX: Defensive property initialization --}}
+﻿{{-- HOSTING ENVIRONMENT FIX: Defensive property initialization --}}
 @php
     // CRITICAL: Initialize all variables with fallbacks for hosting environment
     // This prevents "Undefined variable" errors in strict hosting PHP configurations
@@ -12,6 +12,7 @@
     $isEdit = $this->isEdit ?? false;
     $isLoading = $this->isLoading ?? false;
     $currency = $this->currency ?? 'IDR';
+    $purpose = $this->purpose ?? '';
     $used_for = $this->used_for ?? '';
     $expected_date = $this->expected_date ?? '';
 @endphp
@@ -75,7 +76,7 @@
                     <div class="text-sm font-medium text-red-800">
                         <ul class="mt-2 space-y-1 text-sm text-red-700">
                             @foreach ($errors->all() as $error)
-                                <li>• {{ $error }}</li>
+                                <li>ΓÇó {{ $error }}</li>
                             @endforeach
                         </ul>
                     </div>
@@ -96,43 +97,35 @@
         
         <div class="p-6 space-y-6">
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <!-- Category Selection -->
+                <!-- Purpose (Keperluan) -->
                 <div class="sm:col-span-2">
-                    <label for="category_id" class="block text-sm font-medium text-gray-900 mb-2">
-                        Category <span class="text-red-500">*</span>
+                    <label for="purpose" class="block text-sm font-medium text-gray-900 mb-2">
+                        Purpose / Requirements <span class="text-red-500">*</span>
                     </label>
-                    <select
-                        wire:model.live="category_id"
-                        id="category_id"
-                        class="w-full px-3 py-2 border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                    >
-                        <option value="">-- Select Category --</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}">
-                                {{ $category->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @if($category_id && $categories->where('id', $category_id)->first())
-                        @php $selectedCategory = $categories->where('id', $category_id)->first(); @endphp
-                        <p class="text-xs text-gray-500 mt-1">{{ $selectedCategory->description }}</p>
-                    @endif
-                    @error('category_id')
+                    <textarea 
+                        wire:model.blur="purpose" 
+                        id="purpose"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Describe the purpose or requirements for this purchase request..."
+                        maxlength="500"
+                    ></textarea>
+                    @error('purpose')
                         <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
                     @enderror
                 </div>
 
-                <!-- Purpose / Used For -->
+                <!-- Used For (Digunakan untuk) -->
                 <div class="sm:col-span-2">
                     <label for="used_for" class="block text-sm font-medium text-gray-900 mb-2">
-                        Purpose / Used For <span class="text-red-500">*</span>
+                        Used For / Details <span class="text-red-500">*</span>
                     </label>
-                    <textarea
-                        wire:model.blur="used_for"
+                    <textarea 
+                        wire:model.blur="used_for" 
                         id="used_for"
                         rows="4"
                         class="w-full px-3 py-2 border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Provide detailed information about the purpose and how these items will be used..."
+                        placeholder="Provide detailed information about how these items will be used..."
                         maxlength="1000"
                     ></textarea>
                     @error('used_for')
@@ -309,9 +302,10 @@
                                                 type="number"
                                                 step="1"
                                                 min="1"
-                                                class="w-full px-3 py-2 text-sm border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-center item-quantity"
+                                                value="{{ $item['quantity'] ?? 1 }}"
+                                                class="w-full px-3 py-2 text-sm border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-center"
                                                 placeholder="1"
-                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }}, this);"
+                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }});"
                                             >
                                             @error("items.{$index}.quantity") 
                                                 <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
@@ -342,14 +336,16 @@
                                                 wire:model.blur="items.{{ $index }}.unit_price" 
                                                 type="text"
                                                 inputmode="decimal"
-                                                class="w-full px-3 py-2 text-sm border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-right item-price"
+                                                value="{{ $item['unit_price'] ?? 0 }}"
+                                                class="w-full px-3 py-2 text-sm border border-gray-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-right"
                                                 placeholder="0"
-                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }}, this);"
+                                                oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRowTotal({{ $index }});"
                                             >
                                             @error("items.{$index}.unit_price") 
                                                 <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
                                             @enderror
-                                        </td>                                    <!-- Total -->`n                        <td class="px-3 py-3 text-sm text-gray-900 font-semibold text-right bg-gray-50" wire:ignore.self>
+                                        </td>                                    <!-- Total -->
+                                    <td class="px-3 py-3 text-sm text-gray-900 font-semibold text-right bg-gray-50">
                                         @php
                                             $quantity = is_numeric($item['quantity'] ?? 0) ? intval($item['quantity']) : 0;
                                             $unitPrice = 0;
@@ -359,7 +355,7 @@
                                             }
                                             $itemTotal = $quantity * $unitPrice;
                                         @endphp
-                                        <span id="total-{{ $index }}" data-value="{{ $itemTotal }}">{{ number_format($itemTotal, 0, '', ',') }}</span>
+                                        <span id="total-{{ $index }}">{{ number_format($itemTotal, 0, '', ',') }}</span>
                                     </td>
 
                                     <!-- Actions -->
@@ -406,7 +402,7 @@
                                 Refresh
                             </button>
                         </div>
-                        <span class="text-xl font-bold text-indigo-600" wire:ignore>
+                        <span class="text-xl font-bold text-indigo-600">
                             <span id="grand-total">
                                 @php
                                     try {
@@ -517,10 +513,10 @@
                                             <button 
                                                 wire:click="removeCustomApproval({{ $index }})" 
                                                 type="button"
-                                                class="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                                class="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 transition-colors"
                                                 title="Remove this approval step">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                 </svg>
                                             </button>
                                         </div>
@@ -591,49 +587,26 @@
             type="button"
             onclick="showSavingState(this);"
             class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
-            @if($isEdit ?? false)
-                Save as Draft
-            @else
-                Save as Draft
-            @endif
+            {{ ($isEdit ?? false) ? 'Update Draft' : 'Save as Draft' }}
         </button>
 
         <div class="flex items-center space-x-3">
-            @if($isEdit ?? false)
-                @if($this->isRejected ?? false)
-                    <!-- For rejected PR: Show "Save & Resubmit" as primary action -->
-                    <button 
-                        wire:click="saveAndResubmit" 
-                        type="button"
-                        onclick="showResubmittingState(this);"
-                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                        <span class="flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                            Save & Resubmit
-                        </span>
-                    </button>
-                @else
-                    <!-- For non-rejected PR: Normal save -->
-                    <button 
-                        wire:click="submitPurchaseRequest" 
-                        type="button"
-                        onclick="showSubmittingState(this);"
-                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+            <!-- Save Changes (for edit mode, keeps rejected status if PR was rejected) -->
+            <button 
+                wire:click="submitPurchaseRequest" 
+                type="button"
+                onclick="showSubmittingState(this);"
+                class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                @if($isEdit ?? false)
+                    @if($this->isRejected ?? false)
+                        Save Changes (Rejected)
+                    @else
                         Save Changes
-                    </button>
-                @endif
-            @else
-                <!-- Create mode: Submit for approval -->
-                <button 
-                    wire:click="submitPurchaseRequest" 
-                    type="button"
-                    onclick="showSubmittingState(this);"
-                    class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                    @endif
+                @else
                     Submit for Approval
-                </button>
-            @endif
+                @endif
+            </button>
         </div>
     </div>
 </div>

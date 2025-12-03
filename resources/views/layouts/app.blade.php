@@ -188,6 +188,124 @@
             });
         </script>
         
+        <!-- GLOBAL LOADING OVERLAY for Business Unit Switching -->
+        <div 
+            id="global-bu-loader"
+            style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.75); z-index: 999999; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
+        >
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 16px; padding: 40px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center; min-width: 320px; max-width: 400px;">
+                <!-- Spinner -->
+                <svg style="animation: spin 1s linear infinite; width: 56px; height: 56px; color: #2563eb; margin: 0 auto 24px auto;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <!-- Text -->
+                <div>
+                    <p style="font-size: 18px; font-weight: 700; color: #111827; margin: 0 0 8px 0; letter-spacing: -0.025em;">Switching Business Unit</p>
+                    <p style="font-size: 14px; color: #6b7280; margin: 0; line-height: 1.5;">Please wait while we rebuild the form with new data...</p>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            /* Force overlay to be on top of everything */
+            #global-bu-loader {
+                pointer-events: all !important;
+            }
+            
+            #global-bu-loader[style*="display: block"],
+            #global-bu-loader[style*="display:block"] {
+                display: block !important;
+            }
+        </style>
+        
+        <script>
+            // ✅ IMMEDIATE: Define global function BEFORE DOMContentLoaded
+            // This ensures it's available when Alpine/Livewire tries to call it
+            window.showGlobalBuLoader = function() {
+                const globalLoader = document.getElementById('global-bu-loader');
+                if (globalLoader) {
+                    globalLoader.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    window._buLoaderShownAt = Date.now();
+                    console.log('⚡ Loader shown at', window._buLoaderShownAt);
+                    
+                    // ✅ FALLBACK: Auto-hide after 5 seconds if no response
+                    if (window._buLoaderTimeout) {
+                        clearTimeout(window._buLoaderTimeout);
+                    }
+                    window._buLoaderTimeout = setTimeout(() => {
+                        console.log('⚠️ Loader timeout - auto-hiding after 5s');
+                        window._buLoaderShownAt = null;
+                        window.hideGlobalBuLoader();
+                    }, 5000);
+                } else {
+                    console.error('❌ Loader element not found!');
+                }
+            };
+            
+            window.hideGlobalBuLoader = function() {
+                const globalLoader = document.getElementById('global-bu-loader');
+                if (!globalLoader) return;
+                
+                const MIN_LOADER_TIME = 300;
+                const now = Date.now();
+                const elapsed = window._buLoaderShownAt ? (now - window._buLoaderShownAt) : MIN_LOADER_TIME;
+                const remaining = Math.max(0, MIN_LOADER_TIME - elapsed);
+                
+                setTimeout(() => {
+                    globalLoader.style.display = 'none';
+                    document.body.style.overflow = '';
+                    console.log('✅ Loader hidden');
+                    
+                    if (window._buLoaderTimeout) {
+                        clearTimeout(window._buLoaderTimeout);
+                        window._buLoaderTimeout = null;
+                    }
+                    window._buLoaderShownAt = null;
+                }, remaining);
+            };
+            
+            // Register Livewire listener when ready
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('🎯 Global BU Loader initialized');
+                
+                if (typeof Livewire !== 'undefined') {
+                    // ✅ PRIMARY: Listen for explicit completion event from components
+                    Livewire.on('business-unit-switched-complete', () => {
+                        console.log('✅ Business unit switching completed (explicit)');
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                window.hideGlobalBuLoader();
+                            });
+                        });
+                    });
+                    
+                    // ✅ FIX: Listen for BU switch on static pages
+                    Livewire.on('business-unit-switched', () => {
+                        const staticPages = ['/approvals', '/pr-numbers'];
+                        const currentPath = window.location.pathname;
+                        const isStaticPage = staticPages.some(page => currentPath === page || currentPath.startsWith(page + '?'));
+                        
+                        if (isStaticPage) {
+                            console.log('📄 Static page detected, reloading...');
+                            window.showGlobalBuLoader();
+                            setTimeout(() => window.location.reload(), 300);
+                        }
+                    });
+                    
+                    console.log('✅ Livewire completion listener registered');
+                } else {
+                    console.error('❌ Livewire not available');
+                }
+            });
+        </script>
+        
         <!-- Livewire navigation handlers only (Alpine is auto-loaded by Livewire 3) -->
         <script>
             // Handle Livewire navigation gracefully

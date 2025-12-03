@@ -105,13 +105,8 @@
                         </div>
                     </div>
                     
-                    <div class="border-t border-gray-200 pt-3 mb-3">
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Purpose</label>
-                        <p class="text-xs text-gray-900 leading-relaxed">{{ $purchaseRequest->keperluan }}</p>
-                    </div>
-                    
                     <div class="border-t border-gray-200 pt-3">
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Used For</label>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Purpose / Used For</label>
                         <p class="text-xs text-gray-900 leading-relaxed">{{ $purchaseRequest->used_for }}</p>
                     </div>
                 </div>

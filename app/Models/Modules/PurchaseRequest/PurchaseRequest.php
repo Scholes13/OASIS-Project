@@ -98,10 +98,10 @@ class PurchaseRequest extends Model
         'pr_number',
         'business_unit_id',
         'department_id',
+        'category_id',
         'user_id',
         'sequence_id',
         'used_for',
-        'keperluan', // Specific needs or requirements field
         'date_of_request', // Auto dari PR number creation
         'expected_date', // User input - kapan barang dibutuhkan
         'designated_date', // Saved from expected_date field
@@ -110,6 +110,9 @@ class PurchaseRequest extends Model
         'approved_at',
         'rejected_at',
         'voided_at',
+        'offline_approved_at',
+        'offline_approved_by',
+        'offline_approval_notes',
         'approval_workflow',
         'is_sequential_approval',
         'total_amount',
@@ -126,6 +129,7 @@ class PurchaseRequest extends Model
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'voided_at' => 'datetime',
+        'offline_approved_at' => 'datetime',
         'approval_workflow' => 'array',
         'is_sequential_approval' => 'boolean',
         'total_amount' => 'decimal:2',
@@ -146,6 +150,14 @@ class PurchaseRequest extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Get the category
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(PrCategory::class, 'category_id');
     }
 
     /**
@@ -170,6 +182,22 @@ class PurchaseRequest extends Model
     public function lastModifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_modified_by');
+    }
+
+    /**
+     * Get the user who marked this PR as offline approved
+     */
+    public function offlineApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'offline_approved_by');
+    }
+
+    /**
+     * Check if PR was approved offline/manually
+     */
+    public function isOfflineApproved(): bool
+    {
+        return $this->offline_approved_at !== null;
     }
 
     /**

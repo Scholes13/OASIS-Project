@@ -62,6 +62,9 @@ class ContactIndex extends Component
         // Reload data (reads from session)
         $this->resetLazyLoad();
         $this->resetFilters();
+
+        // Dispatch completion event to hide loader
+        $this->dispatch('business-unit-switched-complete');
     }
 
     public function refreshContacts(): void

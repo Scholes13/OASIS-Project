@@ -57,7 +57,10 @@ Route::view('profile', 'profile')
 Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(function () {
     // Purchase Request Management
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
-        Route::get('/', [PurchaseRequestController::class, 'index'])->name('index');
+        // My History - Now uses Livewire component for reactive updates
+        Route::get('/', function () {
+            return view('purchase-requests.index-livewire');
+        })->name('index');
 
         // Create Route - Loads Livewire component for creating new PR
         Route::get('/create', function () {
@@ -72,6 +75,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::delete('/{purchaseRequest}', [PurchaseRequestController::class, 'destroy'])->name('destroy');
         Route::post('/{purchaseRequest}/resubmit', [PurchaseRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
+        Route::post('/{purchaseRequest}/mark-offline-approved', [PurchaseRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
 
         // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
@@ -89,9 +93,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/{prApproval}/qr-code', [ApprovalController::class, 'generateQrCode'])->name('qr-code');
     });
 
-    // PR Number Reservations Routes
+    // PR Number Reservations Routes (Continue/Void only - index page removed)
     Route::prefix('pr-numbers')->name('pr-numbers.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\PrNumberReservationController::class, 'index'])->name('index');
         Route::get('/{reservation}/continue', [\App\Http\Controllers\PrNumberReservationController::class, 'continueToForm'])->name('continue');
         Route::post('/{reservation}/void', [\App\Http\Controllers\PrNumberReservationController::class, 'void'])->name('void');
     });
@@ -150,6 +153,9 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Department Management
         Route::resource('departments', DepartmentController::class);
+
+        // PR Category Management
+        Route::resource('pr-categories', \App\Http\Controllers\Admin\PrCategoryController::class);
 
         // Notification Settings (Super Admin Only)
         Route::get('/notification-settings', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'index'])->name('notification-settings.index');

@@ -45,6 +45,11 @@ class Sidebar extends Component
         $user = Auth::user();
         $currentRole = session('current_user_role', 'user');
 
+        // Check if user has any active business units
+        $hasBusinessUnit = $user && $user->activeBusinessUnits()->exists();
+        $currentBusinessUnitId = session('current_business_unit_id');
+
+        // Base navigation - Dashboard always visible
         $navigation = [
             [
                 'name' => 'Dashboard',
@@ -53,7 +58,11 @@ class Sidebar extends Component
                 'current' => $this->currentRoute === 'dashboard',
                 'children' => [],
             ],
-            [
+        ];
+
+        // Purchase Request module - only visible if user has active business unit
+        if ($hasBusinessUnit && $currentBusinessUnitId) {
+            $navigation[] = [
                 'name' => 'Purchase Requests',
                 'href' => route('purchase-requests.index'),
                 'icon' => 'document-text',
@@ -75,15 +84,17 @@ class Sidebar extends Component
                         'current' => $this->currentRoute === 'purchase-requests.all',
                     ],
                 ],
-            ],
-            [
+            ];
+
+            // Approvals - also requires business unit
+            $navigation[] = [
                 'name' => 'Approvals',
                 'href' => route('approvals.index'),
                 'icon' => 'check-circle',
                 'current' => str_starts_with($this->currentRoute, 'approvals'),
                 'children' => [],
-            ],
-        ];
+            ];
+        }
 
         // Add Sales CRM section (permission-based)
         if ($user && ($user->can('view_activities') || $user->can('view_contacts'))) {
@@ -108,7 +119,7 @@ class Sidebar extends Component
             }
 
             // Only add Sales CRM section if user has at least one permission
-            if (!empty($salesCrmChildren)) {
+            if (! empty($salesCrmChildren)) {
                 $navigation[] = [
                     'name' => 'Sales CRM',
                     'href' => $salesCrmChildren[0]['href'], // First available menu
@@ -184,6 +195,15 @@ class Sidebar extends Component
                 'href' => route('admin.departments.index'),
                 'icon' => 'collection',
                 'current' => str_starts_with($this->currentRoute, 'admin.departments'),
+                'children' => [],
+            ];
+
+            // PR Categories
+            $navigation[] = [
+                'name' => 'PR Categories',
+                'href' => route('admin.pr-categories.index'),
+                'icon' => 'tag',
+                'current' => str_starts_with($this->currentRoute, 'admin.pr-categories'),
                 'children' => [],
             ];
 

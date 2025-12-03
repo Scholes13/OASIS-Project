@@ -9,49 +9,6 @@ use Illuminate\Support\Facades\Auth;
 class PrNumberReservationController extends Controller
 {
     /**
-     * Display user's PR number reservations
-     */
-    public function index()
-    {
-        $user = Auth::user();
-        $accessLevel = $user->getAccessLevel();
-
-        $query = PrNumberReservation::with(['businessUnit', 'department', 'user', 'purchaseRequest'])
-            ->where('business_unit_id', session('current_business_unit_id'));
-
-        // Apply hierarchy-based filtering (same as PurchaseRequestController)
-        switch ($accessLevel) {
-            case 'super_admin':
-            case 'executive':
-            case 'general_manager':
-                // Can see all reservations in the business unit
-                break;
-
-            case 'department_head':
-                // Department head can see all reservations in their department
-                $query->where('department_id', $user->primary_department_id);
-                break;
-
-            case 'team_leader':
-                // Team leader can see their own + subordinates' reservations
-                $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                $subordinateIds[] = $user->id; // Include own reservations
-                $query->whereIn('user_id', $subordinateIds);
-                break;
-
-            case 'staff':
-            default:
-                // Staff can only see their own reservations
-                $query->byUser($user->id);
-                break;
-        }
-
-        $reservations = $query->latest('reserved_at')->paginate(15);
-
-        return view('pr-numbers.index', compact('reservations'));
-    }
-
-    /**
      * Void a PR number reservation
      */
     public function void(Request $request, PrNumberReservation $reservation)

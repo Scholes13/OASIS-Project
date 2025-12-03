@@ -61,23 +61,24 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Display all purchase requests (for managers/admins with proper hierarchy)
+     * Display all purchase requests in the current business unit.
+     * All users registered to a business unit can view all PRs in that unit.
      */
-    public function all()
+    public function all(Request $request)
     {
         $user = Auth::user();
-        $accessLevel = $user->getAccessLevel();
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
 
-        // Only allow certain access levels to view "all" PRs
-        if (! in_array($accessLevel, ['super_admin', 'executive', 'general_manager', 'department_head'])) {
+        // Verify user has access to this business unit
+        $userBusinessUnitIds = $user->activeBusinessUnits()->pluck('business_unit_id')->toArray();
+
+        if (! $currentBusinessUnitId || ! in_array($currentBusinessUnitId, $userBusinessUnitIds)) {
             return redirect()->route('purchase-requests.index')
-                ->with('error', 'You do not have permission to view all purchase requests.');
+                ->with('error', 'You do not have access to this business unit.');
         }
 
-        $query = $this->purchaseRequestService->getPurchaseRequestsQuery();
-        $purchaseRequests = $query->latest('created_at')->paginate(10);
-
-        return view('purchase-requests.all', compact('purchaseRequests'));
+        // Render Livewire component with lazy loading
+        return view('purchase-requests.all-livewire');
     }
 
     /**
@@ -216,6 +217,58 @@ class PurchaseRequestController extends Controller
 
             // Return generic error message to user (no internal details)
             return back()->with('error', 'Failed to void purchase request. Please try again or contact support.');
+        }
+    }
+
+    /**
+     * Mark purchase request as approved offline/manually
+     * 
+     * Used when digital approval is too slow and user has exported the PR
+     * for manual/offline approval. This marks the entire PR as approved at once.
+     */
+    public function markOfflineApproved(Request $request, PurchaseRequest $purchaseRequest)
+    {
+        $request->validate([
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        // Validate business unit context (prevent cross-tenant access)
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        // Check if PR can be marked as offline approved
+        // Only PRs that are submitted or in_approval can be marked
+        if (! in_array($purchaseRequest->status, ['submitted', 'in_approval'])) {
+            return back()->with('error', 'This purchase request cannot be marked as offline approved. Only submitted or in-approval PRs are eligible.');
+        }
+
+        // Authorization: Only PR owner can mark as offline approved
+        $user = Auth::user();
+        if ($purchaseRequest->user_id !== $user->id) {
+            abort(403, 'Only the PR owner can mark this purchase request as offline approved.');
+        }
+
+        try {
+            $this->purchaseRequestService->markAsOfflineApproved($purchaseRequest, $request->notes);
+
+            return redirect()
+                ->route('purchase-requests.show', $purchaseRequest)
+                ->with('success', 'Purchase request has been marked as approved offline/manually.');
+
+        } catch (\Exception $e) {
+            // Log detailed error for debugging (not exposed to user)
+            Log::error('Failed to mark purchase request as offline approved', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'user_id' => Auth::id(),
+                'notes' => $request->notes,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Return generic error message to user (no internal details)
+            return back()->with('error', 'Failed to mark as offline approved. Please try again or contact support.');
         }
     }
 

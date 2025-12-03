@@ -78,6 +78,9 @@ class ContactForm extends Component
     {
         session(['current_business_unit_id' => $businessUnitId]);
         $this->businessUnitId = $businessUnitId;
+
+        // Dispatch completion event to hide loader
+        $this->dispatch('business-unit-switched-complete');
     }
 
     protected function loadContact(): void

@@ -110,6 +110,9 @@ class ActivityForm extends Component
         session(['current_business_unit_id' => $businessUnitId]);
         $this->businessUnitId = $businessUnitId;
         $this->loadAvailableContacts();
+
+        // Dispatch completion event to hide loader
+        $this->dispatch('business-unit-switched-complete');
     }
 
     protected function loadActivity(): void

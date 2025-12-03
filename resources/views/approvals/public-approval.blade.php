@@ -658,7 +658,7 @@
             <!-- Right Column -->
             <div class="info-column right-column">
                 <div class="info-row">
-                    <span class="info-label">Used for</span>
+                    <span class="info-label">Purpose / Used For</span>
                     <span class="info-colon">:</span>
                     <span class="info-value wide">{{ $approval->purchaseRequest->used_for ?? 'N/A' }}</span>
                 </div>

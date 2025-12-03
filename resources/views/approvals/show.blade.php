@@ -67,12 +67,7 @@
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Purpose</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest->keperluan }}</p>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Used For</label>
+                            <label class="block text-sm font-medium text-gray-700">Purpose / Used For</label>
                             <p class="mt-1 text-sm text-gray-900">{{ $approval->purchaseRequest->used_for }}</p>
                         </div>
                     </div>

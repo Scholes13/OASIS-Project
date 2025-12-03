@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Dashboard;
 
+use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Core\BusinessUnit;
 use App\Models\Modules\PurchaseRequest\PrApproval;
 use App\Models\Modules\PurchaseRequest\PurchaseRequest;
@@ -13,6 +14,8 @@ use Spatie\Activitylog\Models\Activity;
 
 class UserDashboard extends Component
 {
+    use HasLazyLoading;
+
     // ✅ Livewire event listeners
     protected $listeners = [
         'business-unit-switched' => 'handleBusinessUnitSwitch',
@@ -230,6 +233,7 @@ class UserDashboard extends Component
         $this->clearDashboardCache();
 
         // ✅ Now reload data (will read from session, guaranteed fresh)
+        // Note: Don't resetLazyLoad here - data should just refresh, not show skeleton again
         $this->loadDashboardData();
 
         // Reload business units list (in case access changed)
@@ -239,16 +243,57 @@ class UserDashboard extends Component
             'new_activeBusinessUnitId' => $this->activeBusinessUnitId,
             'new_session' => session('current_business_unit_id'),
         ]);
+
+        // ✅ FIX: Dispatch completion AFTER data is fully loaded
+        $this->dispatch('business-unit-switched-complete');
     }
 
     public function loadDashboardData(): void
     {
+        // ✅ Lazy loading: Don't load data until component is ready
+        if (! $this->readyToLoad) {
+            $this->stats = $this->getDefaultStats();
+            $this->recentActivities = [];
+            $this->chartData = $this->getDefaultChartData();
+
+            return;
+        }
+
         $this->stats = $this->getStats();
         $this->recentActivities = $this->getRecentActivities();
         $this->chartData = $this->getChartData();
 
         // Dispatch event to update charts on frontend
         $this->dispatch('chartDataUpdated', chartData: $this->chartData);
+    }
+
+    /**
+     * Get default stats for skeleton/loading state
+     */
+    protected function getDefaultStats(): array
+    {
+        return [
+            'total_pr' => 0,
+            'approved' => 0,
+            'pending' => 0,
+            'rejected' => 0,
+            'total_amount' => 0,
+            'approved_amount' => 0,
+            'pending_approval' => 0,
+            'in_progress' => 0,
+        ];
+    }
+
+    /**
+     * Get default chart data for skeleton/loading state
+     * Must match the structure returned by getChartData()
+     */
+    protected function getDefaultChartData(): array
+    {
+        return [
+            'daily' => [],
+            'status' => [],
+        ];
     }
 
     /**

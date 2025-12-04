@@ -1,500 +1,575 @@
 @php
     use Illuminate\Support\Facades\Auth;
+    
+    // Status styling
+    $statusStyles = [
+        'draft' => ['bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'icon' => 'edit', 'label' => 'Draft'],
+        'submitted' => ['bg' => 'bg-blue-100', 'text' => 'text-blue-700', 'icon' => 'clock', 'label' => 'Submitted'],
+        'in_approval' => ['bg' => 'bg-amber-100', 'text' => 'text-amber-700', 'icon' => 'clock', 'label' => 'In Approval'],
+        'approved' => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-700', 'icon' => 'check', 'label' => 'Approved'],
+        'rejected' => ['bg' => 'bg-red-100', 'text' => 'text-red-700', 'icon' => 'x', 'label' => 'Rejected'],
+        'voided' => ['bg' => 'bg-gray-100', 'text' => 'text-gray-500', 'icon' => 'ban', 'label' => 'Voided'],
+    ];
+    $currentStyle = $statusStyles[$purchaseRequest->status] ?? $statusStyles['draft'];
+    
+    // Check permissions
+    $user = Auth::user();
+    $isOwner = $purchaseRequest->user_id === $user->id;
+    $accessLevel = $user->getAccessLevel();
+    $isAdmin = in_array($accessLevel, ['super_admin', 'executive', 'general_manager']);
+    $canEdit = $purchaseRequest->canBeEdited() && $isOwner;
+    $canVoid = $purchaseRequest->canBeVoided() && ($isOwner || $isAdmin);
+    $canMarkOffline = in_array($purchaseRequest->status, ['submitted', 'in_approval']) && $isOwner;
+    $canResubmit = $purchaseRequest->status === 'rejected' && $isOwner;
 @endphp
 
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Purchase Request: {{ $purchaseRequest->pr_number }}</h1>
-                <p class="text-sm text-gray-600 mt-1">Created by {{ $purchaseRequest->user->name }} on {{ $purchaseRequest->created_at->format('M d, Y') }}</p>
-            </div>
-            <div class="flex items-center space-x-3">
-                {{-- Debug Info --}}
-                @if(config('app.debug'))
-                    <span class="text-xs text-gray-500">
-                        Status: {{ $purchaseRequest->status }} | 
-                        Owner: {{ $purchaseRequest->user_id }} | 
-                        Current: {{ Auth::id() }} |
-                        Can Edit: {{ $purchaseRequest->canBeEdited() ? 'YES' : 'NO' }}
-                    </span>
-                @endif
-                
-                @if($purchaseRequest->canBeEdited() && $purchaseRequest->user_id === Auth::id())
-                    <a href="{{ route('purchase-requests.edit', $purchaseRequest) }}" 
-                       wire:navigate
-                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                        <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
-                        Edit
-                    </a>
-                @endif
-                
-                @if($purchaseRequest->canBeSubmitted() && $purchaseRequest->user_id === Auth::id())
-                    <form method="POST" action="{{ route('purchase-requests.submit', $purchaseRequest) }}" class="inline">
-                        @csrf
-                        <button type="submit" 
-                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                                onclick="return confirm('Are you sure you want to submit this purchase request for approval?')">
-                            <svg class="w-5 h-5 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+    <div class="min-h-screen bg-white" x-data="{ showVoidModal: false, showOfflineModal: false }">
+        <div class="w-full">
+            <!-- Header -->
+            <div class="border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <a href="{{ route('purchase-requests.index') }}" 
+                           class="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                             </svg>
-                            Submit for Approval
-                        </button>
-                    </form>
-                @endif
-
-                @if($purchaseRequest->status === 'rejected' && $purchaseRequest->user_id === Auth::id())
-                    <form method="POST" action="{{ route('purchase-requests.resubmit', $purchaseRequest) }}" class="inline">
-                        @csrf
-                        <button type="submit" 
-                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
-                                onclick="return confirm('This will reset the approval workflow and resubmit for approval. Continue?')">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                            Resubmit for Approval
-                        </button>
-                    </form>
-                @endif
-                
-                <!-- PDF Actions -->
-                <a href="{{ route('purchase-requests.pdf', $purchaseRequest) }}" 
-                   target="_blank"
-                   class="inline-flex items-center px-4 py-2 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    View PDF
-                </a>
-                
-                <a href="{{ route('purchase-requests.download-pdf', $purchaseRequest) }}" 
-                   class="inline-flex items-center px-4 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    Download PDF
-                </a>
-                
-                <a href="{{ route('purchase-requests.index') }}" 
-                   wire:navigate
-                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                    </svg>
-                    Back to List
-                </a>
-            </div>
-        </div>
-    </x-slot>
-
-    <x-slot name="breadcrumbs">
-        <li class="flex">
-            <div class="flex items-center">
-                <a href="{{ route('dashboard') }}" wire:navigate class="text-gray-400 hover:text-gray-500">
-                    <svg class="flex-shrink-0 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
-                    </svg>
-                    <span class="sr-only">Dashboard</span>
-                </a>
-            </div>
-        </li>
-        <li class="flex">
-            <div class="flex items-center">
-                <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                <a href="{{ route('purchase-requests.index') }}" wire:navigate class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">
-                    Purchase Requests
-                </a>
-            </div>
-        </li>
-        <li class="flex">
-            <div class="flex items-center">
-                <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="ml-4 text-sm font-medium text-gray-500">{{ $purchaseRequest->pr_number }}</span>
-            </div>
-        </li>
-    </x-slot>
-
-    <!-- Purchase Request Details -->
-    <div class="w-full space-y-6">
-        <!-- Action Buttons Section -->
-        @if($purchaseRequest->status === 'rejected' && $purchaseRequest->user_id === Auth::id())
-            <div class="bg-orange-50 border-l-4 border-orange-400 p-6 rounded-lg">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
+                        </a>
+                        <div>
+                            <div class="flex items-center space-x-3">
+                                <h1 class="text-xl font-semibold text-gray-900">{{ $purchaseRequest->pr_number }}</h1>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ $currentStyle['bg'] }} {{ $currentStyle['text'] }}">
+                                    @if($currentStyle['icon'] === 'check')
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    @elseif($currentStyle['icon'] === 'x')
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    @elseif($currentStyle['icon'] === 'clock')
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    @elseif($currentStyle['icon'] === 'ban')
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                                        </svg>
+                                    @else
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                        </svg>
+                                    @endif
+                                    {{ $currentStyle['label'] }}
+                                </span>
+                                @if($purchaseRequest->isOfflineApproved())
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                        </svg>
+                                        Offline Approved
+                                    </span>
+                                @endif
+                            </div>
+                            <p class="text-sm text-gray-500 mt-0.5">{{ $purchaseRequest->businessUnit?->name ?? 'N/A' }} • {{ $purchaseRequest->department?->name ?? 'N/A' }}</p>
+                        </div>
                     </div>
-                    <div class="ml-4 flex-1">
-                        <h3 class="text-lg font-medium text-orange-800">
-                            This Purchase Request Was Rejected
-                        </h3>
-                        <p class="mt-2 text-sm text-orange-700">
-                            You can edit the request and resubmit it for approval. The approval workflow will be completely reset.
-                        </p>
-                        <div class="mt-4 flex items-center space-x-3">
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex items-center space-x-2">
+                        @if($canEdit)
                             <a href="{{ route('purchase-requests.edit', $purchaseRequest) }}" 
-                               class="inline-flex items-center px-4 py-2 border border-orange-300 rounded-lg text-sm font-medium text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200">
-                                <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                               class="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                 </svg>
-                                Edit Request
+                                Edit
                             </a>
-                            <form method="POST" action="{{ route('purchase-requests.resubmit', $purchaseRequest) }}" class="inline">
+                        @endif
+                        
+                        @if($canResubmit)
+                            <form action="{{ route('purchase-requests.resubmit', $purchaseRequest) }}" method="POST" class="inline">
                                 @csrf
                                 <button type="submit" 
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
-                                        onclick="return confirm('This will reset the approval workflow and resubmit for approval. Continue?')">
-                                    <svg class="w-5 h-5 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        class="inline-flex items-center px-3 py-1.5 text-sm text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-md transition-colors">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                     </svg>
-                                    Resubmit for Approval
+                                    Resubmit
                                 </button>
                             </form>
-                        </div>
+                        @endif
                         
-                        {{-- Debug Info --}}
-                        @if(config('app.debug'))
-                            <div class="mt-3 text-xs text-orange-600 font-mono bg-orange-100 p-2 rounded">
-                                Debug: Status={{ $purchaseRequest->status }} | Owner={{ $purchaseRequest->user_id }} | Current={{ Auth::id() }} | CanEdit={{ $purchaseRequest->canBeEdited() ? 'YES' : 'NO' }}
-                            </div>
+                        <a href="{{ route('purchase-requests.pdf-public', $purchaseRequest) }}" 
+                           target="_blank"
+                           class="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Download PDF
+                        </a>
+                        
+                        @if($canMarkOffline)
+                            <button @click="showOfflineModal = true"
+                                    class="inline-flex items-center px-3 py-1.5 text-sm text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded-md transition-colors">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                                Mark Offline Approved
+                            </button>
+                        @endif
+                        
+                        @if($canVoid)
+                            <button @click="showVoidModal = true"
+                                    class="inline-flex items-center px-3 py-1.5 text-sm text-red-600 hover:text-red-900 hover:bg-red-50 rounded-md transition-colors">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                                </svg>
+                                Void
+                            </button>
                         @endif
                     </div>
                 </div>
             </div>
-        @endif
-        
-        <!-- PR Header Info -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-gray-900">Purchase Request Information</h3>
-                    @php
-                        $statusConfig = [
-                            'draft' => ['bg' => 'bg-gray-100', 'text' => 'text-gray-800', 'label' => 'Draft'],
-                            'submitted' => ['bg' => 'bg-blue-100', 'text' => 'text-blue-800', 'label' => 'Submitted'],
-                            'in_approval' => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-800', 'label' => 'In Approval'],
-                            'approved' => ['bg' => 'bg-green-100', 'text' => 'text-green-800', 'label' => 'Approved'],
-                            'rejected' => ['bg' => 'bg-red-100', 'text' => 'text-red-800', 'label' => 'Rejected'],
-                            'voided' => ['bg' => 'bg-gray-100', 'text' => 'text-gray-800', 'label' => 'Voided'],
-                        ];
-                        $config = $statusConfig[$purchaseRequest->status] ?? $statusConfig['draft'];
-                    @endphp
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ $config['bg'] }} {{ $config['text'] }}">
-                        {{ $config['label'] }}
-                    </span>
-                </div>
-            </div>
-            
-            <div class="p-6">
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">PR Number</dt>
-                        <dd class="mt-1 text-sm text-gray-900 font-mono">{{ $purchaseRequest->pr_number }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Requestor</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->user->name }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Department</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->department->name ?? 'N/A' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Date of Request</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->date_of_request->format('M d, Y') }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Total Amount</dt>
-                        <dd class="mt-1 text-sm text-gray-900 font-semibold">{{ $purchaseRequest->currency }} {{ number_format($purchaseRequest->total_amount, 2) }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Created</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->created_at->format('M d, Y H:i') }}</dd>
-                    </div>
-                </div>
-                
-                <div class="mt-6">
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Purpose / Used For</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->used_for }}</dd>
-                    </div>
-                </div>
-                
-                <!-- PDF Export Section -->
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900">📄 Export Options</h4>
-                            <p class="text-sm text-gray-500">Download or view this purchase request as PDF document</p>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <a href="{{ route('purchase-requests.pdf', $purchaseRequest) }}" 
-                               target="_blank"
-                               class="inline-flex items-center px-4 py-2 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                                View PDF
-                            </a>
-                            
-                            <a href="{{ route('purchase-requests.download-pdf', $purchaseRequest) }}" 
-                               class="inline-flex items-center px-4 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Download PDF
-                            </a>
+
+            <!-- Alert Messages -->
+            @if($purchaseRequest->status === 'rejected')
+                <div class="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">This Purchase Request was Rejected</h3>
+                            <p class="text-sm text-red-700 mt-1">
+                                You can edit this PR and resubmit it for approval using the "Resubmit" button above.
+                            </p>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            @endif
 
-        <!-- PR Items -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">Purchase Items</h3>
-                <p class="text-sm text-gray-600 mt-1">{{ $purchaseRequest->items->count() }} item(s) in this purchase request</p>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead style="background-color: #1e40af;">
-                        <tr>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-12">No</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Item Name</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Brand Name</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Item Description / Specification</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Supplier Name</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-16">QT</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-16">UN</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Unit Price</th>
-                            <th class="px-3 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-14">CR</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Total Price</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($purchaseRequest->items as $index => $item)
-                            <tr class="{{ $index % 2 == 0 ? 'bg-white' : 'bg-gray-50' }} hover:bg-gray-100 transition-colors duration-200">
-                                <td class="px-3 py-3 text-center text-sm text-gray-900">
-                                    {{ $index + 1 }}
-                                </td>
-                                <td class="px-3 py-3 text-sm text-gray-900">
-                                    {{ $item->item_name }}
-                                </td>
-                                <td class="px-3 py-3 text-sm text-gray-900">
-                                    {{ $item->brand_name ?: '-' }}
-                                </td>
-                                <td class="px-3 py-3 text-sm text-gray-900">
-                                    {{ $item->item_description ?: '-' }}
-                                </td>
-                                <td class="px-3 py-3 text-sm text-gray-900">
-                                    {{ $item->supplier_name ?: '-' }}
-                                </td>
-                                <td class="px-3 py-3 text-center text-sm text-gray-900">
-                                    {{ number_format($item->quantity, 0) }}
-                                </td>
-                                <td class="px-3 py-3 text-center text-sm text-gray-900">
-                                    {{ $item->unit }}
-                                </td>
-                                <td class="px-3 py-3 text-right text-sm text-gray-900">
-                                    {{ number_format($item->unit_price, 0) }}
-                                </td>
-                                <td class="px-3 py-3 text-center text-sm text-gray-900">
-                                    {{ $item->currency }}
-                                </td>
-                                <td class="px-3 py-3 text-right text-sm font-medium text-gray-900">
-                                    {{ number_format($item->quantity * $item->unit_price, 0) }}
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot class="bg-gray-100">
-                        <tr>
-                            <td colspan="9" class="px-3 py-3 text-right text-sm font-bold text-gray-900">
-                                Total Amount:
-                            </td>
-                            <td class="px-3 py-3 text-right text-sm font-bold text-gray-900">
-                                {{ number_format($purchaseRequest->total_amount, 0) }}
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
+            <!-- Session flash messages are automatically displayed as toast by layouts/app.blade.php -->
 
-        <!-- Approval Status -->
-        @if($purchaseRequest->approvals->count() > 0)
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Approval Status</h3>
-                    <p class="text-sm text-gray-600 mt-1">Track the approval progress of this purchase request</p>
-                </div>
-                
-                <div class="p-6">
-                    <div class="flow-root">
-                        <ul class="-mb-8">
-                            @foreach($purchaseRequest->approvals as $index => $approval)
-                                <li>
-                                    <div class="relative pb-8">
-                                        @if(!$loop->last)
-                                            <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
-                                        @endif
-                                        <div class="relative flex space-x-3">
-                                            <div>
-                                                @php
-                                                    $iconConfig = [
-                                                        'pending' => ['bg' => 'bg-gray-500', 'icon' => 'clock'],
-                                                        'approved' => ['bg' => 'bg-green-500', 'icon' => 'check'],
-                                                        'rejected' => ['bg' => 'bg-red-500', 'icon' => 'x'],
-                                                    ];
-                                                    $config = $iconConfig[$approval->status] ?? $iconConfig['pending'];
-                                                @endphp
-                                                <span class="h-8 w-8 rounded-full {{ $config['bg'] }} flex items-center justify-center ring-8 ring-white">
-                                                    @if($config['icon'] === 'check')
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    @elseif($config['icon'] === 'x')
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                        </svg>
+            <!-- Content Grid -->
+            <div class="px-6 py-6">
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <!-- Main Content (2/3) -->
+                    <div class="xl:col-span-2 space-y-6">
+                        <!-- Request Details Card -->
+                        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-gray-100">
+                                <h3 class="text-base font-semibold text-gray-900">Request Details</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+                                    <div class="mb-6">
+                                        <p class="text-sm font-medium text-gray-500">Requested By</p>
+                                        <p class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->user?->name ?? 'N/A' }}</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm font-medium text-gray-500">Department</p>
+                                        <p class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->department?->name ?? 'N/A' }} ({{ $purchaseRequest->department?->code ?? 'N/A' }})</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm font-medium text-gray-500">Date of Request</p>
+                                        <p class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->date_of_request?->format('F j, Y') ?? 'N/A' }}</p>
+                                    </div>
+                                    <div class="mb-6">
+                                        <p class="text-sm font-medium text-gray-500">Expected Date</p>
+                                        <p class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->expected_date?->format('F j, Y') ?? 'Not specified' }}</p>
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <p class="text-sm font-medium text-gray-500">Purpose / Used For</p>
+                                        <p class="mt-1 text-sm text-gray-900">{{ $purchaseRequest->used_for ?? 'Not specified' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Items Table Card -->
+                        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <h3 class="text-base font-semibold text-gray-900">Items</h3>
+                                <span class="text-sm text-gray-500">{{ $purchaseRequest->items->count() }} {{ Str::plural('item', $purchaseRequest->items->count()) }}</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                                            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expense Dept</th>
+                                            <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                            <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                            <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-100">
+                                        @forelse($purchaseRequest->items as $index => $item)
+                                            <tr class="hover:bg-gray-50 transition-colors">
+                                                <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
+                                                <td class="px-5 py-4">
+                                                    <div class="text-sm text-gray-900">{{ $item->item_name }}</div>
+                                                    @if($item->brand_name)
+                                                        <div class="text-sm text-gray-500">Brand: {{ $item->brand_name }}</div>
+                                                    @endif
+                                                    @if($item->item_description)
+                                                        <div class="text-sm text-gray-400 mt-1">{{ $item->item_description }}</div>
+                                                    @endif
+                                                    @if($item->supplier_name)
+                                                        <div class="text-xs text-gray-400 mt-1">Supplier: {{ $item->supplier_name }}</div>
+                                                    @endif
+                                                </td>
+                                                <td class="px-5 py-4 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">{{ $item->expenseDepartment?->name ?? 'N/A' }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $item->expenseDepartment?->code ?? '' }}</div>
+                                                </td>
+                                                <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                                    {{ number_format($item->quantity, 0) }} {{ $item->unit }}
+                                                </td>
+                                                <td class="px-5 py-4 whitespace-nowrap text-right">
+                                                    <span class="text-sm text-gray-500">{{ $item->currency ?? 'IDR' }}</span>
+                                                    <span class="text-sm text-gray-900">{{ number_format($item->unit_price, 0, ',', '.') }}</span>
+                                                </td>
+                                                <td class="px-5 py-4 whitespace-nowrap text-right">
+                                                    <span class="text-sm text-gray-500">{{ $item->currency ?? 'IDR' }}</span>
+                                                    <span class="text-sm text-gray-900">{{ number_format($item->total_price, 0, ',', '.') }}</span>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="6" class="px-5 py-8 text-center text-sm text-gray-500">
+                                                    No items found
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                    <tfoot class="bg-gray-50">
+                                        <tr>
+                                            <td colspan="5" class="px-5 py-4 text-right text-sm font-semibold text-gray-900">
+                                                Total Amount
+                                            </td>
+                                            <td class="px-5 py-4 whitespace-nowrap text-right">
+                                                <span class="text-sm text-gray-900">{{ $purchaseRequest->currency ?? 'IDR' }}</span>
+                                                <span class="text-base font-semibold text-gray-900">{{ number_format($purchaseRequest->total_amount, 0, ',', '.') }}</span>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar (1/3) -->
+                    <div class="space-y-6">
+                        <!-- Approval Progress Card -->
+                        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-gray-100">
+                                <h3 class="text-base font-semibold text-gray-900">Approval Progress</h3>
+                            </div>
+                            <div class="p-5">
+                                @if($purchaseRequest->approvals->count() > 0)
+                                    <div class="space-y-0">
+                                        @foreach($purchaseRequest->approvals as $approval)
+                                            <div class="flex items-start gap-3 pb-6 last:pb-0">
+                                                <!-- Step Indicator -->
+                                                <div class="flex-shrink-0 relative">
+                                                    @if($approval->status === 'approved')
+                                                        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path>
+                                                            </svg>
+                                                        </div>
+                                                    @elseif($approval->status === 'rejected')
+                                                        <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                                            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
+                                                            </svg>
+                                                        </div>
+                                                    @elseif($approval->status === 'pending')
+                                                        <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                                                            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                            </svg>
+                                                        </div>
                                                     @else
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                        </svg>
+                                                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                                            <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+                                                        </div>
                                                     @endif
-                                                </span>
-                                            </div>
-                                            <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                                                <div>
-                                                    <p class="text-sm text-gray-500">
-                                                        Step {{ $approval->step_order }}: 
-                                                        <span class="font-medium text-gray-900">{{ $approval->approver->name ?? 'Unknown Approver' }}</span>
-                                                        @if($approval->status === 'approved')
-                                                            approved this request
-                                                        @elseif($approval->status === 'rejected')
-                                                            rejected this request
-                                                        @else
-                                                            is reviewing this request
-                                                        @endif
-                                                    </p>
-                                                    @if($approval->notes)
-                                                        <p class="text-sm text-gray-700 mt-1">{{ $approval->notes }}</p>
+                                                    
+                                                    <!-- Connector Line -->
+                                                    @if(!$loop->last)
+                                                        <div class="absolute left-1/2 top-8 w-0.5 h-6 -translate-x-1/2 {{ $approval->status === 'approved' ? 'bg-emerald-200' : ($approval->status === 'rejected' ? 'bg-red-200' : 'bg-gray-200') }}"></div>
                                                     @endif
                                                 </div>
-                                                <div class="text-right text-sm whitespace-nowrap text-gray-500">
+                                                
+                                                <!-- Content -->
+                                                <div class="flex-1 min-w-0 pt-1">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        <span class="text-sm font-medium text-gray-900 truncate">{{ $approval->approver?->name ?? 'Unknown' }}</span>
+                                                        <span class="flex-shrink-0 text-xs px-2 py-0.5 rounded-full 
+                                                            @if($approval->status === 'approved') bg-emerald-100 text-emerald-700
+                                                            @elseif($approval->status === 'rejected') bg-red-100 text-red-700
+                                                            @elseif($approval->status === 'pending') bg-amber-100 text-amber-700
+                                                            @else bg-gray-100 text-gray-600 @endif">
+                                                            {{ ucfirst($approval->status) }}
+                                                        </span>
+                                                    </div>
+                                                    <p class="text-xs text-gray-500 mt-0.5">{{ $approval->approval_type ?? 'Approver' }} - Step {{ $approval->step_order }}</p>
                                                     @if($approval->responded_at)
-                                                        <time>{{ $approval->responded_at->format('M d, Y H:i') }}</time>
-                                                    @elseif($approval->assigned_at)
-                                                        <time>Assigned {{ $approval->assigned_at->format('M d, Y') }}</time>
+                                                        <p class="text-xs text-gray-400 mt-1">{{ $approval->responded_at->format('M j, Y H:i') }}</p>
+                                                    @endif
+                                                    @if($approval->notes)
+                                                        <p class="text-xs text-gray-600 mt-2 p-2 bg-gray-50 rounded">{{ $approval->notes }}</p>
                                                     @endif
                                                 </div>
                                             </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="text-center py-6">
+                                        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <p class="text-sm text-gray-500">No approval workflow</p>
+                                        <p class="text-xs text-gray-400 mt-1">Submit this PR to start approval</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Timestamps Card -->
+                        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-gray-100">
+                                <h3 class="text-base font-semibold text-gray-900">Timeline</h3>
+                            </div>
+                            <div class="p-5 space-y-3">
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-gray-500">Created</span>
+                                    <span class="text-gray-900">{{ $purchaseRequest->created_at?->format('M j, Y H:i') ?? 'N/A' }}</span>
+                                </div>
+                                @if($purchaseRequest->submitted_at)
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-gray-500">Submitted</span>
+                                        <span class="text-gray-900">{{ $purchaseRequest->submitted_at->format('M j, Y H:i') }}</span>
+                                    </div>
+                                @endif
+                                @if($purchaseRequest->approved_at)
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-emerald-600">Approved</span>
+                                        <span class="text-gray-900">{{ $purchaseRequest->approved_at->format('M j, Y H:i') }}</span>
+                                    </div>
+                                @endif
+                                @if($purchaseRequest->rejected_at)
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-red-600">Rejected</span>
+                                        <span class="text-gray-900">{{ $purchaseRequest->rejected_at->format('M j, Y H:i') }}</span>
+                                    </div>
+                                @endif
+                                @if($purchaseRequest->voided_at)
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-gray-500">Voided</span>
+                                        <span class="text-gray-900">{{ $purchaseRequest->voided_at->format('M j, Y H:i') }}</span>
+                                    </div>
+                                @endif
+                                @if($purchaseRequest->offline_approved_at)
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-purple-600">Offline Approved</span>
+                                        <span class="text-gray-900">{{ $purchaseRequest->offline_approved_at->format('M j, Y H:i') }}</span>
+                                    </div>
+                                    @if($purchaseRequest->offlineApprovedBy)
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="text-gray-500">By</span>
+                                            <span class="text-gray-900">{{ $purchaseRequest->offlineApprovedBy->name }}</span>
+                                        </div>
+                                    @endif
+                                    @if($purchaseRequest->offline_approval_notes)
+                                        <div class="text-sm">
+                                            <span class="text-gray-500">Notes:</span>
+                                            <p class="text-gray-700 mt-1 p-2 bg-gray-50 rounded text-xs">{{ $purchaseRequest->offline_approval_notes }}</p>
+                                        </div>
+                                    @endif
+                                @endif
+                                @if($purchaseRequest->last_modified_by && $purchaseRequest->lastModifiedBy)
+                                    <div class="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
+                                        <span class="text-gray-500">Last Modified By</span>
+                                        <span class="text-gray-900">{{ $purchaseRequest->lastModifiedBy->name }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Void Modal -->
+        <template x-teleport="body">
+            <div x-show="showVoidModal" 
+                 x-cloak
+                 class="fixed inset-0 z-[9999]"
+                 aria-labelledby="void-modal-title" 
+                 role="dialog" 
+                 aria-modal="true">
+                <!-- Backdrop -->
+                <div x-show="showVoidModal"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+                     @click="showVoidModal = false"></div>
+
+                <!-- Modal Panel - True Center -->
+                <div class="fixed inset-0 z-10 flex items-center justify-center p-4">
+                    <div x-show="showVoidModal"
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                         x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                         x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                         style="width: 100%; max-width: 28rem;"
+                         class="relative transform overflow-hidden rounded-xl bg-white shadow-xl transition-all">
+                        <form action="{{ route('purchase-requests.void', $purchaseRequest) }}" method="POST">
+                            @csrf
+                            <!-- Body -->
+                            <div class="bg-white px-5 py-4">
+                                <div class="flex items-start">
+                                    <div style="width: 2.5rem; height: 2.5rem;" class="flex flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                                        <svg style="width: 1.25rem; height: 1.25rem;" class="text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 style="font-size: 1rem;" class="font-semibold text-gray-900" id="void-modal-title">Void Purchase Request</h3>
+                                        <p style="font-size: 0.8125rem;" class="mt-1 text-gray-500">
+                                            Are you sure you want to void <strong>{{ $purchaseRequest->pr_number }}</strong>? This action cannot be undone.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <label for="reason" style="font-size: 0.8125rem;" class="block font-medium text-gray-700">Reason for voiding <span class="text-red-500">*</span></label>
+                                    <textarea name="reason" id="reason" rows="2" required
+                                              style="font-size: 0.8125rem;"
+                                              class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
+                                              placeholder="Please provide a reason for voiding this purchase request..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Footer -->
+                            <div class="bg-gray-50 px-5 py-3 flex justify-end gap-2">
+                                <button type="button" 
+                                        @click="showVoidModal = false"
+                                        style="font-size: 0.8125rem; padding: 0.5rem 1rem;"
+                                        class="rounded-lg border border-gray-300 bg-white font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        style="background-color: #dc2626 !important; color: #ffffff !important; font-size: 0.8125rem; padding: 0.5rem 1rem;"
+                                        class="rounded-lg font-medium shadow-sm hover:opacity-90">
+                                    Void Purchase Request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Offline Approval Modal - RECREATED -->
+        <template x-teleport="body">
+            <div x-show="showOfflineModal" 
+                 x-cloak
+                 class="fixed inset-0 z-[9999]"
+                 aria-labelledby="modal-title" 
+                 role="dialog" 
+                 aria-modal="true">
+                <!-- Backdrop -->
+                <div x-show="showOfflineModal"
+                     x-transition:enter="ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+                     @click="showOfflineModal = false"></div>
+
+                <!-- Modal Panel - True Center -->
+                <div class="fixed inset-0 z-10 flex items-center justify-center p-4">
+                    <div x-show="showOfflineModal"
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                         x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                         x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                         style="width: 100%; max-width: 28rem;"
+                             class="relative transform overflow-hidden rounded-xl bg-white shadow-xl transition-all mx-auto">
+                            <form action="{{ route('purchase-requests.mark-offline-approved', $purchaseRequest) }}" method="POST">
+                                @csrf
+                                <!-- Body -->
+                                <div class="bg-white px-5 py-4">
+                                    <div class="flex items-start">
+                                        <div style="width: 2.5rem; height: 2.5rem;" class="flex flex-shrink-0 items-center justify-center rounded-full bg-purple-100">
+                                            <svg style="width: 1.25rem; height: 1.25rem;" class="text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="ml-3">
+                                            <h3 style="font-size: 1rem;" class="font-semibold text-gray-900" id="modal-title">Mark as Offline Approved</h3>
+                                            <p style="font-size: 0.8125rem;" class="mt-1 text-gray-500">
+                                                Use this when the PR has been approved manually/offline (e.g., signed paper copy).
+                                            </p>
                                         </div>
                                     </div>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </div>
+                                    
+                                    <div class="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
+                                        <div class="flex">
+                                            <svg style="width: 1rem; height: 1rem;" class="flex-shrink-0 text-amber-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                            </svg>
+                                            <p style="font-size: 0.75rem;" class="ml-2 text-amber-700">
+                                                <strong>Note:</strong> This will skip the digital approval workflow. The PR status will show as "Approved".
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <label for="offline_notes" style="font-size: 0.8125rem;" class="block font-medium text-gray-700">Notes (optional)</label>
+                                        <textarea name="notes" id="offline_notes" rows="2"
+                                                  style="font-size: 0.8125rem;"
+                                                  class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                                                  placeholder="Add any notes about the offline approval..."></textarea>
+                                    </div>
+                                </div>
+                                
+                                <!-- Footer -->
+                                <div class="bg-gray-50 px-5 py-3 flex justify-end gap-2">
+                                    <button type="button" 
+                                            @click="showOfflineModal = false"
+                                            style="font-size: 0.8125rem; padding: 0.5rem 1rem;"
+                                            class="rounded-lg border border-gray-300 bg-white font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                                        Cancel
+                                    </button>
+                                    <button type="submit"
+                                            style="background-color: #9333ea !important; color: #ffffff !important; font-size: 0.8125rem; padding: 0.5rem 1rem;"
+                                            class="rounded-lg font-medium shadow-sm hover:opacity-90">
+                                        Confirm Offline Approval
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                 </div>
             </div>
-        @endif
-
-        <!-- Offline Approval Section - Only PR owner can mark as offline approved -->
-        @if(in_array($purchaseRequest->status, ['submitted', 'in_approval']) && $purchaseRequest->user_id === Auth::id())
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Offline / Manual Approval</h3>
-                    <p class="text-sm text-gray-600 mt-1">Mark this PR as approved outside the system</p>
-                </div>
-                <div class="px-6 py-4">
-                    <p class="text-sm text-gray-600 mb-4">
-                        Use this if the digital approval is taking too long. This will mark the <strong>entire PR as approved</strong> at once.
-                    </p>
-                    
-                    <form method="POST" action="{{ route('purchase-requests.mark-offline-approved', $purchaseRequest) }}">
-                        @csrf
-                        <div class="mb-4">
-                            <label for="offline_notes" class="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
-                            <textarea name="notes" id="offline_notes" rows="2"
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                      placeholder="e.g., Approved via physical signature on printed document, dated..."></textarea>
-                        </div>
-                        <button type="submit" 
-                                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                                onclick="return confirm('This will mark the entire PR as approved offline/manually. All pending approval steps will be completed. Continue?')">
-                            <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Mark as Approved Offline
-                        </button>
-                    </form>
-                </div>
-            </div>
-        @endif
-
-        {{-- Show Offline Approval Info if PR was approved offline --}}
-        @if($purchaseRequest->isOfflineApproved())
-            <div class="bg-purple-50 rounded-xl shadow-sm border border-purple-200">
-                <div class="px-6 py-4">
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <div class="flex-grow">
-                            <h3 class="text-lg font-semibold text-purple-900 mb-1">Approved Offline/Manually</h3>
-                            <p class="text-sm text-purple-700">
-                                This PR was marked as approved offline by 
-                                <strong>{{ $purchaseRequest->offlineApprovedBy?->name ?? 'Unknown' }}</strong>
-                                on <strong>{{ $purchaseRequest->offline_approved_at?->format('M d, Y \a\t H:i') }}</strong>
-                            </p>
-                            @if($purchaseRequest->offline_approval_notes)
-                                <p class="text-sm text-purple-600 mt-2 italic">
-                                    "{{ $purchaseRequest->offline_approval_notes }}"
-                                </p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        <!-- Action Buttons for Special Cases -->
-        @if($purchaseRequest->canBeVoided() && ($purchaseRequest->user_id === Auth::id() || Auth::user()->hasAnyRole(['super_admin', 'admin', 'manager'])))
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-6 py-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Danger Zone</h3>
-                    
-                    <form method="POST" action="{{ route('purchase-requests.void', $purchaseRequest) }}" class="inline">
-                        @csrf
-                        <div class="mb-4">
-                            <label for="reason" class="block text-sm font-medium text-gray-700 mb-2">Reason for voiding</label>
-                            <textarea name="reason" id="reason" rows="3" required
-                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                      placeholder="Please provide a reason for voiding this purchase request..."></textarea>
-                        </div>
-                        <button type="submit" 
-                                class="inline-flex items-center px-4 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
-                                onclick="return confirm('Are you sure you want to void this purchase request? This action cannot be undone.')">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            Void Purchase Request
-                        </button>
-                    </form>
-                </div>
-            </div>
-        @endif
+        </template>
     </div>
 </x-app-layout>

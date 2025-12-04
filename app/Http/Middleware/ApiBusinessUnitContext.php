@@ -49,7 +49,7 @@ class ApiBusinessUnitContext
         }
 
         // Validate business unit is active
-        $businessUnit = \App\Models\BusinessUnit::find($businessUnitId);
+        $businessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
 
         if (! $businessUnit || ! $businessUnit->is_active) {
             return response()->json([

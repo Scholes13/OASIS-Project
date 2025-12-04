@@ -65,8 +65,11 @@ class ActivityIndex extends Component
         $this->resetLazyLoad();
         $this->resetFilters();
 
-        // Dispatch completion event to hide loader
-        $this->dispatch('business-unit-switched-complete');
+        // ✅ ORCHESTRATOR: Acknowledge completion
+        $this->dispatch('bu-switch-acknowledge', component: 'activities');
+
+        $buName = session('current_business_unit_name', 'new business unit');
+        $this->dispatch('notify', message: "Switched to {$buName}", type: 'success');
     }
 
     public function refreshActivities(): void

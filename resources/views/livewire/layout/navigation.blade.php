@@ -16,7 +16,21 @@ new class extends Component
     }
 }; ?>
 
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+<nav x-data="{ 
+    open: false,
+    performLogout() {
+        // Show logout overlay with user name
+        const userName = '{{ auth()->user()->name ?? 'User' }}';
+        if (window.showLogoutOverlay) {
+            window.showLogoutOverlay(userName);
+        }
+        
+        // Delay logout to show animation
+        setTimeout(() => {
+            $wire.logout();
+        }, 1500);
+    }
+}" class="bg-white border-b border-gray-100">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -64,7 +78,7 @@ new class extends Component
                         </x-dropdown-link>
 
                         <!-- Authentication -->
-                        <button wire:click="logout" class="w-full text-start">
+                        <button @click="performLogout()" class="w-full text-start">
                             <x-dropdown-link>
                                 {{ __('Log Out') }}
                             </x-dropdown-link>
@@ -113,7 +127,7 @@ new class extends Component
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
-                <button wire:click="logout" class="w-full text-start">
+                <button @click="performLogout()" class="w-full text-start">
                     <x-responsive-nav-link>
                         {{ __('Log Out') }}
                     </x-responsive-nav-link>

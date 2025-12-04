@@ -28,7 +28,7 @@ class ApprovalController extends Controller
         $approval = PrApproval::with([
             'purchaseRequest' => function ($query) {
                 $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id', 
-                              'keperluan', 'used_for', 'total_amount', 'currency', 'status', 
+                              'used_for', 'total_amount', 'currency', 'status', 
                               'date_of_request', 'designated_date', 'submitted_at', 'approved_at');
             },
             'purchaseRequest.user:id,name,email',
@@ -37,8 +37,9 @@ class ApprovalController extends Controller
             'purchaseRequest.items' => function ($query) {
                 $query->select('id', 'purchase_request_id', 'item_name', 'brand_name', 
                               'item_description', 'supplier_name', 'quantity', 'unit', 
-                              'unit_price', 'currency');
+                              'unit_price', 'currency', 'expense_department_id');
             },
+            'purchaseRequest.items.expenseDepartment:id,name,code',
             'purchaseRequest.approvals' => function ($query) {
                 $query->select('id', 'purchase_request_id', 'approver_id', 'step_order', 
                               'approval_type', 'status', 'notes', 'responded_at')
@@ -296,7 +297,8 @@ class ApprovalController extends Controller
             'purchaseRequest.department',
             'purchaseRequest.businessUnit',
             'purchaseRequest.items',
-            'approver',
+            'purchaseRequest.approvals.approver.primaryDepartment',
+            'approver.primaryDepartment',
         ]);
 
         // Validate approval status - must be pending

@@ -2,24 +2,54 @@
      x-data="{ 
         open: false,
         showLoaderAndSwitch(businessUnitId) {
-            // Use global function with fallback timeout protection
-            if (typeof window.showGlobalBuLoader === 'function') {
-                window.showGlobalBuLoader();
-            } else {
-                // Fallback if global function not ready yet
-                const loader = document.getElementById('global-bu-loader');
-                if (loader) {
-                    loader.style.display = 'block';
-                    document.body.style.overflow = 'hidden';
-                }
+            // ✅ Get current & target BU data from hidden inputs
+            const currentBuId = parseInt(document.getElementById('current-bu-id')?.value || 0);
+            const availableBUsJson = document.getElementById('available-bus-json')?.value || '[]';
+            const availableBUs = JSON.parse(availableBUsJson);
+            
+            const fromBu = availableBUs.find(bu => bu.id == currentBuId) || {};
+            const toBu = availableBUs.find(bu => bu.id == businessUnitId) || {};
+            
+            console.log('🔄 Switch from:', fromBu?.code, 'to:', toBu?.code);
+            
+            // ✅ ORCHESTRATOR: Determine which components need to acknowledge
+            // Check current page to know which components are listening
+            const currentPath = window.location.pathname;
+            let requiredComponents = ['header']; // Header always required
+            
+            if (currentPath === '/' || currentPath === '/dashboard') {
+                requiredComponents.push('dashboard');
+            } else if (currentPath.includes('/purchase-request') && currentPath.includes('/create')) {
+                requiredComponents.push('pr-create');
+            } else if (currentPath.includes('/purchase-request')) {
+                requiredComponents.push('pr-history');
+            } else if (currentPath.includes('/contacts')) {
+                requiredComponents.push('contacts');
+            } else if (currentPath.includes('/activities')) {
+                requiredComponents.push('activities');
             }
-            console.log('⚡ INSTANT: Loader shown on click');
+            
+            console.log('📋 Required acknowledgments:', requiredComponents);
+            
+            // ✅ Start orchestrator with required components
+            if (window.BuSwitchOrchestrator) {
+                window.BuSwitchOrchestrator.startSwitch(fromBu, toBu, requiredComponents);
+            } else {
+                // Fallback: just show loader
+                window.showGlobalBuLoader?.(fromBu, toBu);
+            }
+            
             // Close dropdown
             this.open = false;
         }
      }" 
      x-on:click.away="open = false"
      wire:key="bu-switcher-{{ auth()->id() }}">
+    
+    <!-- Hidden inputs to pass fresh Livewire data to Alpine -->
+    <input type="hidden" id="current-bu-id" value="{{ $currentBusinessUnit['id'] }}">
+    <input type="hidden" id="available-bus-json" value="{{ json_encode($availableBusinessUnits) }}">
+    
     @if(count($availableBusinessUnits) > 1)
         <!-- Business Unit Switcher Button -->
         <button 
@@ -28,15 +58,24 @@
             class="relative flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200 z-10">
             
             <!-- Current Business Unit Info -->
+            @php
+                // Get logo from availableBusinessUnits (has fresh data from DB) or fallback to currentBusinessUnit
+                $currentBuLogo = collect($availableBusinessUnits)->firstWhere('id', $currentBusinessUnit['id'])['logo'] ?? $currentBusinessUnit['logo'] ?? null;
+            @endphp
             <div class="flex items-center space-x-2">
-                <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <span class="text-xs font-semibold text-indigo-600">
-                        {{ substr($currentBusinessUnit['code'], 0, 2) }}
-                    </span>
-                </div>
+                @if($currentBuLogo)
+                    <img src="{{ asset('storage/' . $currentBuLogo) }}" 
+                         alt="{{ $currentBusinessUnit['code'] }}" 
+                         class="w-7 h-7 rounded-lg object-cover shadow-sm">
+                @else
+                    <div class="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <span class="text-xs font-bold text-white">
+                            {{ substr($currentBusinessUnit['code'], 0, 2) }}
+                        </span>
+                    </div>
+                @endif
                 <div class="hidden sm:block">
-                    <span class="text-sm font-medium text-gray-900">{{ $currentBusinessUnit['code'] }}</span>
-                    <span class="text-xs text-gray-500 ml-1">{{ $currentBusinessUnit['name'] }}</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ $currentBusinessUnit['name'] }}</span>
                 </div>
             </div>
             
@@ -70,15 +109,21 @@
                         
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
-                                    <span class="text-xs font-bold text-white">
-                                        {{ substr($businessUnit['code'], 0, 2) }}
-                                    </span>
-                                </div>
+                                @if($businessUnit['logo'] ?? null)
+                                    <img src="{{ asset('storage/' . $businessUnit['logo']) }}" 
+                                         alt="{{ $businessUnit['code'] }}" 
+                                         class="w-8 h-8 rounded-lg object-cover shadow-sm">
+                                @else
+                                    <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center shadow-sm">
+                                        <span class="text-xs font-bold text-white">
+                                            {{ substr($businessUnit['code'], 0, 2) }}
+                                        </span>
+                                    </div>
+                                @endif
                                 <div>
                                     <p class="text-sm font-medium text-gray-900">{{ $businessUnit['code'] }}</p>
                                     <p class="text-xs text-gray-500">{{ $businessUnit['name'] }}</p>
-                                    <p class="text-xs text-indigo-600 font-medium">{{ ucfirst($businessUnit['role']) }}</p>
+                                    <p class="text-xs text-indigo-600 font-medium">{{ ucfirst($businessUnit['role'] ?? '') }}</p>
                                 </div>
                             </div>
                             
@@ -97,14 +142,19 @@
     @else
         <!-- Single Business Unit Display -->
         <div class="flex items-center space-x-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-            <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                <span class="text-xs font-semibold text-indigo-600">
-                    {{ substr($currentBusinessUnit['code'], 0, 2) }}
-                </span>
-            </div>
+            @if($currentBusinessUnit['logo'] ?? null)
+                <img src="{{ asset('storage/' . $currentBusinessUnit['logo']) }}" 
+                     alt="{{ $currentBusinessUnit['code'] }}" 
+                     class="w-7 h-7 rounded-lg object-cover">
+            @else
+                <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <span class="text-xs font-semibold text-indigo-600">
+                        {{ substr($currentBusinessUnit['code'], 0, 2) }}
+                    </span>
+                </div>
+            @endif
             <div class="hidden sm:block">
-                <span class="text-sm font-medium text-gray-900">{{ $currentBusinessUnit['code'] }}</span>
-                <span class="text-xs text-gray-500 ml-1">{{ $currentBusinessUnit['name'] }}</span>
+                <span class="text-sm font-medium text-gray-900">{{ $currentBusinessUnit['name'] }}</span>
             </div>
         </div>
     @endif

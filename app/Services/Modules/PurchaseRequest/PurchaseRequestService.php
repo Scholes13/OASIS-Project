@@ -184,7 +184,6 @@ class PurchaseRequestService
                 'department_id' => session('current_department_id'),
                 'user_id' => Auth::id(),
                 'sequence_id' => $prNumber['sequence_id'],
-                'keperluan' => $data['keperluan'],
                 'used_for' => $data['used_for'],
                 'date_of_request' => $data['date_of_request'],
                 'designated_date' => $data['designated_date'] ?? null,
@@ -242,7 +241,6 @@ class PurchaseRequestService
         try {
             // Update purchase request
             $purchaseRequest->update([
-                'keperluan' => $data['keperluan'],
                 'used_for' => $data['used_for'],
                 'category_id' => $data['category_id'] ?? $purchaseRequest->category_id,
                 'date_of_request' => $data['date_of_request'],
@@ -400,7 +398,6 @@ class PurchaseRequestService
     public function getValidationRules(): array
     {
         return [
-            'keperluan' => 'required|string|max:500',
             'used_for' => 'required|string|max:1000',
             'date_of_request' => 'required|date',
             'designated_date' => 'nullable|date|after_or_equal:date_of_request',

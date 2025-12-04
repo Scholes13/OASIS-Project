@@ -609,9 +609,129 @@
         .font-bold { font-weight: bold; }
         .text-sm { font-size: 10px; }
         .text-xs { font-size: 8px; }
+
+        /* Offline Verification Watermark */
+        .offline-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 80px;
+            font-weight: bold;
+            color: rgba(139, 92, 246, 0.08);
+            text-transform: uppercase;
+            letter-spacing: 10px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 0;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        /* Offline Verification Badge */
+        .offline-badge {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .offline-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Offline Verification Info Box */
+        .offline-info-box {
+            background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+            border: 2px solid #8b5cf6;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .offline-info-box .icon-wrapper {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .offline-info-box .icon-wrapper svg {
+            width: 20px;
+            height: 20px;
+            color: white;
+        }
+
+        .offline-info-box .info-content {
+            flex: 1;
+        }
+
+        .offline-info-box .info-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #5b21b6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .offline-info-box .info-detail {
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .offline-info-box .info-detail strong {
+            color: #374151;
+        }
+
+        @media print {
+            .offline-watermark {
+                position: fixed;
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            .offline-badge {
+                position: fixed;
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            .offline-info-box {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+        }
     </style>
 </head>
 <body>
+    @if($purchaseRequest->isOfflineApproved())
+        <!-- Offline Verification Watermark -->
+        <div class="offline-watermark">VERIFIED OFFLINE</div>
+    @endif
+
     <!-- PDF Download Instruction (visible only on screen) -->
     <div class="pdf-instruction">
         <strong>💡 How to save this as PDF:</strong> Press <kbd>Ctrl+P</kbd> (Windows) or <kbd>Cmd+P</kbd> (Mac), then choose "Save as PDF" as destination.
@@ -666,6 +786,25 @@
             </td>
         </tr>
     </table>
+
+    @if($purchaseRequest->isOfflineApproved())
+        <!-- Offline Verification Info Box -->
+        <div class="offline-info-box">
+            <div class="icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+            </div>
+            <div class="info-content">
+                <div class="info-title">✓ Dokumen Terverifikasi Secara Offline</div>
+                <div class="info-detail">
+                    Diverifikasi oleh <strong>{{ $purchaseRequest->offlineApprovedBy?->name ?? 'Unknown' }}</strong> 
+                    pada <strong>{{ $purchaseRequest->offline_approved_at?->format('d M Y, H:i') ?? '-' }}</strong>
+                    &nbsp;•&nbsp; Dokumen ini sah dan telah melalui proses persetujuan manual/offline.
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- PR Number and Basic Info -->
     <div class="pr-info-section">

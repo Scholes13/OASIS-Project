@@ -349,8 +349,11 @@
                                             @error("items.{$index}.unit_price") 
                                                 <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
                                             @enderror
-                                        </td>                                    <!-- Total -->`n                        <td class="px-3 py-3 text-sm text-gray-900 font-semibold text-right bg-gray-50" wire:ignore.self>
-                                        @php
+                                        </td>
+
+                                        <!-- Total -->
+                                        <td class="px-3 py-3 text-sm text-gray-900 font-semibold text-right bg-gray-50" wire:ignore.self>
+                                            @php
                                             $quantity = is_numeric($item['quantity'] ?? 0) ? intval($item['quantity']) : 0;
                                             $unitPrice = 0;
                                             if (isset($item['unit_price'])) {
@@ -604,9 +607,10 @@
                     <!-- For rejected PR: Show "Save & Resubmit" as primary action -->
                     <button 
                         wire:click="saveAndResubmit" 
+                        onclick="showSubmitOverlay('resubmit')"
                         type="button"
-                        onclick="showResubmittingState(this);"
-                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50"
+                        wire:loading.attr="disabled">
                         <span class="flex items-center">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -618,54 +622,205 @@
                     <!-- For non-rejected PR: Normal save -->
                     <button 
                         wire:click="submitPurchaseRequest" 
+                        onclick="showSubmitOverlay('update')"
                         type="button"
-                        onclick="showSubmittingState(this);"
-                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                        Save Changes
+                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50">
+                        <span>Save Changes</span>
                     </button>
                 @endif
             @else
                 <!-- Create mode: Submit for approval -->
                 <button 
                     wire:click="submitPurchaseRequest" 
+                    onclick="showSubmitOverlay('submit')"
                     type="button"
-                    onclick="showSubmittingState(this);"
-                    class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-                    Submit for Approval
+                    class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50">
+                    <span>Submit for Approval</span>
                 </button>
             @endif
         </div>
     </div>
-</div>
+    
+    <!-- Submit Overlay Trigger - Inside main container -->
+    <div x-data="submitOverlay()" x-init="init()" class="hidden"></div>
 
-<!-- Toast notification listener for Livewire events -->
-<script>
-    document.addEventListener('livewire:init', function () {
-        Livewire.on('notify', function(data) {
-            if (typeof window.notify === 'function') {
-                window.notify(data.message, data.type || 'info', data.duration || 5000);
+    <script>
+    function submitOverlay() {
+    return {
+        init() {
+            // Listen for Livewire events
+            Livewire.on('pr-submitted', () => {
+                this.hideOverlay();
+            });
+            
+            Livewire.on('submit-error', () => {
+                this.hideOverlay();
+            });
+        },
+        
+        showOverlay(mode = 'submit') {
+            const messages = {
+                submit: { title: 'Submitting Request', text: 'Please wait while we process your purchase request...' },
+                update: { title: 'Saving Changes', text: 'Please wait while we update your purchase request...' },
+                resubmit: { title: 'Resubmitting Request', text: 'Please wait while we resubmit your purchase request...' }
+            };
+            
+            const msg = messages[mode] || messages.submit;
+            
+            // Remove existing overlay if any
+            const existing = document.getElementById('submit-overlay');
+            if (existing) existing.remove();
+            
+            // Create overlay element
+            const overlay = document.createElement('div');
+            overlay.id = 'submit-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s ease-out;';
+            overlay.innerHTML = `
+                <!-- Backdrop -->
+                <div style="position:absolute;inset:0;background:linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(30,58,138,0.9) 50%, rgba(79,70,229,0.9) 100%);backdrop-filter:blur(8px);"></div>
+                
+                <!-- Content Card -->
+                <div style="position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;padding:2rem;animation:cardAppear 0.4s ease-out forwards;">
+                    
+                    <!-- Logo with float animation -->
+                    <div style="margin-bottom:2rem;animation:logoFloat 3s ease-in-out infinite;">
+                        <img src="{{ asset('storage/business-units/aDNLhQNtI0R0KiPTv6oFWC2NwLu11tewYoJwjhTg.png') }}" 
+                             alt="Werkudara Group" 
+                             style="height:5rem;width:auto;filter:drop-shadow(0 25px 25px rgba(0,0,0,0.3));">
+                    </div>
+                    
+                    <!-- Spinner Ring -->
+                    <div style="position:relative;width:7rem;height:7rem;margin-bottom:2rem;">
+                        <!-- Glow effect -->
+                        <div style="position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle, rgba(96,165,250,0.3) 0%, transparent 70%);animation:glowPulse 2s ease-in-out infinite;"></div>
+                        
+                        <!-- Outer ring -->
+                        <svg viewBox="0 0 100 100" style="width:100%;height:100%;animation:spin 3s linear infinite reverse;">
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="url(#grad1)" stroke-width="4" stroke-linecap="round" stroke-dasharray="40 225"/>
+                            <defs>
+                                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#60A5FA"/>
+                                    <stop offset="100%" stop-color="#A78BFA"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        
+                        <!-- Inner ring -->
+                        <svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;animation:spin 2s linear infinite;">
+                            <circle cx="50" cy="50" r="32" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/>
+                            <circle cx="50" cy="50" r="32" fill="none" stroke="url(#grad2)" stroke-width="3" stroke-linecap="round" stroke-dasharray="30 170"/>
+                            <defs>
+                                <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#818CF8"/>
+                                    <stop offset="100%" stop-color="#60A5FA"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        
+                        <!-- Center icon -->
+                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                            <div style="width:2.5rem;height:2.5rem;border-radius:50%;background:rgba(255,255,255,0.1);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;">
+                                <svg style="width:1.25rem;height:1.25rem;color:white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Text -->
+                    <div style="text-align:center;">
+                        <h2 style="font-size:1.5rem;font-weight:600;color:white;margin-bottom:0.5rem;letter-spacing:0.025em;">
+                            ${msg.title}
+                        </h2>
+                        <p style="font-size:0.875rem;color:rgba(191,219,254,0.9);max-width:280px;">
+                            ${msg.text}
+                        </p>
+                    </div>
+                    
+                    <!-- Bouncing dots -->
+                    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;">
+                        <div style="width:8px;height:8px;border-radius:50%;background:#60A5FA;animation:bounce 1s ease-in-out infinite;"></div>
+                        <div style="width:8px;height:8px;border-radius:50%;background:#818CF8;animation:bounce 1s ease-in-out infinite 0.15s;"></div>
+                        <div style="width:8px;height:8px;border-radius:50%;background:#A78BFA;animation:bounce 1s ease-in-out infinite 0.3s;"></div>
+                    </div>
+                </div>
+                
+                <style>
+                    @keyframes spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+                    @keyframes logoFloat {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-8px); }
+                    }
+                    @keyframes glowPulse {
+                        0%, 100% { opacity: 0.3; transform: scale(1); }
+                        50% { opacity: 0.6; transform: scale(1.1); }
+                    }
+                    @keyframes cardAppear {
+                        0% { transform: scale(0.9); opacity: 0; }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-6px); }
+                    }
+                </style>
+            `;
+            
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+            
+            // Trigger fade in
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+            });
+        },
+        
+        hideOverlay() {
+            const overlay = document.getElementById('submit-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                document.body.style.overflow = '';
+                setTimeout(() => overlay.remove(), 300);
             }
-        });
+        }
+    }
+}
+
+// Global function to show overlay (called from button onclick)
+function showSubmitOverlay(mode = 'submit') {
+    if (window.Alpine) {
+        // Use Alpine component if available
+        const component = document.querySelector('[x-data*="submitOverlay"]');
+        if (component && component.__x) {
+            component.__x.$data.showOverlay(mode);
+            return;
+        }
+    }
+    // Fallback: create overlay directly
+    submitOverlay().showOverlay(mode);
+}
+
+function hideSubmitOverlay() {
+    const overlay = document.getElementById('submit-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        document.body.style.overflow = '';
+        setTimeout(() => overlay.remove(), 300);
+    }
+}
+
+// Toast notification listener for Livewire events
+document.addEventListener('livewire:init', function () {
+    Livewire.on('notify', function(data) {
+        if (typeof window.notify === 'function') {
+            window.notify(data.message, data.type || 'info', data.duration || 5000);
+        }
     });
-    
-    // Loading state functions untuk buttons
-    function showSavingState(button) {
-        button.disabled = true;
-        button.classList.add('opacity-75');
-        button.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Saving...';
-    }
-    
-    function showSubmittingState(button) {
-        button.disabled = true;
-        button.classList.add('opacity-75');
-        button.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Submitting...';
-    }
-    
-    function showResubmittingState(button) {
-        button.disabled = true;
-        button.classList.add('opacity-75');
-        button.innerHTML = '<svg class="w-5 h-5 mr-2 animate-spin inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Resubmitting...';
-    }
+});
     
     // Client-side calculation untuk instant feedback
     function calculateRowTotal(index) {
@@ -716,37 +871,33 @@
         }, 500);
     }
     
-    // Auto-validate fields on blur for better UX
-    document.addEventListener('blur', function(e) {
-        if (e.target.hasAttribute('wire:model') || e.target.hasAttribute('wire:model.blur')) {
-            const fieldName = e.target.getAttribute('wire:model') || e.target.getAttribute('wire:model.blur');
-            if (fieldName && typeof @this !== 'undefined') {
-                // Extract field name without array indices for validation
-                const baseField = fieldName.split('.')[0];
-                @this.validateField(baseField);
-            }
-        }
-    }, true);
-</script>
+    // Fallback for Save as Draft button
+    function showSavingState(button) {
+        button.disabled = true;
+        button.classList.add('opacity-75');
+        button.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Saving...';
+    }
+    </script>
 
-<style>
-/* Fix untuk dropdown appearance yang duplikat */
-select.appearance-none {
-    background-image: none !important;
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important; 
-    appearance: none !important;
-}
+    <style>
+    /* Fix untuk dropdown appearance yang duplikat */
+    select.appearance-none {
+        background-image: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important; 
+        appearance: none !important;
+    }
 
-/* Untuk browser Internet Explorer */
-select::-ms-expand {
-    display: none;
-}
+    /* Untuk browser Internet Explorer */
+    select::-ms-expand {
+        display: none;
+    }
 
-/* Untuk browser WebKit (Safari, Chrome) */
-select.appearance-none::-webkit-outer-spin-button,
-select.appearance-none::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-</style>
+    /* Untuk browser WebKit (Safari, Chrome) */
+    select.appearance-none::-webkit-outer-spin-button,
+    select.appearance-none::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    </style>
+</div>

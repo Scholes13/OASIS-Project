@@ -91,7 +91,16 @@ class PurchaseRequestController extends Controller
      */
     public function show(PurchaseRequest $purchaseRequest)
     {
-        $purchaseRequest->load(['department', 'user', 'items.expenseDepartment', 'approvals.approver']);
+        $purchaseRequest->load([
+            'businessUnit',
+            'department',
+            'category',
+            'user',
+            'items.expenseDepartment',
+            'approvals.approver',
+            'lastModifiedBy',
+            'offlineApprovedBy',
+        ]);
 
         return view('purchase-requests.show', compact('purchaseRequest'));
     }
@@ -332,6 +341,7 @@ class PurchaseRequestController extends Controller
             'businessUnit',
             'items',
             'approvals.approver',
+            'offlineApprovedBy',
         ]);
 
         // Generate QR codes for PDF
@@ -357,6 +367,7 @@ class PurchaseRequestController extends Controller
             'businessUnit',
             'items',
             'approvals.approver',
+            'offlineApprovedBy',
         ]);
 
         // Generate QR codes for PDF

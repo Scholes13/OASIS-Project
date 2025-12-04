@@ -51,6 +51,16 @@ class UserDashboard extends Component
 
     public $businessUnits = [];
 
+    // Comparison stats (vs previous period)
+    public $comparisonStats = [];
+
+    // Approval progress for user's PRs
+    public $approvalProgress = [];
+
+    // ✅ Orchestra pattern: Loading state controlled by filter actions
+    // false = show content, true = show loading overlay (only during filter/BU switch)
+    public bool $isLoading = false;
+
     public function mount(): void
     {
         $this->initializeDates();
@@ -141,10 +151,17 @@ class UserDashboard extends Component
         $this->customRange = $this->dateFilter === 'custom';
         $this->initializeDates();
 
+        // ✅ Orchestra pattern: Set loading, load data, then signal ready
+        $this->isLoading = true;
+        
         // ✅ Clear cache when date filter changes
         $this->clearDashboardCache();
 
         $this->loadDashboardData();
+        
+        // ✅ Signal that data is ready - this triggers chart update
+        $this->isLoading = false;
+        $this->dispatch('chartDataUpdated', chartData: $this->chartData);
     }
 
     public function applyCustomDateRange(): void
@@ -154,10 +171,17 @@ class UserDashboard extends Component
             'endDate' => 'required|date|after_or_equal:startDate',
         ]);
 
+        // ✅ Orchestra pattern: Set loading, load data, then signal ready
+        $this->isLoading = true;
+
         // ✅ Clear cache when custom date range is applied
         $this->clearDashboardCache();
 
         $this->loadDashboardData();
+        
+        // ✅ Signal that data is ready
+        $this->isLoading = false;
+        $this->dispatch('chartDataUpdated', chartData: $this->chartData);
     }
 
     /**
@@ -244,8 +268,12 @@ class UserDashboard extends Component
             'new_session' => session('current_business_unit_id'),
         ]);
 
-        // ✅ FIX: Dispatch completion AFTER data is fully loaded
-        $this->dispatch('business-unit-switched-complete');
+        // ✅ ORCHESTRATOR: Acknowledge completion to orchestrator
+        $this->dispatch('bu-switch-acknowledge', component: 'dashboard');
+
+        // Show notification
+        $buName = session('current_business_unit_name', 'new business unit');
+        $this->dispatch('notify', message: "Switched to {$buName}", type: 'success');
     }
 
     public function loadDashboardData(): void
@@ -255,6 +283,9 @@ class UserDashboard extends Component
             $this->stats = $this->getDefaultStats();
             $this->recentActivities = [];
             $this->chartData = $this->getDefaultChartData();
+            $this->comparisonStats = $this->getDefaultComparisonStats();
+            $this->approvalProgress = [];
+            // Note: isLoading NOT set here - skeleton controlled by readyToLoad
 
             return;
         }
@@ -262,6 +293,11 @@ class UserDashboard extends Component
         $this->stats = $this->getStats();
         $this->recentActivities = $this->getRecentActivities();
         $this->chartData = $this->getChartData();
+        $this->comparisonStats = $this->getComparisonStats();
+        $this->approvalProgress = $this->getApprovalProgress();
+        
+        // ✅ Data loaded, set loading to false
+        $this->isLoading = false;
 
         // Dispatch event to update charts on frontend
         $this->dispatch('chartDataUpdated', chartData: $this->chartData);
@@ -297,8 +333,162 @@ class UserDashboard extends Component
     }
 
     /**
-     * Get active business unit ID and its descendants
+     * Get default comparison stats for skeleton/loading state
      */
+    protected function getDefaultComparisonStats(): array
+    {
+        return [
+            'active_prs' => ['change' => 0, 'percentage' => 0, 'trend' => 'neutral'],
+            'pending_approvals' => ['change' => 0, 'percentage' => 0, 'trend' => 'neutral'],
+            'period_prs' => ['change' => 0, 'percentage' => 0, 'trend' => 'neutral'],
+            'total_amount' => ['change' => 0, 'percentage' => 0, 'trend' => 'neutral'],
+        ];
+    }
+
+    /**
+     * Get default sparkline data for skeleton/loading state
+     */
+
+    /**
+     * Get comparison stats vs previous period
+     * Calculate percentage change for key metrics
+     */
+    protected function getComparisonStats(): array
+    {
+        $businessUnitIds = $this->getFilteredBusinessUnitIds();
+        $buIdsPlaceholder = implode(',', array_fill(0, count($businessUnitIds), '?'));
+        $userId = Auth::id();
+
+        // Calculate previous period dates
+        $currentStart = $this->startDate;
+        $currentEnd = $this->endDate;
+        $periodLength = (int) now()->parse($currentStart)->diffInDays(now()->parse($currentEnd)) + 1;
+        $previousStart = now()->parse($currentStart)->subDays($periodLength)->format('Y-m-d');
+        $previousEnd = now()->parse($currentStart)->subDay()->format('Y-m-d');
+
+        // Get previous period PR stats
+        $prevPrStats = DB::selectOne("
+            SELECT 
+                COUNT(CASE WHEN status IN ('submitted', 'in_approval') THEN 1 END) as active_prs,
+                COUNT(*) as period_prs,
+                COALESCE(SUM(CASE 
+                    WHEN status IN ('approved', 'in_approval', 'submitted')
+                    THEN total_amount 
+                    ELSE 0 
+                END), 0) as total_amount
+            FROM purchase_requests
+            WHERE business_unit_id IN ({$buIdsPlaceholder})
+              AND created_at >= ?
+              AND created_at <= ?
+        ", array_merge($businessUnitIds, [$previousStart, $previousEnd]));
+
+        // Get previous pending approvals (snapshot comparison less meaningful, use 7 days ago)
+        $prevApprovalStats = DB::selectOne("
+            SELECT 
+                COUNT(CASE WHEN status = 'pending' AND created_at <= ? THEN 1 END) as pending_approvals
+            FROM pr_approvals
+            WHERE approver_id = ?
+        ", [now()->subDays(7)->format('Y-m-d'), $userId]);
+
+        // Calculate changes
+        return [
+            'active_prs' => $this->calculateChange(
+                $this->stats['active_prs'] ?? 0,
+                (int) $prevPrStats->active_prs
+            ),
+            'pending_approvals' => $this->calculateChange(
+                $this->stats['pending_approvals'] ?? 0,
+                (int) ($prevApprovalStats->pending_approvals ?? 0)
+            ),
+            'period_prs' => $this->calculateChange(
+                $this->stats['period_prs'] ?? 0,
+                (int) $prevPrStats->period_prs
+            ),
+            'total_amount' => $this->calculateChange(
+                $this->stats['total_amount'] ?? 0,
+                (float) $prevPrStats->total_amount
+            ),
+        ];
+    }
+
+    /**
+     * Calculate change between current and previous value
+     */
+    protected function calculateChange($current, $previous): array
+    {
+        $change = $current - $previous;
+
+        if ($previous == 0) {
+            $percentage = $current > 0 ? 100 : 0;
+        } else {
+            $percentage = round((($current - $previous) / $previous) * 100, 1);
+        }
+
+        $trend = 'neutral';
+        if ($change > 0) {
+            $trend = 'up';
+        } elseif ($change < 0) {
+            $trend = 'down';
+        }
+
+        return [
+            'change' => $change,
+            'percentage' => $percentage,
+            'trend' => $trend,
+        ];
+    }
+
+    /**
+     * Get approval progress for current user's PRs that are in approval process
+     * Shows PRs created by the user with their approval workflow status
+     */
+    protected function getApprovalProgress(): array
+    {
+        $userId = Auth::id();
+        $businessUnitIds = $this->getFilteredBusinessUnitIds();
+
+        // Get PRs created by user that are currently in approval process
+        $prs = PurchaseRequest::with(['approvals' => function ($query) {
+            $query->orderBy('step_order', 'asc');
+        }, 'approvals.approver'])
+            ->where('user_id', $userId)
+            ->whereIn('business_unit_id', $businessUnitIds)
+            ->where('status', 'in_approval')
+            ->orderBy('submitted_at', 'desc')
+            ->take(3) // Limit to 3 most recent
+            ->get();
+
+        return $prs->map(function ($pr) {
+            $approvals = $pr->approvals;
+            $totalSteps = $approvals->count();
+            $completedSteps = $approvals->whereIn('status', ['approved'])->count();
+            $currentStep = $approvals->where('status', 'pending')->first();
+            $rejectedStep = $approvals->where('status', 'rejected')->first();
+
+            return [
+                'id' => $pr->id,
+                'pr_number' => $pr->pr_number,
+                'total_amount' => $pr->total_amount,
+                'submitted_at' => $pr->submitted_at,
+                'total_steps' => $totalSteps,
+                'completed_steps' => $completedSteps,
+                'current_step' => $currentStep ? [
+                    'order' => $currentStep->step_order,
+                    'approver_name' => $currentStep->approver?->name ?? 'Unknown',
+                    'approval_type' => $currentStep->approval_type,
+                ] : null,
+                'is_rejected' => $rejectedStep !== null,
+                'steps' => $approvals->map(function ($approval) {
+                    return [
+                        'order' => $approval->step_order,
+                        'status' => $approval->status,
+                        'approver_name' => $approval->approver?->name ?? 'Unknown',
+                    ];
+                })->toArray(),
+            ];
+        })->toArray();
+    }
+
     /**
      * Get business unit IDs to filter by (based on selected business unit)
      * ✅ OPTIMIZED: Single query with eager loading

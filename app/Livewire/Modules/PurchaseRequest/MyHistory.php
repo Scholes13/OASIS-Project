@@ -51,10 +51,8 @@ class MyHistory extends Component
         // Reset pagination (data will auto-refresh on next render)
         $this->resetPage();
 
-        // Dispatch completion event to hide loader
-        $this->dispatch('business-unit-switched-complete');
-
-        // Notify user
+        // ✅ ORCHESTRATOR: Acknowledge completion
+        $this->dispatch('bu-switch-acknowledge', component: 'pr-history');
         $this->dispatch('notify',
             message: "Switched to {$this->businessUnitName}",
             type: 'success'

@@ -15,27 +15,56 @@
             </div>
         </div>
 
-        <!-- Success/Error Messages -->
-        @if(session('success'))
-            <div class="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-                <div class="flex">
-                    <svg class="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        <!-- Session flash messages are automatically displayed as toast by layouts/app.blade.php -->
+
+        <!-- Alert: Not Your Turn -->
+        @if(!$canApprove && $approval->status === 'pending')
+        <div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="w-5 h-5 text-amber-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                     </svg>
-                    <span class="text-green-700">{{ session('success') }}</span>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-amber-800">Waiting for Previous Approver</h3>
+                    <p class="text-sm text-amber-700 mt-1">
+                        This approval is not yet your turn. Please wait for the previous approver to complete their review first.
+                        You will be notified when it's your turn to approve.
+                    </p>
                 </div>
             </div>
+        </div>
         @endif
 
-        @if(session('error'))
-            <div class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-                <div class="flex">
-                    <svg class="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span class="text-red-700">{{ session('error') }}</span>
+        <!-- Alert: Already Processed -->
+        @if($approval->status !== 'pending')
+        <div class="mb-6 p-4 {{ $approval->status === 'approved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200' }} border rounded-xl">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    @if($approval->status === 'approved')
+                        <svg class="w-5 h-5 text-green-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    @else
+                        <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    @endif
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium {{ $approval->status === 'approved' ? 'text-green-800' : 'text-red-800' }}">
+                        {{ $approval->status === 'approved' ? 'You Have Already Approved' : 'You Have Already Rejected' }}
+                    </h3>
+                    <p class="text-sm {{ $approval->status === 'approved' ? 'text-green-700' : 'text-red-700' }} mt-1">
+                        You have {{ $approval->status }} this request on {{ $approval->responded_at?->format('F j, Y \a\t H:i') ?? 'N/A' }}.
+                        @if($approval->notes)
+                            <br><span class="font-medium">Notes:</span> {{ $approval->notes }}
+                        @endif
+                    </p>
                 </div>
             </div>
+        </div>
         @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -75,42 +104,71 @@
 
                 <!-- Items -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                    <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                         <h2 class="text-lg font-semibold text-gray-900">Items</h2>
+                        <span class="text-sm text-gray-500">{{ $approval->purchaseRequest->items->count() }} {{ Str::plural('item', $approval->purchaseRequest->items->count()) }}</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+                                    <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                    <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expense Dept</th>
+                                    <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                    <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                    <th class="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($approval->purchaseRequest->items as $item)
-                                <tr>
-                                    <td class="px-6 py-4">
-                                        <div>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                @forelse($approval->purchaseRequest->items as $index => $item)
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
+                                        <td class="px-5 py-4">
                                             <div class="text-sm font-medium text-gray-900">{{ $item->item_name }}</div>
-                                            @if($item->item_description)
-                                                <div class="text-sm text-gray-500">{{ $item->item_description }}</div>
+                                            @if($item->brand_name)
+                                                <div class="text-sm text-gray-500">Brand: {{ $item->brand_name }}</div>
                                             @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ $item->brand_name ?: '-' }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ $item->quantity }} {{ $item->unit }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ $item->currency }} {{ number_format($item->unit_price, 0) }}</td>
-                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $item->currency }} {{ number_format($item->quantity * $item->unit_price, 0) }}</td>
-                                </tr>
-                                @endforeach
+                                            @if($item->item_description)
+                                                <div class="text-sm text-gray-400 mt-1">{{ $item->item_description }}</div>
+                                            @endif
+                                            @if($item->supplier_name)
+                                                <div class="text-xs text-gray-400 mt-1">Supplier: {{ $item->supplier_name }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-5 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">{{ $item->expenseDepartment?->name ?? 'N/A' }}</div>
+                                            <div class="text-xs text-gray-500">{{ $item->expenseDepartment?->code ?? '' }}</div>
+                                        </td>
+                                        <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                            {{ number_format($item->quantity, 0) }} {{ $item->unit }}
+                                        </td>
+                                        <td class="px-5 py-4 whitespace-nowrap text-right">
+                                            <span class="text-sm text-gray-500">{{ $item->currency ?? 'IDR' }}</span>
+                                            <span class="text-sm text-gray-900">{{ number_format($item->unit_price, 0, ',', '.') }}</span>
+                                        </td>
+                                        <td class="px-5 py-4 whitespace-nowrap text-right">
+                                            <span class="text-sm text-gray-500">{{ $item->currency ?? 'IDR' }}</span>
+                                            <span class="text-sm font-medium text-gray-900">{{ number_format($item->quantity * $item->unit_price, 0, ',', '.') }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-5 py-8 text-center text-sm text-gray-500">
+                                            No items found
+                                        </td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                             <tfoot class="bg-gray-50">
                                 <tr>
-                                    <td colspan="4" class="px-6 py-4 text-right text-sm font-medium text-gray-900">Grand Total:</td>
-                                    <td class="px-6 py-4 text-sm font-bold text-indigo-600">{{ $approval->purchaseRequest->currency }} {{ number_format($approval->purchaseRequest->total_amount, 0) }}</td>
+                                    <td colspan="5" class="px-5 py-4 text-right text-sm font-semibold text-gray-900">
+                                        Total Amount
+                                    </td>
+                                    <td class="px-5 py-4 whitespace-nowrap text-right">
+                                        <span class="text-sm text-gray-900">{{ $approval->purchaseRequest->currency ?? 'IDR' }}</span>
+                                        <span class="text-base font-semibold text-indigo-600">{{ number_format($approval->purchaseRequest->total_amount, 0, ',', '.') }}</span>
+                                    </td>
                                 </tr>
                             </tfoot>
                         </table>

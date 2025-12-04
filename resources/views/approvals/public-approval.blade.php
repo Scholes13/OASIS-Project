@@ -354,6 +354,7 @@
             gap: 12px;
             position: relative;
             min-height: 120px;
+            padding-bottom: 25px; /* Space for click label */
         }
 
         .approval-box {
@@ -369,6 +370,66 @@
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        /* Current approval box - clickable with animated border */
+        .approval-box.current-approval {
+            border: 3px solid #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+            cursor: pointer;
+            animation: pulse-border 2s infinite;
+            position: relative;
+        }
+
+        .approval-box.current-approval:hover {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+            transform: scale(1.02);
+        }
+
+        .approval-box.current-approval::after {
+            content: 'Click to Review';
+            position: absolute;
+            bottom: -22px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8px;
+            color: #3b82f6;
+            font-weight: 600;
+            white-space: nowrap;
+            background: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            letter-spacing: 0.3px;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% {
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.1);
+            }
+        }
+
+        /* Approved box styling */
+        .approval-box.approved {
+            border: 2px solid #10b981;
+            background: #ecfdf5;
+        }
+
+        /* Rejected box styling */
+        .approval-box.rejected {
+            border: 2px solid #ef4444;
+            background: #fef2f2;
+        }
+
+        /* Pending box styling (not current) */
+        .approval-box.pending {
+            border: 1px dashed #d1d5db;
+            background: #f9fafb;
         }
 
         .approval-box.last-approval {
@@ -533,6 +594,296 @@
             border: 1px solid #ef4444;
             color: #dc2626;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: modal-enter 0.3s ease-out;
+        }
+
+        @keyframes modal-enter {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: bold;
+            color: #111827;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #111827;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-pr-info {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-pr-info p {
+            margin: 4px 0;
+            font-size: 12px;
+            color: #374151;
+        }
+
+        .modal-pr-info strong {
+            color: #111827;
+        }
+
+        .decision-buttons {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .decision-btn {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            text-align: center;
+        }
+
+        .decision-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .decision-btn.approve-btn {
+            border-color: #10b981;
+        }
+
+        .decision-btn.approve-btn:hover,
+        .decision-btn.approve-btn.selected {
+            background: #ecfdf5;
+            border-color: #059669;
+        }
+
+        .decision-btn.reject-btn {
+            border-color: #ef4444;
+        }
+
+        .decision-btn.reject-btn:hover,
+        .decision-btn.reject-btn.selected {
+            background: #fef2f2;
+            border-color: #dc2626;
+        }
+
+        .decision-btn .icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .decision-btn .icon.approve-icon {
+            background: #ecfdf5;
+            border: 2px solid #10b981;
+        }
+
+        .decision-btn .icon.approve-icon::after {
+            content: '';
+            width: 12px;
+            height: 6px;
+            border-left: 3px solid #10b981;
+            border-bottom: 3px solid #10b981;
+            transform: rotate(-45deg);
+            margin-top: -3px;
+        }
+
+        .decision-btn .icon.reject-icon {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+        }
+
+        .decision-btn .icon.reject-icon::before,
+        .decision-btn .icon.reject-icon::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 3px;
+            background: #ef4444;
+            border-radius: 2px;
+        }
+
+        .decision-btn .icon.reject-icon::before {
+            transform: rotate(45deg);
+        }
+
+        .decision-btn .icon.reject-icon::after {
+            transform: rotate(-45deg);
+        }
+
+        .decision-btn .icon.reject-icon {
+            position: relative;
+        }
+
+        .decision-btn .label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #374151;
+        }
+
+        .modal-notes {
+            margin-bottom: 20px;
+        }
+
+        .modal-notes label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .modal-notes textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 12px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-notes textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .modal-notes .hint {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 6px;
+        }
+
+        .modal-notes .error-text {
+            font-size: 10px;
+            color: #ef4444;
+            margin-top: 6px;
+            display: none;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-cancel {
+            padding: 10px 20px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            color: #374151;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-submit {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-submit.approve {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-submit.approve:hover {
+            background: #059669;
+        }
+
+        .btn-submit.reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-submit.reject:hover {
+            background: #dc2626;
+        }
+
+        .btn-submit:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -566,21 +917,11 @@
             <!-- Logo Section (Left) -->
             <td class="logo-section">
                 @php
-                    $prNumber = $approval->purchaseRequest->pr_number;
-                    $buCode = explode('/', $prNumber)[0] ?? null;
-                    $businessUnit = null;
-                    
-                    if ($buCode) {
-                        $businessUnit = \App\Models\Core\BusinessUnit::where('code', $buCode)->first();
-                    }
-                    
-                    if (!$businessUnit) {
-                        $businessUnit = $approval->purchaseRequest->businessUnit;
-                    }
+                    $businessUnit = $approval->purchaseRequest->businessUnit;
                 @endphp
                 
-                @if($businessUnit && $businessUnit->logo_path)
-                    <img src="{{ asset('storage/' . $businessUnit->logo_path) }}" alt="{{ $businessUnit->name }}" class="business-logo">
+                @if($businessUnit && $businessUnit->logo)
+                    <img src="{{ asset('storage/' . $businessUnit->logo) }}" alt="{{ $businessUnit->name }}" class="business-logo">
                 @else
                     <div class="default-logo">
                         <div class="logo-circle">
@@ -721,6 +1062,7 @@
         @php
             $approvals = $approval->purchaseRequest->approvals->sortBy('step_order');
             $totalApprovals = $approvals->count();
+            $currentApprovalId = $approval->id; // The approval from the signed URL
         @endphp
 
         <div class="approval-container">
@@ -744,7 +1086,18 @@
 
             <!-- All Approvals with Last One at Right Edge -->
             @foreach($approvals as $index => $appr)
-                <div class="approval-box {{ $loop->last ? 'last-approval' : '' }}">
+                @php
+                    // Determine status class
+                    $statusClass = match($appr->status) {
+                        'approved' => 'approved',
+                        'rejected' => 'rejected',
+                        'pending' => $appr->id === $currentApprovalId ? 'current-approval' : 'pending',
+                        default => ''
+                    };
+                    $isClickable = $appr->id === $currentApprovalId && $appr->status === 'pending';
+                @endphp
+                <div class="approval-box {{ $statusClass }} {{ $loop->last ? 'last-approval' : '' }}"
+                     @if($isClickable) onclick="openApprovalModal()" style="cursor: pointer;" @endif>
                     @php
                         $title = match($appr->approval_type) {
                             'knowledge' => 'ACKNOWLEDGED BY',
@@ -773,56 +1126,57 @@
         </div>
     </div>
 
-    <!-- Approval Form Section -->
-    <div class="approval-form-section">
-        <div class="form-title">🔐 YOUR APPROVAL DECISION</div>
-        
-        <form action="{{ route('approvals.public.process', $approval) }}" method="POST">
-            @csrf
+    <!-- Approval Modal -->
+    <div class="modal-overlay" id="approvalModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Approval Decision</h3>
+                <button type="button" class="modal-close" onclick="closeApprovalModal()">&times;</button>
+            </div>
+            
+            <form action="{{ route('approvals.public.process', $approval) }}" method="POST" id="approvalForm">
+                @csrf
+                <input type="hidden" name="action" id="actionInput" value="">
+                
+                <div class="modal-body">
+                    <!-- PR Info Summary -->
+                    <div class="modal-pr-info">
+                        <p><strong>PR Number:</strong> {{ $approval->purchaseRequest->pr_number }}</p>
+                        <p><strong>Requestor:</strong> {{ $approval->purchaseRequest->user->name }}</p>
+                        <p><strong>Amount:</strong> Rp {{ number_format($approval->purchaseRequest->total_amount, 0, ',', '.') }}</p>
+                        <p><strong>Purpose:</strong> {{ Str::limit($approval->purchaseRequest->used_for, 50) }}</p>
+                    </div>
 
-            <!-- Action Selection -->
-            <div class="form-group">
-                <label class="form-label">Select Your Decision <span style="color: #ef4444;">*</span></label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="action" value="approved" required>
-                        <strong>✓ Approve</strong> - I approve this purchase request
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="action" value="rejected" required>
-                        <strong>✗ Reject</strong> - I reject this purchase request
-                    </label>
+                    <!-- Decision Buttons -->
+                    <div class="decision-buttons">
+                        <button type="button" class="decision-btn approve-btn" onclick="selectDecision('approved')">
+                            <div class="icon approve-icon"></div>
+                            <div class="label">APPROVE</div>
+                        </button>
+                        <button type="button" class="decision-btn reject-btn" onclick="selectDecision('rejected')">
+                            <div class="icon reject-icon"></div>
+                            <div class="label">REJECT</div>
+                        </button>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="modal-notes">
+                        <label for="modalNotes">
+                            Notes / Comments
+                            <span id="notesRequired" style="color: #ef4444; display: none;">*</span>
+                        </label>
+                        <textarea name="notes" id="modalNotes" placeholder="Enter your notes or reason...">{{ old('notes') }}</textarea>
+                        <div class="hint">Optional for approval. Required if rejecting the request.</div>
+                        <div class="error-text" id="notesError">Notes are required when rejecting a request.</div>
+                    </div>
                 </div>
-                @error('action')
-                    <div style="color: #ef4444; font-size: 10px; margin-top: 8px;">{{ $message }}</div>
-                @enderror
-            </div>
 
-            <!-- Notes Field -->
-            <div class="form-group">
-                <label for="notes" class="form-label">
-                    Notes / Comments
-                    <span style="color: #ef4444; display: none;" id="required-indicator">*</span>
-                </label>
-                <textarea name="notes" 
-                          id="notes" 
-                          rows="4" 
-                          placeholder="Enter your notes or reason (required for rejection)">{{ old('notes') }}</textarea>
-                <div style="font-size: 10px; color: #6b7280; margin-top: 6px;">
-                    Optional for approval. Required if rejecting the request.
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeApprovalModal()">Cancel</button>
+                    <button type="submit" class="btn-submit" id="submitBtn" disabled>Submit Decision</button>
                 </div>
-                @error('notes')
-                    <div style="color: #ef4444; font-size: 10px; margin-top: 6px;">{{ $message }}</div>
-                @enderror
-            </div>
-
-            <!-- Submit Button -->
-            <div style="text-align: center;">
-                <button type="submit" class="submit-button">
-                    📝 SUBMIT DECISION
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
     <!-- Footer -->
@@ -841,20 +1195,99 @@
     </div>
 
     <script>
-        const radioButtons = document.querySelectorAll('input[name="action"]');
-        const notesField = document.getElementById('notes');
-        const requiredIndicator = document.getElementById('required-indicator');
+        let selectedAction = null;
+        const modal = document.getElementById('approvalModal');
+        const actionInput = document.getElementById('actionInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const notesField = document.getElementById('modalNotes');
+        const notesRequired = document.getElementById('notesRequired');
+        const notesError = document.getElementById('notesError');
+        const approveBtn = document.querySelector('.approve-btn');
+        const rejectBtn = document.querySelector('.reject-btn');
+        const form = document.getElementById('approvalForm');
 
-        radioButtons.forEach(radio => {
-            radio.addEventListener('change', function() {
-                if (this.value === 'rejected') {
-                    requiredIndicator.style.display = 'inline';
-                    notesField.required = true;
-                } else {
-                    requiredIndicator.style.display = 'none';
-                    notesField.required = false;
-                }
-            });
+        function openApprovalModal() {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeApprovalModal() {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            resetModal();
+        }
+
+        function resetModal() {
+            selectedAction = null;
+            actionInput.value = '';
+            approveBtn.classList.remove('selected');
+            rejectBtn.classList.remove('selected');
+            submitBtn.disabled = true;
+            submitBtn.className = 'btn-submit';
+            notesRequired.style.display = 'none';
+            notesError.style.display = 'none';
+            notesField.required = false;
+        }
+
+        function selectDecision(action) {
+            selectedAction = action;
+            actionInput.value = action;
+            
+            // Update button states
+            if (action === 'approved') {
+                approveBtn.classList.add('selected');
+                rejectBtn.classList.remove('selected');
+                submitBtn.className = 'btn-submit approve';
+                submitBtn.textContent = 'Confirm Approval';
+                notesRequired.style.display = 'none';
+                notesField.required = false;
+                notesError.style.display = 'none';
+            } else {
+                rejectBtn.classList.add('selected');
+                approveBtn.classList.remove('selected');
+                submitBtn.className = 'btn-submit reject';
+                submitBtn.textContent = 'Confirm Rejection';
+                notesRequired.style.display = 'inline';
+                notesField.required = true;
+            }
+            
+            submitBtn.disabled = false;
+        }
+
+        // Form validation before submit
+        form.addEventListener('submit', function(e) {
+            if (selectedAction === 'rejected' && !notesField.value.trim()) {
+                e.preventDefault();
+                notesError.style.display = 'block';
+                notesField.focus();
+                return false;
+            }
         });
+
+        // Hide error when typing
+        notesField.addEventListener('input', function() {
+            if (this.value.trim()) {
+                notesError.style.display = 'none';
+            }
+        });
+
+        // Close modal on overlay click
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeApprovalModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                closeApprovalModal();
+            }
+        });
+
+        // Auto-open modal if there are validation errors
+        @if($errors->any())
+            openApprovalModal();
+        @endif
     </script>
 </body>

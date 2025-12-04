@@ -88,23 +88,50 @@
                       loggingOut = true; 
                       open = false;
                       
-                      // Create and show loading overlay
+                      // Get user name
+                      const userName = '{{ Auth::user()->name ?? 'User' }}';
+                      
+                      // Create clean logout overlay - text focused
                       const overlay = document.createElement('div');
                       overlay.id = 'logout-overlay';
-                      overlay.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm';
+                      overlay.style.cssText = 'position: fixed; inset: 0; z-index: 999999; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(249, 250, 251, 0.98) 0%, rgba(243, 244, 246, 0.98) 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); opacity: 0; transition: opacity 0.4s ease;';
+                      
                       overlay.innerHTML = `
-                          <div class='bg-white rounded-lg shadow-xl p-6 flex items-center space-x-4'>
-                              <svg class='animate-spin h-6 w-6 text-indigo-600' fill='none' viewBox='0 0 24 24'>
-                                  <circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
-                                  <path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
-                              </svg>
-                              <span class='text-gray-700 font-medium'>Signing out...</span>
+                          <div style='text-align: center; animation: logoutCardAppear 0.5s ease-out forwards;'>
+                              <!-- Main Text -->
+                              <h3 style='font-size: 36px; font-weight: 800; color: #111827; margin: 0 0 16px 0; letter-spacing: -0.025em; animation: textFadeIn 0.6s ease-out forwards;'>See You Again!</h3>
+                              <p style='font-size: 18px; color: #6b7280; margin: 0 0 8px 0; animation: textFadeIn 0.6s ease-out 0.1s forwards; opacity: 0;'>Have a nice day, <span style='font-weight: 700; color: #3b82f6;'>${userName}</span></p>
+                              <p style='font-size: 15px; color: #9ca3af; margin: 0 0 32px 0; animation: textFadeIn 0.6s ease-out 0.2s forwards; opacity: 0;'>We will miss you! 💙</p>
+                              
+                              <!-- Progress Bar -->
+                              <div style='width: 180px; height: 3px; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin: 0 auto;'>
+                                  <div style='height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); animation: progressBar 1.5s ease-in-out infinite; border-radius: 2px;'></div>
+                              </div>
+                              
+                              <p style='font-size: 13px; color: #b0b0b0; margin-top: 16px; animation: textFadeIn 0.6s ease-out 0.3s forwards; opacity: 0;'>Signing you out...</p>
                           </div>
+                          
+                          <style>
+                              @keyframes logoutCardAppear { 
+                                  0% { transform: scale(0.95); opacity: 0; } 
+                                  100% { transform: scale(1); opacity: 1; } 
+                              }
+                              @keyframes textFadeIn { 
+                                  0% { opacity: 0; transform: translateY(10px); } 
+                                  100% { opacity: 1; transform: translateY(0); } 
+                              }
+                              @keyframes progressBar { 
+                                  0% { width: 0%; }
+                                  50% { width: 100%; }
+                                  100% { width: 0%; }
+                              }
+                          </style>
                       `;
                       document.body.appendChild(overlay);
+                      requestAnimationFrame(() => { overlay.style.opacity = '1'; });
                       
                       // Submit form after showing animation
-                      setTimeout(() => { $el.submit(); }, 500);
+                      setTimeout(() => { $el.submit(); }, 1500);
                   ">
                 @csrf
                 <button 

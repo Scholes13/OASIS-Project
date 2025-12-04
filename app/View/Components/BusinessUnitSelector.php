@@ -23,7 +23,7 @@ class BusinessUnitSelector extends Component
         if ($user) {
             if ($user->isSuperAdmin() && $showAll) {
                 // Super admin can see all business units
-                $this->businessUnits = \App\Models\BusinessUnit::with('parent')
+                $this->businessUnits = \App\Models\Core\BusinessUnit::with('parent')
                     ->active()
                     ->orderBy('name')
                     ->get();

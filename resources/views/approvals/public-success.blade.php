@@ -3,186 +3,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decision Submitted - Purchase Request Approval</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Decision Submitted - Purchase Request</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #1e293b;
         }
-        .confetti {
-            animation: confetti-fall 3s ease-in-out;
+
+        .container {
+            width: 100%;
+            max-width: 480px;
         }
-        @keyframes confetti-fall {
-            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 48px 32px 32px;
+            text-align: center;
+        }
+
+        .icon-circle {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .icon-circle.approved {
+            background-color: #ecfdf5;
+        }
+
+        .icon-circle.rejected {
+            background-color: #fef2f2;
+        }
+
+        .icon-circle svg {
+            width: 36px;
+            height: 36px;
+        }
+
+        .icon-circle.approved svg {
+            color: #10b981;
+        }
+
+        .icon-circle.rejected svg {
+            color: #ef4444;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .card-body {
+            padding: 0 32px 32px;
+        }
+
+        .details-section {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+        }
+
+        .detail-row:not(:last-child) {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-label {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #0f172a;
+            text-align: right;
+        }
+
+        .detail-value.approved {
+            color: #10b981;
+        }
+
+        .detail-value.rejected {
+            color: #ef4444;
+        }
+
+        .notes-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .notes-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .notes-content {
+            font-size: 14px;
+            color: #334155;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            line-height: 1.5;
+        }
+
+        .info-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            background-color: #f0f9ff;
+            border-radius: 10px;
+            margin-bottom: 24px;
+        }
+
+        .info-box.warning {
+            background-color: #fffbeb;
+        }
+
+        .info-box-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            color: #0ea5e9;
+        }
+
+        .info-box.warning .info-box-icon {
+            color: #f59e0b;
+        }
+
+        .info-box-content h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0c4a6e;
+            margin-bottom: 4px;
+        }
+
+        .info-box.warning .info-box-content h4 {
+            color: #78350f;
+        }
+
+        .info-box-content p {
+            font-size: 13px;
+            color: #0369a1;
+            line-height: 1.5;
+        }
+
+        .info-box.warning .info-box-content p {
+            color: #92400e;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #0f172a;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1e293b;
+        }
+
+        .card-footer {
+            padding: 20px 32px;
+            background-color: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .footer-text {
+            font-size: 13px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .footer-text svg {
+            width: 16px;
+            height: 16px;
+            color: #10b981;
+        }
+
+        .brand {
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        .brand-text {
+            font-size: 12px;
+            color: #94a3b8;
         }
     </style>
 </head>
-<body class="antialiased">
-    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-3xl w-full">
-            <!-- Success Card -->
-            <div class="bg-white rounded-2xl shadow-xl p-12 text-center">
-                <!-- Icon -->
+<body>
+    <div class="container">
+        <div class="card">
+            <!-- Header -->
+            <div class="card-header">
                 @if($action === 'approved')
-                    <div class="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-gradient-to-r from-green-400 to-green-600 mb-6 animate-bounce">
-                        <i class="fas fa-check text-white text-5xl"></i>
+                    <div class="icon-circle approved">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
                     </div>
+                    <h1 class="title">Request Approved</h1>
+                    <p class="subtitle">Your approval has been recorded successfully.</p>
                 @else
-                    <div class="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-gradient-to-r from-red-400 to-red-600 mb-6">
-                        <i class="fas fa-times text-white text-5xl"></i>
+                    <div class="icon-circle rejected">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </div>
+                    <h1 class="title">Request Rejected</h1>
+                    <p class="subtitle">Your decision has been recorded and the requestor will be notified.</p>
                 @endif
-
-                <!-- Title -->
-                <h1 class="text-4xl font-bold text-gray-900 mb-4">
-                    @if($action === 'approved')
-                        Request Approved! 🎉
-                    @else
-                        Request Rejected
-                    @endif
-                </h1>
-
-                <!-- Message -->
-                <p class="text-lg text-gray-600 mb-8">
-                    @if($action === 'approved')
-                        Thank you for approving this purchase request. The requestor and next approver (if any) have been notified.
-                    @else
-                        The purchase request has been rejected. The requestor has been notified with your feedback.
-                    @endif
-                </p>
-
-                <!-- Details Card -->
-                <div class="bg-gray-50 rounded-xl p-6 mb-8 text-left">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>
-                        Decision Details
-                    </h3>
-                    
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-500">Purchase Request:</span>
-                            <span class="text-sm font-semibold text-gray-900">{{ $approval->purchaseRequest->pr_number }}</span>
-                        </div>
-                        
-                        <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-500">Your Decision:</span>
-                            <span class="text-sm font-semibold 
-                                @if($action === 'approved') text-green-600
-                                @else text-red-600
-                                @endif">
-                                {{ ucfirst($action) }}
-                            </span>
-                        </div>
-                        
-                        <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-500">Decided At:</span>
-                            <span class="text-sm font-semibold text-gray-900">{{ now()->format('M d, Y H:i') }}</span>
-                        </div>
-                        
-                        <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium text-gray-500">Amount:</span>
-                            <span class="text-sm font-semibold text-gray-900">Rp {{ number_format($approval->purchaseRequest->total_amount, 0, ',', '.') }}</span>
-                        </div>
-
-                        @if($notes)
-                            <div class="pt-3 border-t border-gray-200">
-                                <span class="text-sm font-medium text-gray-500 block mb-2">Your Notes:</span>
-                                <p class="text-sm text-gray-700 bg-white rounded-lg p-3 border border-gray-200">{{ $notes }}</p>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- Next Steps -->
-                @if($action === 'approved')
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 text-left">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-info-circle text-blue-500"></i>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-blue-800 mb-1">What happens next?</h3>
-                                <p class="text-sm text-blue-700">
-                                    @if($approval->step_order < $approval->purchaseRequest->approvals()->count())
-                                        The next approver will receive an email notification to continue the approval process.
-                                    @else
-                                        The requestor will be notified that all approvals are complete.
-                                    @endif
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                @else
-                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-8 text-left">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-exclamation-triangle text-yellow-500"></i>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-yellow-800 mb-1">What happens next?</h3>
-                                <p class="text-sm text-yellow-700">
-                                    The requestor will receive an email notification about the rejection and your feedback. They can edit and resubmit the request if needed.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-
-                <!-- Actions -->
-                <div class="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-                    <a href="{{ config('app.url') }}" 
-                       class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 shadow-lg">
-                        <i class="fas fa-home mr-2"></i>
-                        Close This Page
-                    </a>
-                </div>
-
-                <!-- Footer -->
-                <div class="mt-8 pt-8 border-t border-gray-200">
-                    <p class="text-sm text-gray-500 flex items-center justify-center">
-                        <i class="fas fa-check-circle mr-2 text-green-500"></i>
-                        Your decision has been recorded and cannot be changed
-                    </p>
-                </div>
             </div>
 
-            <!-- Confirmation Message -->
-            <div class="mt-6 text-center">
-                <p class="text-white text-sm">
-                    <i class="fas fa-envelope mr-2"></i>
-                    An email confirmation has been sent to all relevant parties
+            <!-- Body -->
+            <div class="card-body">
+                <!-- Details -->
+                <div class="details-section">
+                    <div class="detail-row">
+                        <span class="detail-label">PR Number</span>
+                        <span class="detail-value">{{ $approval->purchaseRequest->pr_number }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Decision</span>
+                        <span class="detail-value {{ $action }}">{{ ucfirst($action) }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date & Time</span>
+                        <span class="detail-value">{{ now()->format('d M Y, H:i') }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Amount</span>
+                        <span class="detail-value">Rp {{ number_format($approval->purchaseRequest->total_amount, 0, ',', '.') }}</span>
+                    </div>
+
+                    @if($notes)
+                        <div class="notes-section">
+                            <div class="notes-label">Your Notes</div>
+                            <div class="notes-content">{{ $notes }}</div>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Info Box -->
+                @if($action === 'approved')
+                    <div class="info-box">
+                        <svg class="info-box-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div class="info-box-content">
+                            <h4>What happens next?</h4>
+                            <p>
+                                @if($approval->step_order < $approval->purchaseRequest->approvals()->count())
+                                    The next approver will be notified to continue the approval process.
+                                @else
+                                    The requestor will be notified that all approvals are complete.
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                @else
+                    <div class="info-box warning">
+                        <svg class="info-box-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div class="info-box-content">
+                            <h4>What happens next?</h4>
+                            <p>The requestor will receive your feedback and can edit and resubmit if needed.</p>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Dashboard Button -->
+                <a href="{{ route('dashboard') }}" class="btn btn-primary">
+                    Open Dashboard
+                </a>
+            </div>
+
+            <!-- Footer -->
+            <div class="card-footer">
+                <p class="footer-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Your decision has been recorded
                 </p>
             </div>
         </div>
-    </div>
 
-    @if($action === 'approved')
-        <!-- Confetti Animation (simple version) -->
-        <script>
-            // Create simple confetti effect
-            for (let i = 0; i < 30; i++) {
-                setTimeout(() => {
-                    const confetti = document.createElement('div');
-                    confetti.className = 'confetti';
-                    confetti.style.cssText = `
-                        position: fixed;
-                        width: 10px;
-                        height: 10px;
-                        background: ${['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'][Math.floor(Math.random() * 5)]};
-                        left: ${Math.random() * 100}vw;
-                        top: -10px;
-                        border-radius: 50%;
-                        pointer-events: none;
-                        z-index: 9999;
-                    `;
-                    document.body.appendChild(confetti);
-                    setTimeout(() => confetti.remove(), 3000);
-                }, i * 100);
-            }
-        </script>
-    @endif
+        <!-- Brand -->
+        <div class="brand">
+            <p class="brand-text">Werkudara Group</p>
+        </div>
+    </div>
 </body>
 </html>

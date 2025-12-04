@@ -13,32 +13,7 @@
 
     <div class="py-12">
         <div class="w-full">
-            <!-- Success/Error Messages -->
-            @if(session('success'))
-                <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-check-circle text-green-400"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-circle text-red-400"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
-                        </div>
-                    </div>
-                </div>
-            @endif
+            <!-- Session flash messages are automatically displayed as toast by layouts/app.blade.php -->
 
             @if($errors->any())
                 <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -309,7 +284,7 @@
                                        id="mail_from_name" 
                                        value="{{ old('mail_from_name', $settings->mail_from_name) }}"
                                        class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 @error('mail_from_name') border-red-500 @enderror"
-                                       placeholder="WNS Purchase Request System"
+                                       placeholder="Werkudara Group - Purchase Request"
                                        required>
                                 @error('mail_from_name')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>

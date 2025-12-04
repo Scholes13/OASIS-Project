@@ -79,8 +79,11 @@ class ContactForm extends Component
         session(['current_business_unit_id' => $businessUnitId]);
         $this->businessUnitId = $businessUnitId;
 
-        // Dispatch completion event to hide loader
-        $this->dispatch('business-unit-switched-complete');
+        // ✅ ORCHESTRATOR: Acknowledge completion (form pages use same component name)
+        $this->dispatch('bu-switch-acknowledge', component: 'contacts');
+
+        $buName = session('current_business_unit_name', 'new business unit');
+        $this->dispatch('notify', message: "Switched to {$buName}", type: 'success');
     }
 
     protected function loadContact(): void

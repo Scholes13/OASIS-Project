@@ -3,69 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title ?? 'Error' }} - Purchase Request Approval</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>{{ $title ?? 'Notice' }} - Purchase Request</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #1e293b;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 48px 32px 32px;
+            text-align: center;
+        }
+
+        .icon-circle {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .icon-circle.green {
+            background-color: #ecfdf5;
+        }
+
+        .icon-circle.red {
+            background-color: #fef2f2;
+        }
+
+        .icon-circle.yellow {
+            background-color: #fffbeb;
+        }
+
+        .icon-circle.blue {
+            background-color: #eff6ff;
+        }
+
+        .icon-circle.gray {
+            background-color: #f1f5f9;
+        }
+
+        .icon-circle svg {
+            width: 36px;
+            height: 36px;
+        }
+
+        .icon-circle.green svg {
+            color: #10b981;
+        }
+
+        .icon-circle.red svg {
+            color: #ef4444;
+        }
+
+        .icon-circle.yellow svg {
+            color: #f59e0b;
+        }
+
+        .icon-circle.blue svg {
+            color: #3b82f6;
+        }
+
+        .icon-circle.gray svg {
+            color: #64748b;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+
+        .message {
+            font-size: 15px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .card-body {
+            padding: 0 32px 32px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #0f172a;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1e293b;
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: #374151;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f8fafc;
+        }
+
+        .card-footer {
+            padding: 20px 32px;
+            background-color: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .footer-text {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .brand {
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        .brand-text {
+            font-size: 12px;
+            color: #94a3b8;
         }
     </style>
 </head>
-<body class="antialiased">
-    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-2xl w-full">
-            <div class="bg-white rounded-2xl shadow-xl p-12 text-center">
-                <!-- Icon -->
-                @php
-                    $color = $color ?? 'gray'; // Default color if not provided
-                @endphp
-                <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full mb-6
-                    @if($color === 'red') bg-red-100
-                    @elseif($color === 'green') bg-green-100
-                    @elseif($color === 'yellow') bg-yellow-100
-                    @elseif($color === 'blue') bg-blue-100
-                    @else bg-gray-100
-                    @endif">
-                    <i class="fas {{ $icon ?? 'fa-exclamation-circle' }} text-4xl
-                        @if($color === 'red') text-red-600
-                        @elseif($color === 'green') text-green-600
-                        @elseif($color === 'yellow') text-yellow-600
-                        @elseif($color === 'blue') text-blue-600
-                        @else text-gray-600
-                        @endif"></i>
+<body>
+    @php
+        $color = $color ?? 'gray';
+    @endphp
+    
+    <div class="container">
+        <div class="card">
+            <!-- Header -->
+            <div class="card-header">
+                <div class="icon-circle {{ $color }}">
+                    @if($color === 'green')
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    @elseif($color === 'red')
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    @elseif($color === 'yellow')
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    @elseif($color === 'blue')
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    @else
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    @endif
                 </div>
+                <h1 class="title">{{ $title ?? 'Notice' }}</h1>
+                <p class="message">{{ $message ?? 'An error occurred.' }}</p>
+            </div>
 
-                <!-- Title -->
-                <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ $title ?? 'Error' }}</h1>
-
-                <!-- Message -->
-                <p class="text-lg text-gray-600 mb-8">{{ $message ?? 'An error occurred.' }}</p>
-
-                <!-- Actions -->
-                <div class="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-                    <a href="{{ config('app.url') }}" 
-                       class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
-                        <i class="fas fa-home mr-2"></i>
-                        Go to Homepage
+            <!-- Body -->
+            <div class="card-body">
+                <div class="btn-group">
+                    <a href="{{ route('dashboard') }}" class="btn btn-primary">
+                        Open Dashboard
                     </a>
-                    
-                    <a href="javascript:history.back()" 
-                       class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        Go Back
-                    </a>
-                </div>
-
-                <!-- Footer -->
-                <div class="mt-8 pt-8 border-t border-gray-200">
-                    <p class="text-sm text-gray-500">
-                        <i class="fas fa-question-circle mr-1"></i>
-                        Need help? Contact your system administrator
-                    </p>
                 </div>
             </div>
+
+            <!-- Footer -->
+            <div class="card-footer">
+                <p class="footer-text">Need help? Contact your system administrator</p>
+            </div>
+        </div>
+
+        <!-- Brand -->
+        <div class="brand">
+            <p class="brand-text">Werkudara Group</p>
         </div>
     </div>
 </body>

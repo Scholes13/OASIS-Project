@@ -141,20 +141,16 @@ class EmailNotificationService
             if ($this->isEmailEnabled()) {
                 $this->configureMail();
 
-                // Send email synchronously
-                Mail::send([], [], function ($message) use ($notifiable, $notification) {
-                    $mailMessage = $notification->toMail($notifiable);
-                    
+                // Get the mail message from notification
+                $mailMessage = $notification->toMail($notifiable);
+                
+                // Render the view content
+                $htmlContent = view($mailMessage->view, $mailMessage->viewData)->render();
+
+                // Send email using Mailable approach
+                Mail::html($htmlContent, function ($message) use ($notifiable, $mailMessage) {
                     $message->to($notifiable->email, $notifiable->name)
                             ->subject($mailMessage->subject ?? 'Purchase Request Approval Notification');
-                    
-                    // Set HTML content
-                    if ($mailMessage->view) {
-                        $message->setBody(
-                            view($mailMessage->view, $mailMessage->viewData)->render(),
-                            'text/html'
-                        );
-                    }
                 });
 
                 $emailSent = true;

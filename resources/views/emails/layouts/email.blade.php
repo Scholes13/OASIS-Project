@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'WNS Purchase Request System')</title>
+    <title>@yield('title', 'Werkudara Group - Purchase Request System')</title>
     <!--[if mso]>
     <style type="text/css">
         .button { padding: 14px 32px !important; }
@@ -22,7 +22,7 @@
                     <tr>
                         <td style="background-color: #1e40af; padding: 30px 20px; text-align: center; color: #ffffff; border-radius: 8px 8px 0 0;">
                             <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #ffffff;">
-                                @yield('header-title', 'WNS Purchase Request System')
+                                @yield('header-title', 'Werkudara Group - Purchase Request System')
                             </h1>
                             <p style="margin: 8px 0 0 0; font-size: 14px; color: #ffffff; opacity: 0.95;">
                                 @yield('header-subtitle', 'Purchase Request Management')
@@ -40,9 +40,9 @@
                     <!-- Footer -->
                     <tr>
                         <td style="background-color: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 13px; border-top: 1px solid #e9ecef; border-radius: 0 0 8px 8px;">
-                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #495057;">WNS - Werkudara Nusantara Sejahtera</p>
+                            <p style="margin: 0 0 5px 0; font-weight: 600; color: #495057;">Werkudara Group</p>
                             <p style="margin: 5px 0; color: #6c757d;">This is an automated message. Please do not reply to this email.</p>
-                            <p style="margin: 5px 0 0 0; color: #adb5bd; font-size: 12px;">© {{ date('Y') }} WNS. All rights reserved.</p>
+                            <p style="margin: 5px 0 0 0; color: #adb5bd; font-size: 12px;">© {{ date('Y') }} Werkudara Group. All rights reserved.</p>
                         </td>
                     </tr>
                     

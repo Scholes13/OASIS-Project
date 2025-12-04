@@ -52,11 +52,12 @@ class BusinessUnitSwitcher extends Component
     {
         $user = Auth::user();
 
-        // Load current BU from session (no query needed)
+        // Load current BU from session (logo is set by middleware or switchBusinessUnit)
         $this->currentBusinessUnit = [
             'id' => session('current_business_unit_id'),
             'code' => session('current_business_unit_code'),
             'name' => session('current_business_unit_name'),
+            'logo' => session('current_business_unit_logo'),
         ];
 
         // Super admins don't have business unit assignments
@@ -99,6 +100,7 @@ class BusinessUnitSwitcher extends Component
                     'id' => $assignment->businessUnit->id,
                     'code' => $assignment->businessUnit->code,
                     'name' => $assignment->businessUnit->name,
+                    'logo' => $assignment->businessUnit->logo,
                     'role' => $assignment->role,
                     'department_id' => $assignment->department_id,
                 ];
@@ -135,6 +137,7 @@ class BusinessUnitSwitcher extends Component
                 'current_business_unit_id' => $businessUnit->id,
                 'current_business_unit_code' => $businessUnit->code,
                 'current_business_unit_name' => $businessUnit->name,
+                'current_business_unit_logo' => $businessUnit->logo,
                 'current_user_role' => $assignment->role,
                 'current_department_id' => $assignment->department_id,
             ]);
@@ -147,6 +150,7 @@ class BusinessUnitSwitcher extends Component
                 'id' => $businessUnit->id,
                 'code' => $businessUnit->code,
                 'name' => $businessUnit->name,
+                'logo' => $businessUnit->logo,
             ];
 
             // Mark as not loaded to force refresh on next hydrate
@@ -159,9 +163,9 @@ class BusinessUnitSwitcher extends Component
             // Each component that listens will process and dispatch 'complete' when done
             $this->dispatch('business-unit-switched', businessUnitId: $businessUnit->id);
 
-            // NOTE: Do NOT dispatch 'business-unit-switched-complete' here!
-            // Each page component should dispatch it AFTER their data is fully loaded
-            // This prevents loader hiding before data is ready
+            // ✅ ORCHESTRATOR: Header acknowledges immediately since it's already updated
+            // The header (this component) updates its own state synchronously above
+            $this->dispatch('bu-switch-acknowledge', component: 'header');
 
             return;
         }

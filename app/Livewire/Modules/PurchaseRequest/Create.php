@@ -358,10 +358,10 @@ class Create extends Component
         // Get BU name for success message
         $buName = session('current_business_unit_name', 'new business unit');
 
-        // Dispatch completion event FIRST (hides loader)
-        $this->dispatch('business-unit-switched-complete');
+        // ✅ ORCHESTRATOR: Acknowledge completion
+        $this->dispatch('bu-switch-acknowledge', component: 'pr-create');
 
-        // Show notification AFTER loader hidden (better UX)
+        // Show notification
         $this->dispatch('notify',
             message: "Switched to {$buName} - Form has been reset",
             type: 'success'
@@ -1309,7 +1309,6 @@ class Create extends Component
         }
 
         return [
-            'keperluan' => null,
             'used_for' => $this->used_for,
             'category_id' => $this->category_id ?: null,
             'date_of_request' => $this->request_date ?? Carbon::today()->format('Y-m-d'),
@@ -1414,7 +1413,6 @@ class Create extends Component
                 'category_id' => $this->category_id ?: null,
                 'user_id' => Auth::id(),
                 'sequence_id' => $result['sequence_id'],
-                'keperluan' => null,
                 'used_for' => $this->used_for,
                 'date_of_request' => $currentDate->format('Y-m-d'),
                 'designated_date' => $this->expected_date ? Carbon::parse($this->expected_date)->format('Y-m-d') : null,
@@ -1457,10 +1455,16 @@ class Create extends Component
 
             session()->flash('success', "Purchase Request {$result['formatted_number']} has been submitted for approval.");
 
+            // Dispatch event for frontend to handle redirect with loading state
+            $this->dispatch('pr-submitted', redirect: route('purchase-requests.show', $purchaseRequest));
+
             return redirect()->route('purchase-requests.show', $purchaseRequest);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
+            
+            // Dispatch error event to hide loading overlay
+            $this->dispatch('submit-error');
 
             // Consolidate validation errors into single toast
             $errors = $e->validator->errors();
@@ -1496,6 +1500,9 @@ class Create extends Component
             throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Dispatch error event to hide loading overlay
+            $this->dispatch('submit-error');
 
             $this->dispatch('notify',
                 message: 'Failed to submit: '.$e->getMessage(),
@@ -1569,13 +1576,23 @@ class Create extends Component
                 session()->flash('success', 'Purchase Request has been updated and submitted for approval.');
             }
 
+            // Dispatch event for frontend to handle redirect with loading state
+            $this->dispatch('pr-submitted', redirect: route('purchase-requests.show', $purchaseRequest));
+
             return redirect()->route('purchase-requests.show', $purchaseRequest);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
+            
+            // Dispatch error event to hide loading overlay
+            $this->dispatch('submit-error');
+            
             throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Dispatch error event to hide loading overlay
+            $this->dispatch('submit-error');
 
             $this->dispatch('notify',
                 message: 'Failed to submit: '.$e->getMessage(),

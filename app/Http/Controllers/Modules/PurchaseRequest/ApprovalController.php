@@ -205,38 +205,12 @@ class ApprovalController extends Controller
 
     /**
      * List pending approvals for current user
+     * ✅ OPTIMIZED: Uses Livewire component with lazy loading and pagination
      */
     public function index(Request $request)
     {
-        $tab = $request->get('tab', 'pending');
-        $filter = $request->get('filter');
-
-        // Get all approvals for PRs that involve current user
-        $allPendingApprovals = $this->workflowService->getPendingApprovalsForUser(Auth::user())->get();
-        
-        // Group by purchase_request_id to show all approvers per PR
-        $pendingApprovals = $allPendingApprovals->groupBy('purchase_request_id')->map(function ($approvals) {
-            return $approvals->sortBy('step_order');
-        })->values(); // Reset keys to avoid issues
-
-        $approvalHistory = $this->workflowService->getApprovalHistoryForUser(Auth::user())->paginate(10);
-        $approvalStats = $this->workflowService->getApprovalStatistics(Auth::user());
-
-        // Process and combine approvals (moved from view for better performance)
-        $filteredApprovals = $this->processAndFilterApprovals(
-            $pendingApprovals, 
-            $approvalHistory, 
-            $filter
-        );
-
-        return view('approvals.index', compact(
-            'pendingApprovals', 
-            'approvalHistory', 
-            'approvalStats', 
-            'tab',
-            'filteredApprovals',
-            'filter'
-        ));
+        // Delegate to optimized Livewire component
+        return view('approvals.index-livewire');
     }
 
     /**

@@ -19,10 +19,16 @@
             
             if (currentPath === '/' || currentPath === '/dashboard') {
                 requiredComponents.push('dashboard');
+            } else if (currentPath.includes('/purchase-requests/all')) {
+                // ✅ All Requests page (must come before general purchase-request check)
+                requiredComponents.push('all-requests');
             } else if (currentPath.includes('/purchase-request') && currentPath.includes('/create')) {
                 requiredComponents.push('pr-create');
             } else if (currentPath.includes('/purchase-request')) {
                 requiredComponents.push('pr-history');
+            } else if (currentPath === '/approvals' || currentPath.startsWith('/approvals?')) {
+                // ✅ Approvals index page
+                requiredComponents.push('approvals');
             } else if (currentPath.includes('/contacts')) {
                 requiredComponents.push('contacts');
             } else if (currentPath.includes('/activities')) {

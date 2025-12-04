@@ -4,8 +4,11 @@ namespace App\Livewire\Modules\PurchaseRequest;
 
 use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Modules\PurchaseRequest\PrNumberReservation;
+use App\Models\Modules\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\PurchaseRequest\PurchaseRequestService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,6 +23,19 @@ class MyHistory extends Component
     public $activeBusinessUnitId;
 
     public $businessUnitName;
+
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public ?string $filter = null;
+
+    // Stats
+    public int $totalPRs = 0;
+    public int $pendingCount = 0;
+    public int $approvedCount = 0;
+    public int $rejectedCount = 0;
+    public int $reservedCount = 0;
 
     // For void modal
     public $showVoidModal = false;
@@ -48,7 +64,9 @@ class MyHistory extends Component
         $this->activeBusinessUnitId = $businessUnitId;
         $this->businessUnitName = session('current_business_unit_name', 'Business Unit');
 
-        // Reset pagination (data will auto-refresh on next render)
+        // Reset filters and search
+        $this->search = '';
+        $this->filter = null;
         $this->resetPage();
 
         // ✅ ORCHESTRATOR: Acknowledge completion
@@ -60,12 +78,102 @@ class MyHistory extends Component
     }
 
     /**
+     * Go to specific page
+     */
+    public function gotoPage(int $page): void
+    {
+        $this->setPage($page, 'pr_page');
+    }
+
+    /**
+     * Handle search update
+     */
+    public function updatedSearch(): void
+    {
+        $this->resetPage('pr_page');
+    }
+
+    /**
+     * Set filter
+     */
+    public function setFilter(string $status): void
+    {
+        $this->filter = $status;
+        $this->resetPage('pr_page');
+    }
+
+    /**
+     * Clear filter
+     */
+    public function clearFilter(): void
+    {
+        $this->filter = null;
+        $this->search = '';
+        $this->resetPage('pr_page');
+    }
+
+    /**
+     * Load stats for cards
+     */
+    protected function loadStats(): void
+    {
+        $user = Auth::user();
+        $businessUnitId = session('current_business_unit_id') ?? $this->activeBusinessUnitId;
+
+        // Get PR stats for current user only
+        $prStats = PurchaseRequest::where('business_unit_id', $businessUnitId)
+            ->where('user_id', $user->id)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status IN ('submitted', 'in_approval') THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+            ")
+            ->first();
+
+        // Get reservation stats for current user only
+        $reservedCount = PrNumberReservation::where('business_unit_id', $businessUnitId)
+            ->where('user_id', $user->id)
+            ->where('status', 'reserved')
+            ->count();
+
+        $this->totalPRs = $prStats->total ?? 0;
+        $this->pendingCount = $prStats->pending ?? 0;
+        $this->approvedCount = $prStats->approved ?? 0;
+        $this->rejectedCount = $prStats->rejected ?? 0;
+        $this->reservedCount = $reservedCount;
+    }
+
+    /**
      * Get purchase requests query based on user hierarchy
      */
     protected function getPurchaseRequests()
     {
-        $purchaseRequestService = app(PurchaseRequestService::class);
-        $query = $purchaseRequestService->getPurchaseRequestsQuery();
+        $user = Auth::user();
+        $businessUnitId = session('current_business_unit_id') ?? $this->activeBusinessUnitId;
+
+        $query = PurchaseRequest::with(['department', 'user', 'approvals', 'items'])
+            ->where('business_unit_id', $businessUnitId)
+            ->where('user_id', $user->id); // Only current user's PRs
+
+        // Apply search filter
+        if ($this->search) {
+            $query->where(function ($q) {
+                $q->where('pr_number', 'like', '%' . $this->search . '%')
+                  ->orWhere('used_for', 'like', '%' . $this->search . '%');
+            });
+        }
+
+        // Apply status filter
+        if ($this->filter) {
+            if ($this->filter === 'pending') {
+                $query->whereIn('status', ['submitted', 'in_approval']);
+            } elseif ($this->filter === 'approved') {
+                $query->where('status', 'approved');
+            } elseif ($this->filter === 'rejected') {
+                $query->where('status', 'rejected');
+            }
+        }
 
         return $query->latest('created_at')->paginate(10, ['*'], 'pr_page');
     }
@@ -76,31 +184,12 @@ class MyHistory extends Component
     protected function getReservations()
     {
         $user = Auth::user();
-        $accessLevel = $user->getAccessLevel();
         $businessUnitId = session('current_business_unit_id') ?? $this->activeBusinessUnitId;
 
         $query = PrNumberReservation::with(['businessUnit', 'department', 'user', 'purchaseRequest'])
-            ->where('business_unit_id', $businessUnitId);
-
-        // Apply hierarchy filtering
-        switch ($accessLevel) {
-            case 'super_admin':
-            case 'executive':
-            case 'general_manager':
-                break;
-            case 'department_head':
-                $query->where('department_id', $user->primary_department_id);
-                break;
-            case 'team_leader':
-                $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                $subordinateIds[] = $user->id;
-                $query->whereIn('user_id', $subordinateIds);
-                break;
-            case 'staff':
-            default:
-                $query->byUser($user->id);
-                break;
-        }
+            ->where('business_unit_id', $businessUnitId)
+            ->where('user_id', $user->id) // Only current user's reservations
+            ->where('status', 'reserved'); // Only show active reservations
 
         return $query->latest('reserved_at')->paginate(10, ['*'], 'res_page');
     }
@@ -165,58 +254,22 @@ class MyHistory extends Component
 
     public function render()
     {
-        // Lazy loading: return empty data until component is ready
+        // Lazy loading: return empty paginator until component is ready
         if (! $this->readyToLoad) {
             return view('livewire.modules.purchase-request.my-history', [
-                'allItems' => collect(),
-                'purchaseRequests' => collect(),
+                'purchaseRequests' => new LengthAwarePaginator([], 0, 10),
                 'reservations' => collect(),
             ]);
         }
 
+        // Load stats
+        $this->loadStats();
+
         $purchaseRequests = $this->getPurchaseRequests();
         $reservations = $this->getReservations();
 
-        // Combine items for display
-        $allItems = collect();
-
-        foreach ($purchaseRequests as $pr) {
-            $allItems->push([
-                'type' => 'purchase_request',
-                'data' => $pr,
-                'sort_date' => $pr->created_at,
-                'pr_number' => $pr->pr_number,
-                'status' => $pr->status,
-                'purpose' => $pr->used_for,
-                'description' => $pr->used_for,
-                'department' => $pr->department,
-                'user' => $pr->user,
-                'date' => $pr->date_of_request,
-                'created_at' => $pr->created_at,
-            ]);
-        }
-
-        foreach ($reservations as $reservation) {
-            $allItems->push([
-                'type' => 'reservation',
-                'data' => $reservation,
-                'sort_date' => $reservation->reserved_at,
-                'pr_number' => $reservation->pr_number,
-                'status' => $reservation->status,
-                'purpose' => $reservation->purpose,
-                'description' => $reservation->description,
-                'department' => $reservation->department,
-                'user' => $reservation->user,
-                'date' => $reservation->reserved_at->toDateString(),
-                'created_at' => $reservation->reserved_at,
-            ]);
-        }
-
-        // Sort by date (newest first)
-        $allItems = $allItems->sortByDesc('sort_date');
 
         return view('livewire.modules.purchase-request.my-history', [
-            'allItems' => $allItems,
             'purchaseRequests' => $purchaseRequests,
             'reservations' => $reservations,
         ]);

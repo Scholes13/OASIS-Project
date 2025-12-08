@@ -58,8 +58,6 @@
     
     {{-- INLINE SCRIPT: Global calculation functions for PR items --}}
     <script>
-        console.log('🎯 PR CREATE PAGE SCRIPT LOADED');
-        
         // Format number with Indonesian locale
         window.formatNumber = function(num) {
             return new Intl.NumberFormat('id-ID').format(num);
@@ -84,14 +82,11 @@
                 setTimeout(() => { grandTotalElement.style.color = ''; }, 200);
             }
             
-            console.log('💰 Grand total:', grandTotal);
             return grandTotal;
         };
         
         // Calculate row total - called from oninput with 'this' as element
         window.calculateRowTotal = function(index, element) {
-            console.log('🔢 calculateRowTotal:', index, 'hasElement:', !!element);
-            
             let row = null;
             
             // Method 1: Get row from the element that triggered the event
@@ -108,7 +103,6 @@
             }
             
             if (!row) {
-                console.log('❌ No row found');
                 return;
             }
             
@@ -117,16 +111,10 @@
             const priceInput = row.querySelector('.item-price');
             const totalSpan = row.querySelector('span[id^="total-"]');
             
-            console.log('  qtyInput:', !!qtyInput, qtyInput ? qtyInput.value : 'N/A');
-            console.log('  priceInput:', !!priceInput, priceInput ? priceInput.value : 'N/A');
-            console.log('  totalSpan:', !!totalSpan);
-            
             if (qtyInput && priceInput && totalSpan) {
                 const qty = parseFloat(qtyInput.value.replace(/[^0-9.]/g, '')) || 0;
                 const price = parseFloat(priceInput.value.replace(/[^0-9.]/g, '')) || 0;
                 const total = Math.round(qty * price);
-                
-                console.log('🧮 Calc:', qty, 'x', price, '=', total);
                 
                 totalSpan.dataset.value = total;
                 totalSpan.textContent = window.formatNumber(total);
@@ -134,18 +122,13 @@
                 setTimeout(() => { totalSpan.style.color = ''; }, 200);
                 
                 window.calculateGrandTotal();
-            } else {
-                console.log('❌ Missing elements in row');
             }
         };
         
         // Recalculate all totals - only updates if values exist
         window.recalculateAllTotals = function(forceUpdate = false) {
-            console.log('🔄 recalculateAllTotals, force:', forceUpdate);
-            
             // Find all item rows by looking for total spans
             const totalSpans = document.querySelectorAll('span[id^="total-"]:not(#js-grand-total):not(#grand-total)');
-            console.log('  Found total spans:', totalSpans.length);
             
             let hasCalculations = false;
             
@@ -165,12 +148,10 @@
                         const total = Math.round(qty * price);
                         span.dataset.value = total;
                         span.textContent = window.formatNumber(total);
-                        console.log('  Row:', span.id, qty, 'x', price, '=', total);
                         hasCalculations = true;
                     } else if (span.dataset.value && parseFloat(span.dataset.value) > 0) {
                         // Keep existing value if it's already calculated
                         hasCalculations = true;
-                        console.log('  Row:', span.id, 'keeping existing value:', span.dataset.value);
                     }
                 }
             });
@@ -193,25 +174,19 @@
         
         // Init on various events
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('📌 DOMContentLoaded');
             setTimeout(window.recalculateAllTotals, 500);
         });
         
         window.addEventListener('load', function() {
-            console.log('📌 Window load');
             setTimeout(window.recalculateAllTotals, 500);
         });
         
         document.addEventListener('livewire:initialized', function() {
-            console.log('📌 Livewire initialized');
             setTimeout(window.recalculateAllTotals, 500);
         });
         
         document.addEventListener('livewire:navigated', function() {
-            console.log('📌 Livewire navigated');
             setTimeout(window.recalculateAllTotals, 500);
         });
-        
-        console.log('✅ All PR calculation functions ready');
     </script>
 </x-app-layout>

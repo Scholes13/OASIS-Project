@@ -3,14 +3,20 @@
         open: false,
         showLoaderAndSwitch(businessUnitId) {
             // ✅ Get current & target BU data from hidden inputs
-            const currentBuId = parseInt(document.getElementById('current-bu-id')?.value || 0);
-            const availableBUsJson = document.getElementById('available-bus-json')?.value || '[]';
-            const availableBUs = JSON.parse(availableBUsJson);
+            const currentBuId = parseInt(document.getElementById('current-bu-id-{{ auth()->id() }}')?.value || 0);
+            const availableBUsJson = document.getElementById('available-bus-json-{{ auth()->id() }}')?.value || '[]';
+            
+            // ✅ Add error handling for JSON.parse
+            let availableBUs = [];
+            try {
+                availableBUs = JSON.parse(availableBUsJson);
+            } catch (error) {
+                // Fallback to empty array
+                availableBUs = [];
+            }
             
             const fromBu = availableBUs.find(bu => bu.id == currentBuId) || {};
             const toBu = availableBUs.find(bu => bu.id == businessUnitId) || {};
-            
-            console.log('🔄 Switch from:', fromBu?.code, 'to:', toBu?.code);
             
             // ✅ ORCHESTRATOR: Determine which components need to acknowledge
             // Check current page to know which components are listening
@@ -35,8 +41,6 @@
                 requiredComponents.push('activities');
             }
             
-            console.log('📋 Required acknowledgments:', requiredComponents);
-            
             // ✅ Start orchestrator with required components
             if (window.BuSwitchOrchestrator) {
                 window.BuSwitchOrchestrator.startSwitch(fromBu, toBu, requiredComponents);
@@ -53,8 +57,9 @@
      wire:key="bu-switcher-{{ auth()->id() }}">
     
     <!-- Hidden inputs to pass fresh Livewire data to Alpine -->
-    <input type="hidden" id="current-bu-id" value="{{ $currentBusinessUnit['id'] }}">
-    <input type="hidden" id="available-bus-json" value="{{ json_encode($availableBusinessUnits) }}">
+    <!-- ✅ Use unique IDs per user to avoid conflicts if component rendered multiple times -->
+    <input type="hidden" id="current-bu-id-{{ auth()->id() }}" value="{{ $currentBusinessUnit['id'] }}">
+    <input type="hidden" id="available-bus-json-{{ auth()->id() }}" value="{{ json_encode($availableBusinessUnits) }}">
     
     @if(count($availableBusinessUnits) > 1)
         <!-- Business Unit Switcher Button -->

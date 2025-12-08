@@ -20,7 +20,7 @@ new class extends Component
     open: false,
     performLogout() {
         // Show logout overlay with user name
-        const userName = '{{ auth()->user()->name ?? 'User' }}';
+        const userName = {{ Js::from(auth()->user()->name ?? 'User') }};
         if (window.showLogoutOverlay) {
             window.showLogoutOverlay(userName);
         }

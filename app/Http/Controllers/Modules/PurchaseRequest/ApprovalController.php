@@ -214,50 +214,6 @@ class ApprovalController extends Controller
     }
 
     /**
-     * Process and filter approvals for display
-     * Moved from view to controller for better performance and testability
-     */
-    protected function processAndFilterApprovals($pendingApprovals, $approvalHistory, ?string $filter): \Illuminate\Support\Collection
-    {
-        $allApprovals = collect();
-        
-        // Add pending PRs
-        foreach($pendingApprovals as $approvals) {
-            $firstApproval = $approvals->first();
-            if ($firstApproval) {
-                $allApprovals->push([
-                    'type' => 'pending',
-                    'approval' => $firstApproval,
-                    'approvals' => $approvals,
-                    'pr' => $firstApproval->purchaseRequest,
-                    'date' => $firstApproval->assigned_at,
-                ]);
-            }
-        }
-        
-        // Add history
-        foreach($approvalHistory as $approval) {
-            $allApprovals->push([
-                'type' => 'history',
-                'approval' => $approval,
-                'pr' => $approval->purchaseRequest,
-                'date' => $approval->responded_at,
-            ]);
-        }
-        
-        // Sort by date descending
-        $allApprovals = $allApprovals->sortByDesc('date');
-        
-        // Apply filter if present
-        return match($filter) {
-            'pending' => $allApprovals->where('type', 'pending'),
-            'approved' => $allApprovals->filter(fn($item) => $item['type'] === 'history' && $item['approval']->status === 'approved'),
-            'rejected' => $allApprovals->filter(fn($item) => $item['type'] === 'history' && $item['approval']->status === 'rejected'),
-            default => $allApprovals
-        };
-    }
-
-    /**
      * Show public approval page (no authentication required)
      * Accessed via signed URL from email notification
      */

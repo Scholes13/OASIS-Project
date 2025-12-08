@@ -6,6 +6,7 @@ use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Core\BusinessUnit;
 use App\Models\Modules\PurchaseRequest\PrApproval;
 use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -362,9 +363,9 @@ class UserDashboard extends Component
         // Calculate previous period dates
         $currentStart = $this->startDate;
         $currentEnd = $this->endDate;
-        $periodLength = (int) now()->parse($currentStart)->diffInDays(now()->parse($currentEnd)) + 1;
-        $previousStart = now()->parse($currentStart)->subDays($periodLength)->format('Y-m-d');
-        $previousEnd = now()->parse($currentStart)->subDay()->format('Y-m-d');
+        $periodLength = (int) \Carbon\Carbon::parse($currentStart)->diffInDays(\Carbon\Carbon::parse($currentEnd)) + 1;
+        $previousStart = \Carbon\Carbon::parse($currentStart)->subDays($periodLength)->format('Y-m-d');
+        $previousEnd = \Carbon\Carbon::parse($currentStart)->subDay()->format('Y-m-d');
 
         // Get previous period PR stats
         $prevPrStats = DB::selectOne("
@@ -882,24 +883,26 @@ class UserDashboard extends Component
 
     protected function formatPRActivity(string $description, $pr): string
     {
+        $prNumber = e($pr->pr_number); // ✅ Escape to prevent XSS
         return match ($description) {
-            'created' => "New PR <strong>{$pr->pr_number}</strong> created",
-            'updated' => "PR <strong>{$pr->pr_number}</strong> updated",
-            'submitted' => "PR <strong>{$pr->pr_number}</strong> submitted for approval",
-            default => "PR <strong>{$pr->pr_number}</strong> {$description}",
+            'created' => "New PR <strong>{$prNumber}</strong> created",
+            'updated' => "PR <strong>{$prNumber}</strong> updated",
+            'submitted' => "PR <strong>{$prNumber}</strong> submitted for approval",
+            default => "PR <strong>{$prNumber}</strong> {$description}",
         };
     }
 
     protected function formatApprovalActivity(string $description, $approval): string
     {
         $pr = $approval->purchaseRequest;
+        $prNumber = e($pr->pr_number); // ✅ Escape to prevent XSS
 
         // Show actual approval status, not description
         return match ($approval->status) {
-            'approved' => "PR <strong>{$pr->pr_number}</strong> was <strong class='text-green-600'>approved</strong>",
-            'rejected' => "PR <strong>{$pr->pr_number}</strong> was <strong class='text-red-600'>rejected</strong>",
-            'pending' => "PR <strong>{$pr->pr_number}</strong> - <strong class='text-yellow-600'>Pending Approval</strong>",
-            default => "PR <strong>{$pr->pr_number}</strong> approval {$approval->status}",
+            'approved' => "PR <strong>{$prNumber}</strong> was <strong class='text-green-600'>approved</strong>",
+            'rejected' => "PR <strong>{$prNumber}</strong> was <strong class='text-red-600'>rejected</strong>",
+            'pending' => "PR <strong>{$prNumber}</strong> - <strong class='text-yellow-600'>Pending Approval</strong>",
+            default => "PR <strong>{$prNumber}</strong> approval {$approval->status}",
         };
     }
 

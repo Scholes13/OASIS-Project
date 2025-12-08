@@ -579,7 +579,6 @@
         });
 
         Livewire.on('chartDataUpdated', (event) => {
-            console.log('Chart data updated event received', event);
             // Delay to ensure DOM is updated
             setTimeout(() => initializeCharts(event.chartData), 150);
         });
@@ -587,7 +586,6 @@
         function initializeCharts(chartData) {
             // Check if Chart.js is loaded
             if (typeof Chart === 'undefined') {
-                console.log('Chart.js is not loaded yet, waiting...');
                 setTimeout(() => initializeCharts(chartData), 100);
                 return;
             }
@@ -597,7 +595,6 @@
             
             // Handle empty data - show empty state
             if (!chartData || !chartData.daily || chartData.daily.length === 0) {
-                console.log('Chart data is empty, showing empty state');
                 if (canvas) canvas.style.display = 'none';
                 if (emptyState) emptyState.style.display = 'flex';
                 return;
@@ -605,7 +602,6 @@
             
             // Canvas not found - might still be loading
             if (!canvas) {
-                console.log('Canvas not found, retrying...');
                 setTimeout(() => initializeCharts(chartData), 100);
                 return;
             }
@@ -706,10 +702,8 @@
                         }
                     }
                 });
-                
-                console.log('Daily chart created successfully');
             } catch (error) {
-                console.error('Error initializing charts:', error);
+                // Silent error handling for production
             }
         }
     </script>

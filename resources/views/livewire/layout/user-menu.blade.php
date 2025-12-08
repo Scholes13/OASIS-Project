@@ -89,7 +89,7 @@
                       open = false;
                       
                       // Get user name
-                      const userName = '{{ Auth::user()->name ?? 'User' }}';
+                      const userName = {{ Js::from(Auth::user()->name ?? 'User') }};
                       
                       // Create clean logout overlay - text focused
                       const overlay = document.createElement('div');

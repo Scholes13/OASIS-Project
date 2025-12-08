@@ -87,11 +87,12 @@
                     <p class="text-sm text-gray-500">Your purchase requests in {{ $businessUnitName }}</p>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span class="text-sm text-gray-500">Last updated: {{ now()->format('d M Y, H:i') }} (GMT+7)</span>
+                    <span class="text-sm text-gray-500">Last updated: {{ now()->format('d M Y, H:i') }} ({{ config('app.timezone') }})</span>
                     <button type="button" 
                             wire:click="$refresh" 
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-50 cursor-wait"
+                            aria-label="Refresh purchase request history"
                             class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50">
                         <svg class="w-4 h-4 mr-2 transition-transform duration-200" 
                              wire:loading.class="animate-spin" 
@@ -223,11 +224,13 @@
                         <span class="text-sm font-mono font-medium text-gray-900">{{ $reservation->pr_number }}</span>
                         <div class="ml-3 flex items-center gap-2">
                             <a href="{{ route('pr-numbers.continue', $reservation) }}" 
-                               class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                               class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                               aria-label="Continue PR {{ $reservation->pr_number }}">
                                 Continue
                             </a>
-                            <button wire:click="openVoidModal('{{ $reservation->id }}', '{{ $reservation->pr_number }}')" 
-                                    class="text-xs text-red-600 hover:text-red-800 font-medium">
+                            <button wire:click="openVoidModal({{ $reservation->id }})"
+                                    class="text-xs text-red-600 hover:text-red-800 font-medium"
+                                    aria-label="Void PR {{ $reservation->pr_number }}">
                                 Void
                             </button>
                         </div>
@@ -396,11 +399,11 @@
 
     <!-- Void Modal -->
     @if($showVoidModal)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" aria-modal="true" aria-labelledby="void-modal-title">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="mt-3">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Void PR Number</h3>
+                    <h3 id="void-modal-title" class="text-lg font-medium text-gray-900">Void PR Number</h3>
                     <button wire:click="closeVoidModal" class="text-gray-400 hover:text-gray-500">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

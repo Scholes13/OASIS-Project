@@ -196,16 +196,16 @@
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; min-width: 360px; max-width: 480px;">
                 
                 <!-- Logo Transition Container - Staged Animation -->
-                <div id="bu-logo-transition" style="display: flex; align-items: center; justify-content: center; gap: 28px; margin-bottom: 36px; min-height: 88px; position: relative;">
+                <div id="bu-logo-transition" style="position: relative; margin-bottom: 36px; min-height: 88px; display: flex; align-items: center; justify-content: center;">
                     
-                    <!-- From Logo - Starts at center, moves to left, then fades -->
-                    <div id="bu-from-logo" style="width: 80px; height: 80px; border-radius: 20px; overflow: visible; display: flex; align-items: center; justify-content: center; opacity: 0; position: relative; flex-shrink: 0;">
+                    <!-- From Logo - Starts at absolute center, moves to left, then fades -->
+                    <div id="bu-from-logo" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; border-radius: 20px; overflow: visible; display: flex; align-items: center; justify-content: center; opacity: 0; flex-shrink: 0;">
                         <span id="bu-from-initials" style="font-size: 32px; font-weight: 700; color: white; display: none; width: 100%; height: 100%; align-items: center; justify-content: center; border-radius: 20px;"></span>
                         <img id="bu-from-img" style="width: 100%; height: 100%; object-fit: contain; display: none;" alt="">
                     </div>
                     
-                    <!-- Arrow Animation - Hidden initially -->
-                    <div id="bu-arrow-container" style="display: flex; align-items: center; gap: 6px; opacity: 0; transform: scale(0.5);">
+                    <!-- Arrow Animation - Hidden initially, positioned at center -->
+                    <div id="bu-arrow-container" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; opacity: 0;">
                         <div style="width: 10px; height: 10px; background: #3b82f6; border-radius: 50%; animation: arrowPulse 1s ease-in-out infinite;"></div>
                         <div style="width: 10px; height: 10px; background: #3b82f6; border-radius: 50%; animation: arrowPulse 1s ease-in-out infinite; animation-delay: 0.15s;"></div>
                         <div style="width: 10px; height: 10px; background: #3b82f6; border-radius: 50%; animation: arrowPulse 1s ease-in-out infinite; animation-delay: 0.3s;"></div>
@@ -214,8 +214,8 @@
                         </svg>
                     </div>
                     
-                    <!-- To Logo - Hidden initially, appears from right -->
-                    <div id="bu-to-logo" style="width: 80px; height: 80px; border-radius: 20px; overflow: visible; display: flex; align-items: center; justify-content: center; opacity: 0; transform: translateX(30px) scale(0.8); flex-shrink: 0;">
+                    <!-- To Logo - Starts at right, slides to center -->
+                    <div id="bu-to-logo" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) translateX(150px) scale(0.7); width: 80px; height: 80px; border-radius: 20px; overflow: visible; display: flex; align-items: center; justify-content: center; opacity: 0; flex-shrink: 0;">
                         <span id="bu-to-initials" style="font-size: 32px; font-weight: 700; color: white; display: none; width: 100%; height: 100%; align-items: center; justify-content: center; border-radius: 20px;"></span>
                         <img id="bu-to-img" style="width: 100%; height: 100%; object-fit: contain; display: none;" alt="">
                     </div>
@@ -272,11 +272,11 @@
             @keyframes stage1_fromAppear {
                 0% { 
                     opacity: 0; 
-                    transform: scale(0.5); 
+                    transform: translate(-50%, -50%) scale(0.5); 
                 }
                 100% { 
                     opacity: 1; 
-                    transform: scale(1); 
+                    transform: translate(-50%, -50%) scale(1); 
                 }
             }
             
@@ -284,23 +284,23 @@
             @keyframes stage2_fromSlideLeft {
                 0% { 
                     opacity: 1; 
-                    transform: translateX(54px) scale(1); 
+                    transform: translate(-50%, -50%) translateX(0) scale(1); 
                 }
                 100% { 
                     opacity: 1; 
-                    transform: translateX(0) scale(0.95); 
+                    transform: translate(-50%, -50%) translateX(-120px) scale(0.95); 
                 }
             }
             
-            /* Stage 3: Arrow appears */
+            /* Stage 3: Arrow appears at center */
             @keyframes stage3_arrowAppear {
                 0% { 
                     opacity: 0; 
-                    transform: scale(0.3); 
+                    transform: translate(-50%, -50%) scale(0.3); 
                 }
                 100% { 
                     opacity: 1; 
-                    transform: scale(1); 
+                    transform: translate(-50%, -50%) scale(1); 
                 }
             }
             
@@ -308,11 +308,11 @@
             @keyframes stage3_toAppear {
                 0% { 
                     opacity: 0; 
-                    transform: translateX(40px) scale(0.7); 
+                    transform: translate(-50%, -50%) translateX(150px) scale(0.7); 
                 }
                 100% { 
                     opacity: 1; 
-                    transform: translateX(0) scale(1); 
+                    transform: translate(-50%, -50%) translateX(120px) scale(1); 
                 }
             }
             
@@ -320,11 +320,11 @@
             @keyframes stage4_fromFade {
                 0% { 
                     opacity: 1; 
-                    transform: translateX(0) scale(0.95); 
+                    transform: translate(-50%, -50%) translateX(-120px) scale(0.95); 
                 }
                 100% { 
                     opacity: 0.35; 
-                    transform: translateX(0) scale(0.9); 
+                    transform: translate(-50%, -50%) translateX(-120px) scale(0.9); 
                     filter: grayscale(0.5);
                 }
             }
@@ -360,12 +360,6 @@
                  * Start the switch process - called by BusinessUnitSwitcher
                  */
                 startSwitch: function(fromBu, toBu, components = []) {
-                    console.log('🚀 BU Switch started', { 
-                        from: fromBu?.code, 
-                        to: toBu?.code, 
-                        waitingFor: components 
-                    });
-                    
                     this.isActive = true;
                     this.pendingAcknowledgments = new Set(components);
                     this.requiredComponents = [...components];
@@ -381,30 +375,16 @@
                  * Component acknowledges it has finished refreshing
                  */
                 acknowledge: function(componentName) {
-                    console.log('📥 Acknowledge called:', componentName, {
-                        isActive: this.isActive,
-                        pending: Array.from(this.pendingAcknowledgments)
-                    });
-                    
                     if (!this.isActive) {
-                        console.log('ℹ️ Acknowledgment received but no active switch');
                         return;
                     }
                     
                     // Remove from pending
-                    const wasRemoved = this.pendingAcknowledgments.delete(componentName);
-                    
-                    console.log('✅ Component acknowledged:', componentName, {
-                        wasInSet: wasRemoved,
-                        remaining: Array.from(this.pendingAcknowledgments)
-                    });
+                    this.pendingAcknowledgments.delete(componentName);
                     
                     // Check if all components have acknowledged
                     if (this.pendingAcknowledgments.size === 0) {
-                        console.log('🎉 All components acknowledged - completing switch');
                         this.complete();
-                    } else {
-                        console.log('⏳ Still waiting for:', Array.from(this.pendingAcknowledgments));
                     }
                 },
                 
@@ -414,7 +394,6 @@
                 complete: function() {
                     if (!this.isActive) return;
                     
-                    console.log('✨ BU Switch complete - hiding loader');
                     this.isActive = false;
                     this.pendingAcknowledgments.clear();
                     
@@ -550,6 +529,17 @@
                     document.body.style.overflow = 'hidden';
                     window._buLoaderShownAt = Date.now();
                     
+                    // ✅ SAFETY TIMEOUT: Auto-hide loader after 15 seconds if Livewire fails to respond
+                    if (window._buLoaderTimeoutId) {
+                        clearTimeout(window._buLoaderTimeoutId);
+                    }
+                    window._buLoaderTimeoutId = setTimeout(() => {
+                        console.warn('⚠️ Loader timeout reached (15s) - forcing hide and page reload');
+                        window.hideGlobalBuLoader();
+                        // Reload page to ensure UI sync after timeout
+                        setTimeout(() => window.location.reload(), 500);
+                    }, 15000); // 15 seconds timeout
+                    
                     // ═══════════════════════════════════════════════════════════
                     // STAGED ANIMATION SEQUENCE
                     // ═══════════════════════════════════════════════════════════
@@ -580,7 +570,7 @@
                         }, 1100);
                     });
                     
-                    console.log('⚡ Loader shown with staged animations');
+                    console.log('⚡ Loader shown with staged animations + 15s timeout fallback');
                 } else {
                     console.error('❌ Loader element not found!');
                 }
@@ -589,6 +579,12 @@
             window.hideGlobalBuLoader = function() {
                 const globalLoader = document.getElementById('global-bu-loader');
                 if (!globalLoader) return;
+                
+                // ✅ Clear timeout to prevent unnecessary reload
+                if (window._buLoaderTimeoutId) {
+                    clearTimeout(window._buLoaderTimeoutId);
+                    window._buLoaderTimeoutId = null;
+                }
                 
                 // Minimum loader time for smooth UX
                 const MIN_LOADER_TIME = 500;

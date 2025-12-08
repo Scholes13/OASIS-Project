@@ -197,10 +197,17 @@ class MyHistory extends Component
     /**
      * Open void modal
      */
-    public function openVoidModal($reservationId, $prNumber): void
+    public function openVoidModal(int $reservationId): void
     {
+        $reservation = PrNumberReservation::find($reservationId);
+        
+        if (!$reservation) {
+            $this->dispatch('notify', message: 'Reservation not found.', type: 'error');
+            return;
+        }
+        
         $this->voidReservationId = $reservationId;
-        $this->voidPrNumber = $prNumber;
+        $this->voidPrNumber = $reservation->pr_number;
         $this->voidReason = '';
         $this->showVoidModal = true;
     }
@@ -230,24 +237,46 @@ class MyHistory extends Component
 
         $reservation = PrNumberReservation::find($this->voidReservationId);
 
-        if ($reservation && $reservation->status === 'reserved') {
-            $reservation->update([
-                'status' => 'voided',
-                'voided_at' => now(),
-                'voided_by' => Auth::id(),
-                'void_reason' => $this->voidReason,
-            ]);
-
+        // Authorization check: User can only void their own reservations
+        if (!$reservation) {
             $this->dispatch('notify',
-                message: "PR Number {$this->voidPrNumber} has been voided.",
-                type: 'success'
-            );
-        } else {
-            $this->dispatch('notify',
-                message: 'Unable to void this reservation.',
+                message: 'Reservation not found.',
                 type: 'error'
             );
+            $this->closeVoidModal();
+            return;
         }
+
+        if ($reservation->user_id !== Auth::id()) {
+            $this->dispatch('notify',
+                message: 'Unauthorized: You can only void your own reservations.',
+                type: 'error'
+            );
+            $this->closeVoidModal();
+            return;
+        }
+
+        if ($reservation->status !== 'reserved') {
+            $this->dispatch('notify',
+                message: 'This reservation cannot be voided.',
+                type: 'error'
+            );
+            $this->closeVoidModal();
+            return;
+        }
+
+        // All checks passed, proceed with voiding
+        $reservation->update([
+            'status' => 'voided',
+            'voided_at' => now(),
+            'voided_by' => Auth::id(),
+            'void_reason' => $this->voidReason,
+        ]);
+
+        $this->dispatch('notify',
+            message: "PR Number {$this->voidPrNumber} has been voided.",
+            type: 'success'
+        );
 
         $this->closeVoidModal();
     }
@@ -258,7 +287,7 @@ class MyHistory extends Component
         if (! $this->readyToLoad) {
             return view('livewire.modules.purchase-request.my-history', [
                 'purchaseRequests' => new LengthAwarePaginator([], 0, 10),
-                'reservations' => collect(),
+                'reservations' => new LengthAwarePaginator([], 0, 10),
             ]);
         }
 

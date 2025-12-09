@@ -29,7 +29,7 @@ class ApprovalController extends Controller
             'purchaseRequest' => function ($query) {
                 $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id', 
                               'used_for', 'total_amount', 'currency', 'status', 
-                              'date_of_request', 'designated_date', 'submitted_at', 'approved_at');
+                              'date_of_request', 'designated_date', 'created_at', 'submitted_at', 'approved_at');
             },
             'purchaseRequest.user:id,name,email',
             'purchaseRequest.department:id,name,code',
@@ -67,9 +67,17 @@ class ApprovalController extends Controller
     public function process(Request $request, $approvalId)
     {
         $request->validate([
-            'action' => 'required|in:approved,rejected',
+            'action' => 'required|in:approve,reject,approved,rejected',
             'notes' => 'nullable|string|max:1000',
         ]);
+
+        // Normalize action to past tense for workflow service
+        $action = $request->action;
+        if ($action === 'approve') {
+            $action = 'approved';
+        } elseif ($action === 'reject') {
+            $action = 'rejected';
+        }
 
         // Optimized: Only load minimal data needed for processing
         $approval = PrApproval::with([
@@ -95,11 +103,11 @@ class ApprovalController extends Controller
         try {
             $this->workflowService->processApproval(
                 $approval,
-                $request->action,
+                $action,
                 $request->notes
             );
 
-            $message = $request->action === 'approved'
+            $message = $action === 'approved'
                 ? 'Purchase request has been approved successfully.'
                 : 'Purchase request has been rejected.';
 

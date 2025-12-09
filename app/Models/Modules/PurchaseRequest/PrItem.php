@@ -69,6 +69,7 @@ class PrItem extends Model
         'expense_department_id',
         'item_description',
         'supplier_name',
+        'image_path',
         'quantity',
         'unit',
         'unit_price',
@@ -137,6 +138,9 @@ class PrItem extends Model
             if ($item->purchaseRequest) {
                 $item->purchaseRequest->updateTotalAmount();
             }
+            
+            // Auto-delete image when item is deleted
+            $item->deleteImage();
         });
     }
 
@@ -178,6 +182,38 @@ class PrItem extends Model
     public function getFormattedTotalPriceAttribute(): string
     {
         return $this->currency.' '.number_format($this->total_price, 2);
+    }
+
+    /**
+     * Get full URL for item image
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if (!$this->image_path) {
+            return null;
+        }
+        
+        return \Storage::url($this->image_path);
+    }
+
+    /**
+     * Check if item has image
+     */
+    public function hasImage(): bool
+    {
+        return !empty($this->image_path) && \Storage::exists($this->image_path);
+    }
+
+    /**
+     * Delete item image from storage
+     */
+    public function deleteImage(): bool
+    {
+        if ($this->image_path && \Storage::exists($this->image_path)) {
+            return \Storage::delete($this->image_path);
+        }
+        
+        return false;
     }
 
     /**

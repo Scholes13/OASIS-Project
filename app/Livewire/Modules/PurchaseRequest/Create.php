@@ -13,9 +13,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Create extends Component
 {
+    use WithFileUploads;
+    
     // Livewire listeners
     protected $listeners = [
         'refreshComponent' => '$refresh',
@@ -44,6 +47,8 @@ class Create extends Component
     public $currency = 'IDR';      // Currency
 
     public $items = [];            // Items array (always initialized)
+
+    public $itemImages = [];       // Temporary uploaded images (indexed by item index)
 
     public $departments = [];      // Available departments
 
@@ -857,10 +862,65 @@ class Create extends Component
     public function removeItem($index)
     {
         if (is_array($this->items) && count($this->items) > 1 && isset($this->items[$index])) {
+            // Remove temporary uploaded image if exists
+            if (isset($this->itemImages[$index])) {
+                unset($this->itemImages[$index]);
+            }
+            
+            // Remove existing image from storage if editing
+            if ($this->isEdit && !empty($this->items[$index]['image_path'])) {
+                \Storage::delete($this->items[$index]['image_path']);
+            }
+            
             unset($this->items[$index]);
             $this->items = array_values($this->items);
+            $this->itemImages = array_values($this->itemImages ?? []);
             $this->calculateTotals();
         }
+    }
+
+    /**
+     * Handle image upload for specific item
+     */
+    public function updatedItemImages($value, $key)
+    {
+        // Validate uploaded image
+        $this->validate([
+            "itemImages.{$key}" => 'nullable|image|max:2048', // Max 2MB
+        ], [
+            "itemImages.{$key}.image" => 'File must be an image (jpg, png, jpeg, gif, svg).',
+            "itemImages.{$key}.max" => 'Image size must not exceed 2MB.',
+        ]);
+    }
+
+    /**
+     * Remove uploaded image from specific item
+     */
+    public function removeItemImage($index)
+    {
+        // Remove temporary upload
+        if (isset($this->itemImages[$index])) {
+            unset($this->itemImages[$index]);
+        }
+        
+        // Remove existing image from storage and database if editing
+        if ($this->isEdit && !empty($this->items[$index]['image_path'])) {
+            \Storage::delete($this->items[$index]['image_path']);
+            $this->items[$index]['image_path'] = null;
+            
+            // Update database if item already exists
+            if ($this->purchaseRequestId && !empty($this->items[$index]['id'])) {
+                $prItem = PrItem::find($this->items[$index]['id']);
+                if ($prItem) {
+                    $prItem->update(['image_path' => null]);
+                }
+            }
+        }
+        
+        $this->dispatch('notify', [
+            'message' => 'Image removed successfully',
+            'type' => 'success'
+        ]);
     }
 
     // Optimized updater - only for quantity and unit_price that affect totals
@@ -1280,12 +1340,26 @@ class Create extends Component
 
     protected function buildRequestPayload(string $status = 'draft'): array
     {
-        $items = collect($this->items)->map(function ($item) {
+        $items = collect($this->items)->map(function ($item, $index) {
+            // Handle image upload if exists
+            $imagePath = $item['image_path'] ?? null;
+            
+            // Check if new image uploaded for this item
+            if (isset($this->itemImages[$index]) && $this->itemImages[$index]) {
+                // Delete old image if exists
+                if ($imagePath) {
+                    \Storage::delete($imagePath);
+                }
+                // Store new image
+                $imagePath = $this->itemImages[$index]->store('pr-items', 'public');
+            }
+            
             return [
                 'item_name' => $item['item_name'] ?? '',
                 'brand_name' => $item['brand_name'] ?? null,
                 'item_description' => $item['item_description'] ?? null,
                 'supplier_name' => $item['supplier_name'] ?? null,
+                'image_path' => $imagePath,
                 'quantity' => $item['quantity'] ?? 1,
                 'unit' => $item['unit'] ?? 'pcs',
                 'unit_price' => is_numeric($item['unit_price'] ?? null) ? $item['unit_price'] : str_replace(',', '', $item['unit_price'] ?? 0),
@@ -1424,6 +1498,12 @@ class Create extends Component
 
             // Create PR items
             foreach ($this->items as $index => $itemData) {
+                // Handle image upload if exists
+                $imagePath = null;
+                if (isset($this->itemImages[$index]) && $this->itemImages[$index]) {
+                    $imagePath = $this->itemImages[$index]->store('pr-items', 'public');
+                }
+                
                 PrItem::create([
                     'purchase_request_id' => $purchaseRequest->id,
                     'item_order' => $index + 1,
@@ -1431,6 +1511,7 @@ class Create extends Component
                     'brand_name' => $itemData['brand_name'],
                     'item_description' => $itemData['item_description'],
                     'supplier_name' => $itemData['supplier_name'],
+                    'image_path' => $imagePath,
                     'quantity' => $itemData['quantity'],
                     'unit' => $itemData['unit'],
                     'unit_price' => str_replace(',', '', $itemData['unit_price']),

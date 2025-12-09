@@ -354,23 +354,24 @@
         }
         
         .items-table td {
-            padding: 6px 4px;
+            padding: 8px 4px;
             border: 1px solid #d1d5db;
-            vertical-align: top;
+            vertical-align: middle;
             line-height: 1.3;
         }
         
         /* Column Widths */
-        .col-no { width: 4%; }
-        .col-item { width: 15%; }
-        .col-brand { width: 10%; }
-        .col-description { width: 18%; }
-        .col-supplier { width: 12%; }
+        .col-no { width: 3%; }
+        .col-item { width: 13%; }
+        .col-brand { width: 9%; }
+        .col-description { width: 16%; }
+        .col-supplier { width: 10%; }
         .col-qty { width: 5%; }
         .col-unit { width: 5%; }
         .col-price { width: 8%; }
         .col-cr { width: 4%; }
         .col-total { width: 10%; }
+        .col-image { width: 10%; }
         
         .row-even {
             background: #ffffff;
@@ -868,6 +869,7 @@
                     <th class="col-price">UNIT PRICE</th>
                     <th class="col-cr">CR</th>
                     <th class="col-total">TOTAL PRICE</th>
+                    <th class="col-image">IMAGE</th>
                 </tr>
             </thead>
             <tbody>
@@ -883,12 +885,55 @@
                     <td class="text-right">{{ number_format($item->unit_price, 0) }}</td>
                     <td class="text-center">{{ $item->currency }}</td>
                     <td class="text-right">{{ number_format($item->quantity * $item->unit_price, 0) }}</td>
+                    <td class="text-center" style="padding: 4px;">
+                        @if($item->image_path)
+                            @php
+                                try {
+                                    // Get full path to image
+                                    $fullPath = storage_path('app/public/' . $item->image_path);
+                                    
+                                    if (file_exists($fullPath)) {
+                                        // Convert to base64 for PDF embedding
+                                        $imageData = base64_encode(file_get_contents($fullPath));
+                                        $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+                                        
+                                        // Map extension to MIME type
+                                        $mimeTypes = [
+                                            'jpg' => 'jpeg',
+                                            'jpeg' => 'jpeg',
+                                            'png' => 'png',
+                                            'gif' => 'gif',
+                                            'webp' => 'webp'
+                                        ];
+                                        $imageType = $mimeTypes[$extension] ?? 'jpeg';
+                                        
+                                        $imageSrc = 'data:image/' . $imageType . ';base64,' . $imageData;
+                                        $showImage = true;
+                                    } else {
+                                        $showImage = false;
+                                    }
+                                } catch (\Exception $e) {
+                                    $showImage = false;
+                                }
+                            @endphp
+                            
+                            @if(isset($showImage) && $showImage)
+                                <img src="{{ $imageSrc }}" 
+                                     alt="Item" 
+                                     style="width: 60px; height: 60px; object-fit: cover; border: 1px solid #ddd; display: block; margin: 0 auto;">
+                            @else
+                                <span style="font-size: 18px; color: #999;">-</span>
+                            @endif
+                        @else
+                            <span style="font-size: 18px; color: #999;">-</span>
+                        @endif
+                    </td>
                 </tr>
                 @endforeach
                 
                 <!-- Total Row -->
                 <tr class="total-row">
-                    <td colspan="9" class="total-label"><strong>Total Amount:</strong></td>
+                    <td colspan="10" class="total-label"><strong>Total Amount:</strong></td>
                     <td class="text-right total-amount"><strong>{{ number_format($purchaseRequest->total_amount, 0) }}</strong></td>
                 </tr>
             </tbody>

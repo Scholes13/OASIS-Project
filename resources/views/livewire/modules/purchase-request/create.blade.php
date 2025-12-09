@@ -234,6 +234,7 @@
                                 <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-36 min-w-36">Unit</th>
                                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Price</th>
                                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Total</th>
+                                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-32">Image</th>
                                 <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Actions</th>
                             </tr>
                         </thead>
@@ -365,6 +366,66 @@
                                         <span id="total-{{ $index }}" data-value="{{ $itemTotal }}">{{ number_format($itemTotal, 0, '', ',') }}</span>
                                     </td>
 
+                                    <!-- Image Upload -->
+                                    <td class="px-3 py-3">
+                                        <div class="flex flex-col items-center space-y-2">
+                                            @if(isset($itemImages[$index]) && $itemImages[$index])
+                                                <!-- Preview uploaded image -->
+                                                <div class="relative">
+                                                    <img src="{{ $itemImages[$index]->temporaryUrl() }}" 
+                                                         alt="Preview" 
+                                                         class="w-16 h-16 object-cover rounded border border-gray-300">
+                                                    <button 
+                                                        wire:click="removeItemImage({{ $index }})"
+                                                        type="button"
+                                                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            @elseif($isEdit && !empty($items[$index]['image_path']))
+                                                <!-- Show existing image for edit mode -->
+                                                <div class="relative">
+                                                    <img src="{{ Storage::url($items[$index]['image_path']) }}" 
+                                                         alt="Item image" 
+                                                         class="w-16 h-16 object-cover rounded border border-gray-300">
+                                                    <button 
+                                                        wire:click="removeItemImage({{ $index }})"
+                                                        type="button"
+                                                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            @else
+                                                <!-- Upload button -->
+                                                <label class="cursor-pointer">
+                                                    <input 
+                                                        type="file" 
+                                                        wire:model="itemImages.{{ $index }}" 
+                                                        accept="image/*"
+                                                        class="hidden">
+                                                    <div class="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                                                        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                                        </svg>
+                                                    </div>
+                                                </label>
+                                            @endif
+                                            
+                                            <!-- Loading indicator -->
+                                            <div wire:loading wire:target="itemImages.{{ $index }}" class="text-xs text-blue-600">
+                                                Uploading...
+                                            </div>
+                                            
+                                            @error("itemImages.{$index}") 
+                                                <p class="text-xs text-red-500 text-center">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </td>
+
                                     <!-- Actions -->
                                     <td class="px-2 py-2">
                                         @if(count($items ?? []) > 1)
@@ -383,7 +444,7 @@
                             @endforeach
                         @else
                             <tr>
-                                <td colspan="10" class="px-6 py-4 text-center text-gray-500">
+                                <td colspan="11" class="px-6 py-4 text-center text-gray-500">
                                     No items added yet. Click "Add Item" to get started.
                                 </td>
                             </tr>

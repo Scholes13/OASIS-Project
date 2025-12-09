@@ -53,12 +53,24 @@ class BusinessUnitSwitcher extends Component
     {
         $user = Auth::user();
 
-        // Load current BU from session (logo is set by middleware or switchBusinessUnit)
+        // ✅ FIX: Load current BU from session, fetch logo from DB if not in session
+        $sessionBuId = session('current_business_unit_id');
+        $sessionLogo = session('current_business_unit_logo');
+        
+        // If logo not in session, fetch from database
+        if ($sessionBuId && !$sessionLogo) {
+            $currentBu = BusinessUnit::find($sessionBuId);
+            if ($currentBu) {
+                session(['current_business_unit_logo' => $currentBu->logo]);
+                $sessionLogo = $currentBu->logo;
+            }
+        }
+        
         $this->currentBusinessUnit = [
-            'id' => session('current_business_unit_id'),
+            'id' => $sessionBuId,
             'code' => session('current_business_unit_code'),
             'name' => session('current_business_unit_name'),
-            'logo' => session('current_business_unit_logo'),
+            'logo' => $sessionLogo,
         ];
 
         // Super admins don't have business unit assignments
@@ -70,6 +82,7 @@ class BusinessUnitSwitcher extends Component
                     'name' => 'Werkudara Group',
                     'role' => 'super_admin',
                     'department_id' => null,
+                    'logo' => null,
                 ],
             ]);
 

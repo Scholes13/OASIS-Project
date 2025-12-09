@@ -100,6 +100,27 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     });
 
     // ============================================================================
+    // Stock Request Routes (v3)
+    // ============================================================================
+    Route::prefix('stock-requests')->name('stock-requests.')->group(function () {
+        // List Routes
+        Route::get('/', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'index'])->name('index');
+        Route::get('/all/list', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'all'])->name('all');
+
+        // Create Route - Loads Livewire component for creating new Stock Request
+        Route::get('/create', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'create'])->name('create');
+
+        // View/Edit Routes
+        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'show'])->name('show');
+        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'edit'])->name('edit');
+
+        // Action Routes
+        Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
+        Route::post('/{stockRequest}/resubmit', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'resubmit'])->name('resubmit');
+        Route::post('/{stockRequest}/void', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'void'])->name('void');
+    });
+
+    // ============================================================================
     // Sales CRM Routes (v2.5)
     // ============================================================================
     Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {

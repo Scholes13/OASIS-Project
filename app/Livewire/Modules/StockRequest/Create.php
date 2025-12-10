@@ -167,8 +167,30 @@ class Create extends Component
 
     public function handleBusinessUnitSwitch($businessUnitId): void
     {
+        // Reset form state
+        $this->purpose = '';
+        $this->expected_date = now()->addDays(7)->format('Y-m-d');
+        $this->items = [];
+        $this->customApprovalList = [];
+        $this->total_amount = 0;
+        
+        // Reinitialize user properties with new business unit
         $this->initializeUserProperties();
-        $this->dispatch('notify', ['message' => 'Business unit changed.', 'type' => 'info']);
+        
+        // Reload approvers for new business unit
+        $this->loadAvailableApprovers();
+        
+        // Add initial item
+        $this->addItem();
+        
+        // ✅ ORCHESTRATOR: Acknowledge completion
+        $this->dispatch('bu-switch-acknowledge', component: 'sr-create');
+        
+        $buName = session('current_business_unit_name', 'new business unit');
+        $this->dispatch('notify',
+            message: "Switched to {$buName}. Form has been reset.",
+            type: 'success'
+        );
     }
 
     public function submitStockRequest()

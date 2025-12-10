@@ -24,7 +24,15 @@ window.toastManager = {
             if (typeof Livewire !== 'undefined') {
                 Livewire.on('notify', (data) => {
                     console.log('Livewire notify received:', data);
-                    this.show(data.message, data.type, data.duration);
+                    // Handle both array format and object format
+                    if (Array.isArray(data) && data.length > 0) {
+                        const eventData = data[0];
+                        this.show(eventData.message, eventData.type, eventData.duration);
+                    } else if (typeof data === 'object' && data.message) {
+                        this.show(data.message, data.type, data.duration);
+                    } else {
+                        console.error('Invalid notify data format:', data);
+                    }
                 });
             }
         });

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Core\User;
-use App\Services\Modules\PurchaseRequest\UniversalPRNumberingService;
+use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

@@ -149,7 +149,7 @@ class BusinessUnit extends Model
      */
     public function purchaseRequests()
     {
-        return $this->hasMany(\App\Models\Modules\PurchaseRequest\PurchaseRequest::class, 'business_unit_id');
+        return $this->hasMany(\App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::class, 'business_unit_id');
     }
 
     /**

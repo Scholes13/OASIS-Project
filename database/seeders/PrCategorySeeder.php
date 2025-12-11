@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Modules\PurchaseRequest\PrCategory;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrCategory;
 use Illuminate\Database\Seeder;
 
 class PrCategorySeeder extends Seeder

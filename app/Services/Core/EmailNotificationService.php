@@ -3,10 +3,10 @@
 namespace App\Services\Core;
 
 use App\Models\Core\NotificationSetting;
-use App\Models\Modules\PurchaseRequest\PrApproval;
-use App\Notifications\PurchaseRequest\ApprovalRequested;
-use App\Notifications\PurchaseRequest\ApprovalRejected;
-use App\Notifications\PurchaseRequest\ApprovalCompleted;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
+use App\Notifications\Purchasing\PurchaseRequest\ApprovalRequested;
+use App\Notifications\Purchasing\PurchaseRequest\ApprovalRejected;
+use App\Notifications\Purchasing\PurchaseRequest\ApprovalCompleted;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;

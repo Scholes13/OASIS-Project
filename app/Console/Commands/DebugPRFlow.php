@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Core\NumberSequence;
 use App\Models\Core\User;
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Console\Command;
 
 class DebugPRFlow extends Command

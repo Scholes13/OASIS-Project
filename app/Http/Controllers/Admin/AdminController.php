@@ -7,8 +7,8 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\NumberSequence;
 use App\Models\Core\User;
-use App\Models\Modules\PurchaseRequest\PrApproval;
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller

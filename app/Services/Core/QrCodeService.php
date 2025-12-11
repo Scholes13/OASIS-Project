@@ -2,8 +2,10 @@
 
 namespace App\Services\Core;
 
-use App\Models\Modules\PurchaseRequest\PrApproval;
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\StockRequest\StockApproval;
+use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 /**
@@ -190,5 +192,132 @@ class QrCodeService
         $qrCodeSvg = $this->generatePlaceholderQr();
 
         return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
+    }
+
+    // ========================================
+    // STOCK REQUEST QR CODE METHODS
+    // ========================================
+
+    /**
+     * Generate QR code for stock request creator
+     */
+    public function generateStockRequestorQrCode(StockRequest $stockRequest): string
+    {
+        if (!$stockRequest->submitted_at) {
+            return $this->generatePlaceholderQr();
+        }
+
+        // Generate verification token for requestor
+        $verificationToken = $this->generateStockRequestorToken($stockRequest);
+
+        // Create public URL for SR verification
+        $publicUrl = route('stock-requests.public', [
+            'sr' => $stockRequest->id,
+            'token' => $verificationToken,
+            'requestor' => $stockRequest->user_id,
+        ]);
+
+        // Generate QR code as SVG for PDF embedding
+        return QrCode::format('svg')
+            ->size(120)
+            ->margin(1)
+            ->generate($publicUrl);
+    }
+
+    /**
+     * Generate QR code for stock request approver
+     */
+    public function generateStockApprovalQrCode(StockApproval $approval): string
+    {
+        if ($approval->status !== 'approved') {
+            return $this->generatePlaceholderQr();
+        }
+
+        // Generate verification token for this approval
+        $verificationToken = $this->generateStockApprovalToken($approval);
+
+        // Create public URL for SR verification
+        $publicUrl = route('stock-requests.public', [
+            'sr' => $approval->stock_request_id,
+            'token' => $verificationToken,
+            'approver' => $approval->approver_id,
+        ]);
+
+        // Generate QR code as SVG for PDF embedding
+        return QrCode::format('svg')
+            ->size(120)
+            ->margin(1)
+            ->generate($publicUrl);
+    }
+
+    /**
+     * Generate base64 data URL for stock requestor QR code
+     */
+    public function generateStockRequestorQrCodeDataUrl(StockRequest $stockRequest): string
+    {
+        $qrCodeSvg = $this->generateStockRequestorQrCode($stockRequest);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
+    }
+
+    /**
+     * Generate base64 data URL for stock approval QR code
+     */
+    public function generateStockApprovalQrCodeDataUrl(StockApproval $approval): string
+    {
+        $qrCodeSvg = $this->generateStockApprovalQrCode($approval);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
+    }
+
+    /**
+     * Generate verification token for stock requestor
+     */
+    protected function generateStockRequestorToken(StockRequest $stockRequest): string
+    {
+        $data = [
+            'sr_id' => $stockRequest->id,
+            'user_id' => $stockRequest->user_id,
+            'submitted_at' => $stockRequest->submitted_at?->timestamp,
+            'type' => 'stock_requestor',
+        ];
+
+        return hash('sha256', json_encode($data).config('app.key'));
+    }
+
+    /**
+     * Generate verification token for stock approval
+     */
+    public function generateStockApprovalToken(StockApproval $approval): string
+    {
+        $data = [
+            'approval_id' => $approval->id,
+            'sr_id' => $approval->stock_request_id,
+            'approver_id' => $approval->approver_id,
+            'approved_at' => $approval->responded_at?->timestamp,
+            'type' => 'stock_approval',
+        ];
+
+        return hash('sha256', json_encode($data).config('app.key'));
+    }
+
+    /**
+     * Verify stock requestor token
+     */
+    public function verifyStockRequestorToken(StockRequest $stockRequest, string $token): bool
+    {
+        $expectedToken = $this->generateStockRequestorToken($stockRequest);
+
+        return hash_equals($expectedToken, $token);
+    }
+
+    /**
+     * Verify stock approval token
+     */
+    public function verifyStockApprovalToken(StockApproval $approval, string $token): bool
+    {
+        $expectedToken = $this->generateStockApprovalToken($approval);
+
+        return hash_equals($expectedToken, $token);
     }
 }

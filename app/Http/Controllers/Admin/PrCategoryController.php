@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Modules\PurchaseRequest\PrCategory;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrCategory;
 use Illuminate\Http\Request;
 
 class PrCategoryController extends Controller

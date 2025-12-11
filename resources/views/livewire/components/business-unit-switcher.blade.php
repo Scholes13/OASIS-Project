@@ -25,6 +25,9 @@
             
             if (currentPath === '/' || currentPath === '/dashboard') {
                 requiredComponents.push('dashboard');
+            } else if (currentPath.includes('/purchasing/all-requests')) {
+                // ✅ Purchasing All Requests page (combined PR + ST)
+                requiredComponents.push('purchasing-all-requests');
             } else if (currentPath.includes('/purchase-requests/all')) {
                 // ✅ All Requests page (must come before general purchase-request check)
                 requiredComponents.push('all-requests');
@@ -32,6 +35,10 @@
                 requiredComponents.push('pr-create');
             } else if (currentPath.includes('/purchase-request')) {
                 requiredComponents.push('pr-history');
+            } else if (currentPath.includes('/stock-request') && currentPath.includes('/create')) {
+                requiredComponents.push('sr-create');
+            } else if (currentPath.includes('/stock-request')) {
+                requiredComponents.push('sr-history');
             } else if (currentPath === '/approvals' || currentPath.startsWith('/approvals?')) {
                 // ✅ Approvals index page
                 requiredComponents.push('approvals');

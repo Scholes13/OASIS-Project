@@ -60,28 +60,30 @@ class Sidebar extends Component
             ],
         ];
 
-        // Purchase Request module - only visible if user has active business unit
+        // Purchasing module - parent menu with PR and SR
         if ($hasBusinessUnit && $currentBusinessUnitId) {
             $navigation[] = [
-                'name' => 'Purchase Requests',
+                'name' => 'Purchasing',
                 'href' => route('purchase-requests.index'),
-                'icon' => 'document-text',
-                'current' => str_starts_with($this->currentRoute, 'purchase-requests'),
+                'icon' => 'shopping-cart',
+                'current' => str_starts_with($this->currentRoute, 'purchase-requests') 
+                          || str_starts_with($this->currentRoute, 'stock-requests')
+                          || str_starts_with($this->currentRoute, 'purchasing'),
                 'children' => [
                     [
-                        'name' => 'Create New PR',
-                        'href' => route('purchase-requests.create'),
-                        'current' => $this->currentRoute === 'purchase-requests.create',
-                    ],
-                    [
-                        'name' => 'My History',
+                        'name' => 'Purchase Request',
                         'href' => route('purchase-requests.index'),
                         'current' => $this->currentRoute === 'purchase-requests.index',
                     ],
                     [
+                        'name' => 'Stock Request',
+                        'href' => route('stock-requests.index'),
+                        'current' => $this->currentRoute === 'stock-requests.index',
+                    ],
+                    [
                         'name' => 'All Requests',
-                        'href' => route('purchase-requests.all'),
-                        'current' => $this->currentRoute === 'purchase-requests.all',
+                        'href' => route('purchasing.all-requests'),
+                        'current' => $this->currentRoute === 'purchasing.all-requests',
                     ],
                 ],
             ];

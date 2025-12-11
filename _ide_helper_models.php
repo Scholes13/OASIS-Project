@@ -161,6 +161,49 @@ namespace App\Models\Core{
 namespace App\Models\Core{
 /**
  * @property int $id
+ * @property string $smtp_host
+ * @property int $smtp_port
+ * @property string|null $smtp_username
+ * @property string|null $smtp_password Encrypted password
+ * @property string $smtp_encryption
+ * @property string $mail_from_address
+ * @property string $mail_from_name
+ * @property bool $email_enabled Enable/disable email notifications
+ * @property bool $fallback_to_database Always save to database as fallback
+ * @property int $link_expiry_days Public approval link expiry in days
+ * @property bool $retry_failed_emails Auto-retry failed emails
+ * @property int $total_sent Total emails sent successfully
+ * @property int $total_failed Total emails failed
+ * @property \Illuminate\Support\Carbon|null $last_email_sent_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereEmailEnabled($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereFallbackToDatabase($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereLastEmailSentAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereLinkExpiryDays($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereMailFromAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereMailFromName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereRetryFailedEmails($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereSmtpEncryption($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereSmtpHost($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereSmtpPassword($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereSmtpPort($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereSmtpUsername($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereTotalFailed($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereTotalSent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|NotificationSetting whereUpdatedAt($value)
+ */
+	class NotificationSetting extends \Eloquent {}
+}
+
+namespace App\Models\Core{
+/**
+ * @property int $id
  * @property int $business_unit_id
  * @property int $numbering_module_id
  * @property int|null $department_id
@@ -347,8 +390,14 @@ namespace App\Models\Core{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutPermission($permissions)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutRole($roles, $guard = null)
  * @mixin \Eloquent
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\PurchaseRequest\PrApproval> $approvals
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval> $approvals
  * @property-read int|null $approvals_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\SalesCrm\Contact> $assignedContacts
+ * @property-read int|null $assigned_contacts_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\SalesCrm\Contact> $createdContacts
+ * @property-read int|null $created_contacts_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\SalesCrm\Activity> $salesActivities
+ * @property-read int|null $sales_activities_count
  */
 	class User extends \Eloquent {}
 }
@@ -392,7 +441,7 @@ namespace App\Models\Core{
 	class UserBusinessUnit extends \Eloquent {}
 }
 
-namespace App\Models\Modules\PurchaseRequest{
+namespace App\Models\Modules\Purchasing\PurchaseRequest{
 /**
  * @property int $id
  * @property int $purchase_request_id
@@ -414,7 +463,7 @@ namespace App\Models\Modules\PurchaseRequest{
  * @property-read User $approver
  * @property-read string|null $formatted_due_date
  * @property-read string $status_color
- * @property-read \App\Models\Modules\PurchaseRequest\PurchaseRequest $purchaseRequest
+ * @property-read \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest $purchaseRequest
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval approved()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval dueSoon()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval forApprover($approverId)
@@ -424,6 +473,8 @@ namespace App\Models\Modules\PurchaseRequest{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval pending()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval rejected()
+ * @mixin \Eloquent
+ * @property string|null $qr_code_path
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereApprovalType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereApproverId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereAssignedAt($value)
@@ -435,20 +486,47 @@ namespace App\Models\Modules\PurchaseRequest{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereMetadata($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereNotes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval wherePurchaseRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereQrCodePath($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereRespondedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereStepOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereUpdatedAt($value)
- * @mixin \Eloquent
- * @property string $task_type
- * @property string|null $qr_code_path
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereQrCodePath($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PrApproval whereTaskType($value)
  */
 	class PrApproval extends \Eloquent {}
 }
 
-namespace App\Models\Modules\PurchaseRequest{
+namespace App\Models\Modules\Purchasing\PurchaseRequest{
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $code
+ * @property string|null $description
+ * @property string $color
+ * @property bool $is_active
+ * @property int $sort_order
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest> $purchaseRequests
+ * @property-read int|null $purchase_requests_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory ordered()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereColor($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereSortOrder($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrCategory whereUpdatedAt($value)
+ */
+	class PrCategory extends \Eloquent {}
+}
+
+namespace App\Models\Modules\Purchasing\PurchaseRequest{
 /**
  * @property int $id
  * @property int $purchase_request_id
@@ -471,7 +549,10 @@ namespace App\Models\Modules\PurchaseRequest{
  * @property-read string $formatted_quantity
  * @property-read string $formatted_total_price
  * @property-read string $formatted_unit_price
- * @property-read \App\Models\Modules\PurchaseRequest\PurchaseRequest $purchaseRequest
+ * @property-read \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest $purchaseRequest
+ * @mixin \Eloquent
+ * @property string|null $image_path Path to uploaded item image
+ * @property-read string|null $image_url
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem forPurchaseRequest($purchaseRequestId)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem newQuery()
@@ -482,6 +563,7 @@ namespace App\Models\Modules\PurchaseRequest{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereCurrency($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereExpenseDepartmentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereImagePath($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereItemDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereItemName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereItemOrder($value)
@@ -492,12 +574,11 @@ namespace App\Models\Modules\PurchaseRequest{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUnit($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUnitPrice($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PrItem whereUpdatedAt($value)
- * @mixin \Eloquent
  */
 	class PrItem extends \Eloquent {}
 }
 
-namespace App\Models\Modules\PurchaseRequest{
+namespace App\Models\Modules\Purchasing\PurchaseRequest{
 /**
  * @property int $id
  * @property string $pr_number
@@ -518,7 +599,7 @@ namespace App\Models\Modules\PurchaseRequest{
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\Core\BusinessUnit $businessUnit
  * @property-read \App\Models\Core\Department $department
- * @property-read \App\Models\Modules\PurchaseRequest\PurchaseRequest|null $purchaseRequest
+ * @property-read \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest|null $purchaseRequest
  * @property-read \App\Models\Core\NumberSequence $sequence
  * @property-read \App\Models\Core\User $user
  * @property-read \App\Models\Core\User|null $voidedBy
@@ -550,7 +631,7 @@ namespace App\Models\Modules\PurchaseRequest{
 	class PrNumberReservation extends \Eloquent {}
 }
 
-namespace App\Models\Modules\PurchaseRequest{
+namespace App\Models\Modules\Purchasing\PurchaseRequest{
 /**
  * @property int $id
  * @property string $pr_number
@@ -577,17 +658,25 @@ namespace App\Models\Modules\PurchaseRequest{
  * @property \Illuminate\Support\Carbon|null $expected_date
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\PurchaseRequest\PrApproval> $approvals
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval> $approvals
  * @property-read int|null $approvals_count
  * @property-read BusinessUnit $businessUnit
  * @property-read Department $department
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\PurchaseRequest\PrItem> $items
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\PurchaseRequest\PrItem> $items
  * @property-read int|null $items_count
  * @property-read User|null $lastModifiedBy
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\PurchaseRequest\PrApproval> $pendingApprovals
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval> $pendingApprovals
  * @property-read int|null $pending_approvals_count
  * @property-read NumberSequence $sequence
  * @property-read User $user
+ * @mixin \Eloquent
+ * @property int|null $category_id
+ * @property \Illuminate\Support\Carbon|null $designated_date
+ * @property \Illuminate\Support\Carbon|null $offline_approved_at
+ * @property int|null $offline_approved_by
+ * @property string|null $offline_approval_notes
+ * @property-read \App\Models\Modules\Purchasing\PurchaseRequest\PrCategory|null $category
+ * @property-read \App\Models\Core\User|null $offlineApprovedBy
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest approved()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest byDepartment($departmentId)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest byUser($userId)
@@ -602,16 +691,20 @@ namespace App\Models\Modules\PurchaseRequest{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereApprovalWorkflow($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereApprovedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereBusinessUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereCategoryId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereCurrency($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereDateOfRequest($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereDesignatedDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereEditHistory($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereExpectedDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereIsSequentialApproval($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereKeperluan($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereLastModifiedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereOfflineApprovalNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereOfflineApprovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereOfflineApprovedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest wherePrNumber($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereRejectedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereSequenceId($value)
@@ -623,10 +716,170 @@ namespace App\Models\Modules\PurchaseRequest{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereVoidedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest withStatus($status)
- * @mixin \Eloquent
- * @property \Illuminate\Support\Carbon|null $designated_date
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PurchaseRequest whereDesignatedDate($value)
  */
 	class PurchaseRequest extends \Eloquent {}
+}
+
+namespace App\Models\Modules\Purchasing\StockRequest{
+/**
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\Core\User|null $approver
+ * @property-read string|null $formatted_due_date
+ * @property-read string $status_color
+ * @property-read \App\Models\Modules\Purchasing\StockRequest\StockRequest|null $stockRequest
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval approved()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval dueSoon()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval forApprover($approverId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval overdue()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval pending()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockApproval rejected()
+ */
+	class StockApproval extends \Eloquent {}
+}
+
+namespace App\Models\Modules\Purchasing\StockRequest{
+/**
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\Modules\Purchasing\StockRequest\StockRequest|null $stockRequest
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockItem forStockRequest($stockRequestId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockItem ordered()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockItem query()
+ */
+	class StockItem extends \Eloquent {}
+}
+
+namespace App\Models\Modules\Purchasing\StockRequest{
+/**
+ * @property-read \App\Models\Core\BusinessUnit|null $businessUnit
+ * @property-read \App\Models\Core\Department|null $department
+ * @property-read \App\Models\Core\NumberSequence|null $sequence
+ * @property-read \App\Models\Modules\Purchasing\StockRequest\StockRequest|null $stockRequest
+ * @property-read \App\Models\Core\User|null $user
+ * @property-read \App\Models\Core\User|null $voidedBy
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation byUser($userId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation reserved()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation used()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockNumberReservation voided()
+ */
+	class StockNumberReservation extends \Eloquent {}
+}
+
+namespace App\Models\Modules\Purchasing\StockRequest{
+/**
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\StockRequest\StockApproval> $approvals
+ * @property-read int|null $approvals_count
+ * @property-read \App\Models\Core\BusinessUnit|null $businessUnit
+ * @property-read \App\Models\Core\Department|null $department
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\Purchasing\StockRequest\StockItem> $items
+ * @property-read int|null $items_count
+ * @property-read \App\Models\Core\User|null $lastModifiedBy
+ * @property-read \App\Models\Core\User|null $offlineApprovedBy
+ * @property-read \App\Models\Core\NumberSequence|null $sequence
+ * @property-read \App\Models\Core\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest approved()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest byDepartment($departmentId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest byUser($userId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest dateRange($startDate, $endDate)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest draft()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest rejected()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest submitted()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest voided()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StockRequest withStatus($status)
+ */
+	class StockRequest extends \Eloquent {}
+}
+
+namespace App\Models\Modules\SalesCrm{
+/**
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\Core\BusinessUnit|null $businessUnit
+ * @property-read \App\Models\Modules\SalesCrm\CompanyVisitHistory|null $companyVisitHistory
+ * @property-read \App\Models\Modules\SalesCrm\Contact|null $contact
+ * @property-read \App\Models\Core\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity betweenDates($startDate, $endDate)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity byType(string $type)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity completed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity forBusinessUnit(int $businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity forContact(int $contactId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity forUser(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Activity withoutTrashed()
+ */
+	class Activity extends \Eloquent {}
+}
+
+namespace App\Models\Modules\SalesCrm{
+/**
+ * @property-read \App\Models\Modules\SalesCrm\Activity|null $activity
+ * @property-read \App\Models\Core\BusinessUnit|null $businessUnit
+ * @property-read \App\Models\Modules\SalesCrm\Contact|null $contact
+ * @property-read \App\Models\Core\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyVisitHistory forBusinessUnit(int $businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyVisitHistory mostVisited(int $limit = 10)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyVisitHistory newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyVisitHistory newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyVisitHistory query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CompanyVisitHistory recentlyVisited(int $days = 30)
+ */
+	class CompanyVisitHistory extends \Eloquent {}
+}
+
+namespace App\Models\Modules\SalesCrm{
+/**
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Modules\SalesCrm\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read \App\Models\Core\User|null $assignedTo
+ * @property-read \App\Models\Core\BusinessUnit|null $businessUnit
+ * @property-read \App\Models\Modules\SalesCrm\CompanyVisitHistory|null $companyVisitHistory
+ * @property-read \App\Models\Core\User|null $createdBy
+ * @property-read string $full_name
+ * @property-read int $total_activities
+ * @property-read \App\Models\Modules\SalesCrm\Activity|null $lastActivity
+ * @property-read \App\Models\Modules\SalesCrm\ContactSource|null $source
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact assignedTo(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact byCategory(string $category)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact forBusinessUnit(int $businessUnitId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact search(string $search)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Contact withoutTrashed()
+ */
+	class Contact extends \Eloquent {}
+}
+
+namespace App\Models\Modules\SalesCrm{
+/**
+ * @property-read \App\Models\Modules\SalesCrm\Contact|null $contact
+ * @property-read \App\Models\Modules\SalesCrm\Activity|null $sourceActivity
+ * @property-read \App\Models\Core\User|null $sourceUser
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ContactSource newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ContactSource newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ContactSource query()
+ */
+	class ContactSource extends \Eloquent {}
 }
 

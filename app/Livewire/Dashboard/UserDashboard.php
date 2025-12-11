@@ -4,8 +4,8 @@ namespace App\Livewire\Dashboard;
 
 use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Core\BusinessUnit;
-use App\Models\Modules\PurchaseRequest\PrApproval;
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;

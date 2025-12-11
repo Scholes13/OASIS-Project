@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Core\QrCodeService;
 use Illuminate\Console\Command;
 

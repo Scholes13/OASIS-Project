@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Modules\PurchaseRequest\PrCategory;
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrCategory;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Database\Seeder;
 
 class UpdateExistingPrCategorySeeder extends Seeder

@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Core\User;
-use App\Models\Modules\PurchaseRequest\PrApproval;
-use App\Services\Modules\PurchaseRequest\ApprovalWorkflowService;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
+use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use Illuminate\Console\Command;
 
 class DebugApprovalHistory extends Command

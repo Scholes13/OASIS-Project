@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Modules\PurchaseRequest\Api\ApprovalController;
-use App\Http\Controllers\Modules\PurchaseRequest\Api\PurchaseRequestController;
+use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\Api\ApprovalController;
+use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\Api\PurchaseRequestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 

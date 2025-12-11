@@ -3,8 +3,8 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
-use App\Http\Controllers\Modules\PurchaseRequest\ApprovalController;
-use App\Http\Controllers\Modules\PurchaseRequest\PurchaseRequestController;
+use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
+use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +21,23 @@ Route::get('/purchase-requests/{purchaseRequest}/pdf-public', [PurchaseRequestCo
 
 // Public download PDF route for browsershot (no auth middleware)
 Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [PurchaseRequestController::class, 'downloadPdfPublic'])->name('purchase-requests.download-pdf-public');
+
+// Stock Request Public Routes (no authentication required)
+Route::get('/stock-requests/{sr}/public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'publicView'])->name('stock-requests.public');
+
+// Public PDF routes for stock requests
+Route::get('/stock-requests/{stockRequest}/pdf-public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'pdfPublic'])->name('stock-requests.pdf-public');
+Route::get('/stock-requests/{stockRequest}/download-pdf-public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'downloadPdfPublic'])->name('stock-requests.download-pdf-public');
+
+// Stock Request public approval routes (signed URL with expiry)
+Route::get('/stock-approvals/{approval}/public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'showPublicApproval'])
+    ->middleware('signed')
+    ->name('stock-approvals.public.approve');
+
+// POST route for stock approval (throttle limit for security)
+Route::post('/stock-approvals/{approval}/public/process', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'processPublicApproval'])
+    ->middleware('throttle:5,1')
+    ->name('stock-approvals.public.process');
 
 // Public approval routes (signed URL with expiry)
 Route::get('/approvals/{approval}/public', [ApprovalController::class, 'showPublicApproval'])
@@ -57,14 +74,14 @@ Route::view('profile', 'profile')
 Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(function () {
     // Purchase Request Management
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
-        // My History - Now uses Livewire component for reactive updates
+        // My History - Livewire for real-time updates
         Route::get('/', function () {
-            return view('purchase-requests.index-livewire');
+            return view('purchasing.purchase-requests.index-livewire');
         })->name('index');
 
         // Create Route - Loads Livewire component for creating new PR
         Route::get('/create', function () {
-            return view('purchase-requests.create');
+            return view('purchasing.purchase-requests.create');
         })->name('create');
 
         // View/Edit Routes (Livewire handles form submission)
@@ -100,24 +117,47 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     });
 
     // ============================================================================
+    // Stock Request Approval Routes (authenticated)
+    // ============================================================================
+    Route::prefix('stock-approvals')->name('stock-approvals.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'index'])->name('index');
+        Route::get('/{approval}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'show'])->name('show');
+        Route::post('/{approval}/process', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'process'])->name('process');
+        Route::get('/{approval}/qr-code', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'generateQrCode'])->name('qr-code');
+    });
+
+    // ============================================================================
     // Stock Request Routes (v3)
     // ============================================================================
     Route::prefix('stock-requests')->name('stock-requests.')->group(function () {
-        // List Routes
-        Route::get('/', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'index'])->name('index');
-        Route::get('/all/list', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'all'])->name('all');
+        // List Routes - Livewire for real-time updates
+        Route::get('/', function () {
+            return view('purchasing.stock-requests.index-livewire');
+        })->name('index');
+        Route::get('/all/list', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'all'])->name('all');
 
         // Create Route - Loads Livewire component for creating new Stock Request
-        Route::get('/create', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'create'])->name('create');
+        Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'create'])->name('create');
 
         // View/Edit Routes
-        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'show'])->name('show');
-        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'edit'])->name('edit');
+        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'show'])->name('show');
+        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'edit'])->name('edit');
 
         // Action Routes
-        Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
-        Route::post('/{stockRequest}/resubmit', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'resubmit'])->name('resubmit');
-        Route::post('/{stockRequest}/void', [App\Http\Controllers\Modules\StockRequest\StockRequestController::class, 'void'])->name('void');
+        Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
+        Route::post('/{stockRequest}/resubmit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resubmit'])->name('resubmit');
+        Route::post('/{stockRequest}/void', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'void'])->name('void');
+        Route::post('/{stockRequest}/mark-offline-approved', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
+
+        // PDF Routes (authenticated)
+        Route::get('/{stockRequest}/download-pdf', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'downloadPdf'])->name('download-pdf');
+    });
+
+    // ============================================================================
+    // Purchasing Combined Routes (v3.5)
+    // ============================================================================
+    Route::prefix('purchasing')->name('purchasing.')->group(function () {
+        Route::get('/all-requests', [\App\Http\Controllers\Modules\Purchasing\PurchasingController::class, 'allRequests'])->name('all-requests');
     });
 
     // ============================================================================

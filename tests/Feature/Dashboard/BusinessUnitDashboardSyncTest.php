@@ -11,7 +11,7 @@ use App\Models\Core\NumberSequence;
 use App\Models\Core\Position;
 use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
-use App\Models\Modules\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;

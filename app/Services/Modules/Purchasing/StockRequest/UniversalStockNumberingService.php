@@ -49,7 +49,6 @@ class UniversalStockNumberingService
             throw new \Exception('Department not found or user has no access');
         }
 
-
         // Ensure ST numbering module exists for this business unit
         $this->ensureStockModule($businessUnit);
 
@@ -160,7 +159,6 @@ class UniversalStockNumberingService
 
         return null;
     }
-
 
     /**
      * Check if user has access to business unit

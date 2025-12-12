@@ -120,6 +120,11 @@
                                                    title="View Department">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
+                                                <a href="{{ route('admin.departments.purchasing-config', $department) }}" 
+                                                   class="text-purple-600 hover:text-purple-900 transition-colors duration-200"
+                                                   title="Purchasing Config">
+                                                    <i class="fas fa-shopping-cart"></i>
+                                                </a>
                                                 <a href="{{ route('admin.departments.edit', $department) }}" 
                                                    class="text-indigo-600 hover:text-indigo-900 transition-colors duration-200"
                                                    title="Edit Department">

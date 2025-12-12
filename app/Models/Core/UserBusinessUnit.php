@@ -55,12 +55,14 @@ class UserBusinessUnit extends Model
         'position_id',
         'is_primary',
         'is_active',
+        'is_purchasing_admin',
         'permissions',
     ];
 
     protected $casts = [
         'is_primary' => 'boolean',
         'is_active' => 'boolean',
+        'is_purchasing_admin' => 'boolean',
         'permissions' => 'array',
     ];
 

@@ -5,6 +5,10 @@
                 {{ __('Department Details') }}
             </h2>
             <div class="flex space-x-2">
+                <a href="{{ route('admin.departments.purchasing-config', $department) }}" 
+                   class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                    <i class="fas fa-shopping-cart mr-2"></i>Purchasing Config
+                </a>
                 <a href="{{ route('admin.departments.edit', $department) }}" 
                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
                     <i class="fas fa-edit mr-2"></i>Edit Department

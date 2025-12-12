@@ -3470,6 +3470,7 @@ class ComposerStaticInit2c4d3317989ab1af0b43ac24caa32ff7
         'Laravel\\Boost\\Install\\Cli\\DisplayHelper' => __DIR__ . '/..' . '/laravel/boost/src/Install/Cli/DisplayHelper.php',
         'Laravel\\Boost\\Install\\CodeEnvironment\\ClaudeCode' => __DIR__ . '/..' . '/laravel/boost/src/Install/CodeEnvironment/ClaudeCode.php',
         'Laravel\\Boost\\Install\\CodeEnvironment\\CodeEnvironment' => __DIR__ . '/..' . '/laravel/boost/src/Install/CodeEnvironment/CodeEnvironment.php',
+        'Laravel\\Boost\\Install\\CodeEnvironment\\Codex' => __DIR__ . '/..' . '/laravel/boost/src/Install/CodeEnvironment/Codex.php',
         'Laravel\\Boost\\Install\\CodeEnvironment\\Copilot' => __DIR__ . '/..' . '/laravel/boost/src/Install/CodeEnvironment/Copilot.php',
         'Laravel\\Boost\\Install\\CodeEnvironment\\Cursor' => __DIR__ . '/..' . '/laravel/boost/src/Install/CodeEnvironment/Cursor.php',
         'Laravel\\Boost\\Install\\CodeEnvironment\\PhpStorm' => __DIR__ . '/..' . '/laravel/boost/src/Install/CodeEnvironment/PhpStorm.php',

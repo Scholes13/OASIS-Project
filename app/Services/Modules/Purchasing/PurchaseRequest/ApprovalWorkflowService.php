@@ -345,7 +345,6 @@ class ApprovalWorkflowService
             ->first();
     }
 
-
     /**
      * Get special category approver based on item categories
      * Uses config-driven approach for maintainability
@@ -483,12 +482,12 @@ class ApprovalWorkflowService
         if ($nextApproval) {
             try {
                 $emailService = app(\App\Services\Core\EmailNotificationService::class);
-                
+
                 // Dispatch to queue untuk tidak blocking response
                 dispatch(function () use ($emailService, $nextApproval, $purchaseRequest) {
                     try {
                         $emailService->sendApprovalRequested($nextApproval);
-                        
+
                         Log::info('Approval notification sent successfully', [
                             'pr_number' => $purchaseRequest->pr_number,
                             'approver_id' => $nextApproval->approver_id,
@@ -504,7 +503,7 @@ class ApprovalWorkflowService
                         ]);
                     }
                 })->afterResponse(); // Send after HTTP response
-                
+
             } catch (\Exception $e) {
                 Log::warning('Failed to queue approval notification', [
                     'pr_number' => $purchaseRequest->pr_number,
@@ -521,12 +520,12 @@ class ApprovalWorkflowService
     {
         try {
             $emailService = app(\App\Services\Core\EmailNotificationService::class);
-            
+
             // Dispatch to queue untuk tidak blocking response
             dispatch(function () use ($emailService, $purchaseRequest) {
                 try {
                     $emailService->sendApprovalCompleted($purchaseRequest);
-                    
+
                     Log::info('PR approval completion notification sent successfully', [
                         'pr_number' => $purchaseRequest->pr_number,
                         'requestor_id' => $purchaseRequest->user_id,
@@ -542,7 +541,7 @@ class ApprovalWorkflowService
                     ]);
                 }
             })->afterResponse(); // Send after HTTP response
-            
+
         } catch (\Exception $e) {
             Log::warning('Failed to queue completion notification', [
                 'pr_number' => $purchaseRequest->pr_number,
@@ -564,12 +563,12 @@ class ApprovalWorkflowService
         if ($rejectedApproval) {
             try {
                 $emailService = app(\App\Services\Core\EmailNotificationService::class);
-                
+
                 // Dispatch to queue untuk tidak blocking response
                 dispatch(function () use ($emailService, $rejectedApproval, $purchaseRequest) {
                     try {
                         $emailService->sendApprovalRejected($rejectedApproval);
-                        
+
                         Log::info('PR rejection notification sent successfully', [
                             'pr_number' => $purchaseRequest->pr_number,
                             'requestor_id' => $purchaseRequest->user_id,
@@ -584,7 +583,7 @@ class ApprovalWorkflowService
                         ]);
                     }
                 })->afterResponse(); // Send after HTTP response
-                
+
             } catch (\Exception $e) {
                 Log::warning('Failed to queue rejection notification', [
                     'pr_number' => $purchaseRequest->pr_number,
@@ -673,7 +672,6 @@ class ApprovalWorkflowService
             ->whereNotNull('responded_at')
             ->orderBy('responded_at', 'desc');
     }
-
 
     /**
      * Get approval statistics for a user

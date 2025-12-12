@@ -29,6 +29,23 @@ class AppServiceProvider extends ServiceProvider
 
         // Define Gates for authorization
         $this->defineGates();
+
+        // Register model observers
+        $this->registerObservers();
+    }
+
+    /**
+     * Register model observers
+     */
+    protected function registerObservers(): void
+    {
+        \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::observe(
+            \App\Observers\PurchaseRequestObserver::class
+        );
+
+        \App\Models\Modules\Purchasing\StockRequest\StockRequest::observe(
+            \App\Observers\StockRequestObserver::class
+        );
     }
 
     /**
@@ -105,6 +122,45 @@ class AppServiceProvider extends ServiceProvider
                 ->exists();
 
             return $hasTopManagementRole;
+        });
+
+        // Access Purchasing Admin Gate - For purchasing admins, super admin, and parent BU top management
+        Gate::define('access-purchasing-admin', function ($user) {
+            $currentBuId = session('current_business_unit_id');
+
+            // Super Admin has full access
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            // Check if user is top management in parent BU (Werkudara Group)
+            $isTopManagementParent = $user->activeBusinessUnits()
+                ->whereHas('businessUnit', function ($query) {
+                    $query->whereNull('parent_id'); // Parent BU has no parent
+                })
+                ->whereHas('position', function ($query) {
+                    // Top management access levels: 1 (CEO/Director), 2 (General Manager)
+                    $query->whereIn('access_level', [1, 2])
+                        ->orWhereIn('level', ['hod']); // Also include HOD level for department heads
+                })
+                ->exists();
+
+            if ($isTopManagementParent) {
+                return true;
+            }
+
+            // Check if user is a purchasing admin in current BU
+            if ($currentBuId) {
+                return $user->activeBusinessUnits()
+                    ->where('business_unit_id', $currentBuId)
+                    ->where('is_purchasing_admin', true)
+                    ->whereHas('department', function ($query) {
+                        $query->where('is_purchasing_department', true);
+                    })
+                    ->exists();
+            }
+
+            return false;
         });
     }
 }

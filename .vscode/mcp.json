@@ -1,4 +1,4 @@
- {
+{
     "servers": {
         "laravel-boost": {
             "command": "php",

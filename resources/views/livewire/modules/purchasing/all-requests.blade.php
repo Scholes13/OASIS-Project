@@ -37,7 +37,7 @@
     <div class="px-6 py-4">
         <div class="flex items-center gap-3 flex-wrap">
             {{-- Search --}}
-            <div class="relative flex-1 min-w-[200px] max-w-sm">
+            <div class="relative flex-1 min-w-[12.5rem] max-w-sm">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -90,7 +90,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">DEPT</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">NUMBER</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">USED FOR</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">USER</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">DATE</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">STATUS</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ACTIONS</th>
@@ -108,9 +107,6 @@
                         </td>
                         <td class="px-6 py-4">
                             <span class="text-sm text-gray-600 max-w-md">{{ Str::limit($request['purpose'], 60) }}</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="text-sm text-gray-600">{{ $request['user'] }}</span>
                         </td>
                         <td class="px-6 py-4">
                             <div class="text-sm text-gray-600">{{ $request['created_at']->format('d M Y') }}</div>
@@ -152,7 +148,7 @@
                     <div class="flex items-center gap-1 mx-2">
                         @for($page = 1; $page <= $lastPage; $page++)
                             @if($page == $currentPage)
-                                <span class="w-8 h-8 flex items-center justify-center text-sm font-medium text-white bg-indigo-500 rounded-md">{{ $page }}</span>
+                                <span class="w-8 h-8 flex items-center justify-center text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md">{{ $page }}</span>
                             @else
                                 <button wire:click="gotoPage({{ $page }})" class="w-8 h-8 flex items-center justify-center text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors">{{ $page }}</button>
                             @endif

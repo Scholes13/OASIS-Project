@@ -2812,6 +2812,7 @@ return array(
     'Laravel\\Boost\\Install\\Cli\\DisplayHelper' => $vendorDir . '/laravel/boost/src/Install/Cli/DisplayHelper.php',
     'Laravel\\Boost\\Install\\CodeEnvironment\\ClaudeCode' => $vendorDir . '/laravel/boost/src/Install/CodeEnvironment/ClaudeCode.php',
     'Laravel\\Boost\\Install\\CodeEnvironment\\CodeEnvironment' => $vendorDir . '/laravel/boost/src/Install/CodeEnvironment/CodeEnvironment.php',
+    'Laravel\\Boost\\Install\\CodeEnvironment\\Codex' => $vendorDir . '/laravel/boost/src/Install/CodeEnvironment/Codex.php',
     'Laravel\\Boost\\Install\\CodeEnvironment\\Copilot' => $vendorDir . '/laravel/boost/src/Install/CodeEnvironment/Copilot.php',
     'Laravel\\Boost\\Install\\CodeEnvironment\\Cursor' => $vendorDir . '/laravel/boost/src/Install/CodeEnvironment/Cursor.php',
     'Laravel\\Boost\\Install\\CodeEnvironment\\PhpStorm' => $vendorDir . '/laravel/boost/src/Install/CodeEnvironment/PhpStorm.php',

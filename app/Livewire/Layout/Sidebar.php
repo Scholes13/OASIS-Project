@@ -98,6 +98,62 @@ class Sidebar extends Component
             ];
         }
 
+        // Purchasing Admin - only for authorized users
+        if ($user && $user->can('access-purchasing-admin')) {
+            $purchasingAdminChildren = [];
+
+            // Determine which audit history page to show based on role
+            if ($user->global_role === 'super_admin') {
+                // Super Admin sees all audit history
+                $purchasingAdminChildren[] = [
+                    'name' => 'Audit History',
+                    'href' => route('purchasing.admin.audit-history'),
+                    'current' => $this->currentRoute === 'purchasing.admin.audit-history',
+                ];
+            } else {
+                // Check if user is a department manager
+                $isDepartmentManager = $user->businessUnits()
+                    ->where('business_unit_id', $currentBusinessUnitId)
+                    ->whereHas('position', fn($q) => $q->whereIn('access_level', [1, 2, 3]))
+                    ->exists();
+
+                if ($isDepartmentManager) {
+                    // Department managers see department audit history
+                    $purchasingAdminChildren[] = [
+                        'name' => 'Department Audit',
+                        'href' => route('purchasing.admin.department-audit-history'),
+                        'current' => $this->currentRoute === 'purchasing.admin.department-audit-history',
+                    ];
+                }
+
+                // All purchasing admins see their personal history
+                $purchasingAdminChildren[] = [
+                    'name' => 'My Task History',
+                    'href' => route('purchasing.admin.personal-task-history'),
+                    'current' => $this->currentRoute === 'purchasing.admin.personal-task-history',
+                ];
+            }
+
+            $navigation[] = [
+                'name' => 'Purchasing Admin',
+                'href' => route('purchasing.admin.dashboard'),
+                'icon' => 'clipboard-list',
+                'current' => str_starts_with($this->currentRoute, 'purchasing.admin'),
+                'children' => array_merge([
+                    [
+                        'name' => 'Dashboard',
+                        'href' => route('purchasing.admin.dashboard'),
+                        'current' => $this->currentRoute === 'purchasing.admin.dashboard',
+                    ],
+                    [
+                        'name' => 'Tasks',
+                        'href' => route('purchasing.admin.tasks'),
+                        'current' => $this->currentRoute === 'purchasing.admin.tasks',
+                    ],
+                ], $purchasingAdminChildren),
+            ];
+        }
+
         // Add Sales CRM section (permission-based)
         if ($user && ($user->can('view_activities') || $user->can('view_contacts'))) {
             $salesCrmChildren = [];
@@ -215,6 +271,15 @@ class Sidebar extends Component
                 'href' => route('admin.notification-settings.index'),
                 'icon' => 'mail',
                 'current' => str_starts_with($this->currentRoute, 'admin.notification-settings'),
+                'children' => [],
+            ];
+
+            // SLA Settings
+            $navigation[] = [
+                'name' => 'SLA Settings',
+                'href' => route('admin.sla-settings.index'),
+                'icon' => 'clock',
+                'current' => str_starts_with($this->currentRoute, 'admin.sla-settings'),
                 'children' => [],
             ];
         }

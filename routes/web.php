@@ -158,6 +158,34 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     // ============================================================================
     Route::prefix('purchasing')->name('purchasing.')->group(function () {
         Route::get('/all-requests', [\App\Http\Controllers\Modules\Purchasing\PurchasingController::class, 'allRequests'])->name('all-requests');
+        
+        // Purchasing Admin Routes
+        Route::prefix('admin')->name('admin.')->middleware('can:access-purchasing-admin')->group(function () {
+            // Dashboard
+            Route::get('/dashboard', \App\Livewire\Modules\Purchasing\Admin\AdminDashboard::class)->name('dashboard');
+            
+            // Task Management
+            Route::get('/tasks', \App\Livewire\Modules\Purchasing\Admin\TaskList::class)->name('tasks');
+            Route::get('/tasks/{taskId}', \App\Livewire\Modules\Purchasing\Admin\TaskDetail::class)->name('tasks.show');
+            
+            // Performance & Reports
+            Route::get('/performance-metrics', \App\Livewire\Modules\Purchasing\Admin\PerformanceMetrics::class)->name('performance-metrics');
+            Route::get('/department-report', \App\Livewire\Modules\Purchasing\Admin\DepartmentReport::class)->name('department-report');
+            Route::get('/consolidated-report', \App\Livewire\Modules\Purchasing\Admin\ConsolidatedReport::class)->name('consolidated-report');
+            
+            // Audit History Routes
+            Route::get('/audit-history', \App\Livewire\Modules\Purchasing\Admin\AuditHistory::class)->name('audit-history');
+            Route::get('/department-audit-history', \App\Livewire\Modules\Purchasing\Admin\DepartmentAuditHistory::class)->name('department-audit-history');
+            Route::get('/personal-task-history', \App\Livewire\Modules\Purchasing\Admin\PersonalTaskHistory::class)->name('personal-task-history');
+            
+            // SLA Settings (Super Admin only)
+            Route::get('/sla-settings', [\App\Http\Controllers\Admin\SlaSettingsController::class, 'index'])
+                ->middleware('admin.access')
+                ->name('sla-settings');
+            Route::post('/sla-settings', [\App\Http\Controllers\Admin\SlaSettingsController::class, 'update'])
+                ->middleware('admin.access')
+                ->name('sla-settings.update');
+        });
     });
 
     // ============================================================================
@@ -214,6 +242,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Department Management
         Route::resource('departments', DepartmentController::class);
+        Route::get('departments/{department}/purchasing-config', [DepartmentController::class, 'purchasingConfig'])->name('departments.purchasing-config');
 
         // PR Category Management
         Route::resource('pr-categories', \App\Http\Controllers\Admin\PrCategoryController::class);
@@ -225,6 +254,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             ->middleware('throttle:3,1')
             ->name('notification-settings.test');
         Route::get('/notification-settings/statistics', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'statistics'])->name('notification-settings.statistics');
+
+        // SLA Settings (Super Admin Only)
+        Route::get('/sla-settings', [\App\Http\Controllers\Admin\SlaSettingsController::class, 'index'])->name('sla-settings.index');
+        Route::post('/sla-settings', [\App\Http\Controllers\Admin\SlaSettingsController::class, 'update'])->name('sla-settings.update');
 
         // Number Sequence Management (placeholder routes)
         Route::get('/number-sequences', function () {

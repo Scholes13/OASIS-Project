@@ -59,7 +59,6 @@ class PurchaseRequestService
             $query->where('business_unit_id', $currentBusinessUnitId);
         }
 
-
         // Apply hierarchy-based filtering
         switch ($accessLevel) {
             case 'super_admin':
@@ -461,7 +460,6 @@ class PurchaseRequestService
         ];
     }
 
-
     /**
      * Clear dashboard cache for affected users when PR is created/updated
      * ✅ Call this after any PR mutation (create, update, delete, approve, reject)
@@ -592,14 +590,12 @@ class PurchaseRequestService
 
     /**
      * Mark a Purchase Request as approved offline/manually
-     * 
+     *
      * This is used when the digital approval process is too slow and the user
      * has exported the PR for manual/offline approval. This marks the entire PR
      * as approved in one action (not step by step).
-     * 
-     * @param PurchaseRequest $purchaseRequest
-     * @param string|null $notes Optional notes explaining why offline approval was used
-     * @return PurchaseRequest
+     *
+     * @param  string|null  $notes  Optional notes explaining why offline approval was used
      */
     public function markAsOfflineApproved(PurchaseRequest $purchaseRequest, ?string $notes = null): PurchaseRequest
     {

@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'laravel/laravel',
-        'pretty_version' => 'dev-main',
-        'version' => 'dev-main',
-        'reference' => '08ed5d48746b037e7188f57b0ba213c47c4f94ec',
+        'pretty_version' => 'dev-3.5-beta',
+        'version' => 'dev-3.5-beta',
+        'reference' => '127441792a4c9ae788f00ee346b91dcd1b1b09ab',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -440,9 +440,9 @@
             ),
         ),
         'laravel/boost' => array(
-            'pretty_version' => 'v1.1.4',
-            'version' => '1.1.4.0',
-            'reference' => '70f909465bf73dad7e791fad8b7716b3b2712076',
+            'pretty_version' => 'v1.1.5',
+            'version' => '1.1.5.0',
+            'reference' => '4bd1692c064b2135eb2f8f7bd8bcb710e5e75f86',
             'type' => 'library',
             'install_path' => __DIR__ . '/../laravel/boost',
             'aliases' => array(),
@@ -467,9 +467,9 @@
             'dev_requirement' => false,
         ),
         'laravel/laravel' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => '08ed5d48746b037e7188f57b0ba213c47c4f94ec',
+            'pretty_version' => 'dev-3.5-beta',
+            'version' => 'dev-3.5-beta',
+            'reference' => '127441792a4c9ae788f00ee346b91dcd1b1b09ab',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

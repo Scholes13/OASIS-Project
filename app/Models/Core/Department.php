@@ -59,10 +59,13 @@ class Department extends Model
         'code',
         'name',
         'is_active',
+        'is_purchasing_department',
+        'default_purchasing_admin_id',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_purchasing_department' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -126,6 +129,33 @@ class Department extends Model
     public function numberSequences(): HasMany
     {
         return $this->hasMany(NumberSequence::class);
+    }
+
+    /**
+     * Get the default purchasing admin for this department
+     */
+    public function defaultPurchasingAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'default_purchasing_admin_id');
+    }
+
+    /**
+     * Get purchasing admins in this department
+     */
+    public function purchasingAdmins()
+    {
+        return $this->userBusinessUnits()
+            ->where('is_purchasing_admin', true)
+            ->where('is_active', true)
+            ->with('user');
+    }
+
+    /**
+     * Get admin tasks for this department
+     */
+    public function adminTasks(): HasMany
+    {
+        return $this->hasMany(\App\Models\Modules\Purchasing\Admin\AdminTask::class);
     }
 
     /**

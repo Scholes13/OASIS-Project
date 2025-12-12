@@ -112,6 +112,16 @@ class DepartmentController extends Controller
     }
 
     /**
+     * Show the purchasing admin configuration page
+     */
+    public function purchasingConfig(Department $department): View
+    {
+        $department->load(['businessUnit', 'defaultPurchasingAdmin']);
+
+        return view('admin.departments.purchasing-config', compact('department'));
+    }
+
+    /**
      * Remove the specified department
      */
     public function destroy(Department $department): RedirectResponse

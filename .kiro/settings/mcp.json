@@ -2,10 +2,7 @@
   "mcpServers": {
     "laravel-boost": {
       "command": "php",
-      "args": [
-        "artisan",
-        "boost:mcp"
-      ],
+      "args": ["F:\\Project\\Numbering\\artisan", "boost:mcp"],
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"
       },

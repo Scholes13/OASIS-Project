@@ -100,7 +100,7 @@
                     <div class="flex items-center gap-1 mx-2">
                         @foreach($stockRequests->getUrlRange(1, $stockRequests->lastPage()) as $page => $url)
                             @if($page == $stockRequests->currentPage())
-                                <span class="w-8 h-8 flex items-center justify-center text-sm font-medium text-white bg-indigo-500 rounded-md">{{ $page }}</span>
+                                <span class="w-8 h-8 flex items-center justify-center text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md">{{ $page }}</span>
                             @else
                                 <button wire:click="gotoPage({{ $page }})" class="w-8 h-8 flex items-center justify-center text-sm text-gray-500 hover:bg-gray-100 rounded-md transition-colors">{{ $page }}</button>
                             @endif

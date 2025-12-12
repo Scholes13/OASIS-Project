@@ -52,7 +52,6 @@ class UniversalPRNumberingService
         // Ensure PR numbering module exists for this business unit
         $this->ensurePRModule($businessUnit);
 
-
         // Generate sequence number
         // Use business unit only for continuous sequence per BU across all departments
 

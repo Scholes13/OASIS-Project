@@ -6,9 +6,11 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\NumberSequence;
 use App\Models\Core\User;
+use App\Models\Modules\Purchasing\Admin\AdminTask;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -187,6 +189,14 @@ class PurchaseRequest extends Model
     public function pendingApprovals(): HasMany
     {
         return $this->approvals()->where('status', 'pending');
+    }
+
+    /**
+     * Get admin task (polymorphic relationship)
+     */
+    public function adminTask(): MorphOne
+    {
+        return $this->morphOne(AdminTask::class, 'taskable');
     }
 
     /**

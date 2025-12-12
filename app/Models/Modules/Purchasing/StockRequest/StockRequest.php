@@ -6,9 +6,11 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\NumberSequence;
 use App\Models\Core\User;
+use App\Models\Modules\Purchasing\Admin\AdminTask;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -109,6 +111,14 @@ class StockRequest extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(StockApproval::class)->orderBy('step_order');
+    }
+
+    /**
+     * Get admin task (polymorphic relationship)
+     */
+    public function adminTask(): MorphOne
+    {
+        return $this->morphOne(AdminTask::class, 'taskable');
     }
 
     /**
@@ -247,6 +257,22 @@ class StockRequest extends Model
             'approved' => $approved,
             'percentage' => $total > 0 ? round(($approved / $total) * 100) : 0,
         ];
+    }
+
+    /**
+     * Calculate total amount from items
+     */
+    public function calculateTotalAmount(): float
+    {
+        return $this->items()->sum('total');
+    }
+
+    /**
+     * Get total amount (accessor for consistency with PurchaseRequest)
+     */
+    public function getTotalAmountAttribute(): float
+    {
+        return $this->calculateTotalAmount();
     }
 
     /**

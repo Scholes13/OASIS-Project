@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ensure.business.unit.selected' => \App\Http\Middleware\EnsureBusinessUnitSelected::class,
             'check.business.unit.access' => \App\Http\Middleware\CheckBusinessUnitAccess::class,
             'admin.access' => \App\Http\Middleware\AdminAccess::class,
+            'purchasing.admin.access' => \App\Http\Middleware\PurchasingAdminAccess::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

@@ -1,4 +1,4 @@
-<div>
+<div wire:init="loadData">
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
         {{-- Header --}}
         <div class="px-5 py-4 border-b border-gray-100">

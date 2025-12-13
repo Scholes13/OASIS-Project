@@ -665,8 +665,10 @@
         font-weight: 500 !important;
     }
     
-    /* Improved focus states with relative sizing */
-    *:focus {
+    /* Focus states only for form inputs - not buttons/tabs */
+    input:focus,
+    textarea:focus,
+    select:focus {
         @apply outline-none;
         box-shadow: 0 0 0 clamp(1px, 0.2vw, 2px) rgb(59 130 246 / 0.5);
         border-radius: clamp(2px, 0.3vw, 4px);

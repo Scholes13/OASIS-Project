@@ -7,6 +7,7 @@ use App\Models\Core\Department;
 use App\Models\Core\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -132,6 +133,22 @@ class AdminTask extends Model
     public function assignedAdmin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_admin_id');
+    }
+
+    /**
+     * Get the item realizations for this task
+     */
+    public function itemRealizations(): HasMany
+    {
+        return $this->hasMany(AdminTaskItemRealization::class);
+    }
+
+    /**
+     * Check if task has item-level realization data
+     */
+    public function hasItemRealizations(): bool
+    {
+        return $this->itemRealizations()->exists();
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Livewire\Modules\Purchasing\Admin;
 
 use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Models\Modules\Purchasing\Admin\AdminTaskItemRealization;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -18,6 +19,11 @@ class PersonalTaskHistory extends Component
     public $dateTo;
     public $statusFilter = 'all';
     public $typeFilter = 'all';
+
+    // Detail modal properties
+    public $showDetailModal = false;
+    public $detailTaskId = null;
+    public $detailItems = [];
 
     public function mount(): void
     {
@@ -64,13 +70,42 @@ class PersonalTaskHistory extends Component
         $this->resetPage();
     }
 
+    /**
+     * Open detail modal and load item realization records for a task
+     * Requirements: 3.3, 3.4
+     */
+    public function openDetailModal($taskId): void
+    {
+        $this->detailTaskId = $taskId;
+        
+        // Load AdminTaskItemRealization records for this task
+        $this->detailItems = AdminTaskItemRealization::forAdminTask($taskId)
+            ->orderBy('id')
+            ->get()
+            ->toArray();
+        
+        $this->showDetailModal = true;
+    }
+
+    /**
+     * Close detail modal and reset state
+     * Requirements: 3.3
+     */
+    public function closeDetailModal(): void
+    {
+        $this->showDetailModal = false;
+        $this->detailTaskId = null;
+        $this->detailItems = [];
+    }
+
     private function getTasks()
     {
         $query = AdminTask::with([
             'taskable',
             'businessUnit',
             'department',
-            'assignedAdmin'
+            'assignedAdmin',
+            'itemRealizations'
         ])
         ->where('assigned_admin_id', auth()->id())
         ->orderBy('entered_at', 'desc');

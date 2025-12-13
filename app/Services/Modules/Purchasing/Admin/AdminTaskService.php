@@ -65,8 +65,8 @@ class AdminTaskService
         return DB::transaction(function () use ($task) {
             $startedAt = now();
 
-            // Calculate follow-up time in minutes
-            $followupTimeMinutes = $task->entered_at->diffInMinutes($startedAt);
+            // Calculate follow-up time in minutes (entered_at to started_at, always positive)
+            $followupTimeMinutes = abs($task->entered_at->diffInMinutes($startedAt));
 
             $task->update([
                 'status' => 'in_progress',
@@ -109,8 +109,8 @@ class AdminTaskService
         return DB::transaction(function () use ($task, $realizedTotalPrice, $notes) {
             $completedAt = now();
 
-            // Calculate completion time in minutes
-            $completionTimeMinutes = $task->started_at->diffInMinutes($completedAt);
+            // Calculate completion time in minutes (started_at to completed_at, always positive)
+            $completionTimeMinutes = $task->started_at ? abs($task->started_at->diffInMinutes($completedAt)) : 0;
 
             // Calculate savings
             $savingsData = $this->priceEfficiencyService->calculateSavings(

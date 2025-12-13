@@ -59,5 +59,7 @@ trait HasLazyLoading
     public function resetLazyLoad(): void
     {
         $this->readyToLoad = false;
+        // Immediately re-enable loading so data refreshes
+        $this->readyToLoad = true;
     }
 }

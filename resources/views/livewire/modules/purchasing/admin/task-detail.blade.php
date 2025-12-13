@@ -285,7 +285,9 @@
                                                             @if($activity->properties->count() > 0)
                                                                 <div class="mt-1 text-xs text-gray-500">
                                                                     @foreach($activity->properties as $key => $value)
-                                                                        <div>{{ ucfirst(str_replace('_', ' ', $key)) }}: {{ is_numeric($value) ? number_format($value, 2) : $value }}</div>
+                                                                        @if(!is_array($value) && !is_object($value))
+                                                                            <div>{{ ucfirst(str_replace('_', ' ', $key)) }}: {{ is_numeric($value) ? number_format($value, 2) : $value }}</div>
+                                                                        @endif
                                                                     @endforeach
                                                                 </div>
                                                             @endif
@@ -315,71 +317,102 @@
                     <div class="px-5 py-4 border-b border-gray-100">
                         <h3 class="text-base font-semibold text-gray-900">Actions</h3>
                     </div>
-                    <div class="p-5 space-y-3">
+                    <div class="p-5 space-y-4">
                         {{-- Claim Task Button --}}
                         @if($this->task->assigned_admin_id === null && $this->task->status === 'pending_followup')
-                            <button 
-                                wire:click="claimTask"
-                                class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
-                                </svg>
-                                Claim Task
-                            </button>
-                            <p class="text-xs text-gray-500 text-center">
-                                Claim this task to start working on it
-                            </p>
+                            <div>
+                                <button 
+                                    wire:click="claimTask"
+                                    wire:loading.attr="disabled"
+                                    wire:target="claimTask"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm disabled:opacity-50">
+                                    <svg wire:loading.remove wire:target="claimTask" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    <svg wire:loading wire:target="claimTask" class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="claimTask">Claim Task</span>
+                                    <span wire:loading wire:target="claimTask">Claiming...</span>
+                                </button>
+                                <p class="text-xs text-center mt-2" style="color: #6B7280;">
+                                    Claim this task to start working on it
+                                </p>
+                            </div>
                         @endif
 
                         {{-- Start Task Button --}}
                         @if($this->task->status === 'pending_followup' && $this->task->assigned_admin_id === Auth::id())
-                            <button 
-                                wire:click="startTask"
-                                class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                Start Task
-                            </button>
-                            <p class="text-xs text-gray-500 text-center">
-                                Begin working on this task
-                            </p>
+                            <div>
+                                <button 
+                                    wire:click="startTask"
+                                    wire:loading.attr="disabled"
+                                    wire:target="startTask"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm disabled:opacity-50">
+                                    <svg wire:loading.remove wire:target="startTask" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <svg wire:loading wire:target="startTask" class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="startTask">Start Task</span>
+                                    <span wire:loading wire:target="startTask">Starting...</span>
+                                </button>
+                                <p class="text-xs text-center mt-2" style="color: #6B7280;">
+                                    Begin working on this task
+                                </p>
+                            </div>
                         @endif
 
                         {{-- Complete Task Button --}}
                         @if($this->task->status === 'in_progress' && $this->task->assigned_admin_id === Auth::id())
-                            <button 
-                                wire:click="openCompleteModal"
-                                class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                Complete Task
-                            </button>
-                            <p class="text-xs text-gray-500 text-center">
-                                Mark this task as completed
-                            </p>
+                            <div>
+                                <button 
+                                    wire:click="openCompleteModal"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-sm">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Complete Task
+                                </button>
+                                <p class="text-xs text-center mt-2" style="color: #6B7280;">
+                                    Mark this task as completed
+                                </p>
+                            </div>
+                        @endif
+
+                        {{-- No Action Available (task assigned to someone else) --}}
+                        @if($this->task->status !== 'done' && $this->task->assigned_admin_id !== null && $this->task->assigned_admin_id !== Auth::id())
+                            <div class="text-center py-3 bg-gray-50 rounded-lg">
+                                <p class="text-sm" style="color: #6B7280;">
+                                    This task is assigned to <span class="font-medium" style="color: #374151;">{{ $this->task->assignedAdmin->name ?? 'another user' }}</span>
+                                </p>
+                            </div>
                         @endif
 
                         {{-- View Source Document --}}
                         <div class="pt-3 border-t border-gray-100">
                             @if(str_contains($this->task->taskable_type, 'PurchaseRequest'))
                                 <a 
-                                    href="{{ route('purchase-requests.show', $this->task->taskable_id) }}"
+                                    href="{{ route('purchase-requests.pdf-public', $this->task->taskable_id) }}"
                                     target="_blank"
-                                    class="w-full inline-flex items-center justify-center px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors shadow-sm border border-gray-300 bg-gray-50 hover:bg-gray-100"
+                                    style="color: #374151;">
+                                    <svg class="w-4 h-4 mr-2" style="color: #374151;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                     </svg>
                                     View Purchase Request
                                 </a>
                             @else
                                 <a 
-                                    href="{{ route('stock-requests.show', $this->task->taskable_id) }}"
+                                    href="{{ route('stock-requests.pdf-public', $this->task->taskable_id) }}"
                                     target="_blank"
-                                    class="w-full inline-flex items-center justify-center px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300">
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors shadow-sm border border-gray-300 bg-gray-50 hover:bg-gray-100"
+                                    style="color: #374151;">
+                                    <svg class="w-4 h-4 mr-2" style="color: #374151;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                     </svg>
                                     View Stock Request

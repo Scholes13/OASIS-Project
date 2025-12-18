@@ -168,8 +168,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/tasks', \App\Livewire\Modules\Purchasing\Admin\TaskList::class)->name('tasks');
             Route::get('/tasks/{taskId}', \App\Livewire\Modules\Purchasing\Admin\TaskDetail::class)->name('tasks.show');
             
-            // Performance & Reports
-            Route::get('/performance-metrics', \App\Livewire\Modules\Purchasing\Admin\PerformanceMetrics::class)->name('performance-metrics');
+            // Reports
             Route::get('/department-report', \App\Livewire\Modules\Purchasing\Admin\DepartmentReport::class)->name('department-report');
             Route::get('/consolidated-report', \App\Livewire\Modules\Purchasing\Admin\ConsolidatedReport::class)->name('consolidated-report');
             

@@ -407,11 +407,16 @@
                         const numValue = parseFloat(value) || 0;
                         this.realizations[index].realized_unit_price = numValue;
                         this.realizations[index].realized_total_price = this.calculateItemTotal(index);
+                        // Force Alpine to re-render immediately
+                        this.$nextTick(() => {
+                            // Sync with Livewire after UI update
+                            $wire.updateItemRealization(index, field, value);
+                        });
                     } else if (field === 'realized_supplier') {
                         this.realizations[index].realized_supplier = value;
+                        // Sync with Livewire
+                        $wire.updateItemRealization(index, field, value);
                     }
-                    // Sync with Livewire
-                    $wire.updateItemRealization(index, field, value);
                 }
             }"
         >
@@ -420,7 +425,7 @@
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" wire:click="closeCompleteModal"></div>
 
                 {{-- Modal panel - wider for items table --}}
-                <div class="relative bg-white rounded-lg text-left shadow-xl transform transition-all w-full max-w-6xl max-h-[90vh] flex flex-col">
+                <div class="relative bg-white rounded-lg text-left shadow-xl transform transition-all w-full max-w-7xl max-h-[90vh] flex flex-col">
                     {{-- Modal Header --}}
                     <div class="px-6 py-4 border-b border-gray-200">
                         <div class="flex items-center justify-between">
@@ -443,45 +448,34 @@
 
                     {{-- Modal Body - Scrollable --}}
                     <div class="flex-1 overflow-y-auto px-6 py-4">
-                        {{-- Loading Overlay --}}
-                        <div wire:loading.flex wire:target="completeTask,completeTaskWithItems" class="absolute inset-0 bg-white/95 z-10 items-center justify-center rounded-lg">
-                            <div class="flex flex-col items-center space-y-3">
-                                <div class="relative">
-                                    <div class="w-12 h-12 border-4 border-emerald-200 rounded-full"></div>
-                                    <div class="absolute top-0 left-0 w-12 h-12 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
-                                </div>
-                                <p class="text-sm text-gray-600 font-medium">Processing completion...</p>
-                            </div>
-                        </div>
-
                         @if(count($completingTaskItems) > 0)
-                            {{-- Items Table --}}
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
+                            {{-- Items Table with Horizontal Scroll --}}
+                            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                                <table class="w-full divide-y divide-gray-200" style="table-layout: fixed; min-width: 1100px;">
                                     <thead class="bg-gray-50">
                                         <tr>
-                                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
+                                            <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[140px]">
                                                 Item
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                                            <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[60px]">
                                                 Qty
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[110px]">
                                                 Est. Unit
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">
+                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                                                 Est. Total
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">
+                                            <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[200px]">
                                                 Realized Unit <span class="text-red-500">*</span>
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">
+                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                                                 Realized Total
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
+                                            <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[260px]">
                                                 Supplier
                                             </th>
-                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                                            <th scope="col" class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[130px]">
                                                 Savings
                                             </th>
                                         </tr>
@@ -489,27 +483,27 @@
                                     <tbody class="bg-white divide-y divide-gray-100">
                                         @foreach($completingTaskItems as $index => $item)
                                             <tr class="hover:bg-gray-50 transition-colors">
-                                                {{-- Item Name --}}
+                                                {{-- Item Name - Max 2 lines --}}
                                                 <td class="px-3 py-3">
-                                                    <div class="text-sm font-medium text-gray-900 truncate max-w-[200px]" title="{{ $item['name'] }}">
+                                                    <div class="text-sm font-medium text-gray-900 leading-tight overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-height: 2.5rem;" title="{{ $item['name'] }}">
                                                         {{ $item['name'] }}
                                                     </div>
                                                 </td>
                                                 
                                                 {{-- Quantity & Unit --}}
                                                 <td class="px-3 py-3 text-center">
-                                                    <span class="text-sm text-gray-900">{{ number_format($item['quantity'], 0) }}</span>
-                                                    <span class="text-xs text-gray-500 block">{{ $item['unit'] }}</span>
+                                                    <div class="text-sm text-gray-900">{{ number_format($item['quantity'], 0) }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $item['unit'] }}</div>
                                                 </td>
                                                 
                                                 {{-- Estimated Unit Price --}}
                                                 <td class="px-3 py-3 text-right">
-                                                    <span class="text-sm text-gray-600">Rp {{ number_format($item['estimated_unit_price'], 0, ',', '.') }}</span>
+                                                    <div class="text-sm text-gray-600 whitespace-nowrap">Rp {{ number_format($item['estimated_unit_price'], 0, ',', '.') }}</div>
                                                 </td>
                                                 
                                                 {{-- Estimated Total Price --}}
                                                 <td class="px-3 py-3 text-right">
-                                                    <span class="text-sm font-medium text-gray-900">Rp {{ number_format($item['estimated_total_price'], 0, ',', '.') }}</span>
+                                                    <div class="text-sm font-medium text-gray-900 whitespace-nowrap">Rp {{ number_format($item['estimated_total_price'], 0, ',', '.') }}</div>
                                                 </td>
                                                 
                                                 {{-- Realized Unit Price Input --}}
@@ -520,9 +514,9 @@
                                                         </div>
                                                         <input 
                                                             type="number" 
-                                                            x-model="realizations[{{ $index }}].realized_unit_price"
-                                                            @input="updateRealization({{ $index }}, 'realized_unit_price', $event.target.value)"
-                                                            class="block w-full min-w-[120px] pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-right"
+                                                            x-model.number="realizations[{{ $index }}].realized_unit_price"
+                                                            @input.debounce.300ms="$wire.updateItemRealization({{ $index }}, 'realized_unit_price', $event.target.value)"
+                                                            class="block w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-right"
                                                             min="0"
                                                             step="any"
                                                             placeholder="0">
@@ -534,7 +528,7 @@
                                                 
                                                 {{-- Realized Total (Calculated) --}}
                                                 <td class="px-3 py-3 text-right">
-                                                    <span class="text-sm font-medium text-gray-900" x-text="'Rp ' + formatNumber(calculateItemTotal({{ $index }}))"></span>
+                                                    <div class="text-sm font-medium text-gray-900 whitespace-nowrap" x-text="'Rp ' + formatNumber(calculateItemTotal({{ $index }}))"></div>
                                                 </td>
                                                 
                                                 {{-- Realized Supplier Input --}}
@@ -542,22 +536,23 @@
                                                     <input 
                                                         type="text" 
                                                         x-model="realizations[{{ $index }}].realized_supplier"
-                                                        @input="updateRealization({{ $index }}, 'realized_supplier', $event.target.value)"
-                                                        class="block w-full min-w-[160px] px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                        @input.debounce.300ms="$wire.updateItemRealization({{ $index }}, 'realized_supplier', $event.target.value)"
+                                                        class="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                         placeholder="{{ $item['original_supplier'] ?: 'Supplier' }}">
                                                 </td>
                                                 
                                                 {{-- Savings (Calculated with Color Coding) --}}
                                                 <td class="px-3 py-3 text-right">
                                                     <div 
+                                                        class="flex flex-col items-end"
                                                         x-bind:class="{
                                                             'text-emerald-600': calculateItemSavings({{ $index }}) >= 0,
                                                             'text-red-600': calculateItemSavings({{ $index }}) < 0
                                                         }"
                                                     >
-                                                        <span class="text-sm font-medium" x-text="'Rp ' + formatNumber(Math.abs(calculateItemSavings({{ $index }})))"></span>
+                                                        <span class="text-sm font-medium whitespace-nowrap" x-text="'Rp ' + formatNumber(Math.abs(calculateItemSavings({{ $index }})))"></span>
                                                         <span 
-                                                            class="text-xs block"
+                                                            class="text-xs whitespace-nowrap"
                                                             x-text="'(' + (calculateItemSavings({{ $index }}) >= 0 ? '+' : '-') + Math.abs(calculateItemSavingsPercentage({{ $index }})).toFixed(1) + '%)'">
                                                         </span>
                                                     </div>
@@ -644,15 +639,8 @@
                             <button 
                                 type="button"
                                 wire:click="completeTaskWithItems"
-                                wire:loading.attr="disabled"
-                                wire:target="completeTask,completeTaskWithItems"
-                                class="inline-flex items-center justify-center rounded-lg border border-transparent px-4 py-2 bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 min-w-[140px] transition-colors">
-                                <svg wire:loading wire:target="completeTask,completeTaskWithItems" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span wire:loading.remove wire:target="completeTask,completeTaskWithItems">Complete Task</span>
-                                <span wire:loading wire:target="completeTask,completeTaskWithItems">Processing...</span>
+                                class="inline-flex items-center justify-center rounded-lg border border-transparent px-4 py-2 bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 transition-colors">
+                                Complete Task
                             </button>
                         </div>
                     </div>

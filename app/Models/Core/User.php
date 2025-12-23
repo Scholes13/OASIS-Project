@@ -373,14 +373,11 @@ class User extends Authenticatable
             return true;
         }
 
-        // Check if user is assigned to this business unit
-        if (in_array($businessUnitId, $this->generalManagerBusinessUnitIds(), true)) {
-            return true;
-        }
-
-        return $this->activeBusinessUnits()
-            ->where('business_unit_id', $businessUnitId)
-            ->exists();
+        // Use getAccessibleBusinessUnitIds() which handles hierarchy
+        // This allows parent BU users (e.g., WG top management) to access child BUs
+        $accessibleIds = $this->getAccessibleBusinessUnitIds();
+        
+        return in_array($businessUnitId, $accessibleIds, true);
     }
 
     /**

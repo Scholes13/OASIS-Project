@@ -176,6 +176,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/audit-history', \App\Livewire\Modules\Purchasing\Admin\AuditHistory::class)->name('audit-history');
             Route::get('/department-audit-history', \App\Livewire\Modules\Purchasing\Admin\DepartmentAuditHistory::class)->name('department-audit-history');
             Route::get('/personal-task-history', \App\Livewire\Modules\Purchasing\Admin\PersonalTaskHistory::class)->name('personal-task-history');
+            Route::get('/management-history', \App\Livewire\Modules\Purchasing\Admin\ManagementHistory::class)->name('management-history');
             
             // SLA Settings (Super Admin only)
             Route::get('/sla-settings', [\App\Http\Controllers\Admin\SlaSettingsController::class, 'index'])

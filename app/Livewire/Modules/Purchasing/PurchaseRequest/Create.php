@@ -50,6 +50,12 @@ class Create extends Component
 
     public $itemImages = [];       // Temporary uploaded images (indexed by item index)
 
+    public $supportingDocument = null;  // Temporary uploaded supporting document
+
+    public $existingSupportingDocument = null; // Existing document path for edit mode
+
+    public $existingSupportingDocumentName = null; // Existing document name for edit mode
+
     public $departments = [];      // Available departments
 
     public $businessUnits = [];    // Available business units
@@ -646,6 +652,10 @@ class Create extends Component
         $this->expected_date = optional($purchaseRequest->designated_date)->format('Y-m-d');
         $this->currency = $purchaseRequest->currency ?? 'IDR';
 
+        // Load existing supporting document
+        $this->existingSupportingDocument = $purchaseRequest->supporting_document_path;
+        $this->existingSupportingDocumentName = $purchaseRequest->supporting_document_name;
+
         // Track if PR is rejected for UI
         $this->isRejected = ($purchaseRequest->status === 'rejected');
 
@@ -880,16 +890,111 @@ class Create extends Component
     }
 
     /**
-     * Handle image upload for specific item
+     * Handle image upload for specific item with error notification
      */
     public function updatedItemImages($value, $key)
     {
-        // Validate uploaded image
-        $this->validate([
-            "itemImages.{$key}" => 'nullable|image|max:2048', // Max 2MB
-        ], [
-            "itemImages.{$key}.image" => 'File must be an image (jpg, png, jpeg, gif, svg).',
-            "itemImages.{$key}.max" => 'Image size must not exceed 2MB.',
+        try {
+            // Validate uploaded image
+            $this->validate([
+                "itemImages.{$key}" => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048', // Max 2MB
+            ], [
+                "itemImages.{$key}.image" => 'File must be an image (jpg, png, jpeg, gif, webp).',
+                "itemImages.{$key}.mimes" => 'File must be an image (jpg, png, jpeg, gif, webp).',
+                "itemImages.{$key}.max" => 'Image size must not exceed 2MB.',
+            ]);
+            
+            // Success notification
+            $this->dispatch('notify', [
+                'message' => 'Image uploaded successfully',
+                'type' => 'success'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Clear the invalid upload
+            unset($this->itemImages[$key]);
+            
+            // Get error message
+            $errorMessage = $e->validator->errors()->first("itemImages.{$key}");
+            
+            // Dispatch error notification
+            $this->dispatch('notify', [
+                'message' => $errorMessage ?: 'Invalid image file. Please upload jpg, png, jpeg, gif, or webp.',
+                'type' => 'error',
+                'duration' => 5000
+            ]);
+            
+            throw $e;
+        }
+    }
+
+    /**
+     * Handle supporting document upload with validation
+     * Allowed formats: PDF, Word (doc, docx), Excel (xls, xlsx)
+     */
+    public function updatedSupportingDocument($value)
+    {
+        try {
+            // Validate uploaded document
+            $this->validate([
+                'supportingDocument' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240', // Max 10MB
+            ], [
+                'supportingDocument.file' => 'The uploaded file is invalid.',
+                'supportingDocument.mimes' => 'File must be PDF, Word (doc, docx), or Excel (xls, xlsx).',
+                'supportingDocument.max' => 'File size must not exceed 10MB.',
+            ]);
+            
+            // Success notification
+            $this->dispatch('notify', [
+                'message' => 'Supporting document uploaded successfully',
+                'type' => 'success'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Clear the invalid upload
+            $this->supportingDocument = null;
+            
+            // Get error message
+            $errorMessage = $e->validator->errors()->first('supportingDocument');
+            
+            // Dispatch error notification
+            $this->dispatch('notify', [
+                'message' => $errorMessage ?: 'Invalid file format. Please upload PDF, Word, or Excel file.',
+                'type' => 'error',
+                'duration' => 5000
+            ]);
+            
+            throw $e;
+        }
+    }
+
+    /**
+     * Remove uploaded supporting document
+     */
+    public function removeSupportingDocument()
+    {
+        // Remove temporary upload
+        $this->supportingDocument = null;
+        
+        // Remove existing document from storage if editing
+        if ($this->isEdit && $this->existingSupportingDocument) {
+            \Storage::disk('public')->delete($this->existingSupportingDocument);
+            $this->existingSupportingDocument = null;
+            $this->existingSupportingDocumentName = null;
+            
+            // Update database
+            if ($this->purchaseRequestId) {
+                $pr = PurchaseRequest::find($this->purchaseRequestId);
+                if ($pr) {
+                    $pr->update([
+                        'supporting_document_path' => null,
+                        'supporting_document_name' => null,
+                    ]);
+                }
+            }
+        }
+        
+        $this->dispatch('notify', [
+            'message' => 'Supporting document removed successfully',
+            'type' => 'success'
         ]);
     }
 
@@ -1285,6 +1390,14 @@ class Create extends Component
                 $currentDate
             );
 
+            // Handle supporting document upload
+            $supportingDocPath = null;
+            $supportingDocName = null;
+            if ($this->supportingDocument) {
+                $supportingDocName = $this->supportingDocument->getClientOriginalName();
+                $supportingDocPath = $this->supportingDocument->store('pr-documents', 'public');
+            }
+
             // Create purchase request as draft
             $purchaseRequest = PurchaseRequest::create([
                 'pr_number' => $result['formatted_number'],
@@ -1299,6 +1412,8 @@ class Create extends Component
                 'designated_date' => $this->expected_date ? Carbon::parse($this->expected_date)->format('Y-m-d') : null,
                 'status' => 'draft',
                 'currency' => $this->currency,
+                'supporting_document_path' => $supportingDocPath,
+                'supporting_document_name' => $supportingDocName,
                 'last_modified_by' => Auth::id(),
             ]);
 
@@ -1382,6 +1497,24 @@ class Create extends Component
             ];
         }
 
+        // Handle supporting document upload for edit mode
+        $supportingDocPath = $this->existingSupportingDocument;
+        $supportingDocName = null;
+        
+        if ($this->supportingDocument) {
+            // Delete old document if exists
+            if ($supportingDocPath) {
+                \Storage::disk('public')->delete($supportingDocPath);
+            }
+            // Store new document
+            $supportingDocName = $this->supportingDocument->getClientOriginalName();
+            $supportingDocPath = $this->supportingDocument->store('pr-documents', 'public');
+        } elseif ($this->existingSupportingDocument) {
+            // Keep existing document name from database
+            $pr = $this->resolveExistingPurchaseRequest();
+            $supportingDocName = $pr->supporting_document_name;
+        }
+
         return [
             'used_for' => $this->used_for,
             'category_id' => $this->category_id ?: null,
@@ -1389,6 +1522,8 @@ class Create extends Component
             'designated_date' => $this->expected_date ? Carbon::parse($this->expected_date)->format('Y-m-d') : null,
             'status' => $status,
             'currency' => $this->currency,
+            'supporting_document_path' => $supportingDocPath,
+            'supporting_document_name' => $supportingDocName,
             'items' => $items,
         ];
     }
@@ -1479,6 +1614,14 @@ class Create extends Component
                 $currentDate
             );
 
+            // Handle supporting document upload
+            $supportingDocPath = null;
+            $supportingDocName = null;
+            if ($this->supportingDocument) {
+                $supportingDocName = $this->supportingDocument->getClientOriginalName();
+                $supportingDocPath = $this->supportingDocument->store('pr-documents', 'public');
+            }
+
             // Create purchase request
             $purchaseRequest = PurchaseRequest::create([
                 'pr_number' => $result['formatted_number'],
@@ -1493,6 +1636,8 @@ class Create extends Component
                 'status' => 'submitted',
                 'submitted_at' => now(),
                 'currency' => $this->currency,
+                'supporting_document_path' => $supportingDocPath,
+                'supporting_document_name' => $supportingDocName,
                 'last_modified_by' => Auth::id(),
             ]);
 

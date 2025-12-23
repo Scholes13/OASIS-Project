@@ -49,27 +49,26 @@ class Sidebar extends Component
         $hasBusinessUnit = $user && $user->activeBusinessUnits()->exists();
         $currentBusinessUnitId = session('current_business_unit_id');
 
-        // Base navigation - Dashboard always visible
-        $navigation = [
-            [
-                'name' => 'Dashboard',
-                'href' => route('dashboard'),
-                'icon' => 'home',
-                'current' => $this->currentRoute === 'dashboard',
-                'children' => [],
-            ],
-        ];
+        // Base navigation
+        $navigation = [];
 
-        // Purchasing module - parent menu with PR and SR
+        // Purchasing module - parent menu with Dashboard, PR, SR, Approvals
         if ($hasBusinessUnit && $currentBusinessUnitId) {
             $navigation[] = [
                 'name' => 'Purchasing',
-                'href' => route('purchase-requests.index'),
+                'href' => route('dashboard'),
                 'icon' => 'shopping-cart',
-                'current' => str_starts_with($this->currentRoute, 'purchase-requests') 
+                'current' => $this->currentRoute === 'dashboard'
+                          || str_starts_with($this->currentRoute, 'purchase-requests') 
                           || str_starts_with($this->currentRoute, 'stock-requests')
-                          || str_starts_with($this->currentRoute, 'purchasing'),
+                          || str_starts_with($this->currentRoute, 'purchasing')
+                          || str_starts_with($this->currentRoute, 'approvals'),
                 'children' => [
+                    [
+                        'name' => 'Dashboard',
+                        'href' => route('dashboard'),
+                        'current' => $this->currentRoute === 'dashboard',
+                    ],
                     [
                         'name' => 'Purchase Request',
                         'href' => route('purchase-requests.index'),
@@ -85,22 +84,45 @@ class Sidebar extends Component
                         'href' => route('purchasing.all-requests'),
                         'current' => $this->currentRoute === 'purchasing.all-requests',
                     ],
+                    [
+                        'name' => 'Approvals',
+                        'href' => route('approvals.index'),
+                        'current' => str_starts_with($this->currentRoute, 'approvals'),
+                    ],
                 ],
-            ];
-
-            // Approvals - also requires business unit
-            $navigation[] = [
-                'name' => 'Approvals',
-                'href' => route('approvals.index'),
-                'icon' => 'check-circle',
-                'current' => str_starts_with($this->currentRoute, 'approvals'),
-                'children' => [],
             ];
         }
 
         // Purchasing Admin - only for authorized users
         if ($user && $user->can('access-purchasing-admin')) {
             $purchasingAdminChildren = [];
+            
+            // Check if user is top management (view-only access)
+            $managementPositions = ['Top Management', 'Director', 'CEO', 'General Manager', 'Managing Director'];
+            
+            // First check direct assignment to current BU
+            $userBu = $user->businessUnits()
+                ->where('business_unit_id', $currentBusinessUnitId)
+                ->with('position')
+                ->first();
+            $isTopManagement = $userBu && $userBu->position && in_array($userBu->position->name, $managementPositions);
+            
+            // If no direct assignment, check if user is top management in parent BU
+            // This allows WG top management to view child BUs (WNS, UK, MRP)
+            if (!$isTopManagement && !$userBu) {
+                $currentBu = \App\Models\Core\BusinessUnit::find($currentBusinessUnitId);
+                if ($currentBu && $currentBu->parent_id) {
+                    // Check if user is top management in parent BU
+                    $parentUserBu = $user->businessUnits()
+                        ->where('business_unit_id', $currentBu->parent_id)
+                        ->with('position')
+                        ->first();
+                    $isTopManagement = $parentUserBu && $parentUserBu->position && in_array($parentUserBu->position->name, $managementPositions);
+                }
+            }
+            
+            // Check if user is purchasing admin
+            $isPurchasingAdmin = $userBu && $userBu->is_purchasing_admin;
 
             // Determine which audit history page to show based on role
             if ($user->global_role === 'super_admin') {
@@ -110,7 +132,15 @@ class Sidebar extends Component
                     'href' => route('purchasing.admin.audit-history'),
                     'current' => $this->currentRoute === 'purchasing.admin.audit-history',
                 ];
+            } elseif ($isTopManagement) {
+                // Top management sees aggregated history from all admins
+                $purchasingAdminChildren[] = [
+                    'name' => 'History',
+                    'href' => route('purchasing.admin.management-history'),
+                    'current' => $this->currentRoute === 'purchasing.admin.management-history',
+                ];
             } else {
+                // Non-management users see department audit and personal history
                 // Check if user is a department manager
                 $isDepartmentManager = $user->businessUnits()
                     ->where('business_unit_id', $currentBusinessUnitId)
@@ -127,10 +157,30 @@ class Sidebar extends Component
                 }
 
                 // All purchasing admins see their personal history
-                $purchasingAdminChildren[] = [
-                    'name' => 'My Task History',
-                    'href' => route('purchasing.admin.personal-task-history'),
-                    'current' => $this->currentRoute === 'purchasing.admin.personal-task-history',
+                if ($isPurchasingAdmin) {
+                    $purchasingAdminChildren[] = [
+                        'name' => 'My Task History',
+                        'href' => route('purchasing.admin.personal-task-history'),
+                        'current' => $this->currentRoute === 'purchasing.admin.personal-task-history',
+                    ];
+                }
+            }
+            
+            // Build base menu items
+            $baseMenuItems = [
+                [
+                    'name' => 'Dashboard',
+                    'href' => route('purchasing.admin.dashboard'),
+                    'current' => $this->currentRoute === 'purchasing.admin.dashboard',
+                ],
+            ];
+            
+            // Tasks menu - only for purchasing admins, not for top management
+            if ($isPurchasingAdmin && !$isTopManagement) {
+                $baseMenuItems[] = [
+                    'name' => 'Tasks',
+                    'href' => route('purchasing.admin.tasks'),
+                    'current' => $this->currentRoute === 'purchasing.admin.tasks',
                 ];
             }
 
@@ -139,18 +189,7 @@ class Sidebar extends Component
                 'href' => route('purchasing.admin.dashboard'),
                 'icon' => 'clipboard-list',
                 'current' => str_starts_with($this->currentRoute, 'purchasing.admin'),
-                'children' => array_merge([
-                    [
-                        'name' => 'Dashboard',
-                        'href' => route('purchasing.admin.dashboard'),
-                        'current' => $this->currentRoute === 'purchasing.admin.dashboard',
-                    ],
-                    [
-                        'name' => 'Tasks',
-                        'href' => route('purchasing.admin.tasks'),
-                        'current' => $this->currentRoute === 'purchasing.admin.tasks',
-                    ],
-                ], $purchasingAdminChildren),
+                'children' => array_merge($baseMenuItems, $purchasingAdminChildren),
             ];
         }
 

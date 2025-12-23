@@ -481,6 +481,65 @@
         </div>
     </div>
 
+    <!-- Business Unit Distribution Chart - Only show for parent BU (multiple child BUs) -->
+    @php
+        $hasBuDistribution = !empty($chartData['buDistribution']) && count($chartData['buDistribution']) > 1;
+    @endphp
+    @if($hasBuDistribution)
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2 mb-6" id="buDistributionSection">
+        <!-- Pie Chart - Amount Distribution -->
+        <div class="bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow duration-200">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-900">Spending by Business Unit</h3>
+                <p class="text-sm text-gray-400 mt-0.5">Distribution of approved PR amounts</p>
+            </div>
+            <div class="p-5">
+                <canvas id="buDistributionChart" style="height: 280px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Table - Detailed Breakdown -->
+        <div class="bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow duration-200">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-900">Detailed Breakdown</h3>
+                <p class="text-sm text-gray-400 mt-0.5">Amount per business unit</p>
+            </div>
+            <div class="p-5">
+                <div class="space-y-3">
+                    @php
+                        $colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+                    @endphp
+                    @foreach($chartData['buDistribution'] as $index => $bu)
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-3 h-3 rounded-full" style="background-color: {{ $colors[$index % count($colors)] }}"></div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ $bu['bu_code'] }}</p>
+                                <p class="text-xs text-gray-500">{{ $bu['bu_name'] }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-semibold text-gray-900">Rp {{ number_format($bu['amount'], 0, ',', '.') }}</p>
+                            <p class="text-xs text-gray-500">{{ $bu['percentage'] }}% · {{ $bu['pr_count'] }} PRs</p>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                
+                <!-- Total -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-600">Total</span>
+                        <span class="text-base font-bold text-gray-900">
+                            Rp {{ number_format(collect($chartData['buDistribution'])->sum('amount'), 0, ',', '.') }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Recent Activity - Full Width with Modern Design -->
     <div class="bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow duration-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -571,14 +630,30 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     @endonce
     <script>
+        // Store chart data globally for re-initialization
+        window.dashboardChartData = @json($chartData ?? ['daily' => [], 'status' => [], 'buDistribution' => []]);
+        
         document.addEventListener('livewire:init', () => {
-            // Initialize chart when data is ready
-            const chartData = @json($chartData ?? ['daily' => []]);
+            console.log('📊 Initial chartData:', window.dashboardChartData);
             // Small delay to ensure DOM is ready after Livewire render
-            setTimeout(() => initializeCharts(chartData), 200);
+            setTimeout(() => initializeCharts(window.dashboardChartData), 200);
+        });
+
+        // Re-initialize charts after Livewire updates the DOM
+        Livewire.hook('morph.updated', ({ el, component }) => {
+            // Check if BU distribution section now exists in DOM
+            const buSection = document.getElementById('buDistributionSection');
+            const buCanvas = document.getElementById('buDistributionChart');
+            if (buSection && buCanvas && !window.buDistributionChart && window.dashboardChartData?.buDistribution?.length > 1) {
+                console.log('🔄 morph.updated: BU section found, initializing chart');
+                setTimeout(() => initializeBuDistributionChart(window.dashboardChartData), 100);
+            }
         });
 
         Livewire.on('chartDataUpdated', (event) => {
+            console.log('📊 chartDataUpdated event received:', event);
+            // Update global chart data
+            window.dashboardChartData = event.chartData;
             // Delay to ensure DOM is updated
             setTimeout(() => initializeCharts(event.chartData), 150);
         });
@@ -590,10 +665,13 @@
                 return;
             }
             
+            // Always try to initialize BU Distribution chart first (independent of daily data)
+            initializeBuDistributionChart(chartData);
+            
             const canvas = document.getElementById('dailyTrendChart');
             const emptyState = document.getElementById('chartEmptyState');
             
-            // Handle empty data - show empty state
+            // Handle empty daily data - show empty state for trend chart only
             if (!chartData || !chartData.daily || chartData.daily.length === 0) {
                 if (canvas) canvas.style.display = 'none';
                 if (emptyState) emptyState.style.display = 'flex';
@@ -704,6 +782,96 @@
                 });
             } catch (error) {
                 // Silent error handling for production
+            }
+        }
+        
+        function initializeBuDistributionChart(chartData) {
+            console.log('🎯 initializeBuDistributionChart called', chartData);
+            
+            // Skip if no distribution data or only 1 BU
+            if (!chartData?.buDistribution || chartData.buDistribution.length < 2) {
+                console.log('❌ No distribution data or less than 2 BUs');
+                return;
+            }
+            
+            // Try to find canvas, retry if not found (DOM might not be ready)
+            const canvas = document.getElementById('buDistributionChart');
+            console.log('📊 Canvas element:', canvas);
+            console.log('📊 BU Distribution data:', chartData?.buDistribution);
+            
+            if (!canvas) {
+                console.log('⏳ Canvas not found, retrying in 300ms...');
+                setTimeout(() => initializeBuDistributionChart(chartData), 300);
+                return;
+            }
+            
+            console.log('✅ Proceeding to create chart with', chartData.buDistribution.length, 'BUs');
+            
+            try {
+                // Destroy existing chart if it exists and is a valid Chart instance
+                if (window.buDistributionChart && typeof window.buDistributionChart.destroy === 'function') {
+                    window.buDistributionChart.destroy();
+                }
+                window.buDistributionChart = null;
+                
+                const labels = chartData.buDistribution.map(item => item.bu_code);
+                const amounts = chartData.buDistribution.map(item => item.amount);
+                const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+                
+                const ctx = canvas.getContext('2d');
+                window.buDistributionChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: amounts,
+                            backgroundColor: colors.slice(0, labels.length),
+                            borderColor: '#fff',
+                            borderWidth: 3,
+                            hoverBorderWidth: 4,
+                            hoverOffset: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    font: { size: 12, weight: '500' }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                titleColor: '#fff',
+                                bodyColor: '#e5e7eb',
+                                borderColor: 'rgba(99, 102, 241, 0.3)',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                padding: 12,
+                                callbacks: {
+                                    label: function(context) {
+                                        const item = chartData.buDistribution[context.dataIndex];
+                                        const formatted = new Intl.NumberFormat('id-ID').format(item.amount);
+                                        return [
+                                            item.bu_name,
+                                            'Rp ' + formatted,
+                                            item.percentage + '% · ' + item.pr_count + ' PRs'
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                console.log('✅ BU Distribution chart created successfully');
+            } catch (error) {
+                console.error('❌ Error creating BU Distribution chart:', error);
             }
         }
     </script>

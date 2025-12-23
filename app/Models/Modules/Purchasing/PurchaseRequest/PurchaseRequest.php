@@ -84,6 +84,8 @@ class PurchaseRequest extends Model
         'is_sequential_approval',
         'total_amount',
         'currency',
+        'supporting_document_path',
+        'supporting_document_name',
         'edit_history',
         'last_modified_by',
     ];

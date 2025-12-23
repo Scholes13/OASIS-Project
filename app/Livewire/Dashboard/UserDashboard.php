@@ -330,6 +330,7 @@ class UserDashboard extends Component
         return [
             'daily' => [],
             'status' => [],
+            'buDistribution' => [],
         ];
     }
 
@@ -1002,6 +1003,9 @@ class UserDashboard extends Component
             $statusArray[$stat->status] = (int) $stat->count;
         }
 
+        // ✅ Get distribution by business unit (for parent BU view)
+        $buDistribution = $this->getBusinessUnitDistribution($businessUnitIds);
+
         return [
             'daily' => array_map(function ($item) {
                 return [
@@ -1011,7 +1015,53 @@ class UserDashboard extends Component
                 ];
             }, $dailyStats),
             'status' => $statusArray,
+            'buDistribution' => $buDistribution,
         ];
+    }
+
+    /**
+     * Get amount distribution by business unit
+     * Shows how much each child BU contributes to total spending
+     */
+    protected function getBusinessUnitDistribution(array $businessUnitIds): array
+    {
+        if (count($businessUnitIds) <= 1) {
+            return []; // No distribution needed for single BU
+        }
+
+        $buIdsPlaceholder = implode(',', array_fill(0, count($businessUnitIds), '?'));
+
+        // Get total amount per business unit
+        $distribution = DB::select("
+            SELECT 
+                pr.business_unit_id,
+                bu.code as bu_code,
+                bu.name as bu_name,
+                COUNT(*) as pr_count,
+                COALESCE(SUM(pr.total_amount), 0) as total_amount
+            FROM purchase_requests pr
+            JOIN business_units bu ON bu.id = pr.business_unit_id
+            WHERE pr.business_unit_id IN ({$buIdsPlaceholder})
+              AND pr.created_at >= ?
+              AND pr.created_at <= ?
+              AND pr.status IN ('approved', 'in_approval', 'submitted')
+            GROUP BY pr.business_unit_id, bu.code, bu.name
+            ORDER BY total_amount DESC
+        ", array_merge($businessUnitIds, [$this->startDate, $this->endDate]));
+
+        // Calculate total for percentage
+        $grandTotal = array_sum(array_column($distribution, 'total_amount'));
+
+        return array_map(function ($item) use ($grandTotal) {
+            return [
+                'bu_id' => $item->business_unit_id,
+                'bu_code' => $item->bu_code,
+                'bu_name' => $item->bu_name,
+                'pr_count' => (int) $item->pr_count,
+                'amount' => (float) $item->total_amount,
+                'percentage' => $grandTotal > 0 ? round(($item->total_amount / $grandTotal) * 100, 1) : 0,
+            ];
+        }, $distribution);
     }
 
     /**

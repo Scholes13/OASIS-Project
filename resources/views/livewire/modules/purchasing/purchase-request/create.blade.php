@@ -14,6 +14,9 @@
     $currency = $this->currency ?? 'IDR';
     $used_for = $this->used_for ?? '';
     $expected_date = $this->expected_date ?? '';
+    $supportingDocument = $this->supportingDocument ?? null;
+    $existingSupportingDocument = $this->existingSupportingDocument ?? null;
+    $existingSupportingDocumentName = $this->existingSupportingDocumentName ?? null;
 @endphp
 
 <div class="w-full space-y-6">
@@ -192,6 +195,125 @@
                             <span class="text-sm text-gray-600">Department:</span>
                             <span class="text-sm text-gray-900">{{ $department_name ?? 'Department not set' }} ({{ $department_code ?? 'N/A' }})</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Supporting Document Upload -->
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Supporting Document
+                        <span class="text-gray-500 font-normal">(Optional)</span>
+                    </label>
+                    <div class="space-y-3">
+                        @if($supportingDocument)
+                            <!-- New uploaded document preview -->
+                            <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex-shrink-0">
+                                        @php
+                                            $extension = strtolower($supportingDocument->getClientOriginalExtension());
+                                            $iconColor = match($extension) {
+                                                'pdf' => 'text-red-500',
+                                                'doc', 'docx' => 'text-blue-500',
+                                                'xls', 'xlsx' => 'text-green-500',
+                                                default => 'text-gray-500'
+                                            };
+                                        @endphp
+                                        <svg class="w-8 h-8 {{ $iconColor }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ $supportingDocument->getClientOriginalName() }}</p>
+                                        <p class="text-xs text-gray-500">{{ number_format($supportingDocument->getSize() / 1024, 1) }} KB - Ready to upload</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    wire:click="removeSupportingDocument"
+                                    type="button"
+                                    class="text-red-600 hover:text-red-800 p-1 hover:bg-red-100 rounded transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        @elseif($existingSupportingDocument)
+                            <!-- Existing document (edit mode) -->
+                            @php
+                                $docName = $existingSupportingDocumentName ?? basename($existingSupportingDocument);
+                                $extension = strtolower(pathinfo($docName, PATHINFO_EXTENSION));
+                                $iconColor = match($extension) {
+                                    'pdf' => 'text-red-500',
+                                    'doc', 'docx' => 'text-blue-500',
+                                    'xls', 'xlsx' => 'text-green-500',
+                                    default => 'text-gray-500'
+                                };
+                            @endphp
+                            <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <svg class="w-8 h-8 {{ $iconColor }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ $docName }}</p>
+                                        <p class="text-xs text-green-600">Currently attached</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <a href="{{ Storage::url($existingSupportingDocument) }}" 
+                                       target="_blank"
+                                       class="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-100 rounded transition-colors"
+                                       title="View document">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </a>
+                                    <button 
+                                        wire:click="removeSupportingDocument"
+                                        type="button"
+                                        class="text-red-600 hover:text-red-800 p-1 hover:bg-red-100 rounded transition-colors"
+                                        title="Remove document">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        @else
+                            <!-- Upload area -->
+                            <label class="cursor-pointer block">
+                                <input 
+                                    type="file" 
+                                    wire:model="supportingDocument" 
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx"
+                                    class="hidden">
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                    </svg>
+                                    <p class="mt-2 text-sm text-gray-600">
+                                        <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> or drag and drop
+                                    </p>
+                                    <p class="mt-1 text-xs text-gray-500">PDF, Word (DOC, DOCX), Excel (XLS, XLSX) up to 10MB</p>
+                                </div>
+                            </label>
+                        @endif
+                        
+                        <!-- Loading indicator -->
+                        <div wire:loading wire:target="supportingDocument" class="flex items-center space-x-2 text-blue-600">
+                            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-sm">Uploading document...</span>
+                        </div>
+                        
+                        @error('supportingDocument')
+                            <p class="text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
             </div>

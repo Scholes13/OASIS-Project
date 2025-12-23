@@ -2,17 +2,27 @@
   "mcpServers": {
     "laravel-boost": {
       "command": "php",
-      "args": ["F:\\Project\\Numbering\\artisan", "boost:mcp"],
+      "args": ["artisan", "boost:mcp"],
       "env": {
-        "FASTMCP_LOG_LEVEL": "ERROR"
+        "APP_ENV": "local"
       },
       "disabled": false,
       "autoApprove": [
-        "list-routes",
-        "database-query",
         "application-info",
+        "database-schema",
+        "database-query",
+        "database-connections",
+        "list-routes",
+        "list-artisan-commands",
+        "list-available-config-keys",
+        "get-config",
+        "list-available-env-vars",
+        "get-absolute-url",
+        "tinker",
+        "last-error",
         "read-log-entries",
-        "tinker"
+        "browser-logs",
+        "search-docs"
       ]
     }
   }

@@ -53,16 +53,17 @@ class BusinessUnitSwitcher extends Component
     {
         $user = Auth::user();
 
-        // ✅ FIX: Load current BU from session, fetch logo from DB if not in session
+        // ✅ FIX: Always fetch fresh logo from DB to ensure sync after switch
         $sessionBuId = session('current_business_unit_id');
-        $sessionLogo = session('current_business_unit_logo');
+        $sessionLogo = null;
         
-        // If logo not in session, fetch from database
-        if ($sessionBuId && !$sessionLogo) {
+        // Always fetch logo from database to ensure it's current
+        if ($sessionBuId) {
             $currentBu = BusinessUnit::find($sessionBuId);
             if ($currentBu) {
-                session(['current_business_unit_logo' => $currentBu->logo]);
                 $sessionLogo = $currentBu->logo;
+                // Update session with fresh logo
+                session(['current_business_unit_logo' => $sessionLogo]);
             }
         }
         
@@ -192,7 +193,7 @@ class BusinessUnitSwitcher extends Component
         // Update tracked session ID
         $this->sessionBusinessUnitId = $businessUnit->id;
 
-        // ✅ FIX: Update currentBusinessUnit property immediately
+        // ✅ FIX: Update currentBusinessUnit property immediately with fresh data
         $this->currentBusinessUnit = [
             'id' => $businessUnit->id,
             'code' => $businessUnit->code,
@@ -200,8 +201,8 @@ class BusinessUnitSwitcher extends Component
             'logo' => $businessUnit->logo,
         ];
 
-        // Mark as not loaded to force refresh on next hydrate
-        $this->isLoaded = false;
+        // ✅ Force Livewire to re-render the component
+        $this->isLoaded = true;
 
         // ✅ Clear business unit cache when switching (not dashboard cache)
         $this->clearBusinessUnitCache($user->id);
@@ -247,12 +248,31 @@ class BusinessUnitSwitcher extends Component
         // Update tracked session ID
         $this->sessionBusinessUnitId = $businessUnitId;
 
-        // Reload business units (will get current BU from session)
-        $this->loadBusinessUnits();
+        // ✅ FIX: Fetch fresh BU data directly from database (not from session)
+        // This ensures logo is correct even if session hasn't been updated yet
+        $businessUnit = BusinessUnit::find($businessUnitId);
+        
+        if ($businessUnit) {
+            $this->currentBusinessUnit = [
+                'id' => $businessUnit->id,
+                'code' => $businessUnit->code,
+                'name' => $businessUnit->name,
+                'logo' => $businessUnit->logo,
+            ];
+            
+            // Also update session to keep in sync
+            session([
+                'current_business_unit_id' => $businessUnit->id,
+                'current_business_unit_code' => $businessUnit->code,
+                'current_business_unit_name' => $businessUnit->name,
+                'current_business_unit_logo' => $businessUnit->logo,
+            ]);
+        }
 
         \Log::info('✅ BusinessUnitSwitcher updated', [
             'current_bu_code' => $this->currentBusinessUnit['code'],
             'current_bu_name' => $this->currentBusinessUnit['name'],
+            'current_bu_logo' => $this->currentBusinessUnit['logo'],
         ]);
     }
 

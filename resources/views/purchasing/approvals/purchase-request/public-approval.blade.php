@@ -1083,6 +1083,61 @@
         </table>
     </div>
 
+    <!-- Supporting Document Section -->
+    @if($approval->purchaseRequest->supporting_document_path)
+        <div style="margin-bottom: 25px; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <div style="font-weight: bold; font-size: 11px; color: #374151; margin-bottom: 10px; text-transform: uppercase;">
+                Supporting Document
+            </div>
+            @php
+                $docName = $approval->purchaseRequest->supporting_document_name ?? basename($approval->purchaseRequest->supporting_document_path);
+                $extension = strtolower(pathinfo($docName, PATHINFO_EXTENSION));
+                $iconColor = match($extension) {
+                    'pdf' => '#ef4444',
+                    'doc', 'docx' => '#3b82f6',
+                    'xls', 'xlsx' => '#10b981',
+                    default => '#6b7280'
+                };
+                $bgColor = match($extension) {
+                    'pdf' => '#fef2f2',
+                    'doc', 'docx' => '#eff6ff',
+                    'xls', 'xlsx' => '#ecfdf5',
+                    default => '#f3f4f6'
+                };
+                $fileType = match($extension) {
+                    'pdf' => 'PDF',
+                    'doc', 'docx' => 'Word',
+                    'xls', 'xlsx' => 'Excel',
+                    default => 'Document'
+                };
+            @endphp
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; background: {{ $bgColor }}; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                        <svg style="width: 18px; height: 18px; color: {{ $iconColor }};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div style="font-size: 10px; font-weight: 600; color: #111827;">{{ $docName }}</div>
+                        <div style="font-size: 9px; color: #6b7280;">{{ $fileType }} Document</div>
+                    </div>
+                </div>
+                <a href="{{ asset('storage/' . $approval->purchaseRequest->supporting_document_path) }}" 
+                   target="_blank"
+                   style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; background: #3b82f6; color: white; font-size: 10px; font-weight: 600; border-radius: 4px; text-decoration: none; transition: background 0.2s;"
+                   onmouseover="this.style.background='#2563eb'" 
+                   onmouseout="this.style.background='#3b82f6'">
+                    <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    View
+                </a>
+            </div>
+        </div>
+    @endif
+
     <!-- Approval Section -->
     <div class="approval-section">
         @php

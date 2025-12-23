@@ -25,6 +25,12 @@
             
             if (currentPath === '/' || currentPath === '/dashboard') {
                 requiredComponents.push('dashboard');
+            } else if (currentPath.includes('/purchasing/admin/management-history')) {
+                // ✅ Management History page (top management task history)
+                requiredComponents.push('management-history');
+            } else if (currentPath.includes('/purchasing/admin/dashboard')) {
+                // ✅ Admin Dashboard page
+                requiredComponents.push('admin-dashboard');
             } else if (currentPath.includes('/purchasing/all-requests')) {
                 // ✅ Purchasing All Requests page (combined PR + ST)
                 requiredComponents.push('purchasing-all-requests');
@@ -76,19 +82,16 @@
             class="relative flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200 z-10">
             
             <!-- Current Business Unit Info -->
-            @php
-                // Get logo from availableBusinessUnits (has fresh data from DB) or fallback to currentBusinessUnit
-                $currentBuLogo = collect($availableBusinessUnits)->firstWhere('id', $currentBusinessUnit['id'])['logo'] ?? $currentBusinessUnit['logo'] ?? null;
-            @endphp
-            <div class="flex items-center space-x-2">
-                @if($currentBuLogo)
-                    <img src="{{ asset('storage/' . $currentBuLogo) }}" 
+            <div class="flex items-center space-x-2" wire:key="bu-logo-{{ $currentBusinessUnit['id'] }}">
+                @if($currentBusinessUnit['logo'])
+                    <img src="{{ asset('storage/' . $currentBusinessUnit['logo']) }}" 
                          alt="{{ $currentBusinessUnit['code'] }}" 
-                         class="w-7 h-7 rounded-lg object-cover shadow-sm">
+                         class="w-7 h-7 rounded-lg object-cover shadow-sm"
+                         wire:key="bu-img-{{ $currentBusinessUnit['id'] }}">
                 @else
                     <div class="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
                         <span class="text-xs font-bold text-white">
-                            {{ substr($currentBusinessUnit['code'], 0, 2) }}
+                            {{ substr($currentBusinessUnit['code'] ?? '', 0, 2) }}
                         </span>
                     </div>
                 @endif

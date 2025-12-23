@@ -515,7 +515,7 @@
                                                         <input 
                                                             type="number" 
                                                             x-model.number="realizations[{{ $index }}].realized_unit_price"
-                                                            @input.debounce.300ms="$wire.updateItemRealization({{ $index }}, 'realized_unit_price', $event.target.value)"
+                                                            @change="$wire.updateItemRealization({{ $index }}, 'realized_unit_price', realizations[{{ $index }}].realized_unit_price)"
                                                             class="block w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-right"
                                                             min="0"
                                                             step="any"

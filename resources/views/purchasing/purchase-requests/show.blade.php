@@ -188,6 +188,81 @@
                             </div>
                         </div>
 
+                        <!-- Supporting Document Card -->
+                        @if($purchaseRequest->supporting_document_path)
+                            <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                                <div class="px-5 py-4 border-b border-gray-100">
+                                    <h3 class="text-base font-semibold text-gray-900">Supporting Document</h3>
+                                </div>
+                                <div class="p-5">
+                                    @php
+                                        $docName = $purchaseRequest->supporting_document_name ?? basename($purchaseRequest->supporting_document_path);
+                                        $extension = strtolower(pathinfo($docName, PATHINFO_EXTENSION));
+                                        $iconColor = match($extension) {
+                                            'pdf' => 'text-red-500 bg-red-50',
+                                            'doc', 'docx' => 'text-blue-500 bg-blue-50',
+                                            'xls', 'xlsx' => 'text-green-500 bg-green-50',
+                                            default => 'text-gray-500 bg-gray-50'
+                                        };
+                                        $fileType = match($extension) {
+                                            'pdf' => 'PDF Document',
+                                            'doc', 'docx' => 'Word Document',
+                                            'xls', 'xlsx' => 'Excel Spreadsheet',
+                                            default => 'Document'
+                                        };
+                                    @endphp
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="flex-shrink-0 w-10 h-10 rounded-lg {{ $iconColor }} flex items-center justify-center">
+                                                @if($extension === 'pdf')
+                                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm0 4.5c1.93 0 3.5-1.57 3.5-3.5S10.43 10.5 8.5 10.5 5 12.07 5 14s1.57 3.5 3.5 3.5zm6.5-4.5h3v1h-3v-1zm0 2h3v1h-3v-1zm0 2h2v1h-2v-1z"/>
+                                                    </svg>
+                                                @elseif(in_array($extension, ['doc', 'docx']))
+                                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM7 17v-6h1.5l1 4 1-4H12v6h-1v-4l-1 4h-1l-1-4v4H7z"/>
+                                                    </svg>
+                                                @elseif(in_array($extension, ['xls', 'xlsx']))
+                                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM7 17v-6h1.5l1.5 2.5L11.5 11H13v6h-1.5v-3.5l-1.5 2-1.5-2V17H7z"/>
+                                                    </svg>
+                                                @else
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                    </svg>
+                                                @endif
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-medium text-gray-900 truncate">{{ $docName }}</p>
+                                                <p class="text-xs text-gray-500">{{ $fileType }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <a href="{{ Storage::url($purchaseRequest->supporting_document_path) }}" 
+                                               target="_blank"
+                                               class="inline-flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                                               title="View document">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                </svg>
+                                                View
+                                            </a>
+                                            <a href="{{ Storage::url($purchaseRequest->supporting_document_path) }}" 
+                                               download="{{ $docName }}"
+                                               class="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                                               title="Download document">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                                </svg>
+                                                Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         <!-- Items Table Card -->
                         <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
                             <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">

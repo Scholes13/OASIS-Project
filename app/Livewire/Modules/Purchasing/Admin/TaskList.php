@@ -214,7 +214,9 @@ class TaskList extends Component
             ->select([
                 'id', 'taskable_type', 'taskable_id', 'business_unit_id',
                 'department_id', 'assigned_admin_id', 'status',
-                'estimated_total_price', 'entered_at'
+                'estimated_total_price', 'realized_total_price', 
+                'savings_amount', 'savings_percentage', 'completion_time_minutes',
+                'entered_at', 'started_at', 'completed_at'
             ])
             ->orderBy('entered_at', 'desc')
             ->paginate(10);

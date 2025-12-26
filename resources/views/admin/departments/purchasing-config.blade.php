@@ -25,7 +25,7 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+        <div class="w-full">
             <!-- Department Info Card -->
             <div class="bg-white rounded-xl border border-gray-100 overflow-hidden mb-6">
                 <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-blue-50">

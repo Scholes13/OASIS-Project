@@ -589,7 +589,7 @@
                          x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                          style="width: 100%; max-width: 28rem;"
                              class="relative transform overflow-hidden rounded-xl bg-white shadow-xl transition-all mx-auto">
-                            <form action="{{ route('purchase-requests.mark-offline-approved', $purchaseRequest) }}" method="POST">
+                            <form action="{{ route('purchase-requests.mark-offline-approved', $purchaseRequest) }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 <!-- Body -->
                                 <div class="bg-white px-5 py-4">
@@ -616,6 +616,49 @@
                                                 <strong>Note:</strong> This will skip the digital approval workflow. The PR status will show as "Approved".
                                             </p>
                                         </div>
+                                    </div>
+
+                                    <!-- File Upload (Required) -->
+                                    <div class="mt-3" x-data="{ fileName: '', hasFile: false }">
+                                        <label for="offline_approval_document" style="font-size: 0.8125rem;" class="block font-medium text-gray-700">
+                                            Bukti Approval <span class="text-red-500">*</span>
+                                        </label>
+                                        <p style="font-size: 0.75rem;" class="text-gray-500 mb-2">Upload foto/scan dokumen yang sudah ditandatangani (JPG, PNG, PDF - max 10MB)</p>
+                                        <div class="mt-1">
+                                            <label class="cursor-pointer block">
+                                                <input type="file" 
+                                                       name="offline_approval_document" 
+                                                       id="offline_approval_document"
+                                                       accept=".jpg,.jpeg,.png,.pdf"
+                                                       required
+                                                       class="hidden"
+                                                       @change="fileName = $event.target.files[0]?.name || ''; hasFile = $event.target.files.length > 0">
+                                                <div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors"
+                                                     :class="hasFile ? 'border-purple-400 bg-purple-50' : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50'">
+                                                    <template x-if="!hasFile">
+                                                        <div>
+                                                            <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                                            </svg>
+                                                            <p style="font-size: 0.8125rem;" class="mt-1 text-gray-600">
+                                                                <span class="font-medium text-purple-600">Klik untuk upload</span> atau drag & drop
+                                                            </p>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="hasFile">
+                                                        <div class="flex items-center justify-center space-x-2">
+                                                            <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                            </svg>
+                                                            <span style="font-size: 0.8125rem;" class="text-purple-700 font-medium" x-text="fileName"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        @error('offline_approval_document')
+                                            <p style="font-size: 0.75rem;" class="mt-1 text-red-600">{{ $message }}</p>
+                                        @enderror
                                     </div>
                                     
                                     <div class="mt-3">

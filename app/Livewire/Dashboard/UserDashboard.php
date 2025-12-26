@@ -109,7 +109,21 @@ class UserDashboard extends Component
             'dashboard_session' => session('dashboard_active_business_unit_id'),
         ]);
 
+        // Note: Don't call loadDashboardData() here - wait for wire:init to trigger loadData()
+        // This ensures lazy loading works correctly
+    }
+
+    /**
+     * Override loadData from HasLazyLoading trait
+     * Called via wire:init in view - triggers actual data loading
+     */
+    public function loadData(): void
+    {
+        $this->readyToLoad = true;
         $this->loadDashboardData();
+        
+        // Dispatch chart update after data is loaded
+        $this->dispatch('chartDataUpdated', chartData: $this->chartData);
     }
 
     protected function initializeDates(): void

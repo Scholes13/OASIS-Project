@@ -13,67 +13,6 @@ use Spatie\Browsershot\Browsershot;
 class StockRequestController extends Controller
 {
     /**
-     * Display a listing of stock requests based on user hierarchy
-     */
-    public function index()
-    {
-        $user = Auth::user();
-        $accessLevel = $user->getAccessLevel();
-        $currentBusinessUnitId = session('current_business_unit_id');
-
-        $query = StockRequest::with(['businessUnit', 'department', 'user', 'items'])
-            ->where('business_unit_id', $currentBusinessUnitId);
-
-        // Apply hierarchy filtering
-        switch ($accessLevel) {
-            case 'super_admin':
-            case 'executive':
-            case 'general_manager':
-                // Can see all stock requests in business unit
-                break;
-            case 'department_head':
-                // Can see department's stock requests
-                $query->where('department_id', $user->primary_department_id);
-                break;
-            case 'team_leader':
-                // Can see own and subordinates' stock requests
-                $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                $subordinateIds[] = $user->id;
-                $query->whereIn('user_id', $subordinateIds);
-                break;
-            case 'staff':
-            default:
-                // Can see only own stock requests
-                $query->where('user_id', $user->id);
-                break;
-        }
-
-        $stockRequests = $query->latest('created_at')->paginate(15);
-
-        return view('purchasing.stock-requests.index', compact('stockRequests'));
-    }
-
-
-    /**
-     * Display all stock requests in the current business unit
-     */
-    public function all(Request $request)
-    {
-        $user = Auth::user();
-        $currentBusinessUnitId = (int) session('current_business_unit_id');
-
-        // Verify user has access to this business unit
-        $userBusinessUnitIds = $user->activeBusinessUnits()->pluck('business_unit_id')->toArray();
-
-        if (! $currentBusinessUnitId || ! in_array($currentBusinessUnitId, $userBusinessUnitIds)) {
-            return redirect()->route('stock-requests.index')
-                ->with('error', 'You do not have access to this business unit.');
-        }
-
-        return view('purchasing.stock-requests.all');
-    }
-
-    /**
      * Show the form for creating a new stock request
      */
     public function create()
@@ -186,6 +125,11 @@ class StockRequestController extends Controller
     {
         $request->validate([
             'notes' => 'nullable|string|max:500',
+            'offline_approval_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+        ], [
+            'offline_approval_document.required' => 'Bukti approval offline wajib diupload.',
+            'offline_approval_document.mimes' => 'Format file harus JPG, PNG, atau PDF.',
+            'offline_approval_document.max' => 'Ukuran file maksimal 10MB.',
         ]);
 
         // Verify business unit access
@@ -206,12 +150,23 @@ class StockRequestController extends Controller
         }
 
         try {
+            // Handle file upload
+            $documentPath = null;
+            $documentName = null;
+            if ($request->hasFile('offline_approval_document')) {
+                $file = $request->file('offline_approval_document');
+                $documentName = $file->getClientOriginalName();
+                $documentPath = $file->store('offline-approvals/stock-requests/' . $stockRequest->id, 'public');
+            }
+
             $stockRequest->update([
                 'status' => 'approved',
                 'approved_at' => now(),
                 'offline_approved_at' => now(),
                 'offline_approved_by' => $user->id,
                 'offline_approval_notes' => $request->notes,
+                'offline_approval_document_path' => $documentPath,
+                'offline_approval_document_name' => $documentName,
             ]);
 
             // Log activity
@@ -220,6 +175,7 @@ class StockRequestController extends Controller
                 ->causedBy($user)
                 ->withProperties([
                     'notes' => $request->notes,
+                    'document_path' => $documentPath,
                     'previous_status' => $stockRequest->getOriginal('status'),
                 ])
                 ->log('Stock request marked as offline approved');

@@ -15,14 +15,44 @@ class DepartmentController extends Controller
     /**
      * Display a listing of departments
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $departments = Department::with(['businessUnit', 'positions', 'users'])
-            ->orderBy('business_unit_id')
-            ->orderBy('name')
-            ->paginate(15);
+        $query = Department::with(['businessUnit', 'positions', 'users']);
 
-        return view('admin.departments.index', compact('departments'));
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhereHas('businessUnit', function ($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Business unit filter
+        if ($request->filled('business_unit')) {
+            $query->where('business_unit_id', $request->business_unit);
+        }
+
+        // Sorting
+        $sortField = $request->get('sort', 'name');
+        $sortDirection = $request->get('direction', 'asc');
+        
+        if ($sortField === 'business_unit') {
+            $query->join('business_units', 'departments.business_unit_id', '=', 'business_units.id')
+                  ->orderBy('business_units.name', $sortDirection)
+                  ->select('departments.*');
+        } else {
+            $query->orderBy($sortField, $sortDirection);
+        }
+
+        $departments = $query->paginate(15)->appends($request->query());
+        $businessUnits = BusinessUnit::active()->orderBy('name')->get();
+
+        return view('admin.departments.index', compact('departments', 'businessUnits'));
     }
 
     /**

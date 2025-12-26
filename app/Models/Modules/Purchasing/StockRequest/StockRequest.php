@@ -37,6 +37,8 @@ class StockRequest extends Model
         'offline_approved_at',
         'offline_approved_by',
         'offline_approval_notes',
+        'offline_approval_document_path',
+        'offline_approval_document_name',
         'approval_workflow',
         'is_sequential_approval',
         'rejection_notes',

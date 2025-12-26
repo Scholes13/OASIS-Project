@@ -33,21 +33,16 @@
 }
 
 /* ============================================================================
-   SCROLLBAR STABILITY FIX - Prevent Layout Shift
+   SCROLLBAR - Hidden but Functional (No Layout Shift)
    ============================================================================
-   Problem: When scrollbar appears/disappears, content shifts horizontally
-   Solution: Always reserve space for scrollbar using CSS
+   Hide scrollbar visually but keep scroll functionality
+   Uses scrollbar-gutter: stable to prevent layout shift
    ============================================================================ */
 
 @layer base {
-    /* Force scrollbar to always show (reserve space) */
+    /* Reserve space for scrollbar to prevent layout shift */
     html {
-        overflow-y: scroll; /* Always show vertical scrollbar space */
         scrollbar-gutter: stable; /* Modern approach - reserve scrollbar space */
-    }
-    
-    /* Smooth scrolling for better UX */
-    html {
         scroll-behavior: smooth;
     }
     
@@ -57,31 +52,53 @@
         max-width: 100vw;
     }
     
-    /* Custom scrollbar styling (optional - for aesthetics) */
+    /* Hide scrollbar for Chrome, Safari and Opera */
     ::-webkit-scrollbar {
-        width: 12px; /* Width of vertical scrollbar */
-        height: 12px; /* Height of horizontal scrollbar */
+        width: 0px;
+        height: 0px;
+        background: transparent;
     }
     
     ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 0;
+        background: transparent;
     }
     
     ::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 6px;
-        border: 2px solid #f1f1f1;
+        background: transparent;
     }
     
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
-    
-    /* Firefox scrollbar styling */
+    /* Hide scrollbar for Firefox */
     * {
-        scrollbar-width: thin;
-        scrollbar-color: #888 #f1f1f1;
+        scrollbar-width: none; /* Firefox */
+    }
+    
+    /* Hide scrollbar for IE, Edge */
+    * {
+        -ms-overflow-style: none;
+    }
+    
+    /* Utility class for elements that need visible scrollbar */
+    .show-scrollbar {
+        scrollbar-width: thin !important;
+        scrollbar-color: #cbd5e0 transparent !important;
+    }
+    
+    .show-scrollbar::-webkit-scrollbar {
+        width: 6px !important;
+        height: 6px !important;
+    }
+    
+    .show-scrollbar::-webkit-scrollbar-track {
+        background: transparent !important;
+    }
+    
+    .show-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e0 !important;
+        border-radius: 3px !important;
+    }
+    
+    .show-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0 !important;
     }
 }
 
@@ -280,27 +297,47 @@
         display: flex !important;
         align-items: center !important;
         width: 100% !important;
-        padding: clamp(0.5rem, 0.55vw, 0.625rem) clamp(0.75rem, 0.85vw, 1rem) !important; /* More padding */
-        border-radius: clamp(0.25rem, 0.3vw, 0.375rem) !important;
-        transition: all 0.2s ease-in-out !important;
+        padding: clamp(0.5rem, 0.55vw, 0.625rem) clamp(0.75rem, 0.85vw, 1rem) !important;
+        border-radius: 0 !important; /* Remove rounded corners for modern look */
+        transition: all 0.15s ease-in-out !important;
         gap: 0 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         box-sizing: border-box !important;
-        position: relative !important; /* For active indicator line */
+        position: relative !important;
+        border-left: 3px solid transparent !important; /* Default transparent border */
+        margin-left: 0 !important;
     }
     
-    /* Active menu indicator - vertical line on left like Xenity */
+    /* Active menu indicator - vertical line on left (modern style like Fathom) */
+    .sidebar-menu-active {
+        border-left-color: #3b82f6 !important; /* blue-500 */
+        background-color: transparent !important; /* Remove background for cleaner look */
+    }
+    
+    /* Remove the ::before pseudo-element - using border instead */
     .sidebar-menu-active::before {
-        content: '' !important;
-        position: absolute !important;
-        left: 0 !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        width: 3px !important;
-        height: 60% !important;
-        background: #3b82f6 !important; /* blue-500 */
-        border-radius: 0 2px 2px 0 !important;
+        display: none !important;
+    }
+    
+    /* Hover state - subtle background */
+    .sidebar-menu-item:hover {
+        background-color: rgba(243, 244, 246, 0.5) !important; /* Very subtle gray */
+    }
+    
+    /* Active hover - keep the line visible */
+    .sidebar-menu-active:hover {
+        background-color: rgba(239, 246, 255, 0.5) !important; /* Very subtle blue */
+    }
+    
+    /* Submenu item styling */
+    .sidebar-submenu-item {
+        border-radius: 0 !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    
+    .sidebar-submenu-item:hover {
+        background-color: rgba(243, 244, 246, 0.5) !important;
     }
     
     /* Legacy support - redirect to new class */
@@ -836,6 +873,100 @@ html body main .text-lg {
 html body main .text-sm {
     font-size: clamp(0.75rem, 0.8vw, 0.85rem) !important;
     line-height: 1.25 !important;
+}
+
+/* ============================================================================
+   TREELINE SIDEBAR - Aesthetic Tree Navigation Design
+   ============================================================================ */
+
+/* Treeline Submenu Container */
+.treeline-submenu {
+    margin-left: 26px !important;
+    padding: 0 !important;
+}
+
+/* Treeline Item - Each submenu link */
+.treeline-item {
+    display: flex !important;
+    align-items: center !important;
+    position: relative !important;
+    height: 36px !important;
+    padding-left: 16px !important;
+    padding-right: 8px !important;
+    margin: 0 !important;
+    text-decoration: none !important;
+    color: #6b7280 !important;
+    transition: color 0.15s ease-in-out !important;
+}
+
+.treeline-item:hover {
+    color: #111827 !important;
+}
+
+.treeline-item-active {
+    color: #4f46e5 !important;
+}
+
+/* Treeline Branch - The connector line */
+.treeline-branch {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 12px !important;
+    pointer-events: none !important;
+}
+
+/* Vertical line */
+.treeline-branch::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 1.5px !important;
+    background-color: #e5e7eb !important;
+}
+
+/* Horizontal curved branch */
+.treeline-branch::after {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 50% !important;
+    width: 10px !important;
+    height: 10px !important;
+    border-left: 1.5px solid #e5e7eb !important;
+    border-bottom: 1.5px solid #e5e7eb !important;
+    border-radius: 0 0 0 6px !important;
+    transform: translateY(-50%) !important;
+    background: transparent !important;
+}
+
+/* Last item - vertical line stops at center */
+.treeline-item-last .treeline-branch::before {
+    bottom: 50% !important;
+}
+
+/* Treeline Label */
+.treeline-label {
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    font-weight: 400 !important;
+    transition: all 0.15s ease-in-out !important;
+}
+
+.treeline-item:hover .treeline-label:not(.treeline-label-active) {
+    transform: translateX(2px) !important;
+}
+
+/* Active Label */
+.treeline-label-active {
+    font-weight: 500 !important;
+    background-color: #eef2ff !important;
+    color: #4338ca !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
 }
 
 /* Business Unit Form Responsive & Clean Layout */

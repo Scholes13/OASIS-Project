@@ -5,7 +5,6 @@ namespace App\Livewire\Modules\Purchasing\Admin;
 use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Core\UserBusinessUnit;
-use App\Services\Modules\Purchasing\Admin\PriceEfficiencyService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
@@ -334,7 +333,8 @@ class AdminDashboard extends Component
 
         // Start the task
         $startedAt = now();
-        $followupTimeMinutes = $startedAt->diffInMinutes($task->entered_at);
+        // Follow-up time = time from entered to started (always positive)
+        $followupTimeMinutes = abs($task->entered_at->diffInMinutes($startedAt));
 
         $task->update([
             'status' => 'in_progress',

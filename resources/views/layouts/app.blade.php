@@ -20,9 +20,44 @@
         <!-- Scripts - Vite with automatic versioning -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
+        
+        <!-- Prevent layout shift: Read sidebar state before render -->
+        <script>
+            (function() {
+                var isMinimized = localStorage.getItem('sidebarMinimized') === 'true';
+                if (isMinimized) {
+                    document.documentElement.classList.add('sidebar-minimized');
+                }
+            })();
+        </script>
+        <style>
+            /* Initial sidebar state to prevent layout shift */
+            .sidebar-minimized .desktop-sidebar-container { width: 5rem !important; }
+            .sidebar-minimized .fluid-sidebar { width: 5rem !important; }
+            /* Hide expanded content (labels, treelines, chevrons) when minimized - before Alpine loads */
+            .sidebar-minimized .sidebar-label,
+            .sidebar-minimized .sidebar-chevron,
+            .sidebar-minimized .sidebar-treeline,
+            .sidebar-minimized .sidebar-app-name { display: none !important; }
+            /* Center icons when minimized */
+            .sidebar-minimized .sidebar-menu-item { justify-content: center !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+        </style>
     </head>
-    <body class="h-full font-inter antialiased" x-data="{ sidebarOpen: false, sidebarMinimized: false }" @resize.window="if ($el.clientWidth >= 1024) sidebarOpen = false">
-        <div class="h-full flex overflow-hidden">
+    <body class="h-full font-inter antialiased" 
+          x-data="{ 
+              sidebarOpen: false, 
+              sidebarMinimized: localStorage.getItem('sidebarMinimized') === 'true',
+              toggleSidebar() {
+                  this.sidebarMinimized = !this.sidebarMinimized;
+                  localStorage.setItem('sidebarMinimized', this.sidebarMinimized);
+              }
+          }" 
+          x-init="$watch('sidebarMinimized', value => { 
+              localStorage.setItem('sidebarMinimized', value);
+              document.documentElement.classList.toggle('sidebar-minimized', value);
+          })"
+          @resize.window="if ($el.clientWidth >= 1024) sidebarOpen = false">
+        <div class="h-full flex">
             <!-- Mobile sidebar overlay -->
             <div 
                 x-show="sidebarOpen" 
@@ -58,15 +93,15 @@
 
             <!-- Desktop sidebar -->
             <div 
-                class="hidden lg:flex lg:flex-shrink-0 smooth-transition"
-                :class="sidebarMinimized ? 'lg:w-16' : ''">
-                <div class="fluid-sidebar" wire:key="desktop-sidebar-{{ auth()->id() }}-{{ session('current_user_role') }}">
+                class="hidden lg:flex lg:flex-shrink-0 smooth-transition overflow-visible desktop-sidebar-container"
+                :class="sidebarMinimized ? 'lg:w-20' : ''">
+                <div class="fluid-sidebar overflow-visible" :class="sidebarMinimized ? 'w-20' : ''" wire:key="desktop-sidebar-{{ auth()->id() }}-{{ session('current_user_role') }}">
                     <livewire:layout.sidebar />
                 </div>
             </div>
 
             <!-- Main content area -->
-            <div class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <!-- Top navigation bar -->
                 <header class="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
                     <div class="fluid-header px-4 sm:px-6 lg:px-8">
@@ -88,7 +123,7 @@
                         <button 
                             type="button" 
                             class="hidden lg:flex -m-2.5 p-2.5 text-gray-700 hover:text-blue-600 transition-colors duration-200 rounded-lg hover:bg-gray-100" 
-                            @click="sidebarMinimized = !sidebarMinimized"
+                            @click="toggleSidebar()"
                             :title="sidebarMinimized ? 'Expand sidebar' : 'Minimize sidebar'">
                             <span class="sr-only">Toggle sidebar</span>
                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

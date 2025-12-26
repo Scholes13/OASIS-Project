@@ -21,47 +21,6 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Display a listing of purchase requests and reservations based on user hierarchy
-     */
-    public function index()
-    {
-        $query = $this->purchaseRequestService->getPurchaseRequestsQuery();
-        $purchaseRequests = $query->latest('created_at')->paginate(10);
-
-        // Get PR Number Reservations using same hierarchy logic
-        $user = Auth::user();
-        $accessLevel = $user->getAccessLevel();
-
-        $reservationQuery = \App\Models\Modules\Purchasing\PurchaseRequest\PrNumberReservation::with(['businessUnit', 'department', 'user', 'purchaseRequest'])
-            ->where('business_unit_id', session('current_business_unit_id'));
-
-        // Apply same hierarchy filtering as PR
-        switch ($accessLevel) {
-            case 'super_admin':
-            case 'executive':
-            case 'general_manager':
-                break;
-            case 'department_head':
-                $reservationQuery->where('department_id', $user->primary_department_id);
-                break;
-            case 'team_leader':
-                $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                $subordinateIds[] = $user->id;
-                $reservationQuery->whereIn('user_id', $subordinateIds);
-                break;
-            case 'staff':
-            default:
-                $reservationQuery->byUser($user->id);
-                break;
-        }
-
-        $reservations = $reservationQuery->latest('reserved_at')->paginate(10);
-
-        return view('purchasing.purchase-requests.index', compact('purchaseRequests', 'reservations'));
-    }
-
-
-    /**
      * Display all purchase requests in the current business unit.
      * All users registered to a business unit can view all PRs in that unit.
      */
@@ -241,6 +200,11 @@ class PurchaseRequestController extends Controller
     {
         $request->validate([
             'notes' => 'nullable|string|max:500',
+            'offline_approval_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+        ], [
+            'offline_approval_document.required' => 'Bukti approval offline wajib diupload.',
+            'offline_approval_document.mimes' => 'Format file harus JPG, PNG, atau PDF.',
+            'offline_approval_document.max' => 'Ukuran file maksimal 10MB.',
         ]);
 
         // Validate business unit context (prevent cross-tenant access)
@@ -261,7 +225,16 @@ class PurchaseRequestController extends Controller
         }
 
         try {
-            $this->purchaseRequestService->markAsOfflineApproved($purchaseRequest, $request->notes);
+            // Handle file upload
+            $documentPath = null;
+            $documentName = null;
+            if ($request->hasFile('offline_approval_document')) {
+                $file = $request->file('offline_approval_document');
+                $documentName = $file->getClientOriginalName();
+                $documentPath = $file->store('offline-approvals/purchase-requests/' . $purchaseRequest->id, 'public');
+            }
+
+            $this->purchaseRequestService->markAsOfflineApproved($purchaseRequest, $request->notes, $documentPath, $documentName);
 
             return redirect()
                 ->route('purchase-requests.show', $purchaseRequest)
@@ -420,61 +393,6 @@ class PurchaseRequestController extends Controller
     {
         // Directly call downloadPdfPublic to avoid redirect issues on hosting
         return $this->downloadPdfPublic($purchaseRequest);
-    }
-
-    /**
-     * Generate PDF using Browsershot
-     */
-    private function generateBrowsershotPdf($purchaseRequest, $qrCodes, $filename)
-    {
-        try {
-            // Generate the full URL for the PDF view using public route (no auth required)
-            $baseUrl = config('app.url');
-            if ($baseUrl === 'http://localhost') {
-                $baseUrl = 'http://localhost:8000';
-            }
-
-            $url = $baseUrl.'/purchase-requests/'.$purchaseRequest->id.'/pdf-public';
-
-            Log::info('Browsershot attempting to access URL: '.$url);
-
-            // Get Browsershot configuration
-            $config = config('pdf.browsershot');
-
-            // Use working configuration with proper timeout
-            $browsershot = Browsershot::url($url)
-                ->format('A4')
-                ->landscape()
-                ->margins(10, 10, 10, 10)
-                ->timeout(120) // Increased timeout for complex PDF pages
-                ->noSandbox()
-                ->disableWebSecurity();
-
-            // Don't wait for network idle to avoid timeout
-            // Network idle can cause timeout on slow connections
-
-            Log::info('Browsershot configuration applied, generating PDF...');
-
-            $pdf = $browsershot->pdf();
-
-            Log::info('Browsershot PDF generation successful');
-
-            return response($pdf)
-                ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
-
-        } catch (\Exception $e) {
-            // Log detailed error for debugging (not exposed to user)
-            Log::error('Browsershot PDF generation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // Return generic error message to user (no internal details)
-            return response()->json([
-                'error' => 'PDF generation failed. Please try again later or contact support.',
-            ], 500);
-        }
     }
 
     /**

@@ -58,11 +58,11 @@ class Sidebar extends Component
                 'name' => 'Purchasing',
                 'href' => route('dashboard'),
                 'icon' => 'shopping-cart',
-                'current' => $this->currentRoute === 'dashboard'
+                'current' => ($this->currentRoute === 'dashboard'
                           || str_starts_with($this->currentRoute, 'purchase-requests') 
                           || str_starts_with($this->currentRoute, 'stock-requests')
-                          || str_starts_with($this->currentRoute, 'purchasing')
-                          || str_starts_with($this->currentRoute, 'approvals'),
+                          || ($this->currentRoute !== null && str_starts_with($this->currentRoute, 'purchasing') && !str_starts_with($this->currentRoute, 'purchasing.admin'))
+                          || str_starts_with($this->currentRoute, 'approvals')),
                 'children' => [
                     [
                         'name' => 'Dashboard',
@@ -265,6 +265,15 @@ class Sidebar extends Component
                 ];
             }
         }
+
+        // Docs & Help - available for all authenticated users
+        $navigation[] = [
+            'name' => 'Docs & Help',
+            'href' => route('docs-help'),
+            'icon' => 'book-open',
+            'current' => $this->currentRoute === 'docs-help',
+            'children' => [],
+        ];
 
         // Add super admin menu items directly (no submenu)
         if ($user && $user->global_role === 'super_admin') {

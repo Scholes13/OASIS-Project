@@ -65,6 +65,11 @@ Route::get('dashboard', [\App\Http\Controllers\Admin\DashboardController::class,
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+// Docs & Help page (authenticated)
+Route::get('docs-help', \App\Livewire\DocsHelp::class)
+    ->middleware(['auth'])
+    ->name('docs-help');
+
 // Profile page
 Route::view('profile', 'profile')
     ->middleware(['auth'])
@@ -134,7 +139,6 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/', function () {
             return view('purchasing.stock-requests.index-livewire');
         })->name('index');
-        Route::get('/all/list', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'all'])->name('all');
 
         // Create Route - Loads Livewire component for creating new Stock Request
         Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'create'])->name('create');

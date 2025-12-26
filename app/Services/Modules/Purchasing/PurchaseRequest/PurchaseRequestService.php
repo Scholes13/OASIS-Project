@@ -596,10 +596,12 @@ class PurchaseRequestService
      * as approved in one action (not step by step).
      *
      * @param  string|null  $notes  Optional notes explaining why offline approval was used
+     * @param  string|null  $documentPath  Path to uploaded offline approval document
+     * @param  string|null  $documentName  Original name of uploaded document
      */
-    public function markAsOfflineApproved(PurchaseRequest $purchaseRequest, ?string $notes = null): PurchaseRequest
+    public function markAsOfflineApproved(PurchaseRequest $purchaseRequest, ?string $notes = null, ?string $documentPath = null, ?string $documentName = null): PurchaseRequest
     {
-        return DB::transaction(function () use ($purchaseRequest, $notes) {
+        return DB::transaction(function () use ($purchaseRequest, $notes, $documentPath, $documentName) {
             $user = Auth::user();
 
             // Update all pending approvals to approved (mark as offline)
@@ -613,13 +615,21 @@ class PurchaseRequestService
                 ]);
 
             // Update the PR status to approved with offline approval info
-            $purchaseRequest->update([
+            $updateData = [
                 'status' => 'approved',
                 'approved_at' => now(),
                 'offline_approved_at' => now(),
                 'offline_approved_by' => $user->id,
                 'offline_approval_notes' => $notes,
-            ]);
+            ];
+
+            // Add document info if uploaded
+            if ($documentPath) {
+                $updateData['offline_approval_document_path'] = $documentPath;
+                $updateData['offline_approval_document_name'] = $documentName;
+            }
+
+            $purchaseRequest->update($updateData);
 
             // Log activity
             activity()
@@ -628,6 +638,7 @@ class PurchaseRequestService
                 ->withProperties([
                     'action' => 'offline_approved',
                     'notes' => $notes,
+                    'document_path' => $documentPath,
                     'previous_status' => $purchaseRequest->getOriginal('status'),
                 ])
                 ->log('PR marked as approved offline/manually');

@@ -90,30 +90,38 @@ class AllRequests extends Component
 
         $combinedRequests = collect();
 
+        // Check if user is purchasing admin for current business unit
+        $isPurchasingAdmin = $user->activeBusinessUnits()
+            ->where('business_unit_id', $this->activeBusinessUnitId)
+            ->where('is_purchasing_admin', true)
+            ->exists();
+
         // Fetch Purchase Requests based on hierarchy
         if (in_array($this->activeTab, ['all', 'purchase'])) {
             $prQuery = PurchaseRequest::with(['businessUnit', 'department', 'user', 'items', 'approvals'])
                 ->where('business_unit_id', $this->activeBusinessUnitId);
 
-            // Apply hierarchy filtering
-            switch ($accessLevel) {
-                case 'super_admin':
-                case 'executive':
-                case 'general_manager':
-                    // Can see all
-                    break;
-                case 'department_head':
-                    $prQuery->where('department_id', $user->primary_department_id);
-                    break;
-                case 'team_leader':
-                    $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                    $subordinateIds[] = $user->id;
-                    $prQuery->whereIn('user_id', $subordinateIds);
-                    break;
-                case 'staff':
-                default:
-                    $prQuery->where('user_id', $user->id);
-                    break;
+            // Apply hierarchy filtering (purchasing admin can see all)
+            if (! $isPurchasingAdmin) {
+                switch ($accessLevel) {
+                    case 'super_admin':
+                    case 'executive':
+                    case 'general_manager':
+                        // Can see all
+                        break;
+                    case 'department_head':
+                        $prQuery->where('department_id', $user->primary_department_id);
+                        break;
+                    case 'team_leader':
+                        $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
+                        $subordinateIds[] = $user->id;
+                        $prQuery->whereIn('user_id', $subordinateIds);
+                        break;
+                    case 'staff':
+                    default:
+                        $prQuery->where('user_id', $user->id);
+                        break;
+                }
             }
 
             if ($this->statusFilter) {
@@ -160,25 +168,27 @@ class AllRequests extends Component
             $srQuery = StockRequest::with(['businessUnit', 'department', 'user', 'items', 'approvals'])
                 ->where('business_unit_id', $this->activeBusinessUnitId);
 
-            // Apply hierarchy filtering
-            switch ($accessLevel) {
-                case 'super_admin':
-                case 'executive':
-                case 'general_manager':
-                    // Can see all
-                    break;
-                case 'department_head':
-                    $srQuery->where('department_id', $user->primary_department_id);
-                    break;
-                case 'team_leader':
-                    $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                    $subordinateIds[] = $user->id;
-                    $srQuery->whereIn('user_id', $subordinateIds);
-                    break;
-                case 'staff':
-                default:
-                    $srQuery->where('user_id', $user->id);
-                    break;
+            // Apply hierarchy filtering (purchasing admin can see all)
+            if (! $isPurchasingAdmin) {
+                switch ($accessLevel) {
+                    case 'super_admin':
+                    case 'executive':
+                    case 'general_manager':
+                        // Can see all
+                        break;
+                    case 'department_head':
+                        $srQuery->where('department_id', $user->primary_department_id);
+                        break;
+                    case 'team_leader':
+                        $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
+                        $subordinateIds[] = $user->id;
+                        $srQuery->whereIn('user_id', $subordinateIds);
+                        break;
+                    case 'staff':
+                    default:
+                        $srQuery->where('user_id', $user->id);
+                        break;
+                }
             }
 
             if ($this->statusFilter) {

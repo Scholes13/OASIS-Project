@@ -193,6 +193,30 @@ class Sidebar extends Component
             ];
         }
 
+        // Activity Tracking Module - available for all users with business unit
+        if ($hasBusinessUnit && $currentBusinessUnitId) {
+            $activityChildren = [
+                [
+                    'name' => 'Dashboard',
+                    'href' => route('activity.dashboard'),
+                    'current' => $this->currentRoute === 'activity.dashboard',
+                ],
+                [
+                    'name' => 'Task',
+                    'href' => route('activity.task.index'),
+                    'current' => str_starts_with($this->currentRoute ?? '', 'activity.task'),
+                ],
+            ];
+
+            $navigation[] = [
+                'name' => 'Activity',
+                'href' => route('activity.task.index'),
+                'icon' => 'clipboard-check',
+                'current' => str_starts_with($this->currentRoute ?? '', 'activity'),
+                'children' => $activityChildren,
+            ];
+        }
+
         // Add Sales CRM section (permission-based)
         if ($user && ($user->can('view_activities') || $user->can('view_contacts'))) {
             $salesCrmChildren = [];
@@ -328,6 +352,15 @@ class Sidebar extends Component
                 'href' => route('admin.sla-settings.index'),
                 'icon' => 'clock',
                 'current' => str_starts_with($this->currentRoute, 'admin.sla-settings'),
+                'children' => [],
+            ];
+
+            // Activity Types (for Activity Tracking Module)
+            $navigation[] = [
+                'name' => 'Activity Types',
+                'href' => route('admin.activity-types.index'),
+                'icon' => 'collection',
+                'current' => str_starts_with($this->currentRoute, 'admin.activity-types') || str_starts_with($this->currentRoute, 'admin.sub-activities'),
                 'children' => [],
             ];
         }

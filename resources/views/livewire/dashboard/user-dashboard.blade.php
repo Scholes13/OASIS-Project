@@ -540,6 +540,86 @@
     </div>
     @endif
 
+    <!-- Task Summary Widget - Activity Module -->
+    @if(($taskStats['total'] ?? 0) > 0 || count($taskStats['recent_tasks'] ?? []) > 0)
+    <div class="bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow duration-200 mb-6">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">My Tasks</h3>
+                <p class="text-sm text-gray-400 mt-0.5">Activity tracking overview</p>
+            </div>
+            <a href="{{ route('activity.index') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                View All →
+            </a>
+        </div>
+        <div class="p-5">
+            <!-- Task Stats Grid -->
+            <div class="grid grid-cols-4 gap-4 mb-5">
+                <div class="text-center p-3 rounded-lg bg-gray-50">
+                    <p class="text-2xl font-bold text-gray-900">{{ $taskStats['total'] ?? 0 }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Total Tasks</p>
+                </div>
+                <div class="text-center p-3 rounded-lg bg-blue-50">
+                    <p class="text-2xl font-bold text-blue-600">{{ $taskStats['in_progress'] ?? 0 }}</p>
+                    <p class="text-xs text-blue-600 mt-1">In Progress</p>
+                </div>
+                <div class="text-center p-3 rounded-lg bg-emerald-50">
+                    <p class="text-2xl font-bold text-emerald-600">{{ $taskStats['completed'] ?? 0 }}</p>
+                    <p class="text-xs text-emerald-600 mt-1">Completed</p>
+                </div>
+                <div class="text-center p-3 rounded-lg {{ ($taskStats['overdue'] ?? 0) > 0 ? 'bg-red-50' : 'bg-gray-50' }}">
+                    <p class="text-2xl font-bold {{ ($taskStats['overdue'] ?? 0) > 0 ? 'text-red-600' : 'text-gray-400' }}">{{ $taskStats['overdue'] ?? 0 }}</p>
+                    <p class="text-xs {{ ($taskStats['overdue'] ?? 0) > 0 ? 'text-red-600' : 'text-gray-500' }} mt-1">Overdue</p>
+                </div>
+            </div>
+
+            <!-- Recent Tasks List -->
+            @if(count($taskStats['recent_tasks'] ?? []) > 0)
+            <div class="space-y-2">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Upcoming Tasks</p>
+                @foreach($taskStats['recent_tasks'] as $task)
+                <a href="{{ route('activity.show', $task['id']) }}" 
+                   class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-gray-50 transition-all duration-200">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: {{ $task['activity_color'] }}"></div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ $task['title'] }}</p>
+                            <p class="text-xs text-gray-500">{{ $task['activity_type'] }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        @if($task['is_overdue'])
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                                Overdue
+                            </span>
+                        @elseif($task['status'] === 'in_progress')
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                In Progress
+                            </span>
+                        @else
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                Planned
+                            </span>
+                        @endif
+                        @if($task['due_date'])
+                            <span class="text-xs text-gray-400">{{ $task['due_date'] }}</span>
+                        @endif
+                    </div>
+                </a>
+                @endforeach
+            </div>
+            @else
+            <div class="text-center py-4">
+                <p class="text-sm text-gray-500">No upcoming tasks</p>
+                <a href="{{ route('activity.create') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-1 inline-block">
+                    Create a task →
+                </a>
+            </div>
+            @endif
+        </div>
+    </div>
+    @endif
+
     <!-- Recent Activity - Full Width with Modern Design -->
     <div class="bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow duration-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">

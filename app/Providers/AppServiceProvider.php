@@ -111,17 +111,40 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            // Check if user has top management positions
-            $topManagementRoles = ['general_manager', 'director', 'ceo', 'finance_manager'];
+            // Check if user has top management positions by access_level or name
+            // access_level: 1 = CEO/Director, 2 = General Manager, 3 = Manager
+            // Also check by position name for specific roles
+            $topManagementNames = ['Top Management', 'Chief Executive Officer', 'Finance Manager'];
 
-            // Get user's active business unit assignments
+            // Get user's active business unit assignments with top management access
             $hasTopManagementRole = $user->activeBusinessUnits()
-                ->whereHas('position', function ($query) use ($topManagementRoles) {
-                    $query->whereIn('slug', $topManagementRoles);
+                ->whereHas('position', function ($query) use ($topManagementNames) {
+                    $query->where(function ($q) use ($topManagementNames) {
+                        // Check by access_level (1 = CEO/Director, 2 = GM)
+                        $q->whereIn('access_level', [1, 2])
+                            // Or check by specific position names
+                            ->orWhereIn('name', $topManagementNames)
+                            // Or check by code pattern for managers
+                            ->orWhere('code', 'LIKE', 'MGR_FIN%')
+                            ->orWhere('code', 'TOP_MANAGEMENT')
+                            ->orWhere('code', 'CEO_LEAD');
+                    });
                 })
                 ->exists();
 
             return $hasTopManagementRole;
+        });
+
+        // View Department Analytics Gate - For department heads and above
+        Gate::define('view-department-analytics', function ($user) {
+            // Super Admin always has access
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            // Any user with a department assignment can view their department analytics
+            // The component itself will filter to show only their department's data
+            return $user->primary_department_id !== null;
         });
 
         // Access Purchasing Admin Gate - For purchasing admins, super admin, and parent BU top management

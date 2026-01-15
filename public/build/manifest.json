@@ -1,6 +1,62 @@
 {
+  "_Badge-jgvtHtNi.js": {
+    "file": "assets/Badge-jgvtHtNi.js",
+    "name": "Badge",
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_utils-CxE1n-GW.js"
+    ]
+  },
+  "_Button-BGx979Je.js": {
+    "file": "assets/Button-BGx979Je.js",
+    "name": "Button",
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_utils-CxE1n-GW.js"
+    ]
+  },
+  "_Card-DdzSVNKw.js": {
+    "file": "assets/Card-DdzSVNKw.js",
+    "name": "Card",
+    "imports": [
+      "_utils-CxE1n-GW.js",
+      "resources/js/inertia/app.tsx"
+    ]
+  },
+  "_clock-Bw3uSMHl.js": {
+    "file": "assets/clock-Bw3uSMHl.js",
+    "name": "clock",
+    "imports": [
+      "_utils-CxE1n-GW.js"
+    ]
+  },
+  "_index-BetwS6Uc.js": {
+    "file": "assets/index-BetwS6Uc.js",
+    "name": "index"
+  },
+  "_user-C213dvD7.js": {
+    "file": "assets/user-C213dvD7.js",
+    "name": "user",
+    "imports": [
+      "_utils-CxE1n-GW.js"
+    ]
+  },
+  "_users-CcyFimI5.js": {
+    "file": "assets/users-CcyFimI5.js",
+    "name": "users",
+    "imports": [
+      "_utils-CxE1n-GW.js"
+    ]
+  },
+  "_utils-CxE1n-GW.js": {
+    "file": "assets/utils-CxE1n-GW.js",
+    "name": "utils",
+    "imports": [
+      "resources/js/inertia/app.tsx"
+    ]
+  },
   "resources/css/app.css": {
-    "file": "assets/app-BeNSHwmQ.css",
+    "file": "assets/app-DB_5xv3Y.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "names": [
@@ -8,9 +64,126 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BNeRTyio.js",
+    "file": "assets/app-FI5I84SC.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/ActivityDashboard.tsx": {
+    "file": "assets/ActivityDashboard-BiJfGfCs.js",
+    "name": "ActivityDashboard",
+    "src": "resources/js/inertia/Pages/Activity/ActivityDashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Button-BGx979Je.js",
+      "_utils-CxE1n-GW.js",
+      "_users-CcyFimI5.js",
+      "_clock-Bw3uSMHl.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Analytics/Department.tsx": {
+    "file": "assets/Department-fnZ-IsGC.js",
+    "name": "Department",
+    "src": "resources/js/inertia/Pages/Activity/Analytics/Department.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Card-DdzSVNKw.js",
+      "_utils-CxE1n-GW.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Analytics/Personal.tsx": {
+    "file": "assets/Personal-DxJsj-Ig.js",
+    "name": "Personal",
+    "src": "resources/js/inertia/Pages/Activity/Analytics/Personal.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Card-DdzSVNKw.js",
+      "_utils-CxE1n-GW.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Dashboard.tsx": {
+    "file": "assets/Dashboard-oiC46a4q.js",
+    "name": "Dashboard",
+    "src": "resources/js/inertia/Pages/Activity/Dashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Badge-jgvtHtNi.js",
+      "_utils-CxE1n-GW.js",
+      "_Button-BGx979Je.js",
+      "_users-CcyFimI5.js",
+      "_clock-Bw3uSMHl.js",
+      "_user-C213dvD7.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/DepartmentTasks.tsx": {
+    "file": "assets/DepartmentTasks-C44t7WJb.js",
+    "name": "DepartmentTasks",
+    "src": "resources/js/inertia/Pages/Activity/DepartmentTasks.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Card-DdzSVNKw.js",
+      "_Badge-jgvtHtNi.js",
+      "_utils-CxE1n-GW.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/TaskDetail.tsx": {
+    "file": "assets/TaskDetail-C5kn0At5.js",
+    "name": "TaskDetail",
+    "src": "resources/js/inertia/Pages/Activity/TaskDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Badge-jgvtHtNi.js",
+      "_Button-BGx979Je.js",
+      "_Card-DdzSVNKw.js",
+      "_utils-CxE1n-GW.js",
+      "_user-C213dvD7.js",
+      "_clock-Bw3uSMHl.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/TaskForm.tsx": {
+    "file": "assets/TaskForm-BLtTAm2m.js",
+    "name": "TaskForm",
+    "src": "resources/js/inertia/Pages/Activity/TaskForm.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/inertia/app.tsx",
+      "_Button-BGx979Je.js",
+      "_Card-DdzSVNKw.js",
+      "_utils-CxE1n-GW.js",
+      "_index-BetwS6Uc.js"
+    ]
+  },
+  "resources/js/inertia/app.tsx": {
+    "file": "assets/app-BkNmBAas.js",
+    "name": "app",
+    "src": "resources/js/inertia/app.tsx",
+    "isEntry": true,
+    "imports": [
+      "_index-BetwS6Uc.js"
+    ],
+    "dynamicImports": [
+      "resources/js/inertia/Pages/Activity/ActivityDashboard.tsx",
+      "resources/js/inertia/Pages/Activity/Analytics/Department.tsx",
+      "resources/js/inertia/Pages/Activity/Analytics/Personal.tsx",
+      "resources/js/inertia/Pages/Activity/Dashboard.tsx",
+      "resources/js/inertia/Pages/Activity/DepartmentTasks.tsx",
+      "resources/js/inertia/Pages/Activity/TaskDetail.tsx",
+      "resources/js/inertia/Pages/Activity/TaskForm.tsx"
+    ]
   }
 }

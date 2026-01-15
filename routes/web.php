@@ -117,8 +117,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
     // PR Number Reservations Routes (Continue/Void only - index page removed)
     Route::prefix('pr-numbers')->name('pr-numbers.')->group(function () {
-        Route::get('/{reservation}/continue', [\App\Http\Controllers\PrNumberReservationController::class, 'continueToForm'])->name('continue');
-        Route::post('/{reservation}/void', [\App\Http\Controllers\PrNumberReservationController::class, 'void'])->name('void');
+        Route::get('/{reservation}/continue', [\App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PrNumberReservationController::class, 'continueToForm'])->name('continue');
+        Route::post('/{reservation}/void', [\App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PrNumberReservationController::class, 'void'])->name('void');
     });
 
     // ============================================================================
@@ -213,6 +213,28 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         });
     });
 
+    // ============================================================================
+    // Activity Tracking Module Routes (INERTIA/REACT)
+    // ============================================================================
+    Route::prefix('activity')->name('activity.')->group(function () {
+        // Redirect root to task
+        Route::get('/', fn() => redirect()->route('activity.task.index'));
+        
+        // Dashboard (Personal & Department Analytics)
+        Route::get('/dashboard', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'dashboard'])->name('dashboard');
+        
+        // Task Routes (List, Board, Calendar, Timeline views)
+        Route::prefix('task')->name('task.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'store'])->name('store');
+            Route::get('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'show'])->name('show')->whereNumber('task');
+            Route::get('/{task}/edit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'edit'])->name('edit')->whereNumber('task');
+            Route::put('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'update'])->name('update')->whereNumber('task');
+            Route::delete('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'destroy'])->name('destroy')->whereNumber('task');
+        });
+    });
+
     // Reports Routes (Top Management Only - Coming Soon)
     Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
         Route::get('/purchase-requests', function () {
@@ -250,6 +272,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // PR Category Management
         Route::resource('pr-categories', \App\Http\Controllers\Admin\PrCategoryController::class);
+
+        // Activity Type & Sub-Activity Management
+        Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class);
+        Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class);
 
         // Notification Settings (Super Admin Only)
         Route::get('/notification-settings', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'index'])->name('notification-settings.index');

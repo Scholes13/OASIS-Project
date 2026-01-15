@@ -53,6 +53,18 @@ class BusinessUnitSwitcher extends Component
     {
         $user = Auth::user();
 
+        // ✅ FIX: Handle unauthenticated users gracefully
+        if (!$user) {
+            $this->currentBusinessUnit = [
+                'id' => null,
+                'code' => null,
+                'name' => null,
+                'logo' => null,
+            ];
+            $this->availableBusinessUnits = collect([]);
+            return;
+        }
+
         // ✅ FIX: Always fetch fresh logo from DB to ensure sync after switch
         $sessionBuId = session('current_business_unit_id');
         $sessionLogo = null;

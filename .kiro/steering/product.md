@@ -16,6 +16,7 @@ Oasis is built as a modular system with the following modules:
   - Purchase Request (PR) - Request creation and approval workflows
   - Stock Request - Inventory request management
   - Purchasing - Procurement operations
+- **Activity Tracking Module** - Employee task and workload management
 - **Sales CRM Module** - Customer relationship management
 - **Core Administration** - User, department, and business unit management
 
@@ -59,6 +60,35 @@ Oasis is built as a modular system with the following modules:
   - Vendor management
   - Purchase order processing
 
+#### Activity Tracking Module Features
+
+- **Employee Task Management**:
+  - Create and track work activities/tasks
+  - Collaborative tasks - multiple users can join and work on the same task
+  - Shared status and timestamps across all participants
+  - Department-scoped visibility - users see tasks from their department
+  - Task lifecycle: planned → in_progress → completed/cancelled
+  - Due date tracking with overdue alerts
+  - File attachments support (images, PDF, documents)
+
+- **Activity Types & Sub-Activities**:
+  - Configurable activity categories (Meeting, Web Development, Event, etc.)
+  - Sub-activities for detailed categorization
+  - Color-coded activity types for visual organization
+  - Admin-managed activity type configuration
+
+- **Analytics & Dashboards**:
+  - Personal Dashboard: Individual task summary, hours worked, activity breakdown
+  - Department Analytics: Team workload, completion rates, overdue tracking
+  - Business Unit Analytics: Cross-department productivity trends
+  - Date range filtering for all analytics views
+
+- **Collaboration Features**:
+  - Join existing department tasks
+  - Shared task status - any participant can start/complete
+  - Participant tracking with owner designation
+  - Activity logging for audit trails
+
 ### Business Units
 
 #### Hierarchical Structure
@@ -90,6 +120,7 @@ Oasis is built as a modular system with the following modules:
 
 ### Workflow States
 
+#### Purchase/Stock Request States
 - **draft**: Initial creation, editable
 - **submitted**: Sent for approval
 - **in_approval**: Currently in approval chain
@@ -97,6 +128,16 @@ Oasis is built as a modular system with the following modules:
 - **rejected**: Denied by approver
 - **voided**: Cancelled/invalidated
 
+#### Task States (Activity Module)
+- **planned**: Task created, not yet started
+- **in_progress**: Task actively being worked on
+- **completed**: Task finished successfully
+- **cancelled**: Task cancelled by owner
+
 ### Target Users
 
-Enterprise organizations requiring structured purchase and stock request workflows with multi-level approvals, audit compliance, and cross-business unit operations.
+Enterprise organizations requiring:
+- Structured purchase and stock request workflows with multi-level approvals
+- Employee task tracking and workload management
+- Audit compliance and cross-business unit operations
+- Collaborative work tracking and productivity analytics

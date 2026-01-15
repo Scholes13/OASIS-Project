@@ -3,7 +3,7 @@
         'name' => 'laravel/laravel',
         'pretty_version' => 'dev-3.5-beta',
         'version' => 'dev-3.5-beta',
-        'reference' => '127441792a4c9ae788f00ee346b91dcd1b1b09ab',
+        'reference' => 'd84f800d8abebadf3700d28a36747cb29a60b65d',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -433,6 +433,15 @@
                 0 => 'v12.26.3',
             ),
         ),
+        'inertiajs/inertia-laravel' => array(
+            'pretty_version' => 'v2.0.18',
+            'version' => '2.0.18.0',
+            'reference' => '90bac97fe77ca64384146bf0ea365e4f1f00dff9',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../inertiajs/inertia-laravel',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'kodova/hamcrest-php' => array(
             'dev_requirement' => true,
             'replaced' => array(
@@ -469,7 +478,7 @@
         'laravel/laravel' => array(
             'pretty_version' => 'dev-3.5-beta',
             'version' => 'dev-3.5-beta',
-            'reference' => '127441792a4c9ae788f00ee346b91dcd1b1b09ab',
+            'reference' => 'd84f800d8abebadf3700d28a36747cb29a60b65d',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -1486,6 +1495,15 @@
             'install_path' => __DIR__ . '/../theseer/tokenizer',
             'aliases' => array(),
             'dev_requirement' => true,
+        ),
+        'tightenco/ziggy' => array(
+            'pretty_version' => 'v2.6.0',
+            'version' => '2.6.0.0',
+            'reference' => 'cccc6035c109daab03a33926b3a8499bedbed01f',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../tightenco/ziggy',
+            'aliases' => array(),
+            'dev_requirement' => false,
         ),
         'tijsverkoyen/css-to-inline-styles' => array(
             'pretty_version' => 'v2.3.0',

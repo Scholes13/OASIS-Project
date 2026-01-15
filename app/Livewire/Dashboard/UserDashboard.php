@@ -4,6 +4,7 @@ namespace App\Livewire\Dashboard;
 
 use App\Livewire\Traits\HasLazyLoading;
 use App\Models\Core\BusinessUnit;
+use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Carbon\Carbon;
@@ -57,6 +58,9 @@ class UserDashboard extends Component
 
     // Approval progress for user's PRs
     public $approvalProgress = [];
+
+    // Task summary stats for Activity module
+    public $taskStats = [];
 
     // ✅ Orchestra pattern: Loading state controlled by filter actions
     // false = show content, true = show loading overlay (only during filter/BU switch)
@@ -300,6 +304,7 @@ class UserDashboard extends Component
             $this->chartData = $this->getDefaultChartData();
             $this->comparisonStats = $this->getDefaultComparisonStats();
             $this->approvalProgress = [];
+            $this->taskStats = $this->getDefaultTaskStats();
             // Note: isLoading NOT set here - skeleton controlled by readyToLoad
 
             return;
@@ -310,6 +315,7 @@ class UserDashboard extends Component
         $this->chartData = $this->getChartData();
         $this->comparisonStats = $this->getComparisonStats();
         $this->approvalProgress = $this->getApprovalProgress();
+        $this->taskStats = $this->getTaskStats();
         
         // ✅ Data loaded, set loading to false
         $this->isLoading = false;
@@ -359,6 +365,81 @@ class UserDashboard extends Component
             'period_prs' => ['change' => 0, 'percentage' => 0, 'trend' => 'neutral'],
             'total_amount' => ['change' => 0, 'percentage' => 0, 'trend' => 'neutral'],
         ];
+    }
+
+    /**
+     * Get default task stats for skeleton/loading state
+     */
+    protected function getDefaultTaskStats(): array
+    {
+        return [
+            'total' => 0,
+            'in_progress' => 0,
+            'completed' => 0,
+            'overdue' => 0,
+            'recent_tasks' => [],
+        ];
+    }
+
+    /**
+     * Get task summary stats for Activity module
+     * Shows user's task overview on the main dashboard
+     */
+    protected function getTaskStats(): array
+    {
+        $userId = Auth::id();
+        $businessUnitId = session('current_business_unit_id') ?? $this->activeBusinessUnitId;
+
+        if (!$businessUnitId) {
+            return $this->getDefaultTaskStats();
+        }
+
+        // Check if employee_tasks table exists (Activity module may not be installed)
+        try {
+            // Get task counts for current user as participant
+            $taskCounts = EmployeeTask::query()
+                ->where('business_unit_id', $businessUnitId)
+                ->whereHas('participants', fn($q) => $q->where('user_id', $userId))
+                ->selectRaw("
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                    SUM(CASE WHEN status NOT IN ('completed', 'cancelled') AND due_date < CURDATE() THEN 1 ELSE 0 END) as overdue
+                ")
+                ->first();
+
+            // Get recent tasks (last 3)
+            $recentTasks = EmployeeTask::query()
+                ->where('business_unit_id', $businessUnitId)
+                ->whereHas('participants', fn($q) => $q->where('user_id', $userId))
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->with(['activityType:id,name,color'])
+                ->orderBy('due_date', 'asc')
+                ->take(3)
+                ->get()
+                ->map(fn($task) => [
+                    'id' => $task->id,
+                    'title' => $task->task_title,
+                    'status' => $task->status,
+                    'due_date' => $task->due_date?->format('M j'),
+                    'is_overdue' => $task->isOverdue(),
+                    'activity_type' => $task->activityType?->name,
+                    'activity_color' => $task->activityType?->color ?? '#6b7280',
+                ])
+                ->toArray();
+
+            return [
+                'total' => (int) ($taskCounts->total ?? 0),
+                'in_progress' => (int) ($taskCounts->in_progress ?? 0),
+                'completed' => (int) ($taskCounts->completed ?? 0),
+                'overdue' => (int) ($taskCounts->overdue ?? 0),
+                'recent_tasks' => $recentTasks,
+            ];
+        } catch (\Exception $e) {
+            // Activity module not installed or table doesn't exist
+            \Log::debug('Task stats unavailable: ' . $e->getMessage());
+            return $this->getDefaultTaskStats();
+        }
     }
 
     /**

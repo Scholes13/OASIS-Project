@@ -62,6 +62,16 @@ export {
 } from "./data-table"
 export type { ColumnDef, SortingState, ColumnFiltersState, VisibilityState, Row } from "./data-table"
 
+// Enhanced DataTable with Mobile Card View
+export { 
+  DataTableEnhanced,
+  SortableHeader as EnhancedSortableHeader,
+  calculatePageCount,
+  getPageItems,
+  sortItems,
+} from "./data-table-enhanced"
+export type { DataTableEnhancedProps, ServerPagination } from "./data-table-enhanced"
+
 // Loading Skeletons
 export {
   Skeleton,

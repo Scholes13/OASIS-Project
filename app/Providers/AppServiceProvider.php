@@ -24,6 +24,14 @@ class AppServiceProvider extends ServiceProvider
         // Register PDF Layout Component
         Blade::component('pdf-layout', \App\View\Components\PdfLayout::class);
 
+        // Load module migrations
+        $this->loadMigrationsFrom([
+            database_path('migrations'),
+            database_path('migrations/modules/activity'),
+            // database_path('migrations/modules/sales-crm'), // Temporarily disabled due to duplicate migrations
+            database_path('migrations/modules/stock-request'),
+        ]);
+
         // Configure dynamic SMTP settings from database
         $this->configureDynamicMailer();
 

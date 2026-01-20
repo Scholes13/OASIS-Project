@@ -13,6 +13,26 @@ export interface BusinessUnit {
     id: number;
     code: string;
     name: string;
+    logo: string | null;
+}
+
+// Navigation Menu types
+export interface MenuItem {
+    name: string;        // Changed from 'label' to match NavigationService
+    icon: string;
+    href: string;
+    active: boolean;     // Added to track active state
+    badge?: number;      // Added for notification badges
+    children?: MenuItem[];
+}
+
+export interface MenuSection {
+    name: string;        // Changed from 'title' to match NavigationService
+    items: MenuItem[];
+}
+
+export interface NavigationMenu {
+    sections: MenuSection[];
 }
 
 // Activity Module types
@@ -34,6 +54,7 @@ export interface Department {
     id: number;
     name: string;
     code: string;
+    business_unit_id?: number;
 }
 
 export interface TaskParticipant {
@@ -148,6 +169,8 @@ export interface PageProps {
         user: User | null;
     };
     currentBusinessUnit: BusinessUnit | null;
+    availableBusinessUnits: BusinessUnit[];
+    navigation: NavigationMenu;
     flash: FlashMessages;
     appName: string;
     [key: string]: unknown; // Index signature for Inertia compatibility
@@ -167,3 +190,8 @@ export interface ActivityStat {
     icon?: string;
     color?: string;
 }
+
+// Re-export types from other modules
+export * from './dashboard';
+export * from './purchasing';
+export * from './purchasing-admin';

@@ -16,7 +16,7 @@ class PurchasingController extends Controller
         $currentBusinessUnitId = session('current_business_unit_id');
 
         if (!$currentBusinessUnitId) {
-            return redirect()->route('dashboard')
+            return redirect()->route('purchasing.dashboard')
                 ->with('error', 'Please select a business unit first.');
         }
 

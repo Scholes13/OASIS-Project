@@ -12,6 +12,7 @@ import {
   DragEndEvent,
   DragOverEvent,
   UniqueIdentifier,
+  useDroppable,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -341,12 +342,18 @@ interface BoardColumnProps {
 }
 
 function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
+  // Make the column a droppable area
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  })
+
   return (
     <div className={cn(
-      "flex-1 min-w-[320px] max-w-[400px] flex flex-col rounded-xl overflow-hidden",
+      "flex flex-col rounded-xl overflow-hidden min-h-[500px]",
       "bg-slate-50/80 border border-slate-200/60",
       "border-t-4",
-      column.borderColor
+      column.borderColor,
+      isOver && "ring-2 ring-indigo-400 ring-offset-2 bg-indigo-50/30"
     )}>
       {/* Column Header */}
       <div className={cn(
@@ -371,15 +378,24 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
         </button>
       </div>
 
-      {/* Tasks Container - Scrollable */}
+      {/* Tasks Container - Scrollable with droppable ref */}
       <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 flex flex-col gap-2 p-3 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto">
+        <div 
+          ref={setNodeRef}
+          className={cn(
+            "flex-1 flex flex-col gap-2 p-3 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto transition-colors",
+            isOver && "bg-indigo-50/50"
+          )}
+        >
           <AnimatePresence mode="popLayout">
             {tasks.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-12 text-center"
+                className={cn(
+                  "flex flex-col items-center justify-center py-12 text-center rounded-lg border-2 border-dashed",
+                  isOver ? "border-indigo-300 bg-indigo-50" : "border-transparent"
+                )}
               >
                 <div className="h-10 w-10 rounded-full bg-slate-200/50 flex items-center justify-center mb-3">
                   <div className="h-2 w-2 rounded-full bg-slate-300" />
@@ -494,7 +510,7 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
       if (onStatusChange) {
         onStatusChange(activeId, overColumn)
       } else {
-        router.patch(
+        router.put(
           route("activity.task.update", { task: activeId }),
           { status: overColumn },
           {
@@ -529,7 +545,7 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-6 px-1">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6 px-1">
         {columns.map((column) => (
           <BoardColumn
             key={column.id}

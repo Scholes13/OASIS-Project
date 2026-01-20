@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\BusinessUnit;
+use App\Models\Core\BusinessUnit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class BusinessUnitFactory extends Factory

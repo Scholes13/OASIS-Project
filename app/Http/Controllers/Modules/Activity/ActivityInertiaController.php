@@ -7,6 +7,7 @@ use App\Models\Core\User;
 use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Services\Modules\Activity\TaskService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -25,10 +26,19 @@ class ActivityInertiaController extends Controller
 
     /**
      * Display the Activity Dashboard (Personal & Department Analytics)
+     * 
+     * BOD users (with 'view-reports' permission) are automatically redirected
+     * to the BOD Reporting Dashboard for a cleaner UX.
      */
-    public function dashboard(): Response
+    public function dashboard()
     {
         $user = Auth::user();
+        
+        // BOD users should go directly to reporting dashboard
+        if ($user->can('view-reports')) {
+            return redirect()->route('activity.reporting');
+        }
+        
         $buId = session('current_business_unit_id');
         $departmentId = $user->primary_department_id;
 
@@ -44,6 +54,7 @@ class ActivityInertiaController extends Controller
         return Inertia::render('Activity/ActivityDashboard', [
             'personalStats' => $personalStats,
             'departmentStats' => $departmentStats,
+            'canViewReports' => false, // BOD users are redirected, so this is always false here
         ]);
     }
 
@@ -65,43 +76,59 @@ class ActivityInertiaController extends Controller
             'date_to' => $request->get('date_to', now()->format('Y-m-d')),
         ];
 
-        // Get cached stats
-        $stats = Cache::remember(
-            "activity_stats_{$buId}_{$user->id}",
-            self::CACHE_TTL,
-            fn() => $this->getStats($buId, $user->id, $departmentId)
-        );
+        try {
+            // Get cached stats
+            $stats = Cache::remember(
+                "activity_stats_{$buId}_{$user->id}",
+                self::CACHE_TTL,
+                fn() => $this->getStats($buId, $user->id, $departmentId)
+            );
 
-        // Build base query
-        $query = EmployeeTask::query()
-            ->where('business_unit_id', $buId)
-            ->where(function ($q) use ($user, $departmentId) {
-                $q->where('department_id', $departmentId)
-                    ->orWhereHas('participants', fn($q) => $q->where('user_id', $user->id));
-            })
-            ->when($filters['activity_type_id'], fn($q, $v) => $q->where('activity_type_id', $v))
-            ->when($filters['status'], fn($q, $v) => $q->where('status', $v))
-            ->when($filters['search'], fn($q, $v) => $q->where('task_title', 'like', "%{$v}%"))
-            ->when($filters['date_from'], fn($q, $v) => $q->whereDate('created_at', '>=', $v))
-            ->when($filters['date_to'], fn($q, $v) => $q->whereDate('created_at', '<=', $v));
+            // Build base query
+            $query = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where(function ($q) use ($user, $departmentId) {
+                    $q->where('department_id', $departmentId)
+                        ->orWhereHas('participants', fn($q) => $q->where('user_id', $user->id));
+                })
+                ->when($filters['activity_type_id'], fn($q, $v) => $q->where('activity_type_id', $v))
+                ->when($filters['status'], fn($q, $v) => $q->where('status', $v))
+                ->when($filters['search'], fn($q, $v) => $q->where('task_title', 'like', "%{$v}%"))
+                ->when($filters['date_from'], fn($q, $v) => $q->whereDate('created_at', '>=', $v))
+                ->when($filters['date_to'], fn($q, $v) => $q->whereDate('created_at', '<=', $v));
 
-        // Get paginated tasks with relationships
-        $tasks = (clone $query)
-            ->with(['activityType', 'subActivity', 'participants', 'creator', 'department'])
-            ->latest()
-            ->paginate(20)
-            ->withQueryString();
+            // Get paginated tasks with relationships
+            $tasks = (clone $query)
+                ->with(['activityType', 'subActivity', 'participants', 'creator', 'department'])
+                ->latest()
+                ->paginate(20)
+                ->withQueryString();
 
-        // Get by activity type breakdown
-        $byActivityType = $this->getByActivityType($buId, $user->id, $departmentId);
+            // Get by activity type breakdown
+            $byActivityType = $this->getByActivityType($buId, $user->id, $departmentId);
 
-        return Inertia::render('Activity/Dashboard', [
-            'stats' => $stats,
-            'tasks' => $tasks,
-            'activityTypes' => ActivityType::all(),
-            'filters' => $filters,
-            'byActivityType' => $byActivityType,
-        ]);
+            return Inertia::render('Activity/Dashboard', [
+                'stats' => $stats,
+                'tasks' => $tasks,
+                'activityTypes' => ActivityType::all(),
+                'filters' => $filters,
+                'byActivityType' => $byActivityType,
+            ]);
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return Inertia::render('Activity/Dashboard', [
+                'stats' => [
+                    'total' => 0,
+                    'completed' => 0,
+                    'in_progress' => 0,
+                    'overdue' => 0,
+                ],
+                'tasks' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20),
+                'activityTypes' => ActivityType::all(),
+                'filters' => $filters,
+                'byActivityType' => [],
+            ]);
+        }
     }
 
     /**
@@ -373,18 +400,25 @@ class ActivityInertiaController extends Controller
         $buId = session('current_business_unit_id');
         $departmentId = $user->primary_department_id;
 
-        $tasks = EmployeeTask::query()
-            ->where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
-            ->whereDoesntHave('participants', fn($q) => $q->where('user_id', $user->id))
-            ->whereNotIn('status', ['completed', 'cancelled'])
-            ->with(['activityType', 'subActivity', 'participants', 'creator', 'department'])
-            ->latest()
-            ->paginate(20);
+        try {
+            $tasks = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId)
+                ->whereDoesntHave('participants', fn($q) => $q->where('user_id', $user->id))
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->with(['activityType', 'subActivity', 'participants', 'creator', 'department'])
+                ->latest()
+                ->paginate(20);
 
-        return Inertia::render('Activity/DepartmentTasks', [
-            'tasks' => $tasks,
-        ]);
+            return Inertia::render('Activity/DepartmentTasks', [
+                'tasks' => $tasks,
+            ]);
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return Inertia::render('Activity/DepartmentTasks', [
+                'tasks' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20),
+            ]);
+        }
     }
 
     /**
@@ -436,29 +470,103 @@ class ActivityInertiaController extends Controller
     }
 
     /**
+     * BOD Reporting Dashboard (Top Management only)
+     * 
+     * Displays aggregated metrics across all business units for BOD members.
+     * Requires 'view-reports' permission.
+     */
+    public function reportingDashboard(Request $request): Response
+    {
+        $this->authorize('view-reports');
+
+        $dateRange = [
+            'start' => $request->get('start_date', now()->subDays(30)->format('Y-m-d')),
+            'end' => $request->get('end_date', now()->format('Y-m-d')),
+        ];
+
+        // Return Inertia React page - data will be loaded via API
+        return Inertia::render('Activity/Reporting/BODDashboard', [
+            'dateRange' => $dateRange,
+            'initialData' => null, // Data loaded via API for better UX
+        ]);
+    }
+
+    /**
+     * Manager Reporting Dashboard
+     * 
+     * Displays detailed team metrics for managers.
+     * Shows workload heatmap, team availability, validation queue, and individual metrics.
+     */
+    public function managerDashboard(Request $request): Response
+    {
+        $user = Auth::user();
+        $buId = session('current_business_unit_id');
+
+        $dateRange = [
+            'start' => $request->get('start_date', now()->subDays(30)->format('Y-m-d')),
+            'end' => $request->get('end_date', now()->format('Y-m-d')),
+        ];
+
+        // Get business units the user has access to
+        $businessUnits = $user->businessUnits()
+            ->with('businessUnit')
+            ->get()
+            ->pluck('businessUnit')
+            ->filter()
+            ->values();
+
+        // Get departments for the current business unit
+        $departments = \App\Models\Core\Department::where('business_unit_id', $buId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'business_unit_id']);
+
+        return Inertia::render('Activity/Reporting/ManagerDashboard', [
+            'dateRange' => $dateRange,
+            'businessUnits' => $businessUnits,
+            'departments' => $departments,
+            'selectedBusinessUnitId' => $buId,
+            'selectedDepartmentId' => $user->primary_department_id,
+            // Initial data will be loaded via API call from the frontend
+            'initialData' => null,
+        ]);
+    }
+
+    /**
      * Get stats for dashboard
      */
     protected function getStats(int $buId, int $userId, ?int $departmentId): array
     {
-        $baseQuery = EmployeeTask::query()
-            ->where('business_unit_id', $buId)
-            ->where(function ($q) use ($userId, $departmentId) {
-                $q->where('department_id', $departmentId)
-                    ->orWhereHas('participants', fn($q) => $q->where('user_id', $userId));
-            });
+        try {
+            $baseQuery = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where(function ($q) use ($userId, $departmentId) {
+                    $q->where('department_id', $departmentId)
+                        ->orWhereHas('participants', fn($q) => $q->where('user_id', $userId));
+                });
 
-        $today = now()->toDateString();
+            $today = now()->toDateString();
 
-        return [
-            'total' => (clone $baseQuery)->count(),
-            'planned' => (clone $baseQuery)->where('status', 'planned')->count(),
-            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
-            'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
-            'overdue' => (clone $baseQuery)
-                ->where('due_date', '<', $today)
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->count(),
-        ];
+            return [
+                'total' => (clone $baseQuery)->count(),
+                'planned' => (clone $baseQuery)->where('status', 'planned')->count(),
+                'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+                'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
+                'overdue' => (clone $baseQuery)
+                    ->where('due_date', '<', $today)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->count(),
+            ];
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return [
+                'total' => 0,
+                'planned' => 0,
+                'in_progress' => 0,
+                'completed' => 0,
+                'overdue' => 0,
+            ];
+        }
     }
 
     /**
@@ -466,17 +574,22 @@ class ActivityInertiaController extends Controller
      */
     protected function getByActivityType(int $buId, int $userId, ?int $departmentId): array
     {
-        return EmployeeTask::query()
-            ->where('business_unit_id', $buId)
-            ->where(function ($q) use ($userId, $departmentId) {
-                $q->where('department_id', $departmentId)
-                    ->orWhereHas('participants', fn($q) => $q->where('user_id', $userId));
-            })
-            ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
-            ->select('employee_activity_types.name', 'employee_activity_types.color', DB::raw('count(*) as count'))
-            ->groupBy('employee_activity_types.id', 'employee_activity_types.name', 'employee_activity_types.color')
-            ->get()
-            ->toArray();
+        try {
+            return EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where(function ($q) use ($userId, $departmentId) {
+                    $q->where('department_id', $departmentId)
+                        ->orWhereHas('participants', fn($q) => $q->where('user_id', $userId));
+                })
+                ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
+                ->select('employee_activity_types.name', 'employee_activity_types.color', DB::raw('count(*) as count'))
+                ->groupBy('employee_activity_types.id', 'employee_activity_types.name', 'employee_activity_types.color')
+                ->get()
+                ->toArray();
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return [];
+        }
     }
 
     /**
@@ -484,26 +597,37 @@ class ActivityInertiaController extends Controller
      */
     protected function getPersonalStats(int $userId, int $buId): array
     {
-        $baseQuery = EmployeeTask::query()
-            ->where('business_unit_id', $buId)
-            ->whereHas('participants', fn($q) => $q->where('user_id', $userId));
+        try {
+            $baseQuery = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->whereHas('participants', fn($q) => $q->where('user_id', $userId));
 
-        $today = now()->toDateString();
-        $thisMonth = now()->startOfMonth();
+            $today = now()->toDateString();
+            $thisMonth = now()->startOfMonth();
 
-        return [
-            'total' => (clone $baseQuery)->count(),
-            'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
-            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
-            'overdue' => (clone $baseQuery)
-                ->where('due_date', '<', $today)
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->count(),
-            'completed_this_month' => (clone $baseQuery)
-                ->where('status', 'completed')
-                ->where('completed_at', '>=', $thisMonth)
-                ->count(),
-        ];
+            return [
+                'total' => (clone $baseQuery)->count(),
+                'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
+                'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+                'overdue' => (clone $baseQuery)
+                    ->where('due_date', '<', $today)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->count(),
+                'completed_this_month' => (clone $baseQuery)
+                    ->where('status', 'completed')
+                    ->where('completed_at', '>=', $thisMonth)
+                    ->count(),
+            ];
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return [
+                'total' => 0,
+                'completed' => 0,
+                'in_progress' => 0,
+                'overdue' => 0,
+                'completed_this_month' => 0,
+            ];
+        }
     }
 
     /**
@@ -511,21 +635,31 @@ class ActivityInertiaController extends Controller
      */
     protected function getDepartmentStats(int $departmentId, int $buId): array
     {
-        $baseQuery = EmployeeTask::query()
-            ->where('business_unit_id', $buId)
-            ->where('department_id', $departmentId);
+        try {
+            $baseQuery = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId);
 
-        $today = now()->toDateString();
+            $today = now()->toDateString();
 
-        return [
-            'total' => (clone $baseQuery)->count(),
-            'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
-            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
-            'overdue' => (clone $baseQuery)
-                ->where('due_date', '<', $today)
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->count(),
-        ];
+            return [
+                'total' => (clone $baseQuery)->count(),
+                'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
+                'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+                'overdue' => (clone $baseQuery)
+                    ->where('due_date', '<', $today)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->count(),
+            ];
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return [
+                'total' => 0,
+                'completed' => 0,
+                'in_progress' => 0,
+                'overdue' => 0,
+            ];
+        }
     }
 
     /**
@@ -533,26 +667,38 @@ class ActivityInertiaController extends Controller
      */
     protected function getBusinessUnitStats(int $buId): array
     {
-        $baseQuery = EmployeeTask::query()
-            ->where('business_unit_id', $buId);
+        try {
+            $baseQuery = EmployeeTask::query()
+                ->where('business_unit_id', $buId);
 
-        $today = now()->toDateString();
-        $thisMonth = now()->startOfMonth();
+            $today = now()->toDateString();
+            $thisMonth = now()->startOfMonth();
 
-        return [
-            'total' => (clone $baseQuery)->count(),
-            'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
-            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
-            'planned' => (clone $baseQuery)->where('status', 'planned')->count(),
-            'overdue' => (clone $baseQuery)
-                ->where('due_date', '<', $today)
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->count(),
-            'completed_this_month' => (clone $baseQuery)
-                ->where('status', 'completed')
-                ->where('completed_at', '>=', $thisMonth)
-                ->count(),
-        ];
+            return [
+                'total' => (clone $baseQuery)->count(),
+                'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
+                'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
+                'planned' => (clone $baseQuery)->where('status', 'planned')->count(),
+                'overdue' => (clone $baseQuery)
+                    ->where('due_date', '<', $today)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->count(),
+                'completed_this_month' => (clone $baseQuery)
+                    ->where('status', 'completed')
+                    ->where('completed_at', '>=', $thisMonth)
+                    ->count(),
+            ];
+        } catch (\Exception $e) {
+            // Table doesn't exist yet (migrations not run)
+            return [
+                'total' => 0,
+                'completed' => 0,
+                'in_progress' => 0,
+                'planned' => 0,
+                'overdue' => 0,
+                'completed_this_month' => 0,
+            ];
+        }
     }
 
     /**

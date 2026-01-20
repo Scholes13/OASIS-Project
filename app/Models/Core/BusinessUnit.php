@@ -90,6 +90,14 @@ class BusinessUnit extends Model
     ];
 
     /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\BusinessUnitFactory::new();
+    }
+
+    /**
      * Get departments for this business unit
      */
     public function departments(): HasMany

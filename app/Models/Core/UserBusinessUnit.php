@@ -14,6 +14,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property int $department_id
  * @property int $position_id
  * @property bool $is_primary
+ * @property float $allocation_percentage
  * @property bool $is_active
  * @property array<array-key, mixed>|null $permissions
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -54,6 +55,7 @@ class UserBusinessUnit extends Model
         'department_id',
         'position_id',
         'is_primary',
+        'allocation_percentage',
         'is_active',
         'is_purchasing_admin',
         'permissions',
@@ -61,6 +63,7 @@ class UserBusinessUnit extends Model
 
     protected $casts = [
         'is_primary' => 'boolean',
+        'allocation_percentage' => 'decimal:2',
         'is_active' => 'boolean',
         'is_purchasing_admin' => 'boolean',
         'permissions' => 'array',

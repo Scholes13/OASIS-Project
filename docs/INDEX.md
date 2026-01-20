@@ -26,6 +26,14 @@
 ```
 docs/
 ├── INDEX.md (this file)
+├── activity-module/        # Activity Reporting Dashboard v2.0
+│   ├── api-reference.md           # Complete API documentation
+│   ├── auto-logging-implementation.md
+│   ├── code-examples.md           # Practical code examples ⭐ NEW
+│   ├── column-additions-verification.md
+│   ├── database-schema.md         # Database schema documentation
+│   ├── manager-dashboard-implementation.md
+│   └── service-layer-architecture.md
 ├── bug-fixes/              # Bug fix documentation
 │   ├── BUGFIX-BUSINESS-UNIT-SWITCHER.md
 │   ├── BUGFIX-DASHBOARD-SYNC-ISSUE.md
@@ -45,6 +53,41 @@ docs/
 ├── UPDATE-SUMMARY-v2.1.md
 └── README-CLEANUP.md
 ```
+
+---
+
+## 📊 Activity Reporting Dashboard v2.0
+
+### Module Documentation
+
+The Activity Reporting Dashboard v2.0 provides multi-level reporting (BOD, Manager, Employee) with role-based access control, gaming prevention, and comprehensive metrics.
+
+#### Documentation Files
+
+| File | Description |
+|------|-------------|
+| **[api-reference.md](./activity-module/api-reference.md)** | Complete API documentation with endpoints, parameters, and examples |
+| **[code-examples.md](./activity-module/code-examples.md)** ⭐ | Practical code examples for common use cases |
+| **[database-schema.md](./activity-module/database-schema.md)** | Database schema with tables, views, and indexes |
+| **[service-layer-architecture.md](./activity-module/service-layer-architecture.md)** | Service layer design and interactions |
+| **[auto-logging-implementation.md](./activity-module/auto-logging-implementation.md)** | Auto-logging system for passive tracking |
+| **[manager-dashboard-implementation.md](./activity-module/manager-dashboard-implementation.md)** | Manager dashboard implementation details |
+
+#### Key Features
+
+- **Multi-Level Dashboards**: BOD (aggregated), Manager (team), Employee (personal)
+- **Gaming Prevention**: Automatic detection of suspicious task patterns
+- **Auto-Logging**: Automatic task creation from system events
+- **Workload Heatmap**: Visual team workload distribution
+- **Strategic Focus Treemap**: Activity type distribution visualization
+- **Validation Queue**: Manager review of flagged tasks
+
+#### Quick Links
+
+- [API Testing Guide](./api-testing/README.md)
+- [Design Document](../.kiro/specs/activity-reporting-dashboard-v2/design.md)
+- [Requirements Document](../.kiro/specs/activity-reporting-dashboard-v2/requirements.md)
+- [Implementation Tasks](../.kiro/specs/activity-reporting-dashboard-v2/tasks.md)
 
 ---
 

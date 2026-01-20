@@ -144,10 +144,106 @@ function PriorityBadge({ priority }: PriorityBadgeProps) {
     )
 }
 
+// Purchase Request Status Badge
+interface PRStatusBadgeProps {
+    status: 'draft' | 'submitted' | 'in_approval' | 'approved' | 'rejected' | 'voided';
+}
+
+function PRStatusBadge({ status }: PRStatusBadgeProps) {
+    const config: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
+        draft: {
+            label: 'Draft',
+            bg: 'bg-gray-100',
+            text: 'text-gray-700',
+            icon: (
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+            ),
+        },
+        submitted: {
+            label: 'Submitted',
+            bg: 'bg-blue-100',
+            text: 'text-blue-700',
+            icon: (
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            ),
+        },
+        in_approval: {
+            label: 'In Approval',
+            bg: 'bg-amber-100',
+            text: 'text-amber-700',
+            icon: (
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            ),
+        },
+        approved: {
+            label: 'Approved',
+            bg: 'bg-emerald-100',
+            text: 'text-emerald-700',
+            icon: (
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7"></path>
+                </svg>
+            ),
+        },
+        rejected: {
+            label: 'Rejected',
+            bg: 'bg-red-100',
+            text: 'text-red-700',
+            icon: (
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            ),
+        },
+        voided: {
+            label: 'Voided',
+            bg: 'bg-gray-100',
+            text: 'text-gray-500',
+            icon: (
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                </svg>
+            ),
+        },
+    };
+
+    const { label, bg, text, icon } = config[status] || config.draft;
+
+    return (
+        <span className={cn(
+            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium",
+            bg, text
+        )}>
+            {icon}
+            {label}
+        </span>
+    );
+}
+
+// Offline Approved Badge
+function OfflineApprovedBadge() {
+    return (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            Offline Approved
+        </span>
+    );
+}
+
 export {
     Badge,
     StatusBadge,
     ActivityTypeBadge,
     PriorityBadge,
+    PRStatusBadge,
+    OfflineApprovedBadge,
 }
-export type { BadgeProps, StatusBadgeProps, ActivityTypeBadgeProps, PriorityBadgeProps }
+export type { BadgeProps, StatusBadgeProps, ActivityTypeBadgeProps, PriorityBadgeProps, PRStatusBadgeProps }

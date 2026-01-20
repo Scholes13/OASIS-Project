@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "laravel-boost": {
-      "command": "php",
+      "command": "C:\\xampp\\php\\php.exe",
       "args": ["artisan", "boost:mcp"],
+      "cwd": "F:\\Project\\Numbering",
       "env": {
         "APP_ENV": "local"
       },

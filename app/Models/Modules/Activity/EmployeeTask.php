@@ -33,6 +33,9 @@ class EmployeeTask extends Model
         'completed_at',
         'completed_by',
         'duration_minutes',
+        'source',
+        'source_reference_id',
+        'validation_status',
         'cancellation_reason',
     ];
 
@@ -120,6 +123,14 @@ class EmployeeTask extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(TaskAttachment::class, 'employee_task_id');
+    }
+
+    /**
+     * Get task validations
+     */
+    public function validations(): HasMany
+    {
+        return $this->hasMany(TaskValidation::class, 'employee_task_id');
     }
 
     // ==================== SCOPES ====================

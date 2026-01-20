@@ -68,6 +68,14 @@ class Department extends Model
         'is_purchasing_department' => 'boolean',
     ];
 
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\DepartmentFactory::new();
+    }
+
     protected static function booted(): void
     {
         static::created(function (self $department) {

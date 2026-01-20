@@ -11,10 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('stock_requests', function (Blueprint $table) {
-            $table->string('offline_approval_document_path')->nullable()->after('offline_approval_notes');
-            $table->string('offline_approval_document_name')->nullable()->after('offline_approval_document_path');
-        });
+        // Only run if stock_requests table exists
+        if (Schema::hasTable('stock_requests')) {
+            Schema::table('stock_requests', function (Blueprint $table) {
+                $table->string('offline_approval_document_path')->nullable()->after('offline_approval_notes');
+                $table->string('offline_approval_document_name')->nullable()->after('offline_approval_document_path');
+            });
+        }
     }
 
     /**
@@ -22,8 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('stock_requests', function (Blueprint $table) {
-            $table->dropColumn(['offline_approval_document_path', 'offline_approval_document_name']);
-        });
+        if (Schema::hasTable('stock_requests')) {
+            Schema::table('stock_requests', function (Blueprint $table) {
+                $table->dropColumn(['offline_approval_document_path', 'offline_approval_document_name']);
+            });
+        }
     }
 };

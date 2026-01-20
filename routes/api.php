@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Modules\Activity\ActivityReportingController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\Api\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\Api\PurchaseRequestController;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     // Authentication required for all API routes
+    // Using Sanctum for SPA authentication (stateful for same-domain, token for external)
     Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
         // Purchase Request API Routes
@@ -89,6 +91,31 @@ Route::prefix('v1')->group(function () {
             ]);
         })->name('api.departments.index');
 
+        // Activity Reporting API Routes
+        Route::prefix('activity')->name('api.activity.')->middleware('activity.reporting.access')->group(function () {
+            // Dashboard - Role-based data returned by controller
+            Route::get('/dashboard', [ActivityReportingController::class, 'dashboard'])->name('dashboard');
+            
+            // BOD-Only Metrics Routes (requires view-reports permission)
+            // These routes provide aggregated data across all business units
+            // Only accessible by top management (General Manager, Director, CEO, Finance Manager, Super Admin)
+            Route::middleware('can:view-reports')->group(function () {
+                Route::get('/metrics/business-units', [ActivityReportingController::class, 'businessUnitMetrics'])
+                    ->name('metrics.business-units');
+                Route::get('/metrics/strategic-focus', [ActivityReportingController::class, 'strategicFocus'])
+                    ->name('metrics.strategic-focus');
+            });
+            
+            // Manager/Team Metrics Routes (accessible by managers and above)
+            Route::get('/metrics/workload-heatmap', [ActivityReportingController::class, 'workloadHeatmap'])
+                ->name('metrics.workload-heatmap');
+            
+            // Validation Queue Routes (for managers to review flagged tasks)
+            Route::get('/validations', [ActivityReportingController::class, 'validationQueue'])->name('validations.index');
+            Route::post('/validations/{id}/approve', [ActivityReportingController::class, 'approveValidation'])->name('validations.approve');
+            Route::post('/validations/{id}/reject', [ActivityReportingController::class, 'rejectValidation'])->name('validations.reject');
+        });
+
     });
 
     // Public API routes (no authentication required)
@@ -105,7 +132,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/docs', function () {
         return response()->json([
             'success' => true,
-            'message' => 'NumberSys API Documentation',
+            'message' => 'OASIS API Documentation',
             'version' => '1.0.0',
             'endpoints' => [
                 'authentication' => [
@@ -131,6 +158,45 @@ Route::prefix('v1')->group(function () {
                     'reject' => 'POST /api/v1/approvals/{id}/reject',
                     'statistics' => 'GET /api/v1/approvals/statistics',
                     'history' => 'GET /api/v1/approvals/history',
+                ],
+                'activity_reporting' => [
+                    'dashboard' => [
+                        'endpoint' => 'GET /api/v1/activity/dashboard',
+                        'description' => 'Get role-based dashboard data (BOD/Manager/Employee)',
+                        'params' => 'start_date, end_date, business_unit_id, department_id',
+                    ],
+                    'business_unit_metrics' => [
+                        'endpoint' => 'GET /api/v1/activity/metrics/business-units',
+                        'description' => 'Get aggregated BU metrics (BOD only)',
+                        'params' => 'start_date, end_date',
+                        'permission' => 'view-reports',
+                    ],
+                    'strategic_focus' => [
+                        'endpoint' => 'GET /api/v1/activity/metrics/strategic-focus',
+                        'description' => 'Get activity type distribution for Treemap (BOD only)',
+                        'params' => 'start_date, end_date, business_unit_id',
+                        'permission' => 'view-reports',
+                    ],
+                    'workload_heatmap' => [
+                        'endpoint' => 'GET /api/v1/activity/metrics/workload-heatmap',
+                        'description' => 'Get team workload heatmap data',
+                        'params' => 'business_unit_id (required), department_id, start_date, end_date',
+                    ],
+                    'validation_queue' => [
+                        'endpoint' => 'GET /api/v1/activity/validations',
+                        'description' => 'Get flagged tasks for manager review',
+                        'params' => 'business_unit_id (required), department_id, status, validation_type',
+                    ],
+                    'approve_validation' => [
+                        'endpoint' => 'POST /api/v1/activity/validations/{id}/approve',
+                        'description' => 'Approve a flagged task',
+                        'body' => '{"notes": "optional approval notes"}',
+                    ],
+                    'reject_validation' => [
+                        'endpoint' => 'POST /api/v1/activity/validations/{id}/reject',
+                        'description' => 'Reject a flagged task',
+                        'body' => '{"reason": "required rejection reason"}',
+                    ],
                 ],
                 'reference_data' => [
                     'user_profile' => 'GET /api/v1/user',
@@ -159,6 +225,11 @@ Route::prefix('v1')->group(function () {
                     'error' => '(detailed error for debugging)',
                     'errors' => '(validation errors for 422 responses)',
                 ],
+            ],
+            'documentation_links' => [
+                'activity_reporting_api' => 'docs/activity-module/api-reference.md',
+                'database_schema' => 'docs/activity-module/database-schema.md',
+                'api_testing_guide' => 'docs/api-testing/README.md',
             ],
         ]);
     })->name('api.docs');

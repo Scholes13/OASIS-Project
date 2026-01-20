@@ -191,8 +191,8 @@ export function DataTable<TData, TValue>({
                 </div>
             )}
 
-            {/* Table */}
-            <div className="overflow-hidden">
+            {/* Table - Allow overflow for dropdowns */}
+            <div className="overflow-x-auto overflow-y-visible">
                 <table className="w-full">
                     {/* Header - Subtle gray background */}
                     <thead>

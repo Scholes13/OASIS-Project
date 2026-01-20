@@ -39,6 +39,14 @@ class ActivityType extends Model
     }
 
     /**
+     * Get auto-log rules for this activity type
+     */
+    public function autoLogRules(): HasMany
+    {
+        return $this->hasMany(AutoLogRule::class, 'activity_type_id');
+    }
+
+    /**
      * Scope: Get only active activity types
      */
     public function scopeActive($query)

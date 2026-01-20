@@ -1,36 +1,120 @@
-# Purchase Request Management System
+# OASIS - Office Administration System
 
-**WNS (Werkudara Nusantara Sejahtera) - Universal Purchase Request System**
+**Werkudara Group - Enterprise Office Administration Platform**
 
-A modern Laravel 12 application with Livewire 3 for managing enterprise purchase requests with multi-level approval workflows and universal business unit support.
+A modern Laravel 12 application with Livewire 3 and React/Inertia for managing enterprise office administration workflows with multi-level approval systems and universal business unit support.
 
 ## System Overview
 
-This is an enterprise **Purchase Request Management System** designed specifically for multi-business unit operations with hierarchical approval workflows.
+OASIS (Office Administration System) is an enterprise-grade platform designed for multi-business unit operations under Werkudara Group. It provides modular architecture supporting various business processes including purchasing, activity tracking, and sales CRM.
 
-### Core Features
+### Business Units
 
-- **Universal Routing System**: Single route structure supporting multiple business units (WNS, UKA, WG)
-- **Multi-Level Approval Workflow**: Automatic approval routing based on amount thresholds
-- **Sequential PR Numbering**: Business unit-specific numbering with proper sequence management  
-- **QR Code Integration**: PDF verification and tracking system
-- **Real-time Livewire Interface**: Modern, responsive UI with instant feedback
-- **Role-Based Access Control**: Hierarchical permission system with Spatie Permission
+- **WG** (Werkudara Group) - Parent holding company
+- **WNS** (Werkudara Nirwana Sakti)
+- **UK** (Utama Kalapana)
+- **MRP** (Maharaja Pratama)
 
-### Architecture
+## Modules
+
+### 1. Purchasing Module
+
+Full-featured purchase and stock request management with automated approval workflows.
+
+**Features:**
+- Purchase Request (PR) management with multi-level approvals
+- Stock Request (ST) management
+- Sequential numbering with business unit-specific formats
+- QR code verification for document tracking
+- Offline approval support for paper-based workflows
+- Email notifications for approval requests
+- Item-level tracking with images and specifications
+
+### 2. Activity Tracking Module
+
+Employee task and workload management with collaborative features.
+
+**Features:**
+- Create and track work activities/tasks
+- Collaborative tasks with multiple participants
+- Activity types and sub-activities configuration
+- Personal, department, and business unit analytics
+- Date range filtering for all analytics views
+
+### 3. Activity Reporting Dashboard v2.0 (NEW)
+
+Advanced multi-level reporting and analytics dashboard for productivity monitoring.
+
+**Key Features:**
+
+#### Multi-Level Dashboards
+- **BOD Dashboard**: Aggregated metrics across all Business Units for strategic decision-making
+- **Manager Dashboard**: Detailed team metrics with workload heatmaps and validation queues
+- **Employee Dashboard**: Personal productivity stats and task tracking
+
+#### Strategic Focus Visualization
+- Treemap chart showing activity type distribution
+- Drill-down capability to Business Unit breakdown
+- Warning indicators for activities consuming >40% of total time
+- Period comparison with color-coded changes
+
+#### Workload Heatmap
+- Visual grid with employees as rows and weeks as columns
+- Color-coded workload scores based on task count, priority, and overdue status
+- Rich tooltips with task breakdown and top activities
+- Department grouping toggle for better organization
+
+#### Gaming Prevention System
+- Automatic flagging of suspicious task patterns
+- Duration outlier detection (>12 hours)
+- Pattern detection for identical durations
+- Statistical outlier detection using Z-score analysis
+- Manager validation queue for reviewing flagged tasks
+
+#### Auto-Logging System
+- Automatic task creation from system events (PR approvals, document uploads)
+- Configurable auto-log rules mapping events to activity types
+- Visual distinction between manual and auto-logged tasks
+
+#### Cross-Functional Employee Support
+- Allocation percentage tracking for employees across multiple BUs
+- Weighted contribution calculations for accurate metrics
+- Per-BU breakdown for cross-functional employees
+
+#### Team Availability Indicator
+- Real-time availability status (Available, Busy, DND, Offline)
+- Automatic offline status outside working hours
+- Privacy protection for DND status
+- Audit logging for compliance
+
+### 4. Sales CRM Module
+
+Customer relationship management for sales operations.
+
+## Architecture
+
+### Technology Stack
 
 - **Laravel Framework**: 12.26.3
-- **Livewire**: 3.6.4 for reactive components
-- **Tailwind CSS**: 3.x for modern styling
-- **Alpine.js**: 3.x for client-side interactions
-- **DomPDF**: PDF generation with QR codes
+- **PHP**: 8.2+
+- **Livewire**: 3.6.4 (reactive components)
+- **React/Inertia**: For Activity Reporting dashboards
+- **Tailwind CSS**: 3.x (utility-first styling)
+- **Alpine.js**: 3.x (client-side interactions)
+- **Recharts**: 3.6.0 (data visualization)
+- **Framer Motion**: 12.26.0 (animations)
 - **Spatie Permission**: Role and permission management
+- **Spatie Activity Log**: Comprehensive audit trails
 
 ### Key Services
 
-- **UniversalPRNumberingService**: Centralized PR numbering across all business units
-- **ApprovalWorkflowService**: Core approval engine with rule-based approver assignment  
-- **QrCodeService**: PDF verification and tracking system
+- **ReportingService**: Multi-level dashboard data with role-based access
+- **MetricsCalculationService**: Utilization rates and workload scores
+- **GamingPreventionService**: Task validation and outlier detection
+- **AutoLogService**: Event-driven automatic task logging
+- **ApprovalWorkflowService**: Rule-based approval routing
+- **NumberingService**: Business unit-specific sequential numbering
+- **QrCodeService**: PDF verification and tracking
 
 ## Quick Start
 
@@ -39,7 +123,7 @@ This is an enterprise **Purchase Request Management System** designed specifical
 - PHP 8.2+
 - Composer
 - Node.js & NPM
-- MySQL/SQLite database
+- MySQL database
 
 ### Installation
 
@@ -67,64 +151,91 @@ npm run build
 php artisan serve
 ```
 
+### Development Mode
+
+```bash
+# Run all development services concurrently
+composer dev
+
+# This starts:
+# - PHP development server (port 8000)
+# - Queue worker
+# - Real-time log viewer
+# - Vite HMR server
+```
+
 ## Project Structure
-
-### Universal Architecture
-
-The system uses a universal architecture where:
-- Single route definitions support all business units
-- Dynamic component loading based on business unit context  
-- Centralized services with business unit awareness
-- Unified approval workflow with customizable rules
-
-### Core Components
 
 ```
 app/
-├── Livewire/Modules/WNS/           # Business unit specific components
-├── Services/                       # Core business services
-│   ├── UniversalPRNumberingService.php
-│   └── Modules/WNS/ApprovalWorkflowService.php
-├── Models/Modules/WNS/             # Domain models
-└── Http/Controllers/               # RESTful API endpoints
+├── Console/Commands/           # Artisan commands
+├── Events/Activity/            # Activity module events
+├── Http/
+│   ├── Controllers/Modules/    # Module controllers
+│   │   └── Activity/           # Activity Reporting API
+│   └── Middleware/             # HTTP middleware
+├── Listeners/Activity/         # Auto-logging event listeners
+├── Livewire/                   # Livewire components
+│   └── Modules/                # Business module components
+├── Models/
+│   ├── Core/                   # Core system models
+│   └── Modules/                # Business module models
+│       └── Activity/           # Activity module models
+├── Services/
+│   ├── Core/                   # Core services
+│   └── Modules/                # Module-specific services
+│       └── Activity/           # Activity reporting services
+└── View/Components/            # Blade components
 
-resources/views/
-├── purchase-requests/              # Universal templates
-├── livewire/modules/wns/           # Business unit specific views
-└── layouts/                        # Application layouts
-
-routes/
-├── web.php                         # Universal web routes
-└── api.php                         # RESTful API routes
+resources/
+├── js/inertia/                 # React/Inertia components
+│   └── Pages/Activity/         # Activity Reporting dashboards
+│       └── Reporting/          # BOD, Manager, Employee dashboards
+└── views/                      # Blade templates
 ```
 
-## Laravel Sponsors
+## API Endpoints
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Activity Reporting API
 
-### Premium Partners
+```
+GET  /api/activity/dashboard              # Role-based dashboard data
+GET  /api/activity/business-units/metrics # Business unit metrics (BOD only)
+GET  /api/activity/strategic-focus        # Strategic focus treemap data
+GET  /api/activity/workload-heatmap       # Workload heatmap data
+GET  /api/activity/validations            # Validation queue (Managers)
+POST /api/activity/validations/{id}/approve
+POST /api/activity/validations/{id}/reject
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Documentation
+
+- **Technical Docs**: `docs/` directory
+- **Activity Module**: `docs/activity-module/`
+  - `database-schema.md` - Database structure
+  - `api-reference.md` - API documentation
+  - `service-layer-architecture.md` - Service design
+- **Quick Start**: `QUICK-START.md`
+- **Index**: `docs/INDEX.md`
+
+## Testing
+
+```bash
+# Run all tests
+composer test
+
+# Run specific test suite
+php artisan test --filter=ActivityReporting
+```
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Please review the contribution guidelines before submitting pull requests.
 
-## Code of Conduct
+## Security
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+If you discover a security vulnerability, please report it responsibly.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is proprietary software for Werkudara Group.

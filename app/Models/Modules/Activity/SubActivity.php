@@ -40,6 +40,14 @@ class SubActivity extends Model
     }
 
     /**
+     * Get auto-log rules using this sub-activity
+     */
+    public function autoLogRules(): HasMany
+    {
+        return $this->hasMany(AutoLogRule::class, 'sub_activity_id');
+    }
+
+    /**
      * Scope: Get only active sub-activities
      */
     public function scopeActive($query)

@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Core\BusinessUnit;
+use App\Services\Core\NavigationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -13,6 +15,10 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'layouts.inertia';
+
+    public function __construct(
+        protected NavigationService $navigationService
+    ) {}
 
     /**
      * Determine the current asset version.
@@ -29,22 +35,23 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $currentBusinessUnitId = session('current_business_unit_id');
+
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    'role' => $request->user()->getRoleNames()->first(),
-                    'avatar_url' => $request->user()->avatar_url ?? null,
-                    'primary_department_id' => $request->user()->primary_department_id,
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->getRoleNames()->first(),
+                    'avatar_url' => $user->avatar_url ?? null,
+                    'primary_department_id' => $user->primary_department_id,
                 ] : null,
             ],
-            'currentBusinessUnit' => session('current_business_unit_id') ? [
-                'id' => session('current_business_unit_id'),
-                'code' => session('current_business_unit_code'),
-                'name' => session('current_business_unit_name'),
-            ] : null,
+            'currentBusinessUnit' => fn () => $this->getCurrentBusinessUnit($currentBusinessUnitId),
+            'availableBusinessUnits' => fn () => $this->getAvailableBusinessUnits($user),
+            'navigation' => fn () => $this->getNavigation($user, $currentBusinessUnitId),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -53,5 +60,64 @@ class HandleInertiaRequests extends Middleware
             ],
             'appName' => config('app.name'),
         ]);
+    }
+
+    /**
+     * Get the current business unit data including logo.
+     */
+    protected function getCurrentBusinessUnit(?int $businessUnitId): ?array
+    {
+        if (!$businessUnitId) {
+            return null;
+        }
+
+        $businessUnit = BusinessUnit::find($businessUnitId);
+        
+        if (!$businessUnit) {
+            return null;
+        }
+
+        return [
+            'id' => $businessUnit->id,
+            'code' => $businessUnit->code,
+            'name' => $businessUnit->name,
+            'logo' => $businessUnit->logo ? asset('storage/' . $businessUnit->logo) : null,
+        ];
+    }
+
+    /**
+     * Get available business units for the user.
+     */
+    protected function getAvailableBusinessUnits($user): array
+    {
+        if (!$user) {
+            return [];
+        }
+
+        $accessibleIds = $user->getAccessibleBusinessUnitIds();
+        
+        return BusinessUnit::whereIn('id', $accessibleIds)
+            ->active()
+            ->orderBy('name')
+            ->get()
+            ->map(fn (BusinessUnit $bu) => [
+                'id' => $bu->id,
+                'code' => $bu->code,
+                'name' => $bu->name,
+                'logo' => $bu->logo ? asset('storage/' . $bu->logo) : null,
+            ])
+            ->toArray();
+    }
+
+    /**
+     * Get the navigation menu structure for the user.
+     */
+    protected function getNavigation($user, ?int $businessUnitId): array
+    {
+        if (!$user) {
+            return ['sections' => []];
+        }
+
+        return $this->navigationService->buildMenuForUser($user, $businessUnitId);
     }
 }

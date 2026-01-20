@@ -332,7 +332,7 @@
                 @endif
 
                 <!-- Dashboard Button -->
-                <a href="{{ route('dashboard') }}" class="btn btn-primary">
+                <a href="{{ route('purchasing.dashboard') }}" class="btn btn-primary">
                     Open Dashboard
                 </a>
             </div>

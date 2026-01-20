@@ -20,6 +20,7 @@ import { Dialog } from "../ui/dialog"
 import { ActivityTypeBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
+import { LazyImage } from "../ui/LazyImage"
 import type { Task } from "@/types"
 
 interface TaskDetailModalProps {
@@ -38,7 +39,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
     const handleStartTask = () => {
         if (!task) return
         setIsLoading(true)
-        router.patch(
+        router.put(
             route("activity.task.update", { task: task.id }),
             { status: "in_progress" },
             {
@@ -56,7 +57,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
     const handleCompleteTask = () => {
         if (!task) return
         setIsLoading(true)
-        router.patch(
+        router.put(
             route("activity.task.update", { task: task.id }),
             { status: "completed" },
             {
@@ -240,7 +241,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                                         className="aspect-square rounded-lg bg-gray-100 overflow-hidden hover:opacity-80 transition-opacity flex items-center justify-center"
                                     >
                                         {attachment.mime_type?.startsWith("image/") ? (
-                                            <img
+                                            <LazyImage
                                                 src={attachment.url}
                                                 alt={attachment.original_name}
                                                 className="w-full h-full object-cover"

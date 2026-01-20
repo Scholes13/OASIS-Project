@@ -71,6 +71,83 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Create approval workflow from user-submitted request data
+     * Used when creating/editing PR with custom approval workflow
+     * 
+     * @param PurchaseRequest $purchaseRequest The PR to create workflow for
+     * @param array $approvalWorkflow Array of approval steps from form
+     * @param string|null $notes Optional notes for the workflow
+     * @return bool
+     */
+    public function createWorkflowFromRequest(PurchaseRequest $purchaseRequest, array $approvalWorkflow, ?string $notes = null): bool
+    {
+        try {
+            DB::beginTransaction();
+
+            // Build workflow structure for storage
+            $workflowData = [];
+            foreach ($approvalWorkflow as $index => $step) {
+                $approver = User::find($step['approver_id']);
+                if (!$approver) {
+                    throw new \Exception("Approver with ID {$step['approver_id']} not found");
+                }
+
+                $stepOrder = $index + 1;
+                $taskType = $step['task_type'] ?? 'approval';
+                
+                $workflowData[] = [
+                    'approver_id' => $approver->id,
+                    'approver_name' => $approver->name,
+                    'approver_email' => $approver->email,
+                    'step_order' => $stepOrder,
+                    'approval_type' => $taskType,
+                    'reason' => $notes ?? 'Custom approval workflow',
+                    'due_date' => $this->calculateDueDate($taskType)->toISOString(),
+                ];
+
+                // Create approval record
+                PrApproval::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'approver_id' => $approver->id,
+                    'step_order' => $stepOrder,
+                    'approval_type' => $taskType,
+                    'status' => 'pending',
+                    'assigned_at' => now(),
+                    'due_date' => $this->calculateDueDate($taskType),
+                    'notes' => null,
+                    'responded_at' => null,
+                ]);
+            }
+
+            // Update PR workflow information
+            $purchaseRequest->update([
+                'approval_workflow' => $workflowData,
+                'is_sequential_approval' => true,
+                'status' => 'in_approval',
+            ]);
+
+            DB::commit();
+
+            // Send notification to first approver
+            try {
+                $this->notifyNextApprover($purchaseRequest);
+            } catch (\Exception $e) {
+                Log::warning('Failed to send approval notification', [
+                    'pr_id' => $purchaseRequest->id,
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return true;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Recreate workflow from preserved approval_workflow JSON
      * Used when resubmitting rejected PR to restore original custom workflow
      */
@@ -428,6 +505,19 @@ class ApprovalWorkflowService
             }
 
             DB::commit();
+
+            // Dispatch event for auto-logging AFTER transaction commits
+            // This allows the activity tracking module to automatically log the approval action
+            try {
+                \App\Events\Purchasing\PrApprovalCompleted::dispatch($approval);
+            } catch (\Exception $e) {
+                // Log but don't fail the approval process if event dispatch fails
+                Log::warning('Failed to dispatch PrApprovalCompleted event', [
+                    'approval_id' => $approval->id,
+                    'pr_number' => $purchaseRequest->pr_number,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             return true;
 

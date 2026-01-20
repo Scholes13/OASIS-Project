@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils"
 import { TaskDetailModal } from "./TaskDetailModal"
 import { showToast } from "../ui/toast"
 import type { Task, PaginatedData, PageProps, TaskStatus, TaskStats } from "@/types"
-import { Popover, Transition } from "@headlessui/react"
+import { Popover, Transition, Portal } from "@headlessui/react"
 
 type ViewMode = "my" | "department"
 type DateFilterType = "all" | "today" | "week" | "month" | "custom"
@@ -475,6 +475,8 @@ const statusConfig: Record<string, {
 
 function StatusDropdown({ task }: { task: Task }) {
     const [isUpdating, setIsUpdating] = React.useState(false)
+    const buttonRef = React.useRef<HTMLButtonElement>(null)
+    const [panelPosition, setPanelPosition] = React.useState({ top: 0, left: 0, openUpward: false })
     const current = statusConfig[task.status] || statusConfig.planned
 
     const handleStatusChange = (newStatus: TaskStatus, close: () => void) => {
@@ -484,7 +486,7 @@ function StatusDropdown({ task }: { task: Task }) {
         }
 
         setIsUpdating(true)
-        router.patch(
+        router.put(
             route("activity.task.update", { task: task.id }),
             { status: newStatus },
             {
@@ -501,57 +503,83 @@ function StatusDropdown({ task }: { task: Task }) {
         )
     }
 
+    const calculatePosition = () => {
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect()
+            const spaceBelow = window.innerHeight - rect.bottom
+            const openUpward = spaceBelow < 200
+            
+            setPanelPosition({
+                top: openUpward ? rect.top - 6 : rect.bottom + 6,
+                left: rect.left,
+                openUpward,
+            })
+        }
+    }
+
     return (
         <Popover className="relative">
-            {({ close }) => (
+            {({ close, open }) => (
                 <>
                     <Popover.Button
+                        ref={buttonRef}
                         className={cn(
                             "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium ring-1 ring-inset transition-all",
                             current.bg, current.text, current.ring,
                             "hover:ring-2",
                             isUpdating && "opacity-50 cursor-wait"
                         )}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            calculatePosition()
+                        }}
                         disabled={isUpdating}
                     >
                         {current.icon}
                         {current.label}
                         <ChevronDown className="h-3.5 w-3.5 opacity-50" />
                     </Popover.Button>
-                    <Transition
-                        as={React.Fragment}
-                        enter="transition ease-out duration-100"
-                        enterFrom="opacity-0 scale-95"
-                        enterTo="opacity-100 scale-100"
-                        leave="transition ease-in duration-75"
-                        leaveFrom="opacity-100 scale-100"
-                        leaveTo="opacity-0 scale-95"
-                    >
-                        <Popover.Panel
-                            className="absolute left-0 z-50 mt-1.5 w-40 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 py-1"
-                            onClick={(e) => e.stopPropagation()}
+                    <Portal>
+                        <Transition
+                            as={React.Fragment}
+                            enter="transition ease-out duration-100"
+                            enterFrom="opacity-0 scale-95"
+                            enterTo="opacity-100 scale-100"
+                            leave="transition ease-in duration-75"
+                            leaveFrom="opacity-100 scale-100"
+                            leaveTo="opacity-0 scale-95"
                         >
-                            {Object.entries(statusConfig).map(([key, config]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => handleStatusChange(key as TaskStatus, close)}
-                                    disabled={isUpdating}
-                                    className={cn(
-                                        "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors",
-                                        "hover:bg-gray-50",
-                                        task.status === key && "bg-gray-50 font-medium"
-                                    )}
-                                >
-                                    <span className={config.text}>{config.icon}</span>
-                                    <span className="text-gray-700">{config.label}</span>
-                                    {task.status === key && (
-                                        <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-indigo-500" />
-                                    )}
-                                </button>
-                            ))}
-                        </Popover.Panel>
-                    </Transition>
+                            <Popover.Panel
+                                static
+                                className="fixed z-[9999] w-40 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 py-1"
+                                style={{
+                                    top: panelPosition.openUpward ? 'auto' : panelPosition.top,
+                                    bottom: panelPosition.openUpward ? (window.innerHeight - panelPosition.top) : 'auto',
+                                    left: panelPosition.left,
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {Object.entries(statusConfig).map(([key, config]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => handleStatusChange(key as TaskStatus, close)}
+                                        disabled={isUpdating}
+                                        className={cn(
+                                            "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors",
+                                            "hover:bg-gray-50",
+                                            task.status === key && "bg-gray-50 font-medium"
+                                        )}
+                                    >
+                                        <span className={config.text}>{config.icon}</span>
+                                        <span className="text-gray-700">{config.label}</span>
+                                        {task.status === key && (
+                                            <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-indigo-500" />
+                                        )}
+                                    </button>
+                                ))}
+                            </Popover.Panel>
+                        </Transition>
+                    </Portal>
                 </>
             )}
         </Popover>
@@ -923,7 +951,7 @@ export function ActivityDataTable({
 
     return (
         <>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
                 {/* Unified Header with Context Switcher */}
                 {showHeader && (
                     <div className="px-6 py-5 border-b border-gray-100">
@@ -992,7 +1020,7 @@ export function ActivityDataTable({
                 )}
 
                 {/* Table with Search Inside */}
-                <div className="border-t border-gray-100">
+                <div className="border-t border-gray-100 overflow-visible">
                     <DataTable
                         columns={columns}
                         data={filteredTasks}

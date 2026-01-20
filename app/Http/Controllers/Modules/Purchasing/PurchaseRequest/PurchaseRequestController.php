@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Modules\Purchasing\PurchaseRequest;
 
 use App\Http\Controllers\Controller;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrNumberReservation;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Inertia\Response;
 use Spatie\Browsershot\Browsershot;
 
 class PurchaseRequestController extends Controller
@@ -21,52 +25,719 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Display all purchase requests in the current business unit.
-     * All users registered to a business unit can view all PRs in that unit.
+     * Display a listing of the user's purchase requests.
+     * Requirements: 2.1, 12.1, 12.6
      */
-    public function all(Request $request)
+    public function index(Request $request): Response
     {
         $user = Auth::user();
-        $currentBusinessUnitId = (int) session('current_business_unit_id');
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        // Parse filters from request
+        $filters = [
+            'search' => $request->get('search', ''),
+            'status' => $request->get('status', ''),
+            'date_from' => $request->get('date_from', ''),
+            'date_to' => $request->get('date_to', ''),
+        ];
+
+        // Build query with eager loading to prevent N+1 queries
+        $query = PurchaseRequest::with([
+            'department:id,name,code',
+            'user:id,name,email',
+            'category:id,name,code,color',
+        ])
+            ->withCount('items')
+            ->where('business_unit_id', $businessUnitId)
+            ->where('user_id', $user->id);
+
+        // Apply search filter
+        if ($filters['search']) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('pr_number', 'like', "%{$search}%")
+                    ->orWhere('used_for', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply status filter
+        if ($filters['status']) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Apply date range filter
+        if ($filters['date_from']) {
+            $query->whereDate('date_of_request', '>=', $filters['date_from']);
+        }
+        if ($filters['date_to']) {
+            $query->whereDate('date_of_request', '<=', $filters['date_to']);
+        }
+
+        // Get paginated results with sorting
+        $sortColumn = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        $purchaseRequests = $query
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate($request->get('per_page', 10))
+            ->withQueryString();
+
+        // Transform data to include authorization props
+        $purchaseRequests->through(function ($pr) use ($user) {
+            return $this->transformPurchaseRequest($pr, $user);
+        });
+
+        // Get reservations for the user
+        $reservations = $this->getReservations($user, $businessUnitId, $filters['search']);
+
+        // Get available statuses for filter dropdown
+        $statuses = [
+            ['value' => 'draft', 'label' => 'Draft'],
+            ['value' => 'submitted', 'label' => 'Submitted'],
+            ['value' => 'in_approval', 'label' => 'In Approval'],
+            ['value' => 'approved', 'label' => 'Approved'],
+            ['value' => 'rejected', 'label' => 'Rejected'],
+            ['value' => 'voided', 'label' => 'Voided'],
+        ];
+
+        return Inertia::render('Purchasing/PurchaseRequest/Index', [
+            'purchaseRequests' => $purchaseRequests,
+            'reservations' => $reservations,
+            'filters' => $filters,
+            'statuses' => $statuses,
+            'can' => [
+                'create' => true, // All authenticated users can create PRs
+                'viewAll' => $user->can('view-all-purchase-requests') || $user->isSuperAdmin(),
+                'export' => $user->can('export-purchase-requests') || $user->isSuperAdmin(),
+            ],
+        ]);
+    }
+
+    /**
+     * Display all purchase requests in the current business unit.
+     * All users registered to a business unit can view all PRs in that unit.
+     * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
+     */
+    public function all(Request $request): Response
+    {
+        $user = Auth::user();
+        $businessUnitId = (int) session('current_business_unit_id');
 
         // Verify user has access to this business unit
         $userBusinessUnitIds = $user->activeBusinessUnits()->pluck('business_unit_id')->toArray();
 
-        if (! $currentBusinessUnitId || ! in_array($currentBusinessUnitId, $userBusinessUnitIds)) {
+        if (! $businessUnitId || ! in_array($businessUnitId, $userBusinessUnitIds)) {
             return redirect()->route('purchase-requests.index')
                 ->with('error', 'You do not have access to this business unit.');
         }
 
-        // Render Livewire component with lazy loading
-        return view('purchasing.purchase-requests.all-livewire');
+        // Parse filters from request
+        $filters = [
+            'search' => $request->get('search', ''),
+            'status' => $request->get('status', ''),
+            'date_from' => $request->get('date_from', ''),
+            'date_to' => $request->get('date_to', ''),
+            'department_id' => $request->get('department_id', ''),
+        ];
+
+        // Build query with eager loading to prevent N+1 queries
+        $query = PurchaseRequest::with([
+            'department:id,name,code',
+            'user:id,name,email',
+            'category:id,name,code,color',
+        ])
+            ->withCount('items')
+            ->where('business_unit_id', $businessUnitId);
+
+        // Apply search filter - Requirements: 4.3
+        if ($filters['search']) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('pr_number', 'like', "%{$search}%")
+                    ->orWhere('used_for', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply status filter - Requirements: 4.3
+        if ($filters['status']) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Apply date range filter - Requirements: 4.4
+        if ($filters['date_from']) {
+            $query->whereDate('date_of_request', '>=', $filters['date_from']);
+        }
+        if ($filters['date_to']) {
+            $query->whereDate('date_of_request', '<=', $filters['date_to']);
+        }
+
+        // Apply department filter - Requirements: 4.5
+        if ($filters['department_id']) {
+            $query->where('department_id', $filters['department_id']);
+        }
+
+        // Get paginated results with sorting
+        $sortColumn = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        $purchaseRequests = $query
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate($request->get('per_page', 15))
+            ->withQueryString();
+
+        // Transform data to include authorization props
+        $purchaseRequests->through(function ($pr) use ($user) {
+            return $this->transformPurchaseRequest($pr, $user);
+        });
+
+        // Get departments for filter dropdown
+        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        return Inertia::render('Purchasing/PurchaseRequest/All', [
+            'purchaseRequests' => $purchaseRequests,
+            'filters' => $filters,
+            'departments' => $departments,
+            'can' => [
+                'export' => $user->can('export-purchase-requests') || $user->isSuperAdmin(),
+            ],
+        ]);
     }
 
     /**
-     * Store method removed - Livewire component handles PR creation
-     * See: app/Livewire/Modules/Wns/PurchaseRequests/Create.php
+     * Show the form for creating a new purchase request.
+     * Requirements: 3.1, 3.2
      */
+    public function create(): Response
+    {
+        $user = Auth::user();
+        $businessUnitId = (int) session('current_business_unit_id');
+        $departmentId = (int) session('current_department_id');
+
+        // Get categories
+        $categories = \App\Models\Modules\Purchasing\PurchaseRequest\PrCategory::active()
+            ->ordered()
+            ->get(['id', 'name', 'code', 'color', 'description']);
+
+        // Get departments for current business unit
+        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        // Get business units (for context switching)
+        $businessUnits = $user->activeBusinessUnits()
+            ->with('businessUnit:id,name,code')
+            ->get()
+            ->pluck('businessUnit')
+            ->filter();
+
+        // Get available approvers (users in the same business unit)
+        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
+            $query->where('business_unit_id', $businessUnitId);
+        })
+            ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
+            ->where('id', '!=', $user->id) // Exclude current user
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
+            ->map(function ($approver) {
+                return [
+                    'id' => $approver->id,
+                    'name' => $approver->name,
+                    'email' => $approver->email,
+                    'position' => $approver->primaryPosition?->name ?? 'N/A',
+                    'department' => $approver->primaryDepartment?->name ?? 'N/A',
+                ];
+            });
+
+        return Inertia::render('Purchasing/PurchaseRequest/Create', [
+            'categories' => $categories,
+            'departments' => $departments,
+            'businessUnits' => $businessUnits,
+            'availableApprovers' => $availableApprovers,
+        ]);
+    }
 
     /**
-     * Display the specified purchase request
+     * Store a newly created purchase request.
+     * Requirements: 3.10, 3.11, 14.1, 14.3
      */
-    public function show(PurchaseRequest $purchaseRequest)
+    public function store(\App\Http\Requests\Purchasing\StorePurchaseRequestRequest $request)
     {
+        $user = Auth::user();
+
+        try {
+            DB::beginTransaction();
+
+            // Generate PR number
+            $prNumber = $this->purchaseRequestService->numberingService->generatePRNumber(
+                $user,
+                $request->business_unit_id,
+                null,
+                \Carbon\Carbon::parse($request->date_of_request)
+            );
+
+            // Handle supporting document upload
+            $supportingDocumentPath = null;
+            $supportingDocumentName = null;
+            if ($request->hasFile('supporting_document')) {
+                $file = $request->file('supporting_document');
+                $supportingDocumentName = $file->getClientOriginalName();
+                $supportingDocumentPath = $file->store('purchase-requests/supporting-documents', 'public');
+            }
+
+            // Create purchase request
+            $purchaseRequest = PurchaseRequest::create([
+                'pr_number' => $prNumber['formatted_number'],
+                'business_unit_id' => $request->business_unit_id,
+                'department_id' => $request->department_id,
+                'category_id' => $request->category_id,
+                'user_id' => $user->id,
+                'sequence_id' => $prNumber['sequence_id'],
+                'used_for' => $request->used_for,
+                'date_of_request' => $request->date_of_request,
+                'expected_date' => $request->expected_date,
+                'designated_date' => $request->expected_date,
+                'status' => 'submitted', // Directly submit (no draft step)
+                'submitted_at' => now(),
+                'currency' => $request->currency,
+                'supporting_document_path' => $supportingDocumentPath,
+                'supporting_document_name' => $supportingDocumentName,
+                'last_modified_by' => $user->id,
+            ]);
+
+            // Create PR items
+            foreach ($request->items as $index => $itemData) {
+                // Handle item image upload
+                $imagePath = null;
+                if (isset($itemData['image']) && $itemData['image'] instanceof \Illuminate\Http\UploadedFile) {
+                    $imagePath = $itemData['image']->store('purchase-requests/items', 'public');
+                }
+
+                \App\Models\Modules\Purchasing\PurchaseRequest\PrItem::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'item_order' => $index + 1,
+                    'item_name' => $itemData['item_name'],
+                    'brand_name' => $itemData['brand_name'] ?? null,
+                    'item_description' => $itemData['item_description'] ?? null,
+                    'supplier_name' => $itemData['supplier_name'] ?? null,
+                    'quantity' => $itemData['quantity'],
+                    'unit' => $itemData['unit'],
+                    'unit_price' => $itemData['unit_price'],
+                    'currency' => $itemData['currency'],
+                    'expense_department_id' => $itemData['expense_department_id'],
+                    'image_path' => $imagePath,
+                ]);
+            }
+
+            // Update total amount
+            $purchaseRequest->updateTotalAmount();
+
+            // Create approval workflow
+            $this->purchaseRequestService->workflowService->createWorkflowFromRequest(
+                $purchaseRequest,
+                $request->approval_workflow,
+                $request->approval_notes
+            );
+
+            // Clear dashboard cache
+            $this->purchaseRequestService->clearDashboardCache($purchaseRequest);
+
+            DB::commit();
+
+            return redirect()
+                ->route('purchase-requests.show', $purchaseRequest)
+                ->with('success', 'Purchase request created successfully and submitted for approval.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Log::error('Failed to create purchase request', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create purchase request. Please try again or contact support.');
+        }
+    }
+
+    /**
+     * Show the form for editing the specified purchase request.
+     * Requirements: 3.1, 3.2
+     */
+    public function editInertia(PurchaseRequest $purchaseRequest): Response
+    {
+        $user = Auth::user();
+
+        // Check if PR can be edited
+        if (!$purchaseRequest->canBeEdited()) {
+            return redirect()
+                ->route('purchase-requests.show', $purchaseRequest)
+                ->with('error', 'This purchase request cannot be edited.');
+        }
+
+        // Validate business unit context
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        // Check if user owns this PR
+        if ($purchaseRequest->user_id !== $user->id) {
+            abort(403, 'You are not authorized to edit this purchase request.');
+        }
+
+        $businessUnitId = $purchaseRequest->business_unit_id;
+
+        // Load relationships
         $purchaseRequest->load([
-            'businessUnit',
-            'department',
-            'category',
-            'user',
-            'items.expenseDepartment',
-            'approvals.approver',
-            'lastModifiedBy',
-            'offlineApprovedBy',
+            'items.expenseDepartment:id,name,code',
+            'category:id,name,code,color',
+            'approvals.approver:id,name,email',
         ]);
 
-        return view('purchasing.purchase-requests.show', compact('purchaseRequest'));
+        // Get categories
+        $categories = \App\Models\Modules\Purchasing\PurchaseRequest\PrCategory::active()
+            ->ordered()
+            ->get(['id', 'name', 'code', 'color', 'description']);
+
+        // Get departments for current business unit
+        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        // Get business units (for context switching)
+        $businessUnits = $user->activeBusinessUnits()
+            ->with('businessUnit:id,name,code')
+            ->get()
+            ->pluck('businessUnit')
+            ->filter();
+
+        // Get available approvers
+        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
+            $query->where('business_unit_id', $businessUnitId);
+        })
+            ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
+            ->where('id', '!=', $user->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
+            ->map(function ($approver) {
+                return [
+                    'id' => $approver->id,
+                    'name' => $approver->name,
+                    'email' => $approver->email,
+                    'position' => $approver->primaryPosition?->name ?? 'N/A',
+                    'department' => $approver->primaryDepartment?->name ?? 'N/A',
+                ];
+            });
+
+        // Transform approval workflow for form
+        $approvalWorkflow = $purchaseRequest->approvals->map(function ($approval) {
+            return [
+                'approver_id' => $approval->approver_id,
+                'task_type' => $approval->approval_type ?? 'approval',
+            ];
+        })->toArray();
+
+        return Inertia::render('Purchasing/PurchaseRequest/Form', [
+            'mode' => 'edit',
+            'purchaseRequest' => array_merge($purchaseRequest->toArray(), [
+                'approval_workflow' => $approvalWorkflow,
+            ]),
+            'categories' => $categories,
+            'departments' => $departments,
+            'businessUnits' => $businessUnits,
+            'availableApprovers' => $availableApprovers,
+            'currentBusinessUnitId' => $businessUnitId,
+            'currentDepartmentId' => $purchaseRequest->department_id,
+        ]);
     }
 
     /**
-     * Show the form for editing the specified purchase request
+     * Update the specified purchase request.
+     * Requirements: 3.10, 3.11, 14.1, 14.3
+     */
+    public function update(\App\Http\Requests\Purchasing\StorePurchaseRequestRequest $request, PurchaseRequest $purchaseRequest)
+    {
+        $user = Auth::user();
+
+        // Check if PR can be edited
+        if (!$purchaseRequest->canBeEdited()) {
+            return back()->with('error', 'This purchase request cannot be edited.');
+        }
+
+        // Validate business unit context
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        // Check if user owns this PR
+        if ($purchaseRequest->user_id !== $user->id) {
+            abort(403, 'You are not authorized to edit this purchase request.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Handle supporting document upload
+            $supportingDocumentPath = $purchaseRequest->supporting_document_path;
+            $supportingDocumentName = $purchaseRequest->supporting_document_name;
+            if ($request->hasFile('supporting_document')) {
+                // Delete old document if exists
+                if ($supportingDocumentPath) {
+                    \Storage::disk('public')->delete($supportingDocumentPath);
+                }
+                
+                $file = $request->file('supporting_document');
+                $supportingDocumentName = $file->getClientOriginalName();
+                $supportingDocumentPath = $file->store('purchase-requests/supporting-documents', 'public');
+            }
+
+            // Update purchase request
+            $purchaseRequest->update([
+                'category_id' => $request->category_id,
+                'used_for' => $request->used_for,
+                'date_of_request' => $request->date_of_request,
+                'expected_date' => $request->expected_date,
+                'designated_date' => $request->expected_date,
+                'currency' => $request->currency,
+                'supporting_document_path' => $supportingDocumentPath,
+                'supporting_document_name' => $supportingDocumentName,
+                'last_modified_by' => $user->id,
+            ]);
+
+            // Delete existing items
+            $purchaseRequest->items()->delete();
+
+            // Create new items
+            foreach ($request->items as $index => $itemData) {
+                // Handle item image upload
+                $imagePath = null;
+                if (isset($itemData['image']) && $itemData['image'] instanceof \Illuminate\Http\UploadedFile) {
+                    $imagePath = $itemData['image']->store('purchase-requests/items', 'public');
+                }
+
+                \App\Models\Modules\Purchasing\PurchaseRequest\PrItem::create([
+                    'purchase_request_id' => $purchaseRequest->id,
+                    'item_order' => $index + 1,
+                    'item_name' => $itemData['item_name'],
+                    'brand_name' => $itemData['brand_name'] ?? null,
+                    'item_description' => $itemData['item_description'] ?? null,
+                    'supplier_name' => $itemData['supplier_name'] ?? null,
+                    'quantity' => $itemData['quantity'],
+                    'unit' => $itemData['unit'],
+                    'unit_price' => $itemData['unit_price'],
+                    'currency' => $itemData['currency'],
+                    'expense_department_id' => $itemData['expense_department_id'],
+                    'image_path' => $imagePath,
+                ]);
+            }
+
+            // Update total amount
+            $purchaseRequest->updateTotalAmount();
+
+            // Reset and recreate approval workflow
+            $this->purchaseRequestService->workflowService->resetWorkflow($purchaseRequest);
+            $this->purchaseRequestService->workflowService->createWorkflowFromRequest(
+                $purchaseRequest,
+                $request->approval_workflow,
+                $request->approval_notes
+            );
+
+            // Update status to submitted
+            $purchaseRequest->update([
+                'status' => 'submitted',
+                'submitted_at' => $purchaseRequest->submitted_at ?? now(), // Preserve original if exists
+                'rejected_at' => null,
+            ]);
+
+            // Clear dashboard cache
+            $this->purchaseRequestService->clearDashboardCache($purchaseRequest);
+
+            DB::commit();
+
+            return redirect()
+                ->route('purchase-requests.show', $purchaseRequest)
+                ->with('success', 'Purchase request updated successfully and resubmitted for approval.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Log::error('Failed to update purchase request', [
+                'pr_id' => $purchaseRequest->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update purchase request. Please try again or contact support.');
+        }
+    }
+
+    /**
+     * Display the specified purchase request.
+     * Requirements: 8.1, 8.3, 8.7
+     */
+    public function show(PurchaseRequest $purchaseRequest): Response
+    {
+        $user = Auth::user();
+
+        // Validate business unit context
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        // Load relationships with eager loading
+        $purchaseRequest->load([
+            'businessUnit:id,name,code',
+            'department:id,name,code',
+            'category:id,name,code,color',
+            'user:id,name,email',
+            'items.expenseDepartment:id,name,code',
+            'approvals.approver:id,name,email',
+            'lastModifiedBy:id,name',
+            'offlineApprovedBy:id,name',
+        ]);
+
+        // Get approval progress
+        $approvalProgress = $purchaseRequest->getApprovalProgress();
+
+        // Get authorization props
+        $authorization = $this->getShowAuthorization($purchaseRequest, $user);
+
+        return Inertia::render('Purchasing/PurchaseRequest/Show', [
+            'purchaseRequest' => array_merge(
+                $purchaseRequest->toArray(),
+                [
+                    'approval_progress' => $approvalProgress,
+                    'can' => $authorization,
+                ]
+            ),
+            'can' => $authorization,
+        ]);
+    }
+
+    /**
+     * Approve a purchase request (Inertia endpoint)
+     * Requirements: 8.4, 8.5
+     */
+    public function approve(Request $request, PurchaseRequest $purchaseRequest)
+    {
+        $request->validate([
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $user = Auth::user();
+
+        // Validate business unit context
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            return back()->with('error', 'You do not have access to this purchase request.');
+        }
+
+        // Check if PR can be approved
+        if (!$purchaseRequest->canBeApproved()) {
+            return back()->with('error', 'This purchase request cannot be approved at this time.');
+        }
+
+        // Get current approval for this user
+        $currentApproval = $purchaseRequest->currentApproval();
+        
+        if (!$currentApproval || $currentApproval->approver_id !== $user->id) {
+            return back()->with('error', 'You are not authorized to approve this purchase request at this step.');
+        }
+
+        try {
+            // Process approval using workflow service
+            $this->purchaseRequestService->workflowService->processApproval(
+                $currentApproval,
+                'approved',
+                $request->notes
+            );
+
+            // Clear dashboard cache
+            $this->purchaseRequestService->clearDashboardCache($purchaseRequest);
+
+            return back()->with('success', 'Purchase request approved successfully.');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to approve purchase request', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Failed to approve purchase request. Please try again or contact support.');
+        }
+    }
+
+    /**
+     * Reject a purchase request (Inertia endpoint)
+     * Requirements: 8.4, 8.5
+     */
+    public function reject(Request $request, PurchaseRequest $purchaseRequest)
+    {
+        $request->validate([
+            'notes' => 'required|string|max:1000',
+        ], [
+            'notes.required' => 'Rejection reason is required.',
+        ]);
+
+        $user = Auth::user();
+
+        // Validate business unit context
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            return back()->with('error', 'You do not have access to this purchase request.');
+        }
+
+        // Check if PR can be approved (same check for rejection)
+        if (!$purchaseRequest->canBeApproved()) {
+            return back()->with('error', 'This purchase request cannot be rejected at this time.');
+        }
+
+        // Get current approval for this user
+        $currentApproval = $purchaseRequest->currentApproval();
+        
+        if (!$currentApproval || $currentApproval->approver_id !== $user->id) {
+            return back()->with('error', 'You are not authorized to reject this purchase request at this step.');
+        }
+
+        try {
+            // Process rejection using workflow service
+            $this->purchaseRequestService->workflowService->processApproval(
+                $currentApproval,
+                'rejected',
+                $request->notes
+            );
+
+            // Clear dashboard cache
+            $this->purchaseRequestService->clearDashboardCache($purchaseRequest);
+
+            return back()->with('success', 'Purchase request rejected successfully.');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to reject purchase request', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Failed to reject purchase request. Please try again or contact support.');
+        }
+    }
+
+    /**
+     * Show the form for editing the specified purchase request.
      */
     public function edit(PurchaseRequest $purchaseRequest)
     {
@@ -91,12 +762,7 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Update method removed - Livewire component handles PR updates
-     * See: app/Livewire/Modules/Wns/PurchaseRequests/Create.php
-     */
-
-    /**
-     * Resubmit rejected purchase request (reset workflow)
+     * Resubmit rejected purchase request (reset workflow).
      */
     public function resubmit(PurchaseRequest $purchaseRequest)
     {
@@ -124,7 +790,6 @@ class PurchaseRequestController extends Controller
                 ->with('success', 'Purchase request has been resubmitted for approval. Approval workflow has been reset.');
 
         } catch (\Exception $e) {
-            // Log detailed error for debugging (not exposed to user)
             Log::error('Failed to resubmit purchase request', [
                 'pr_id' => $purchaseRequest->id,
                 'pr_number' => $purchaseRequest->pr_number,
@@ -133,14 +798,12 @@ class PurchaseRequestController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Return generic error message to user (no internal details)
             return back()->with('error', 'Failed to resubmit purchase request. Please try again or contact support.');
         }
     }
 
-
     /**
-     * Void purchase request
+     * Void purchase request.
      */
     public function void(Request $request, PurchaseRequest $purchaseRequest)
     {
@@ -175,7 +838,6 @@ class PurchaseRequestController extends Controller
                 ->with('success', 'Purchase request has been voided.');
 
         } catch (\Exception $e) {
-            // Log detailed error for debugging (not exposed to user)
             Log::error('Failed to void purchase request', [
                 'pr_id' => $purchaseRequest->id,
                 'pr_number' => $purchaseRequest->pr_number,
@@ -185,16 +847,12 @@ class PurchaseRequestController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Return generic error message to user (no internal details)
             return back()->with('error', 'Failed to void purchase request. Please try again or contact support.');
         }
     }
 
     /**
-     * Mark purchase request as approved offline/manually
-     * 
-     * Used when digital approval is too slow and user has exported the PR
-     * for manual/offline approval. This marks the entire PR as approved at once.
+     * Mark purchase request as approved offline/manually.
      */
     public function markOfflineApproved(Request $request, PurchaseRequest $purchaseRequest)
     {
@@ -213,7 +871,6 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be marked as offline approved
-        // Only PRs that are submitted or in_approval can be marked
         if (! in_array($purchaseRequest->status, ['submitted', 'in_approval'])) {
             return back()->with('error', 'This purchase request cannot be marked as offline approved. Only submitted or in-approval PRs are eligible.');
         }
@@ -241,7 +898,6 @@ class PurchaseRequestController extends Controller
                 ->with('success', 'Purchase request has been marked as approved offline/manually.');
 
         } catch (\Exception $e) {
-            // Log detailed error for debugging (not exposed to user)
             Log::error('Failed to mark purchase request as offline approved', [
                 'pr_id' => $purchaseRequest->id,
                 'pr_number' => $purchaseRequest->pr_number,
@@ -251,13 +907,12 @@ class PurchaseRequestController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Return generic error message to user (no internal details)
             return back()->with('error', 'Failed to mark as offline approved. Please try again or contact support.');
         }
     }
 
     /**
-     * Remove the specified purchase request
+     * Remove the specified purchase request.
      */
     public function destroy(PurchaseRequest $purchaseRequest)
     {
@@ -283,9 +938,8 @@ class PurchaseRequestController extends Controller
             ->with('success', 'Purchase request has been deleted.');
     }
 
-
     /**
-     * Generate PDF view for purchase request
+     * Generate PDF view for purchase request.
      */
     public function pdf(PurchaseRequest $purchaseRequest)
     {
@@ -306,7 +960,7 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Generate PDF view for purchase request - Public access for browsershot
+     * Generate PDF view for purchase request - Public access for browsershot.
      */
     public function pdfPublic(PurchaseRequest $purchaseRequest)
     {
@@ -328,8 +982,7 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Download PDF via public route (no authentication required)
-     * This method is accessible by Browsershot without authentication
+     * Download PDF via public route (no authentication required).
      */
     public function downloadPdfPublic(PurchaseRequest $purchaseRequest)
     {
@@ -387,7 +1040,7 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Download PDF for purchase request using configured method
+     * Download PDF for purchase request using configured method.
      */
     public function downloadPdf(PurchaseRequest $purchaseRequest)
     {
@@ -395,8 +1048,88 @@ class PurchaseRequestController extends Controller
         return $this->downloadPdfPublic($purchaseRequest);
     }
 
+    // ============================================
+    // Private Helper Methods
+    // ============================================
+
     /**
-     * Generate QR codes for PDF
+     * Get reservations for the user.
+     */
+    private function getReservations($user, int $businessUnitId, string $search = ''): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $query = PrNumberReservation::with([
+            'businessUnit:id,name,code',
+            'department:id,name,code',
+            'user:id,name,email',
+        ])
+            ->where('business_unit_id', $businessUnitId)
+            ->where('user_id', $user->id)
+            ->where('status', 'reserved');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('pr_number', 'like', "%{$search}%")
+                    ->orWhere('purpose', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->latest('reserved_at')->paginate(5, ['*'], 'reservations_page');
+    }
+
+    /**
+     * Transform purchase request with authorization props.
+     */
+    private function transformPurchaseRequest(PurchaseRequest $pr, $user): array
+    {
+        $data = $pr->toArray();
+        
+        // Add authorization props
+        $data['can'] = [
+            'view' => true, // User can always view their own PRs
+            'edit' => $pr->canBeEdited() && $pr->user_id === $user->id,
+            'delete' => $pr->canBeEdited() && $pr->user_id === $user->id,
+            'void' => $pr->canBeVoided() && (
+                $pr->user_id === $user->id ||
+                in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager'])
+            ),
+            'resubmit' => $pr->status === 'rejected' && $pr->user_id === $user->id,
+        ];
+
+        // Add computed fields
+        $data['current_approval_step'] = null;
+        $data['total_approval_steps'] = $pr->approvals_count ?? 0;
+
+        return $data;
+    }
+
+    /**
+     * Get authorization props for show page.
+     * Requirements: 8.3, 8.7
+     */
+    private function getShowAuthorization(PurchaseRequest $pr, $user): array
+    {
+        $isOwner = $pr->user_id === $user->id;
+        $isAdmin = in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
+
+        // Check if user can approve this PR
+        $currentApproval = $pr->currentApproval();
+        $canApprove = $currentApproval && $currentApproval->approver_id === $user->id;
+        $canReject = $canApprove; // Same logic for reject
+
+        return [
+            'edit' => $pr->canBeEdited() && $isOwner,
+            'delete' => $pr->canBeEdited() && $isOwner,
+            'void' => $pr->canBeVoided() && ($isOwner || $isAdmin),
+            'resubmit' => $pr->status === 'rejected' && $isOwner,
+            'approve' => $canApprove,
+            'reject' => $canReject,
+            'downloadPdf' => in_array($pr->status, ['submitted', 'in_approval', 'approved']),
+            'markOfflineApproved' => in_array($pr->status, ['submitted', 'in_approval']) && $isOwner,
+        ];
+    }
+
+    /**
+     * Generate QR codes for PDF.
      */
     protected function generateQrCodesForPdf(PurchaseRequest $purchaseRequest, QrCodeService $qrCodeService): array
     {

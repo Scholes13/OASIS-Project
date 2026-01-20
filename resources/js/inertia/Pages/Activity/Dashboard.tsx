@@ -161,11 +161,11 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, byActi
             <Head title="Activity Tasks" />
             <Toaster />
 
-            {/* GLOBAL BACKGROUND - Fix White Blindness */}
-            <div className="min-h-screen bg-slate-50">
+            {/* Page content - AppLayout handles the outer container */}
+            <div className="relative min-h-screen bg-gray-50">
                 {isLoading && <LoadingOverlay message="Loading..." />}
 
-                <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+                <div className="w-full p-6">
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                         <div>
@@ -272,80 +272,5 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, byActi
     );
 }
 
-// ============================================================================
-// TASK ROW - With Avatar Stack
-// ============================================================================
 
-const avatarColors = [
-    "bg-indigo-100 text-indigo-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-amber-100 text-amber-700",
-    "bg-rose-100 text-rose-700",
-];
-
-function TaskRow({ task, onClick }: { task: Task; onClick: () => void }) {
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
-    const formattedDate = task.due_date
-        ? new Date(task.due_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
-        : '-';
-
-    return (
-        <div
-            onClick={onClick}
-            className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors group"
-        >
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900 truncate">{task.task_title}</p>
-                    {isOverdue && (
-                        <span className="text-[10px] text-rose-600 font-medium bg-rose-50 px-1.5 py-0.5 rounded">Overdue</span>
-                    )}
-                </div>
-                <div className="flex items-center gap-3 mt-1">
-                    <ActivityTypeBadge name={task.activity_type?.name ?? 'Unknown'} color={task.activity_type?.color} />
-                    <span className="text-xs text-gray-400">{formattedDate}</span>
-                </div>
-            </div>
-
-            <StatusBadge status={task.status} showChevron={false} />
-
-            {/* Avatar Stack with proper borders */}
-            {task.participants && task.participants.length > 0 && (
-                <div className="flex -space-x-2">
-                    {task.participants.slice(0, 3).map((p, i) => (
-                        <div
-                            key={p.id || i}
-                            className={cn(
-                                "h-7 w-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium",
-                                avatarColors[i % avatarColors.length]
-                            )}
-                            title={p.user?.name || p.name}
-                        >
-                            {(p.user?.name || p.name || 'U').charAt(0).toUpperCase()}
-                        </div>
-                    ))}
-                    {task.participants.length > 3 && (
-                        <div className="h-7 w-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-medium text-gray-600">
-                            +{task.participants.length - 3}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <ChevronRight className="h-4 w-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" strokeWidth={1.5} />
-        </div>
-    );
-}
-
-function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-    return (
-        <Link
-            href={href}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors group"
-        >
-            <span className="text-gray-400 group-hover:text-indigo-500 transition-colors">{icon}</span>
-            <span className="text-sm">{label}</span>
-        </Link>
-    );
-}
 

@@ -9,6 +9,7 @@ use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
@@ -213,13 +214,198 @@ class ApprovalController extends Controller
     }
 
     /**
-     * List pending approvals for current user
-     * ✅ OPTIMIZED: Uses Livewire component with lazy loading and pagination
+     * List pending approvals for current user (Inertia)
+     * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6
      */
     public function index(Request $request)
     {
-        // Delegate to optimized Livewire component
-        return view('purchasing.approvals.purchase-request.index-livewire');
+        $userId = Auth::id();
+        $businessUnitId = session('current_business_unit_id');
+
+        // Get statistics using optimized aggregate query
+        $stats = PrApproval::where('approver_id', $userId)
+            ->select([
+                DB::raw("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count"),
+                DB::raw("SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count"),
+                DB::raw("SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count"),
+                DB::raw("COUNT(*) as total_count"),
+            ])
+            ->first();
+
+        // Build query for pending approvals
+        $pendingQuery = PrApproval::with([
+            'purchaseRequest' => function ($query) {
+                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id',
+                              'total_amount', 'currency', 'status', 'used_for', 'created_at', 'updated_at');
+            },
+            'purchaseRequest.user:id,name,email',
+            'purchaseRequest.department:id,name,code',
+            'purchaseRequest.businessUnit:id,name,code',
+            'purchaseRequest.approvals:id,purchase_request_id,approver_id,status,step_order',
+            'purchaseRequest.approvals.approver:id,name',
+        ])
+        ->where('approver_id', $userId)
+        ->where('status', 'pending')
+        ->whereHas('purchaseRequest', function ($q) {
+            $q->where('status', 'in_approval');
+        });
+
+        // Filter by business unit if set
+        if ($businessUnitId) {
+            $pendingQuery->whereHas('purchaseRequest', function ($q) use ($businessUnitId) {
+                $q->where('business_unit_id', $businessUnitId);
+            });
+        }
+
+        // Paginate pending approvals
+        $pendingApprovals = $pendingQuery
+            ->orderBy('created_at', 'asc') // Oldest first (waiting longest)
+            ->paginate(10);
+
+        // Transform pending approvals to match ApprovalItem interface
+        $pendingApprovals->getCollection()->transform(function ($approval) {
+            return [
+                'id' => $approval->id,
+                'purchase_request' => $this->transformPurchaseRequest($approval->purchaseRequest),
+                'step_order' => $approval->step_order,
+                'approval_type' => $approval->approval_type,
+                'status' => $approval->status,
+                'waiting_since' => $approval->created_at->toISOString(),
+                'can' => [
+                    'approve' => $this->canProcessApproval($approval),
+                    'reject' => $this->canProcessApproval($approval),
+                ],
+            ];
+        });
+
+        // Get recent approvals (last 10 processed)
+        $recentQuery = PrApproval::with([
+            'purchaseRequest' => function ($query) {
+                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id',
+                              'total_amount', 'currency', 'status', 'used_for', 'created_at', 'updated_at');
+            },
+            'purchaseRequest.user:id,name,email',
+            'purchaseRequest.department:id,name,code',
+            'purchaseRequest.businessUnit:id,name,code',
+            'purchaseRequest.approvals:id,purchase_request_id,approver_id,status,step_order',
+            'purchaseRequest.approvals.approver:id,name',
+        ])
+        ->where('approver_id', $userId)
+        ->whereIn('status', ['approved', 'rejected']);
+
+        // Filter by business unit if set
+        if ($businessUnitId) {
+            $recentQuery->whereHas('purchaseRequest', function ($q) use ($businessUnitId) {
+                $q->where('business_unit_id', $businessUnitId);
+            });
+        }
+
+        $recentApprovals = $recentQuery
+            ->orderBy('responded_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($approval) {
+                return [
+                    'id' => $approval->id,
+                    'purchase_request' => $this->transformPurchaseRequest($approval->purchaseRequest),
+                    'step_order' => $approval->step_order,
+                    'approval_type' => $approval->approval_type,
+                    'status' => $approval->status,
+                    'waiting_since' => $approval->created_at->toISOString(),
+                    'can' => [
+                        'approve' => false, // Already processed
+                        'reject' => false,  // Already processed
+                    ],
+                ];
+            });
+
+        return inertia('Purchasing/PurchaseRequest/Approvals', [
+            'pendingApprovals' => $pendingApprovals,
+            'recentApprovals' => $recentApprovals,
+            'stats' => [
+                'pending' => (int) ($stats->pending_count ?? 0),
+                'approved' => (int) ($stats->approved_count ?? 0),
+                'rejected' => (int) ($stats->rejected_count ?? 0),
+                'total' => (int) ($stats->total_count ?? 0),
+            ],
+            'can' => [
+                'processApprovals' => true, // User can process their own approvals
+            ],
+        ]);
+    }
+
+    /**
+     * Transform PurchaseRequest model to match frontend interface
+     */
+    protected function transformPurchaseRequest($pr): array
+    {
+        return [
+            'id' => $pr->id,
+            'pr_number' => $pr->pr_number,
+            'business_unit_id' => $pr->business_unit_id,
+            'department_id' => $pr->department_id,
+            'user_id' => $pr->user_id,
+            'used_for' => $pr->used_for,
+            'date_of_request' => $pr->date_of_request?->toISOString(),
+            'status' => $pr->status,
+            'total_amount' => $pr->total_amount,
+            'currency' => $pr->currency,
+            'created_at' => $pr->created_at->toISOString(),
+            'updated_at' => $pr->updated_at->toISOString(),
+            'department' => [
+                'id' => $pr->department->id,
+                'name' => $pr->department->name,
+                'code' => $pr->department->code,
+            ],
+            'user' => [
+                'id' => $pr->user->id,
+                'name' => $pr->user->name,
+                'email' => $pr->user->email,
+            ],
+            'business_unit' => $pr->businessUnit ? [
+                'id' => $pr->businessUnit->id,
+                'name' => $pr->businessUnit->name,
+                'code' => $pr->businessUnit->code,
+            ] : null,
+            'current_approval_step' => $pr->approvals->where('status', 'approved')->count() + 1,
+            'total_approval_steps' => $pr->approvals->count(),
+            'can' => [
+                'view' => true,
+                'edit' => false,
+                'delete' => false,
+                'void' => false,
+                'resubmit' => false,
+            ],
+        ];
+    }
+
+    /**
+     * Check if current user can process this approval
+     */
+    protected function canProcessApproval(PrApproval $approval): bool
+    {
+        // Must be the approver
+        if ($approval->approver_id !== Auth::id()) {
+            return false;
+        }
+
+        // Must be pending
+        if ($approval->status !== 'pending') {
+            return false;
+        }
+
+        // PR must be in approval
+        if ($approval->purchaseRequest->status !== 'in_approval') {
+            return false;
+        }
+
+        // Must be the current approval step
+        $currentApproval = $approval->purchaseRequest->currentApproval();
+        if (!$currentApproval || $currentApproval->id !== $approval->id) {
+            return false;
+        }
+
+        return true;
     }
 
 

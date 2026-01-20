@@ -548,7 +548,7 @@
                 <h3 class="text-base font-semibold text-gray-900">My Tasks</h3>
                 <p class="text-sm text-gray-400 mt-0.5">Activity tracking overview</p>
             </div>
-            <a href="{{ route('activity.index') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+            <a href="{{ route('activity.task.index') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
                 View All →
             </a>
         </div>

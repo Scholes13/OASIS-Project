@@ -9,6 +9,7 @@ import {
     Users,
     Calendar,
     ArrowRight,
+    BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
@@ -26,11 +27,12 @@ interface Stats {
 interface DashboardProps extends PageProps {
     personalStats: Stats;
     departmentStats: Stats | null;
+    canViewReports?: boolean;
 }
 
 const smoothTransition = { duration: 0.35, ease: [0.4, 0, 0.2, 1] };
 
-export default function ActivityDashboard({ personalStats, departmentStats }: DashboardProps) {
+export default function ActivityDashboard({ personalStats, departmentStats, canViewReports }: DashboardProps) {
     return (
         <>
             <Head title="Activity Dashboard" />
@@ -195,6 +197,15 @@ export default function ActivityDashboard({ personalStats, departmentStats }: Da
                                 description="See tasks on calendar"
                                 color="emerald"
                             />
+                            {canViewReports && (
+                                <QuickActionCard
+                                    href={route('activity.reporting')}
+                                    icon={<BarChart3 className="h-6 w-6" />}
+                                    title="BOD Reporting"
+                                    description="View aggregated metrics"
+                                    color="indigo"
+                                />
+                            )}
                         </div>
                     </motion.div>
                 </div>

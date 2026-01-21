@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Eye } from 'lucide-react';
 import { PurchaseRequest } from '@/types/purchasing';
 import { formatCurrency, formatDate, formatTime } from '@/lib/formatters';
-import { Button } from '@/components/ui/Button';
 import { usePrefetch } from '@/hooks/usePrefetch';
 
 /**
@@ -67,13 +66,13 @@ const getStatusConfig = (status: string) => {
     return configs[status] || configs.draft;
 };
 
-export default function PurchaseRequestTable({ 
-    purchaseRequests, 
-    onRowClick 
+export default function PurchaseRequestTable({
+    purchaseRequests,
+    onRowClick
 }: PurchaseRequestTableProps) {
     // Initialize prefetch hook with 100ms delay
     // This will prefetch PR detail pages when user hovers over links
-    const { onMouseEnter: prefetchOnHover, onMouseLeave: cancelPrefetch } = usePrefetch({ 
+    const { onMouseEnter: prefetchOnHover, onMouseLeave: cancelPrefetch } = usePrefetch({
         delay: 100,
         // Only prefetch the purchase request data, not the entire page
         only: ['purchaseRequest', 'items', 'approvals']
@@ -118,7 +117,7 @@ export default function PurchaseRequestTable({
                         {purchaseRequests.map((pr, index) => {
                             const statusConfig = getStatusConfig(pr.status);
                             const showProgress = ['submitted', 'in_approval', 'approved', 'rejected'].includes(pr.status);
-                            
+
                             return (
                                 <motion.tr
                                     key={pr.id}
@@ -143,8 +142,8 @@ export default function PurchaseRequestTable({
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="text-sm text-gray-600 max-w-md">
-                                            {pr.used_for.length > 60 
-                                                ? `${pr.used_for.substring(0, 60)}...` 
+                                            {pr.used_for.length > 60
+                                                ? `${pr.used_for.substring(0, 60)}...`
                                                 : pr.used_for
                                             }
                                         </span>
@@ -173,21 +172,16 @@ export default function PurchaseRequestTable({
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            asChild
+                                        <Link
+                                            href={`/purchase-requests/${pr.id}`}
+                                            onMouseEnter={prefetchOnHover}
+                                            onMouseLeave={cancelPrefetch}
                                             onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                                         >
-                                            <Link 
-                                                href={`/purchasing/purchase-requests/${pr.id}`}
-                                                onMouseEnter={prefetchOnHover}
-                                                onMouseLeave={cancelPrefetch}
-                                            >
-                                                <Eye className="w-4 h-4 mr-1" />
-                                                View
-                                            </Link>
-                                        </Button>
+                                            <Eye className="w-4 h-4 mr-1" />
+                                            View
+                                        </Link>
                                     </td>
                                 </motion.tr>
                             );

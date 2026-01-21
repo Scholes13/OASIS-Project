@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrNumberReservation;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Core\QrCodeService;
+use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
+use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +20,17 @@ use Spatie\Browsershot\Browsershot;
 class PurchaseRequestController extends Controller
 {
     protected PurchaseRequestService $purchaseRequestService;
+    protected ApprovalWorkflowService $approvalWorkflowService;
+    protected UniversalPRNumberingService $numberingService;
 
-    public function __construct(PurchaseRequestService $purchaseRequestService)
-    {
+    public function __construct(
+        PurchaseRequestService $purchaseRequestService,
+        ApprovalWorkflowService $approvalWorkflowService,
+        UniversalPRNumberingService $numberingService
+    ) {
         $this->purchaseRequestService = $purchaseRequestService;
+        $this->approvalWorkflowService = $approvalWorkflowService;
+        $this->numberingService = $numberingService;
     }
 
     /**
@@ -76,7 +85,7 @@ class PurchaseRequestController extends Controller
         // Get paginated results with sorting
         $sortColumn = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
-        
+
         $purchaseRequests = $query
             ->orderBy($sortColumn, $sortDirection)
             ->paginate($request->get('per_page', 10))
@@ -126,7 +135,7 @@ class PurchaseRequestController extends Controller
         // Verify user has access to this business unit
         $userBusinessUnitIds = $user->activeBusinessUnits()->pluck('business_unit_id')->toArray();
 
-        if (! $businessUnitId || ! in_array($businessUnitId, $userBusinessUnitIds)) {
+        if (!$businessUnitId || !in_array($businessUnitId, $userBusinessUnitIds)) {
             return redirect()->route('purchase-requests.index')
                 ->with('error', 'You do not have access to this business unit.');
         }
@@ -179,7 +188,7 @@ class PurchaseRequestController extends Controller
         // Get paginated results with sorting
         $sortColumn = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
-        
+
         $purchaseRequests = $query
             ->orderBy($sortColumn, $sortDirection)
             ->paginate($request->get('per_page', 15))
@@ -257,6 +266,8 @@ class PurchaseRequestController extends Controller
             'departments' => $departments,
             'businessUnits' => $businessUnits,
             'availableApprovers' => $availableApprovers,
+            'currentBusinessUnitId' => $businessUnitId,
+            'currentDepartmentId' => $departmentId,
         ]);
     }
 
@@ -272,7 +283,7 @@ class PurchaseRequestController extends Controller
             DB::beginTransaction();
 
             // Generate PR number
-            $prNumber = $this->purchaseRequestService->numberingService->generatePRNumber(
+            $prNumber = $this->numberingService->generatePRNumber(
                 $user,
                 $request->business_unit_id,
                 null,
@@ -336,7 +347,7 @@ class PurchaseRequestController extends Controller
             $purchaseRequest->updateTotalAmount();
 
             // Create approval workflow
-            $this->purchaseRequestService->workflowService->createWorkflowFromRequest(
+            $this->approvalWorkflowService->createWorkflowFromRequest(
                 $purchaseRequest,
                 $request->approval_workflow,
                 $request->approval_notes
@@ -353,7 +364,7 @@ class PurchaseRequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             \Log::error('Failed to create purchase request', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -492,7 +503,7 @@ class PurchaseRequestController extends Controller
                 if ($supportingDocumentPath) {
                     \Storage::disk('public')->delete($supportingDocumentPath);
                 }
-                
+
                 $file = $request->file('supporting_document');
                 $supportingDocumentName = $file->getClientOriginalName();
                 $supportingDocumentPath = $file->store('purchase-requests/supporting-documents', 'public');
@@ -542,8 +553,8 @@ class PurchaseRequestController extends Controller
             $purchaseRequest->updateTotalAmount();
 
             // Reset and recreate approval workflow
-            $this->purchaseRequestService->workflowService->resetWorkflow($purchaseRequest);
-            $this->purchaseRequestService->workflowService->createWorkflowFromRequest(
+            $this->approvalWorkflowService->resetWorkflow($purchaseRequest);
+            $this->approvalWorkflowService->createWorkflowFromRequest(
                 $purchaseRequest,
                 $request->approval_workflow,
                 $request->approval_notes
@@ -567,7 +578,7 @@ class PurchaseRequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             \Log::error('Failed to update purchase request', [
                 'pr_id' => $purchaseRequest->id,
                 'user_id' => $user->id,
@@ -648,14 +659,14 @@ class PurchaseRequestController extends Controller
 
         // Get current approval for this user
         $currentApproval = $purchaseRequest->currentApproval();
-        
+
         if (!$currentApproval || $currentApproval->approver_id !== $user->id) {
             return back()->with('error', 'You are not authorized to approve this purchase request at this step.');
         }
 
         try {
             // Process approval using workflow service
-            $this->purchaseRequestService->workflowService->processApproval(
+            $this->approvalWorkflowService->processApproval(
                 $currentApproval,
                 'approved',
                 $request->notes
@@ -705,14 +716,14 @@ class PurchaseRequestController extends Controller
 
         // Get current approval for this user
         $currentApproval = $purchaseRequest->currentApproval();
-        
+
         if (!$currentApproval || $currentApproval->approver_id !== $user->id) {
             return back()->with('error', 'You are not authorized to reject this purchase request at this step.');
         }
 
         try {
             // Process rejection using workflow service
-            $this->purchaseRequestService->workflowService->processApproval(
+            $this->approvalWorkflowService->processApproval(
                 $currentApproval,
                 'rejected',
                 $request->notes
@@ -741,7 +752,7 @@ class PurchaseRequestController extends Controller
      */
     public function edit(PurchaseRequest $purchaseRequest)
     {
-        if (! $purchaseRequest->canBeEdited()) {
+        if (!$purchaseRequest->canBeEdited()) {
             return redirect()
                 ->route('purchase-requests.show', $purchaseRequest)
                 ->with('error', 'This purchase request cannot be edited.');
@@ -824,9 +835,9 @@ class PurchaseRequestController extends Controller
         // Authorization: Only owner or admin can void
         $user = Auth::user();
         $canVoid = $purchaseRequest->user_id === $user->id ||
-                   in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
+            in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
 
-        if (! $canVoid) {
+        if (!$canVoid) {
             abort(403, 'You are not authorized to void this purchase request.');
         }
 
@@ -871,7 +882,7 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be marked as offline approved
-        if (! in_array($purchaseRequest->status, ['submitted', 'in_approval'])) {
+        if (!in_array($purchaseRequest->status, ['submitted', 'in_approval'])) {
             return back()->with('error', 'This purchase request cannot be marked as offline approved. Only submitted or in-approval PRs are eligible.');
         }
 
@@ -922,7 +933,7 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be deleted
-        if (! $purchaseRequest->canBeEdited()) {
+        if (!$purchaseRequest->canBeEdited()) {
             return back()->with('error', 'This purchase request cannot be deleted.');
         }
 
@@ -1005,7 +1016,7 @@ class PurchaseRequestController extends Controller
 
         // Clean filename by removing invalid characters
         $cleanPrNumber = preg_replace('/[\/\\\\:*?"<>|]/', '-', $purchaseRequest->pr_number);
-        $filename = 'PR-'.$cleanPrNumber.'.pdf';
+        $filename = 'PR-' . $cleanPrNumber . '.pdf';
 
         try {
             // Generate HTML content directly to avoid URL timeout issues
@@ -1025,13 +1036,13 @@ class PurchaseRequestController extends Controller
             // Return PDF content directly as response
             return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
                 'Pragma' => 'no-cache',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
+            Log::error('Browsershot PDF generation failed: ' . $e->getMessage());
 
             // Fallback: redirect to PDF view with better print styles
             return redirect()->route('purchase-requests.pdf-public', $purchaseRequest)
@@ -1082,7 +1093,7 @@ class PurchaseRequestController extends Controller
     private function transformPurchaseRequest(PurchaseRequest $pr, $user): array
     {
         $data = $pr->toArray();
-        
+
         // Add authorization props
         $data['can'] = [
             'view' => true, // User can always view their own PRs

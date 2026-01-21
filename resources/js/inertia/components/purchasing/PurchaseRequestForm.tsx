@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Plus, Save, Send, Loader2, Upload, X } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { PRItemRow } from './PRItemRow';
 import { PRFormData, PRItemFormData, PRCategory, Department, BusinessUnit, Approver, CustomApprovalStep } from '../../types/purchasing';
@@ -35,6 +35,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                 unit: 'pcs',
                 unit_price: 0,
                 currency: 'IDR',
+                expense_department_id: initialData?.department_id ? Number(initialData.department_id) : undefined,
             },
         ]
     );
@@ -73,9 +74,10 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                 unit: 'pcs',
                 unit_price: 0,
                 currency: data.currency,
+                expense_department_id: data.department_id ? Number(data.department_id) : undefined,
             },
         ]);
-    }, [data.currency]);
+    }, [data.currency, data.department_id]);
 
     // Remove item
     const handleRemoveItem = useCallback((index: number) => {
@@ -209,8 +211,8 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             <select
                                 value={data.business_unit_id}
                                 onChange={(e) => setData('business_unit_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                disabled={isEdit}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-gray-100 cursor-not-allowed"
+                                disabled={true}
                             >
                                 <option value="">Select Business Unit</option>
                                 {businessUnits.map((bu) => (
@@ -232,8 +234,8 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             <select
                                 value={data.department_id}
                                 onChange={(e) => setData('department_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                disabled={isEdit}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-gray-100 cursor-not-allowed"
+                                disabled={true}
                             >
                                 <option value="">Select Department</option>
                                 {departments.map((dept) => (
@@ -282,24 +284,8 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             </select>
                         </div>
 
-                        {/* Request Date */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Request Date <span className="text-red-500">*</span>
-                            </label>
-                            <Input
-                                type="date"
-                                value={data.request_date}
-                                onChange={(e) => setData('request_date', e.target.value)}
-                                className={errors.request_date ? 'border-red-500' : ''}
-                            />
-                            {errors.request_date && (
-                                <p className="mt-1 text-sm text-red-600">{errors.request_date}</p>
-                            )}
-                        </div>
-
                         {/* Expected Date */}
-                        <div>
+                        <div className="md:col-span-2 relative">
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Expected Delivery Date
                             </label>
@@ -307,6 +293,8 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                                 type="date"
                                 value={data.expected_date || ''}
                                 onChange={(e) => setData('expected_date', e.target.value)}
+                                onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                                className="w-full cursor-pointer"
                             />
                         </div>
                     </div>
@@ -321,9 +309,8 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             onChange={(e) => setData('used_for', e.target.value)}
                             placeholder="Describe the purpose of this purchase request (minimum 10 characters)"
                             rows={3}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm ${
-                                errors.used_for ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm ${errors.used_for ? 'border-red-500' : 'border-gray-300'
+                                }`}
                         />
                         {errors.used_for && (
                             <p className="mt-1 text-sm text-red-600">{errors.used_for}</p>
@@ -338,7 +325,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Supporting Document
                         </label>
-                        
+
                         {supportingDocumentPreview ? (
                             <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-300 rounded-lg">
                                 <span className="text-sm text-gray-700">{supportingDocumentPreview}</span>
@@ -389,30 +376,49 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                         Add Item
                     </Button>
                 </div>
-                <div className="p-6 space-y-4">
-                    <AnimatePresence mode="popLayout">
-                        {items.map((item, index) => (
-                            <PRItemRow
-                                key={index}
-                                item={item}
-                                index={index}
-                                currency={data.currency}
-                                onUpdate={handleUpdateItem}
-                                onRemove={handleRemoveItem}
-                                canRemove={items.length > 1}
-                                errors={errors}
-                            />
-                        ))}
-                    </AnimatePresence>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                            <tr>
+                                <th className="px-4 py-3 w-10 text-center">No</th>
+                                <th className="px-4 py-3 min-w-[150px]">Item Name</th>
+                                <th className="px-4 py-3 min-w-[100px]">Brand</th>
+                                <th className="px-4 py-3 min-w-[150px]">Description</th>
+                                <th className="px-4 py-3 min-w-[100px]">Supplier</th>
+                                <th className="px-4 py-3 w-16 text-center">Qty</th>
+                                <th className="px-4 py-3 w-20 text-center">Unit</th>
+                                <th className="px-4 py-3 w-28 text-right">Price</th>
+                                <th className="px-4 py-3 w-28 text-right">Total</th>
+                                <th className="px-4 py-3 w-16 text-center">Image</th>
+                                <th className="px-4 py-3 w-12 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {items.map((item, index) => (
+                                <PRItemRow
+                                    key={index}
+                                    item={item}
+                                    index={index}
+                                    currency={data.currency}
+                                    onUpdate={handleUpdateItem}
+                                    onRemove={handleRemoveItem}
+                                    canRemove={items.length > 1}
+                                    errors={errors}
+                                />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
-                    {/* Grand Total */}
-                    <div className="flex justify-end pt-4 border-t border-gray-200">
-                        <div className="text-right">
-                            <p className="text-sm text-gray-600 mb-1">Grand Total</p>
-                            <p className="text-2xl font-bold text-gray-900">
-                                {data.currency} {formatCurrency(calculateGrandTotal())}
-                            </p>
-                        </div>
+                {/* Grand Total */}
+                <div className="px-6 py-4 flex justify-between items-center bg-gray-50 border-t border-gray-100">
+                    <div className="flex items-center">
+                        <span className="font-bold text-gray-900">Total Amount:</span>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xl font-bold text-blue-600">
+                            {formatCurrency(calculateGrandTotal())}
+                        </p>
                     </div>
                 </div>
             </div>

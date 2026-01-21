@@ -1,15 +1,23 @@
 import { useCallback } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { showToast } from '@/components/ui/toast';
 import {
-    useLayoutStore,
-    useCurrentBusinessUnit,
-    useAvailableBusinessUnits,
-    useIsSwitchingBU,
-    type BusinessUnit,
-} from '@/stores/layoutStore';
+    useBuTransitionStore,
+    useIsTransitioning,
+} from '@/stores/buTransitionStore';
 
-export type { BusinessUnit };
+export interface BusinessUnit {
+    id: number;
+    code: string;
+    name: string;
+    logo: string | null;
+}
+
+interface PagePropsWithBU {
+    currentBusinessUnit: BusinessUnit | null;
+    availableBusinessUnits: BusinessUnit[];
+    [key: string]: unknown;
+}
 
 interface SwitchBusinessUnitResponse {
     success: boolean;
@@ -22,9 +30,9 @@ interface UseBusinessUnitReturn {
     currentBusinessUnit: BusinessUnit | null;
     /** List of business units the user has access to */
     availableBusinessUnits: BusinessUnit[];
-    /** Whether a BU switch is in progress */
+    /** Whether a BU switch is in progress (includes animation) */
     isSwitching: boolean;
-    /** Switch to a different business unit */
+    /** Switch to a different business unit with smooth transition */
     switchBusinessUnit: (businessUnitId: number) => Promise<void>;
     /** Reload current page data */
     reload: (only?: string[]) => void;
@@ -32,7 +40,7 @@ interface UseBusinessUnitReturn {
 
 /**
  * Hook to manage business unit context and switching.
- * Uses Zustand store for state management and integrates with BU switch API.
+ * Uses Inertia page props for state and provides smooth transition animation.
  * 
  * @param reloadOnly - Optional array of props to reload after BU switch
  * @returns Business unit state and actions
@@ -41,18 +49,14 @@ interface UseBusinessUnitReturn {
  * ```tsx
  * const { currentBusinessUnit, switchBusinessUnit, isSwitching } = useBusinessUnit();
  * 
- * // Switch to a different BU
+ * // Switch to a different BU with animated transition
  * await switchBusinessUnit(2);
  * ```
  */
 export function useBusinessUnit(reloadOnly?: string[]): UseBusinessUnitReturn {
-    // Use selective subscriptions for performance
-    const currentBusinessUnit = useCurrentBusinessUnit();
-    const availableBusinessUnits = useAvailableBusinessUnits();
-    const isSwitching = useIsSwitchingBU();
-    
-    // Get actions from store
-    const { setSwitchingBU, setCurrentBusinessUnit } = useLayoutStore.getState();
+    // Get BU data from Inertia page props (single source of truth)
+    const { currentBusinessUnit, availableBusinessUnits } = usePage<PagePropsWithBU>().props;
+    const isTransitioning = useIsTransitioning();
 
     /**
      * Reload the current page with optional prop filtering
@@ -64,27 +68,39 @@ export function useBusinessUnit(reloadOnly?: string[]): UseBusinessUnitReturn {
     }, [reloadOnly]);
 
     /**
-     * Switch to a different business unit
-     * - Validates user has access to the BU
-     * - Updates server session
-     * - Triggers Inertia reload to refresh page data
+     * Switch to a different business unit with smooth transition overlay
+     * 
+     * Flow:
+     * 1. Show transition overlay with FROM logo
+     * 2. Make API call to switch context
+     * 3. Update progress steps
+     * 4. Trigger Inertia reload
+     * 5. Complete transition with animation
      */
     const switchBusinessUnit = useCallback(async (businessUnitId: number): Promise<void> => {
-        // Don't switch if already on this BU
-        if (currentBusinessUnit?.id === businessUnitId) {
+        // Don't switch if already on this BU or already transitioning
+        if (currentBusinessUnit?.id === businessUnitId || isTransitioning) {
             return;
         }
 
-        // Validate user has access to this BU
-        const targetBU = availableBusinessUnits.find(bu => bu.id === businessUnitId);
+        // Validate user has access to this BU (from Inertia props)
+        const targetBU = availableBusinessUnits?.find(bu => bu.id === businessUnitId);
         if (!targetBU) {
             showToast.error('You do not have access to this business unit');
             return;
         }
 
-        setSwitchingBU(true);
+        // Get transition store actions
+        const transitionStore = useBuTransitionStore.getState();
+
+        // Start transition animation
+        transitionStore.startTransition(currentBusinessUnit, targetBU);
 
         try {
+            // Phase: Switching (API call)
+            await new Promise(resolve => setTimeout(resolve, 200)); // Brief delay for animation
+            transitionStore.setPhase('switching');
+
             const response = await fetch('/api/business-unit/switch', {
                 method: 'POST',
                 headers: {
@@ -97,7 +113,7 @@ export function useBusinessUnit(reloadOnly?: string[]): UseBusinessUnitReturn {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                
+
                 if (response.status === 403) {
                     throw new Error(errorData.message || 'You do not have access to this business unit');
                 } else if (response.status === 404) {
@@ -110,36 +126,42 @@ export function useBusinessUnit(reloadOnly?: string[]): UseBusinessUnitReturn {
             const data: SwitchBusinessUnitResponse = await response.json();
 
             if (data.success) {
-                // Update store with new BU
-                setCurrentBusinessUnit(data.businessUnit);
-                
+                // Phase: Loading (Inertia reload)
+                transitionStore.setPhase('loading');
+
                 // Trigger Inertia reload to refresh all page data
-                router.reload({
-                    only: reloadOnly,
+                // Only include 'only' option when reloadOnly has values (prevents undefined.length error)
+                const reloadOptions: { only?: string[]; onFinish: () => void } = {
                     onFinish: () => {
-                        setSwitchingBU(false);
+                        // Complete transition with animation
+                        transitionStore.completeTransition();
                         showToast.success(`Switched to ${data.businessUnit.name}`);
                     },
-                });
+                };
+
+                if (reloadOnly && reloadOnly.length > 0) {
+                    reloadOptions.only = reloadOnly;
+                }
+
+                router.reload(reloadOptions);
             } else {
                 throw new Error(data.message || 'Failed to switch business unit');
             }
         } catch (error) {
-            setSwitchingBU(false);
-            
-            const message = error instanceof Error 
-                ? error.message 
+            const transitionStore = useBuTransitionStore.getState();
+            const message = error instanceof Error
+                ? error.message
                 : 'Failed to switch business unit. Please try again.';
-            
-            showToast.error(message);
+
+            transitionStore.setError(message);
             throw error;
         }
-    }, [currentBusinessUnit?.id, availableBusinessUnits, reloadOnly, setSwitchingBU, setCurrentBusinessUnit]);
+    }, [currentBusinessUnit, availableBusinessUnits, isTransitioning, reloadOnly]);
 
     return {
-        currentBusinessUnit,
-        availableBusinessUnits,
-        isSwitching,
+        currentBusinessUnit: currentBusinessUnit ?? null,
+        availableBusinessUnits: availableBusinessUnits ?? [],
+        isSwitching: isTransitioning,
         switchBusinessUnit,
         reload,
     };

@@ -15,7 +15,23 @@ export default function UserMenu() {
     }
 
     const handleLogout = () => {
-        router.post('/logout');
+        // Use native form submission to handle redirect to non-Inertia (Blade) login page
+        // This prevents the login page from opening in an Inertia modal
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/logout';
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            const hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.name = '_token';
+            hiddenField.value = csrfToken;
+            form.appendChild(hiddenField);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
     };
 
     return (

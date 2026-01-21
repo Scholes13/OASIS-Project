@@ -1,9 +1,7 @@
-import React, { useCallback, useRef } from 'react';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
-import { Button } from '../ui/Button';
+import React, { useRef, useCallback } from 'react';
+import { X, Upload, Trash2 } from 'lucide-react';
 import { Input } from '../ui/input';
 import { PRItemFormData } from '../../types/purchasing';
-import { motion } from 'framer-motion';
 import { LazyImage } from '../ui/LazyImage';
 
 interface PRItemRowProps {
@@ -15,6 +13,8 @@ interface PRItemRowProps {
     canRemove: boolean;
     errors?: Record<string, string>;
 }
+
+const UNIT_OPTIONS = ['pcs', 'Unit', 'set', 'pack', 'box', 'kg', 'meter', 'liter'];
 
 export const PRItemRow: React.FC<PRItemRowProps> = ({
     item,
@@ -35,7 +35,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
                 alert('Please upload an image file');
                 return;
             }
-            
+
             // Validate file size (max 2MB)
             if (file.size > 2 * 1024 * 1024) {
                 alert('Image size must be less than 2MB');
@@ -43,7 +43,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
             }
 
             onUpdate(index, 'image_file', file);
-            
+
             // Create preview URL
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -70,196 +70,147 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
-            className="border border-gray-200 rounded-lg p-4 bg-white"
-        >
-            <div className="flex items-start justify-between mb-4">
-                <h4 className="text-sm font-medium text-gray-900">Item #{index + 1}</h4>
-                {canRemove && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onRemove(index)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                        <X className="w-4 h-4" />
-                    </Button>
+        <tr className="bg-white border-b hover:bg-gray-50 transition-colors align-middle">
+            {/* No */}
+            <td className="px-4 py-3 text-center text-gray-900 font-medium whitespace-nowrap">
+                {index + 1}
+            </td>
+
+            {/* Item Name */}
+            <td className="px-4 py-3">
+                <Input
+                    type="text"
+                    value={item.item_name}
+                    onChange={(e) => onUpdate(index, 'item_name', e.target.value)}
+                    placeholder="Enter item name"
+                    className={`min-w-[150px] ${errors[`items.${index}.item_name`] ? 'border-red-500' : ''}`}
+                />
+                {errors[`items.${index}.item_name`] && (
+                    <p className="mt-1 text-xs text-red-600">{errors[`items.${index}.item_name`]}</p>
                 )}
-            </div>
+            </td>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Item Name */}
-                <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Item Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                        type="text"
-                        value={item.item_name}
-                        onChange={(e) => onUpdate(index, 'item_name', e.target.value)}
-                        placeholder="Enter item name"
-                        className={errors[`items.${index}.item_name`] ? 'border-red-500' : ''}
-                    />
-                    {errors[`items.${index}.item_name`] && (
-                        <p className="mt-1 text-sm text-red-600">{errors[`items.${index}.item_name`]}</p>
-                    )}
-                </div>
+            {/* Brand */}
+            <td className="px-4 py-3">
+                <Input
+                    type="text"
+                    value={item.brand_name || ''}
+                    onChange={(e) => onUpdate(index, 'brand_name', e.target.value)}
+                    placeholder="Brand name"
+                    className="min-w-[100px]"
+                />
+            </td>
 
-                {/* Brand Name */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Brand
-                    </label>
-                    <Input
-                        type="text"
-                        value={item.brand_name || ''}
-                        onChange={(e) => onUpdate(index, 'brand_name', e.target.value)}
-                        placeholder="Enter brand name"
-                    />
-                </div>
+            {/* Description */}
+            <td className="px-4 py-3">
+                <Input
+                    type="text"
+                    value={item.item_description || ''}
+                    onChange={(e) => onUpdate(index, 'item_description', e.target.value)}
+                    placeholder="Description"
+                    className="min-w-[150px]"
+                />
+            </td>
 
-                {/* Supplier Name */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Supplier
-                    </label>
-                    <Input
-                        type="text"
-                        value={item.supplier_name || ''}
-                        onChange={(e) => onUpdate(index, 'supplier_name', e.target.value)}
-                        placeholder="Enter supplier name"
-                    />
-                </div>
+            {/* Supplier */}
+            <td className="px-4 py-3">
+                <Input
+                    type="text"
+                    value={item.supplier_name || ''}
+                    onChange={(e) => onUpdate(index, 'supplier_name', e.target.value)}
+                    placeholder="Supplier"
+                    className="min-w-[100px]"
+                />
+            </td>
 
-                {/* Description */}
-                <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Description
-                    </label>
-                    <textarea
-                        value={item.item_description || ''}
-                        onChange={(e) => onUpdate(index, 'item_description', e.target.value)}
-                        placeholder="Enter item description"
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    />
-                </div>
+            {/* Qty */}
+            <td className="px-4 py-3">
+                <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={item.quantity}
+                    onChange={(e) => onUpdate(index, 'quantity', parseFloat(e.target.value) || 0)}
+                    className={`w-16 text-center ${errors[`items.${index}.quantity`] ? 'border-red-500' : ''}`}
+                />
+            </td>
 
-                {/* Quantity */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Quantity <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={item.quantity}
-                        onChange={(e) => onUpdate(index, 'quantity', parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className={errors[`items.${index}.quantity`] ? 'border-red-500' : ''}
-                    />
-                    {errors[`items.${index}.quantity`] && (
-                        <p className="mt-1 text-sm text-red-600">{errors[`items.${index}.quantity`]}</p>
-                    )}
-                </div>
+            {/* Unit */}
+            <td className="px-4 py-3">
+                <select
+                    value={item.unit}
+                    onChange={(e) => onUpdate(index, 'unit', e.target.value)}
+                    className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                >
+                    {UNIT_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                </select>
+            </td>
 
-                {/* Unit */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Unit <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                        type="text"
-                        value={item.unit}
-                        onChange={(e) => onUpdate(index, 'unit', e.target.value)}
-                        placeholder="e.g., pcs, box, kg"
-                        className={errors[`items.${index}.unit`] ? 'border-red-500' : ''}
-                    />
-                    {errors[`items.${index}.unit`] && (
-                        <p className="mt-1 text-sm text-red-600">{errors[`items.${index}.unit`]}</p>
-                    )}
-                </div>
+            {/* Price */}
+            <td className="px-4 py-3">
+                <Input
+                    type="number"
+                    min="0"
+                    value={item.unit_price}
+                    onChange={(e) => onUpdate(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                    className={`w-28 text-right ${errors[`items.${index}.unit_price`] ? 'border-red-500' : ''}`}
+                />
+            </td>
 
-                {/* Unit Price */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Unit Price ({currency}) <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={item.unit_price}
-                        onChange={(e) => onUpdate(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className={errors[`items.${index}.unit_price`] ? 'border-red-500' : ''}
-                    />
-                    {errors[`items.${index}.unit_price`] && (
-                        <p className="mt-1 text-sm text-red-600">{errors[`items.${index}.unit_price`]}</p>
-                    )}
-                </div>
+            {/* Total */}
+            <td className="px-4 py-3 text-right font-medium whitespace-nowrap">
+                {formatCurrency(calculateTotal())}
+            </td>
 
-                {/* Total */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Total ({currency})
-                    </label>
-                    <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium text-gray-900">
-                        {formatCurrency(calculateTotal())}
+            {/* Image */}
+            <td className="px-4 py-3 text-center">
+                {item.image_path ? (
+                    <div className="relative inline-block group">
+                        <LazyImage
+                            src={item.image_path}
+                            alt="Preview"
+                            className="w-10 h-10 object-cover rounded border"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <X className="w-3 h-3" />
+                        </button>
                     </div>
-                </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-10 h-10 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
+                    >
+                        <Upload className="w-4 h-4" />
+                    </button>
+                )}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                />
+            </td>
 
-                {/* Image Upload */}
-                <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Item Image
-                    </label>
-                    
-                    {item.image_path ? (
-                        <div className="relative inline-block">
-                            <LazyImage
-                                src={item.image_path}
-                                alt="Item preview"
-                                className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleRemoveImage}
-                                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    ) : (
-                        <div>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                                id={`image-upload-${index}`}
-                            />
-                            <label
-                                htmlFor={`image-upload-${index}`}
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
-                            >
-                                <Upload className="w-4 h-4 mr-2" />
-                                Upload Image
-                            </label>
-                            <p className="mt-1 text-xs text-gray-500">
-                                Max 2MB, JPG, PNG, or GIF
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </motion.div>
+            {/* Actions */}
+            <td className="px-4 py-3 text-center">
+                {canRemove && (
+                    <button
+                        type="button"
+                        onClick={() => onRemove(index)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                )}
+            </td>
+        </tr>
     );
 };

@@ -23,43 +23,60 @@ class ApprovalController extends Controller
     /**
      * Show approval page for a specific approval
      */
+    /**
+     * Show approval page for a specific approval
+     */
     public function show($approvalId)
     {
-        // Optimized: Only load necessary relationships
-        $approval = PrApproval::with([
-            'purchaseRequest' => function ($query) {
-                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id', 
-                              'used_for', 'total_amount', 'currency', 'status', 
-                              'date_of_request', 'designated_date', 'created_at', 'submitted_at', 'approved_at');
-            },
-            'purchaseRequest.user:id,name,email',
-            'purchaseRequest.department:id,name,code',
-            'purchaseRequest.businessUnit:id,name,code,logo',
-            'purchaseRequest.items' => function ($query) {
-                $query->select('id', 'purchase_request_id', 'item_name', 'brand_name', 
-                              'item_description', 'supplier_name', 'quantity', 'unit', 
-                              'unit_price', 'currency', 'expense_department_id');
-            },
-            'purchaseRequest.items.expenseDepartment:id,name,code',
-            'purchaseRequest.approvals' => function ($query) {
-                $query->select('id', 'purchase_request_id', 'approver_id', 'step_order', 
-                              'approval_type', 'status', 'notes', 'responded_at')
-                      ->orderBy('step_order');
-            },
-            'purchaseRequest.approvals.approver:id,name,email',
-            'approver:id,name,email',
-        ])->findOrFail($approvalId);
+        $approval = PrApproval::findOrFail($approvalId);
+        $user = Auth::user();
 
         // Check if current user is the approver
-        if ($approval->approver_id !== Auth::id()) {
+        if ($approval->approver_id !== $user->id) {
             abort(403, 'You are not authorized to view this approval.');
         }
 
-        // Check if this approval is the current pending one
-        $currentApproval = $approval->purchaseRequest->currentApproval();
-        $canApprove = $currentApproval && $currentApproval->id === $approval->id;
+        $purchaseRequest = $approval->purchaseRequest;
 
-        return view('purchasing.approvals.purchase-request.show', compact('approval', 'canApprove'));
+        // Load relationships needed for Show page
+        $purchaseRequest->load([
+            'businessUnit:id,name,code',
+            'department:id,name,code',
+            'category:id,name,code,color',
+            'user:id,name,email',
+            'items.expenseDepartment:id,name,code',
+            'approvals.approver:id,name,email',
+            'lastModifiedBy:id,name',
+            'offlineApprovedBy:id,name',
+        ]);
+
+        // Logic for permission
+        $currentApproval = $purchaseRequest->currentApproval();
+        $isCurrentApprover = $currentApproval && $currentApproval->id === $approval->id;
+        $canApprove = $isCurrentApprover && $purchaseRequest->status === 'in_approval' && $approval->status === 'pending';
+
+        $authorization = [
+            'approve' => $canApprove,
+            'reject' => $canApprove,
+            'view' => true,
+            'downloadPdf' => true,
+            'edit' => false,
+            'delete' => false,
+            'void' => false,
+            'resubmit' => false,
+            'markOfflineApproved' => false,
+        ];
+
+        return \Inertia\Inertia::render('Purchasing/PurchaseRequest/Show', [
+            'purchaseRequest' => array_merge(
+                $purchaseRequest->toArray(),
+                [
+                    'approval_progress' => $purchaseRequest->getApprovalProgress(),
+                    'can' => $authorization,
+                ]
+            ),
+            'can' => $authorization,
+        ]);
     }
 
 
@@ -98,7 +115,7 @@ class ApprovalController extends Controller
 
         // Check if this is the current approval step
         $currentApproval = $approval->purchaseRequest->currentApproval();
-        if (! $currentApproval || $currentApproval->id !== $approval->id) {
+        if (!$currentApproval || $currentApproval->id !== $approval->id) {
             return redirect()->back()->with('error', 'This approval is not currently active.');
         }
 
@@ -117,7 +134,7 @@ class ApprovalController extends Controller
                 ->with('success', $message);
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to process approval: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Failed to process approval: ' . $e->getMessage());
         }
     }
 
@@ -152,7 +169,7 @@ class ApprovalController extends Controller
         $approverId = $request->get('approver');
         $requestorId = $request->get('requestor');
 
-        if (! $token) {
+        if (!$token) {
             abort(404, 'Invalid verification link.');
         }
 
@@ -173,7 +190,7 @@ class ApprovalController extends Controller
                 abort(404, 'Invalid requestor verification.');
             }
 
-            if (! $qrCodeService->verifyRequestorToken($purchaseRequest, $token)) {
+            if (!$qrCodeService->verifyRequestorToken($purchaseRequest, $token)) {
                 abort(403, 'Invalid verification token.');
             }
 
@@ -191,11 +208,11 @@ class ApprovalController extends Controller
                 ->where('status', 'approved')
                 ->first();
 
-            if (! $approval) {
+            if (!$approval) {
                 abort(404, 'Approval not found or not approved.');
             }
 
-            if (! $qrCodeService->verifyApprovalToken($approval, $token)) {
+            if (!$qrCodeService->verifyApprovalToken($approval, $token)) {
                 abort(403, 'Invalid verification token.');
             }
 
@@ -235,8 +252,19 @@ class ApprovalController extends Controller
         // Build query for pending approvals
         $pendingQuery = PrApproval::with([
             'purchaseRequest' => function ($query) {
-                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id',
-                              'total_amount', 'currency', 'status', 'used_for', 'created_at', 'updated_at');
+                $query->select(
+                    'id',
+                    'pr_number',
+                    'user_id',
+                    'department_id',
+                    'business_unit_id',
+                    'total_amount',
+                    'currency',
+                    'status',
+                    'used_for',
+                    'created_at',
+                    'updated_at'
+                );
             },
             'purchaseRequest.user:id,name,email',
             'purchaseRequest.department:id,name,code',
@@ -244,11 +272,11 @@ class ApprovalController extends Controller
             'purchaseRequest.approvals:id,purchase_request_id,approver_id,status,step_order',
             'purchaseRequest.approvals.approver:id,name',
         ])
-        ->where('approver_id', $userId)
-        ->where('status', 'pending')
-        ->whereHas('purchaseRequest', function ($q) {
-            $q->where('status', 'in_approval');
-        });
+            ->where('approver_id', $userId)
+            ->where('status', 'pending')
+            ->whereHas('purchaseRequest', function ($q) {
+                $q->where('status', 'in_approval');
+            });
 
         // Filter by business unit if set
         if ($businessUnitId) {
@@ -281,8 +309,19 @@ class ApprovalController extends Controller
         // Get recent approvals (last 10 processed)
         $recentQuery = PrApproval::with([
             'purchaseRequest' => function ($query) {
-                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id',
-                              'total_amount', 'currency', 'status', 'used_for', 'created_at', 'updated_at');
+                $query->select(
+                    'id',
+                    'pr_number',
+                    'user_id',
+                    'department_id',
+                    'business_unit_id',
+                    'total_amount',
+                    'currency',
+                    'status',
+                    'used_for',
+                    'created_at',
+                    'updated_at'
+                );
             },
             'purchaseRequest.user:id,name,email',
             'purchaseRequest.department:id,name,code',
@@ -290,8 +329,8 @@ class ApprovalController extends Controller
             'purchaseRequest.approvals:id,purchase_request_id,approver_id,status,step_order',
             'purchaseRequest.approvals.approver:id,name',
         ])
-        ->where('approver_id', $userId)
-        ->whereIn('status', ['approved', 'rejected']);
+            ->where('approver_id', $userId)
+            ->whereIn('status', ['approved', 'rejected']);
 
         // Filter by business unit if set
         if ($businessUnitId) {

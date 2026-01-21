@@ -120,6 +120,26 @@ class NavigationService
                 'href' => route('purchasing.admin.dashboard'),
                 'icon' => 'clipboard-list',
                 'active' => request()->routeIs('purchasing.admin.*'),
+                'children' => [
+                    [
+                        'name' => 'Dashboard',
+                        'href' => route('purchasing.admin.dashboard'),
+                        'icon' => 'home',
+                        'active' => request()->routeIs('purchasing.admin.dashboard'),
+                    ],
+                    [
+                        'name' => 'Tasks',
+                        'href' => route('purchasing.admin.tasks'),
+                        'icon' => 'check-circle',
+                        'active' => request()->routeIs('purchasing.admin.tasks*') && !request()->routeIs('purchasing.admin.task-history*'),
+                    ],
+                    [
+                        'name' => 'My Task History',
+                        'href' => route('purchasing.admin.task-history'),
+                        'icon' => 'clock',
+                        'active' => request()->routeIs('purchasing.admin.task-history*'),
+                    ],
+                ],
             ];
         }
 
@@ -138,10 +158,24 @@ class NavigationService
             'name' => 'Activity Tracking',
             'items' => [
                 [
-                    'name' => 'My Tasks',
-                    'href' => route('activity.task.index'),
-                    'icon' => 'calendar',
+                    'name' => 'Activity',
+                    'href' => route('activity.dashboard'),
+                    'icon' => 'clipboard-list',
                     'active' => request()->routeIs('activity.*'),
+                    'children' => [
+                        [
+                            'name' => 'Dashboard',
+                            'href' => route('activity.dashboard'),
+                            'icon' => 'chart-pie',
+                            'active' => request()->routeIs('activity.dashboard'),
+                        ],
+                        [
+                            'name' => 'My Tasks',
+                            'href' => route('activity.task.index'),
+                            'icon' => 'calendar',
+                            'active' => request()->routeIs('activity.task.*'),
+                        ],
+                    ],
                 ],
             ],
         ];
@@ -272,18 +306,12 @@ class NavigationService
 
     /**
      * Check if user can access sales CRM module.
+     * NOTE: Currently restricted to Super Admin only (Beta feature)
      */
     protected function canAccessSalesCrm(User $user, int $businessUnitId): bool
     {
-        // Super Admin can access everything
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        // Check if user has access to this business unit
-        return $user->businessUnits()
-            ->where('business_unit_id', $businessUnitId)
-            ->exists();
+        // Beta: Only Super Admin can access Sales CRM for now
+        return $user->isSuperAdmin();
     }
 
     /**

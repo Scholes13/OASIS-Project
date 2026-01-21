@@ -20,11 +20,11 @@ Route::prefix('api')->middleware(['auth'])->group(function () {
     // Business Unit Switch API (Requirements: 9.1)
     Route::post('/business-unit/switch', [\App\Http\Controllers\Api\BusinessUnitController::class, 'switch'])
         ->name('api.business-unit.switch');
-    
+
     // Error Logging API (Requirement 15.5: Log frontend errors to server)
     Route::post('/error-logs', [\App\Http\Controllers\ErrorLogController::class, 'store'])
         ->name('api.error-logs.store');
-    
+
     Route::post('/error-logs/batch', [\App\Http\Controllers\ErrorLogController::class, 'storeBatch'])
         ->name('api.error-logs.batch');
 });
@@ -74,7 +74,7 @@ if (app()->environment('local')) {
     Route::get('/test-browsershot', function () {
         return '<html><body><h1>Test Page</h1><p>This is a simple test page for Browsershot.</p></body></html>';
     })->name('test.browsershot');
-    
+
     // Error Logging Test - Test error logging system
     Route::get('/error-test', function () {
         return \Inertia\Inertia::render('ErrorTest');
@@ -86,10 +86,11 @@ Route::get('docs-help', \App\Livewire\DocsHelp::class)
     ->middleware(['auth'])
     ->name('docs-help');
 
-// Profile page
-Route::view('profile', 'profile')
-    ->middleware(['auth'])
-    ->name('profile');
+// Profile page (React/Inertia)
+Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\ProfileController::class, 'show'])->name('index');
+    Route::post('/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('password');
+});
 
 // Main Dashboard Route
 Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(function () {
@@ -103,16 +104,16 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Create Route - Inertia/React page
         Route::get('/create', [PurchaseRequestController::class, 'create'])->name('create');
-        
+
         // Store Route - Handle form submission
         Route::post('/', [PurchaseRequestController::class, 'store'])->name('store');
 
         // View Route - Inertia/React page
         Route::get('/{purchaseRequest}', [PurchaseRequestController::class, 'show'])->name('show');
-        
+
         // Edit Route - Inertia/React page
         Route::get('/{purchaseRequest}/edit', [PurchaseRequestController::class, 'editInertia'])->name('edit');
-        
+
         // Update Route - Handle form submission
         Route::put('/{purchaseRequest}', [PurchaseRequestController::class, 'update'])->name('update');
 
@@ -187,28 +188,36 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // Purchasing Dashboard (Inertia/React)
         // Requirements: 14.2
         Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
-        
+
         Route::get('/all-requests', [\App\Http\Controllers\Modules\Purchasing\PurchasingController::class, 'allRequests'])->name('all-requests');
-        
+
         // Purchasing Admin Routes (Inertia)
         Route::prefix('admin')->name('admin.')->middleware('can:access-purchasing-admin')->group(function () {
             // Dashboard
             Route::get('/dashboard', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'dashboard'])->name('dashboard');
-            
+
             // Task Management
             Route::get('/tasks', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'tasks'])->name('tasks');
             Route::get('/tasks/{taskId}', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'taskDetail'])->name('tasks.show');
-            
+            Route::post('/tasks/{taskId}/claim', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'claimTask'])->name('tasks.claim');
+            Route::post('/tasks/{taskId}/start', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'startTask'])->name('tasks.start');
+            Route::put('/tasks/{taskId}/status', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'updateTaskStatus'])->name('tasks.update-status');
+            Route::post('/tasks/{taskId}/complete', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'completeTask'])->name('tasks.complete');
+
+            // Task History
+            Route::get('/task-history', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'taskHistory'])->name('task-history');
+            Route::get('/task-history/export', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'exportTaskHistory'])->name('task-history.export');
+
             // Reports
             Route::get('/department-report', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'departmentReport'])->name('department-report');
             Route::get('/consolidated-report', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'consolidatedReport'])->name('consolidated-report');
-            
+
             // Audit History Routes
             Route::get('/audit-history', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'auditHistory'])->name('audit-history');
             Route::get('/department-audit-history', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'departmentAuditHistory'])->name('department-audit-history');
             Route::get('/personal-task-history', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'personalTaskHistory'])->name('personal-task-history');
             Route::get('/management-history', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'managementHistory'])->name('management-history');
-            
+
             // SLA Settings (Super Admin only)
             Route::get('/sla-settings', [\App\Http\Controllers\Admin\SlaSettingsController::class, 'index'])
                 ->middleware('admin.access')
@@ -246,20 +255,20 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     Route::prefix('activity')->name('activity.')->group(function () {
         // Redirect root to task
         Route::get('/', fn() => redirect()->route('activity.task.index'));
-        
+
         // Dashboard (Personal & Department Analytics)
         Route::get('/dashboard', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'dashboard'])->name('dashboard');
-        
+
         // BOD Reporting Dashboard (Top Management Only)
         Route::get('/reporting', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'reportingDashboard'])
             ->middleware('can:view-reports')
             ->name('reporting');
-        
+
         // Manager Reporting Dashboard (Managers and above)
         Route::get('/reporting/manager', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'managerDashboard'])
             ->middleware('activity.reporting.access')
             ->name('reporting.manager');
-        
+
         // Task Routes (List, Board, Calendar, Timeline views)
         Route::prefix('task')->name('task.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'index'])->name('index');
@@ -338,4 +347,4 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

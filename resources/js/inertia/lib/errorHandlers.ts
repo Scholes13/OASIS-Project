@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { showToast } from '@/components/ui/toast';
+import { showToast, toast } from '@/components/ui/toast';
 import { logError, logErrorObject, logWarning } from './errorLogger';
 
 /**
@@ -54,7 +54,7 @@ function handleValidationErrors(errors: Record<string, string | string[]>): void
  */
 function handleNetworkError(): void {
     const errorMessage = 'Unable to connect to the server. Please check your internet connection.';
-    
+
     showToast.error(
         'Network Error',
         errorMessage
@@ -184,22 +184,34 @@ function handleInertiaSuccess(event: CustomEvent): void {
 
     // Show success message
     if (flash.success) {
-        showToast.success('Success', flash.success);
+        toast.success('Success', {
+            description: flash.success,
+            id: 'flash-success'
+        });
     }
 
     // Show error message
     if (flash.error) {
-        showToast.error('Error', flash.error);
+        toast.error('Error', {
+            description: flash.error,
+            id: 'flash-error'
+        });
     }
 
     // Show warning message
     if (flash.warning) {
-        showToast.warning('Warning', flash.warning);
+        toast.warning('Warning', {
+            description: flash.warning,
+            id: 'flash-warning'
+        });
     }
 
     // Show info message
     if (flash.info) {
-        showToast.info('Info', flash.info);
+        toast.info('Info', {
+            description: flash.info,
+            id: 'flash-info'
+        });
     }
 }
 
@@ -255,6 +267,9 @@ function handleInertiaException(event: CustomEvent): void {
  * Should be called once when the app starts
  */
 export function initializeErrorHandlers(): void {
+    // Prevent duplicate listeners by cleaning up first
+    cleanupErrorHandlers();
+
     // Handle Inertia error events
     document.addEventListener('inertia:error', handleInertiaError as EventListener);
 
@@ -270,7 +285,7 @@ export function initializeErrorHandlers(): void {
     // Handle global unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {
         console.error('Unhandled Promise Rejection:', event.reason);
-        
+
         // Log to backend
         if (event.reason instanceof Error) {
             logErrorObject(event.reason, {
@@ -288,7 +303,7 @@ export function initializeErrorHandlers(): void {
                 },
             });
         }
-        
+
         showToast.error(
             'Unexpected Error',
             'An unexpected error occurred. Please try again.'
@@ -298,7 +313,7 @@ export function initializeErrorHandlers(): void {
     // Handle global errors
     window.addEventListener('error', (event) => {
         console.error('Global Error:', event.error);
-        
+
         // Don't show toast for script loading errors
         if (event.message.includes('Script error')) {
             return;
@@ -326,7 +341,7 @@ export function initializeErrorHandlers(): void {
                 },
             });
         }
-        
+
         showToast.error(
             'Unexpected Error',
             'An unexpected error occurred. Please try again.'
@@ -359,7 +374,7 @@ export function handleError(error: unknown, context?: string): void {
                 errorContext: context,
             },
         });
-        
+
         showToast.error(
             context || 'Error',
             error.message
@@ -372,7 +387,7 @@ export function handleError(error: unknown, context?: string): void {
                 errorContext: context,
             },
         });
-        
+
         showToast.error(
             context || 'Error',
             'An unexpected error occurred.'

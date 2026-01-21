@@ -33,28 +33,34 @@ class ActivityInertiaController extends Controller
     public function dashboard()
     {
         $user = Auth::user();
-        
+
         // BOD users should go directly to reporting dashboard
         if ($user->can('view-reports')) {
             return redirect()->route('activity.reporting');
         }
-        
+
         $buId = session('current_business_unit_id');
         $departmentId = $user->primary_department_id;
 
-        // Personal stats
+        // Personal stats & visuals
+        $tab = request()->input('tab', 'todo');
         $personalStats = $this->getPersonalStats($user->id, $buId);
-        
-        // Department stats (if user has permission)
+        $personalVisuals = $this->getPersonalVisuals($user->id, $buId, $tab);
+
+        // Department stats & visuals (if user has permission)
         $departmentStats = null;
+        $departmentVisuals = null;
         if ($user->can('view-department-analytics')) {
             $departmentStats = $this->getDepartmentStats($departmentId, $buId);
+            $departmentVisuals = $this->getDepartmentVisuals($departmentId, $buId);
         }
 
         return Inertia::render('Activity/ActivityDashboard', [
             'personalStats' => $personalStats,
+            'personalVisuals' => $personalVisuals,
             'departmentStats' => $departmentStats,
-            'canViewReports' => false, // BOD users are redirected, so this is always false here
+            'departmentVisuals' => $departmentVisuals,
+            'queryParams' => request()->query(),
         ]);
     }
 
@@ -277,19 +283,19 @@ class ActivityInertiaController extends Controller
             $buId = session('current_business_unit_id');
 
             $updateData = [];
-            
+
             if (isset($validated['due_date'])) {
                 $updateData['due_date'] = $validated['due_date'];
             }
-            
+
             if (isset($validated['status'])) {
                 $updateData['status'] = $validated['status'];
-                
+
                 // Handle status-specific updates
                 if ($validated['status'] === 'in_progress' && !$task->started_at) {
                     $updateData['started_at'] = now();
                 }
-                
+
                 if ($validated['status'] === 'completed') {
                     $updateData['completed_at'] = now();
                     $updateData['completed_by'] = $user->id;
@@ -697,6 +703,169 @@ class ActivityInertiaController extends Controller
                 'planned' => 0,
                 'overdue' => 0,
                 'completed_this_month' => 0,
+            ];
+        }
+    }
+
+    /**
+     * Get visuals for personal dashboard
+     */
+    protected function getPersonalVisuals(int $userId, int $buId, string $tab = 'todo'): array
+    {
+        try {
+            // My Task Roadmap (Active Tasks)
+            $query = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->whereHas('participants', fn($q) => $q->where('user_id', $userId));
+
+            // Tab logic
+            if ($tab === 'todo') {
+                $query->where('status', 'planned');
+            } elseif ($tab === 'inprogress') {
+                $query->where('status', 'in_progress');
+            } elseif ($tab === 'review') {
+                // Placeholder for review status, using completed for now
+                $query->where('status', 'completed');
+            } else {
+                $query->whereIn('status', ['planned', 'in_progress']);
+            }
+
+            $roadmap = $query->with(['activityType', 'subActivity', 'participants'])
+                ->orderBy('due_date', 'asc')
+                ->paginate(10)
+                ->withQueryString();
+
+            // Upcoming Deadlines (Next 7 days)
+            $upcoming = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->whereHas('participants', fn($q) => $q->where('user_id', $userId))
+                ->whereIn('status', ['planned', 'in_progress'])
+                ->whereBetween('due_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                ->orderBy('due_date', 'asc')
+                ->take(5)
+                ->get()
+                ->map(fn($t) => [
+                    'id' => $t->id,
+                    'title' => $t->task_title,
+                    'due_date' => $t->due_date->format('Y-m-d'),
+                    'is_critical' => $t->due_date->lt(now()->addDays(2)),
+                ])
+                ->toArray();
+
+            // Distribution by Category
+            $distribution = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->whereHas('participants', fn($q) => $q->where('user_id', $userId))
+                ->whereIn('status', ['planned', 'in_progress'])
+                ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
+                ->select('employee_activity_types.name', 'employee_activity_types.color', DB::raw('count(*) as value'))
+                ->groupBy('employee_activity_types.id', 'employee_activity_types.name', 'employee_activity_types.color')
+                ->get()
+                ->toArray();
+
+            return [
+                'roadmap' => $roadmap,
+                'upcoming' => $upcoming,
+                'distribution' => $distribution,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'roadmap' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 6),
+                'upcoming' => [],
+                'distribution' => []
+            ];
+        }
+    }
+
+    /**
+     * Get visuals for department dashboard
+     */
+    protected function getDepartmentVisuals(int $departmentId, int $buId): array
+    {
+        try {
+            $tab = request()->input('dept_tab', 'todo');
+
+            // Department Task Roadmap (Paginated) - same as personal but for whole department
+            $query = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId);
+
+            // Tab logic
+            if ($tab === 'todo') {
+                $query->where('status', 'planned');
+            } elseif ($tab === 'inprogress') {
+                $query->where('status', 'in_progress');
+            } elseif ($tab === 'review') {
+                $query->where('status', 'completed');
+            } else {
+                $query->whereIn('status', ['planned', 'in_progress']);
+            }
+
+            $roadmap = $query->with(['activityType', 'subActivity', 'participants'])
+                ->orderBy('due_date', 'asc')
+                ->paginate(10, ['*'], 'dept_page')
+                ->withQueryString();
+
+            // Upcoming Deadlines (Next 7 days) for department
+            $upcoming = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId)
+                ->whereIn('status', ['planned', 'in_progress'])
+                ->whereBetween('due_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                ->orderBy('due_date', 'asc')
+                ->take(5)
+                ->get()
+                ->map(fn($t) => [
+                    'id' => $t->id,
+                    'title' => $t->task_title,
+                    'due_date' => $t->due_date ? $t->due_date->format('Y-m-d') : null,
+                    'is_critical' => $t->due_date ? $t->due_date->lt(now()->addDays(2)) : false,
+                ])
+                ->toArray();
+
+            // Distribution by Category for department
+            $distribution = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId)
+                ->whereIn('status', ['planned', 'in_progress'])
+                ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
+                ->select('employee_activity_types.name', 'employee_activity_types.color', DB::raw('count(*) as value'))
+                ->groupBy('employee_activity_types.id', 'employee_activity_types.name', 'employee_activity_types.color')
+                ->get()
+                ->toArray();
+
+            // Bottleneck (Overdue Tasks)
+            $bottleneck = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId)
+                ->where('due_date', '<', now()->toDateString())
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->count();
+
+            // Top Category
+            $topCategory = EmployeeTask::query()
+                ->where('business_unit_id', $buId)
+                ->where('department_id', $departmentId)
+                ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
+                ->select('employee_activity_types.name', DB::raw('count(*) as count'))
+                ->groupBy('employee_activity_types.id', 'employee_activity_types.name')
+                ->orderByDesc('count')
+                ->first();
+
+            return [
+                'roadmap' => $roadmap,
+                'upcoming' => $upcoming,
+                'distribution' => $distribution,
+                'bottleneck' => $bottleneck,
+                'top_category' => $topCategory ? $topCategory->name : '-',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'roadmap' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
+                'upcoming' => [],
+                'distribution' => [],
+                'bottleneck' => 0,
+                'top_category' => '-'
             ];
         }
     }

@@ -6,7 +6,10 @@ import { PageProps } from '../../../types';
 import { ArrowLeft, Home, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface CreatePageProps extends PageProps, PRCreateProps {}
+interface CreatePageProps extends PageProps, PRCreateProps {
+    currentBusinessUnitId: number;
+    currentDepartmentId: number;
+}
 
 export default function Create({
     categories,
@@ -15,8 +18,18 @@ export default function Create({
     availableApprovers,
     errors,
     currentBusinessUnit,
+    currentBusinessUnitId,
+    currentDepartmentId,
 }: CreatePageProps) {
+    console.log('Create Props:', { currentBusinessUnitId, currentDepartmentId, departments });
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Initial data with auto-fill
+    // Handle 0 or null values by converting to empty string for Select components
+    const initialData: Partial<PRFormData> = {
+        business_unit_id: currentBusinessUnitId ? String(currentBusinessUnitId) : '',
+        department_id: currentDepartmentId ? String(currentDepartmentId) : '',
+    };
 
     // Handle form submission
     const handleSubmit = (data: PRFormData, isDraft: boolean) => {
@@ -24,11 +37,11 @@ export default function Create({
         if (isSubmitting) {
             return;
         }
-        
+
         setIsSubmitting(true);
         // Create FormData for file upload
         const formData = new FormData();
-        
+
         // Append basic fields
         formData.append('business_unit_id', data.business_unit_id);
         formData.append('department_id', data.department_id);
@@ -36,15 +49,15 @@ export default function Create({
         formData.append('used_for', data.used_for);
         formData.append('date_of_request', data.request_date);
         formData.append('currency', data.currency);
-        
+
         if (data.expected_date) {
             formData.append('expected_date', data.expected_date);
         }
-        
+
         if (data.approval_notes) {
             formData.append('approval_notes', data.approval_notes);
         }
-        
+
         // Append approval workflow
         if (data.approval_workflow && data.approval_workflow.length > 0) {
             data.approval_workflow.forEach((step, index) => {
@@ -52,7 +65,7 @@ export default function Create({
                 formData.append(`approval_workflow[${index}][task_type]`, step.task_type);
             });
         }
-        
+
         // Append items
         data.items.forEach((item, index) => {
             formData.append(`items[${index}][item_name]`, item.item_name);
@@ -60,7 +73,7 @@ export default function Create({
             formData.append(`items[${index}][unit]`, item.unit);
             formData.append(`items[${index}][unit_price]`, String(item.unit_price));
             formData.append(`items[${index}][currency]`, item.currency);
-            
+
             if (item.brand_name) {
                 formData.append(`items[${index}][brand_name]`, item.brand_name);
             }
@@ -77,21 +90,21 @@ export default function Create({
                 formData.append(`items[${index}][image]`, item.image_file);
             }
         });
-        
+
         // Append supporting document
         if (data.supporting_document) {
             formData.append('supporting_document', data.supporting_document);
         }
-        
+
         // Submit with Inertia
         router.post(route('purchase-requests.store'), formData, {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Purchase request submitted for approval successfully');
+                // Success handled by global inertia:success listener
             },
             onError: (errors) => {
                 console.error('Form submission errors:', errors);
-                
+
                 // Show first error as toast
                 const firstError = Object.values(errors)[0];
                 if (typeof firstError === 'string') {
@@ -110,7 +123,8 @@ export default function Create({
         <>
             <Head title="Create Purchase Request" />
 
-            <div className="py-6 px-4 sm:px-6 lg:px-8">
+            {/* Removed horizontal padding constraints (sm:px-6 lg:px-8) to allow full width */}
+            <div className="py-6 px-4">
                 {/* Header */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between">
@@ -171,13 +185,14 @@ export default function Create({
                 </div>
 
                 {/* Form */}
-                <div className="max-w-7xl">
+                <div className="w-full max-w-none block">
                     <PurchaseRequestForm
                         categories={categories}
                         departments={departments}
                         businessUnits={businessUnits}
                         availableApprovers={availableApprovers}
                         onSubmit={handleSubmit}
+                        initialData={initialData}
                     />
                 </div>
             </div>

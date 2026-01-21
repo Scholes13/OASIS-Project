@@ -1,5 +1,5 @@
 // Export all purchasing components
-export { PurchaseRequestTable } from './PurchaseRequestTable';
+export { default as PurchaseRequestTable } from './PurchaseRequestTable';
 export { PurchaseRequestForm } from './PurchaseRequestForm';
 export { PRItemRow } from './PRItemRow';
 export { ApprovalTimeline } from './ApprovalTimeline';

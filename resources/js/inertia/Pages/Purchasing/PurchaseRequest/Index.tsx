@@ -39,16 +39,21 @@ interface PRIndexPageProps extends PageProps {
     statuses: Array<{ value: string; label: string }>;
 }
 
-export default function Index({ 
-    purchaseRequests, 
+export default function Index({
+    purchaseRequests,
     filters,
     statuses,
-    currentBusinessUnit 
+    currentBusinessUnit
 }: PRIndexPageProps) {
-    const [search, setSearch] = useState(filters.search || '');
-    const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
-    const [dateFrom, setDateFrom] = useState(filters.date_from || '');
-    const [dateTo, setDateTo] = useState(filters.date_to || '');
+    // Defensive defaults for purchaseRequests to prevent undefined errors
+    const safeData = purchaseRequests?.data ?? [];
+    const safeMeta = purchaseRequests?.meta ?? { from: 0, to: 0, total: 0, last_page: 1, links: [] };
+    const safeLinks = purchaseRequests?.links ?? { prev: null, next: null };
+
+    const [search, setSearch] = useState(filters?.search || '');
+    const [selectedStatus, setSelectedStatus] = useState(filters?.status || '');
+    const [dateFrom, setDateFrom] = useState(filters?.date_from || '');
+    const [dateTo, setDateTo] = useState(filters?.date_to || '');
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -71,7 +76,7 @@ export default function Index({
 
     const handleFilter = () => {
         const params: Record<string, string> = {};
-        
+
         if (search) params.search = search;
         if (selectedStatus) params.status = selectedStatus;
         if (dateFrom) params.date_from = dateFrom;
@@ -97,7 +102,7 @@ export default function Index({
     };
 
     const handleRowClick = (pr: PurchaseRequest) => {
-        router.visit(route('purchase-requests.show', pr.id));
+        router.visit(route('purchase-requests.show', { purchaseRequest: pr.id }));
     };
 
     return (
@@ -206,10 +211,10 @@ export default function Index({
                             <div className="p-6">
                                 <TableSkeleton rows={10} columns={7} />
                             </div>
-                        ) : purchaseRequests.data.length > 0 ? (
+                        ) : safeData.length > 0 ? (
                             <>
                                 <PurchaseRequestTable
-                                    purchaseRequests={purchaseRequests.data}
+                                    purchaseRequests={safeData}
                                     onRowClick={handleRowClick}
                                 />
 
@@ -217,15 +222,15 @@ export default function Index({
                                 <div className="p-6 border-t border-gray-100">
                                     <div className="flex items-center justify-between">
                                         <p className="text-sm text-gray-400">
-                                            Showing {purchaseRequests.meta.from || 0} to {purchaseRequests.meta.to || 0} of {purchaseRequests.meta.total} results
+                                            Showing {safeMeta.from || 0} to {safeMeta.to || 0} of {safeMeta.total} results
                                         </p>
-                                        
-                                        {purchaseRequests.meta.last_page > 1 && (
+
+                                        {safeMeta.last_page > 1 && (
                                             <nav className="flex items-center gap-1">
                                                 {/* Previous Button */}
-                                                {purchaseRequests.links.prev ? (
+                                                {safeLinks.prev ? (
                                                     <button
-                                                        onClick={() => handlePageChange(purchaseRequests.links.prev!)}
+                                                        onClick={() => handlePageChange(safeLinks.prev!)}
                                                         className="px-3 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                                                     >
                                                         ← Previous
@@ -238,7 +243,7 @@ export default function Index({
 
                                                 {/* Page Numbers */}
                                                 <div className="flex items-center gap-1 mx-2">
-                                                    {purchaseRequests.meta.links
+                                                    {safeMeta.links
                                                         .filter(link => link.label !== '&laquo; Previous' && link.label !== 'Next &raquo;')
                                                         .map((link, index) => (
                                                             <button
@@ -258,9 +263,9 @@ export default function Index({
                                                 </div>
 
                                                 {/* Next Button */}
-                                                {purchaseRequests.links.next ? (
+                                                {safeLinks.next ? (
                                                     <button
-                                                        onClick={() => handlePageChange(purchaseRequests.links.next!)}
+                                                        onClick={() => handlePageChange(safeLinks.next!)}
                                                         className="px-3 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
                                                     >
                                                         Next →

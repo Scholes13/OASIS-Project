@@ -1,14 +1,15 @@
 // Purchasing Module Types
 
-import { User, Department, BusinessUnit, PaginatedData } from './index';
+import { User, Department, BusinessUnit, PaginatedData, PageProps } from './index';
+export type { User, Department, BusinessUnit, PaginatedData, PageProps };
 
 // Purchase Request Status
-export type PurchaseRequestStatus = 
-    | 'draft' 
-    | 'submitted' 
-    | 'in_approval' 
-    | 'approved' 
-    | 'rejected' 
+export type PurchaseRequestStatus =
+    | 'draft'
+    | 'submitted'
+    | 'in_approval'
+    | 'approved'
+    | 'rejected'
     | 'voided';
 
 // PR Category
@@ -85,9 +86,10 @@ export interface PurchaseRequest {
     currency: string;
     supporting_document_path: string | null;
     supporting_document_name: string | null;
+    approval_notes: string | null;
     created_at: string;
     updated_at: string;
-    
+
     // Relationships
     user: User;
     department: Department;
@@ -95,7 +97,7 @@ export interface PurchaseRequest {
     category?: PRCategory;
     items?: PRItem[];
     approvals?: PRApproval[];
-    
+
     // Computed properties
     approval_progress?: {
         approved: number;
@@ -193,5 +195,34 @@ export interface PRShowProps {
         reject: boolean;
         downloadPdf: boolean;
         markOfflineApproved: boolean;
+    };
+}
+
+// Approval Item Interface
+export interface ApprovalItem {
+    id: number;
+    purchase_request: PurchaseRequest;
+    step_order: number;
+    approval_type: 'approval' | 'paraf';
+    status: 'pending' | 'approved' | 'rejected';
+    waiting_since: string;
+    can: {
+        approve: boolean;
+        reject: boolean;
+    };
+}
+
+// Approvals Page Props
+export interface ApprovalsPageProps extends PageProps {
+    pendingApprovals: PaginatedData<ApprovalItem>;
+    recentApprovals: ApprovalItem[];
+    stats: {
+        pending: number;
+        approved: number;
+        rejected: number;
+        total: number;
+    };
+    can: {
+        processApprovals: boolean;
     };
 }

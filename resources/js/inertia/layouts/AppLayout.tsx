@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
+import BuTransitionOverlay from '../components/layout/BuTransitionOverlay';
 import { Toaster } from '../components/ui/toast';
 import { cn } from '../lib/utils';
 
@@ -35,6 +36,9 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             
             {/* Toast Notifications */}
             <Toaster position="top-right" richColors closeButton duration={5000} />
+            
+            {/* BU Transition Overlay - renders above everything */}
+            <BuTransitionOverlay />
             
             <div className="min-h-screen bg-gray-50">
                 {/* Sidebar */}

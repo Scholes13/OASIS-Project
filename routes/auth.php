@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('confirm-password', 'pages.auth.confirm-password')
         ->name('password.confirm');
 
-    // Logout route
-    Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+    // Logout routes - GET for direct navigation, POST for form submission
+    Route::get('logout', [LoginController::class, 'logout'])->name('logout');
+    Route::post('logout', [LoginController::class, 'logout']);
 });

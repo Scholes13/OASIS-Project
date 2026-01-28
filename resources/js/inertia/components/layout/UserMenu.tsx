@@ -20,25 +20,10 @@ export default function UserMenu() {
         // Start logout animation with user name
         startLogout(user.name);
         
-        // Delay actual logout to show animation
+        // Delay actual logout to show animation, then force full page navigation
         setTimeout(() => {
-            // Use native form submission to handle redirect to non-Inertia (Blade) login page
-            // This prevents the login page from opening in an Inertia modal
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/logout';
-
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            if (csrfToken) {
-                const hiddenField = document.createElement('input');
-                hiddenField.type = 'hidden';
-                hiddenField.name = '_token';
-                hiddenField.value = csrfToken;
-                form.appendChild(hiddenField);
-            }
-
-            document.body.appendChild(form);
-            form.submit();
+            // Force full page reload to logout endpoint - bypasses Inertia SPA behavior
+            window.location.href = '/logout';
         }, 2500); // Show animation for 2.5 seconds before actual logout
     };
 

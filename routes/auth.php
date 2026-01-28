@@ -1,14 +1,17 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 Route::middleware('guest')->group(function () {
-    Volt::route('login', 'pages.auth.login')
-        ->name('login');
+    // Login - React/Inertia
+    Route::get('login', [LoginController::class, 'show'])->name('login');
+    Route::post('login', [LoginController::class, 'login']);
 
+    // Legacy Volt routes for password reset
     Volt::route('forgot-password', 'pages.auth.forgot-password')
         ->name('password.request');
 
@@ -28,11 +31,5 @@ Route::middleware('auth')->group(function () {
         ->name('password.confirm');
 
     // Logout route
-    Route::post('logout', function () {
-        Auth::logout();
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
-
-        return redirect('/');
-    })->name('logout');
+    Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 });

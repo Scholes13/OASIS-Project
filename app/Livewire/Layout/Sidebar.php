@@ -206,7 +206,38 @@ class Sidebar extends Component
                     'href' => route('activity.task.index'),
                     'current' => str_starts_with($this->currentRoute ?? '', 'activity.task'),
                 ],
+                [
+                    'name' => 'My Backdate Requests',
+                    'href' => route('activity.backdate.requests'),
+                    'current' => $this->currentRoute === 'activity.backdate.requests',
+                ],
             ];
+
+            // Add Backdate Approvals for department heads and managers
+            // Check if user is department head or has approval authority
+            $isDepartmentHead = false;
+            
+            // Check if user is department head in current business unit
+            if ($user->primary_department_id) {
+                $department = \App\Models\Core\Department::find($user->primary_department_id);
+                if ($department && $department->head_id === $user->id) {
+                    $isDepartmentHead = true;
+                }
+            }
+            
+            // Also check access level
+            $accessLevel = $user->getAccessLevel();
+            $canApproveBackdate = $isDepartmentHead 
+                || in_array($accessLevel, ['department_head', 'general_manager', 'executive', 'super_admin'])
+                || $user->isSuperAdmin();
+            
+            if ($canApproveBackdate) {
+                $activityChildren[] = [
+                    'name' => 'Backdate Approvals',
+                    'href' => route('activity.backdate.approvals'),
+                    'current' => $this->currentRoute === 'activity.backdate.approvals',
+                ];
+            }
 
             $navigation[] = [
                 'name' => 'Activity',

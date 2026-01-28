@@ -1,127 +1,286 @@
-import { Fragment } from 'react';
-import { Menu, Transition } from '@headlessui/react';
-import { ChevronDown, Check, Loader2 } from 'lucide-react';
-import { usePage } from '@inertiajs/react';
-import { PageProps } from '../../types';
-import { cn } from '../../lib/utils';
-import { LazyLogo } from '../ui/LazyImage';
-import { useBusinessUnit } from '../../hooks/useBusinessUnit';
+/**
+ * BusinessUnitSwitcher Component
+ * 
+ * Clean business unit switcher matching the design reference.
+ * Shows: Logo + Code + Name (no role/staff text)
+ */
 
-export default function BusinessUnitSwitcher() {
-    const { currentBusinessUnit, availableBusinessUnits } = usePage<PageProps>().props;
-    const { switchBusinessUnit, isSwitching } = useBusinessUnit();
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { ChevronUp } from 'lucide-react';
+import { useBusinessUnit, BusinessUnit } from '@/hooks/useBusinessUnit';
+import { cn } from '@/lib/utils';
 
-    // Hide if only one business unit or no business units
-    if (!availableBusinessUnits || availableBusinessUnits.length <= 1) {
-        return null;
+// Animation variants
+const dropdownVariants: Variants = {
+    hidden: { 
+        opacity: 0, 
+        y: 10, 
+        scale: 0.95,
+    },
+    visible: { 
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        transition: { 
+            duration: 0.2, 
+            ease: [0.16, 1, 0.3, 1] as const,
+        }
+    },
+    exit: { 
+        opacity: 0, 
+        y: 10, 
+        scale: 0.95,
+        transition: { duration: 0.15 }
     }
+};
 
-    const handleSwitch = async (businessUnitId: number) => {
-        if (businessUnitId === currentBusinessUnit?.id || isSwitching) {
-            return;
-        }
-
-        try {
-            await switchBusinessUnit(businessUnitId);
-        } catch {
-            // Error is handled in the hook
-        }
+// Logo component - clean, no frame
+function BuLogo({ 
+    bu, 
+    size = 'md',
+}: { 
+    bu: BusinessUnit; 
+    size?: 'sm' | 'md' | 'lg';
+}) {
+    const sizeClasses = {
+        sm: 'w-8 h-8 text-xs',
+        md: 'w-10 h-10 text-sm',
+        lg: 'w-12 h-12 text-base',
     };
-
+    
+    const gradients = [
+        'from-indigo-600 to-indigo-800',
+        'from-emerald-600 to-emerald-800',
+        'from-orange-600 to-orange-800',
+        'from-blue-600 to-blue-800',
+        'from-pink-600 to-pink-800',
+    ];
+    const gradientIndex = bu.code.charCodeAt(0) % gradients.length;
+    
+    if (bu.logo) {
+        return (
+            <div className={cn("flex-shrink-0 rounded-full overflow-hidden", sizeClasses[size])}>
+                <img 
+                    src={`/storage/${bu.logo}`} 
+                    alt={bu.code} 
+                    className="w-full h-full object-cover"
+                />
+            </div>
+        );
+    }
+    
     return (
-        <Menu as="div" className="relative">
-            <Menu.Button
-                className={cn(
-                    "flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors",
-                    isSwitching
-                        ? "bg-gray-100 cursor-wait"
-                        : "hover:bg-gray-100"
-                )}
-                disabled={isSwitching}
-            >
-                {isSwitching ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-                ) : (
-                    <LazyLogo
-                        src={currentBusinessUnit?.logo}
-                        alt={currentBusinessUnit?.name || 'Business Unit'}
-                        className="w-6 h-6"
-                        fallbackText={currentBusinessUnit?.code}
-                    />
-                )}
-                <div className="text-left">
-                    <div className="text-sm font-medium text-gray-900">
-                        {currentBusinessUnit?.name || 'Select Business Unit'}
-                    </div>
-                    {currentBusinessUnit?.code && (
-                        <div className="text-xs text-gray-500">{currentBusinessUnit.code}</div>
-                    )}
-                </div>
-                <ChevronDown className={cn(
-                    "w-4 h-4 text-gray-500 transition-transform",
-                    isSwitching && "opacity-50"
-                )} />
-            </Menu.Button>
-
-            <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-            >
-                <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                    <div className="py-1">
-                        <div className="px-4 py-2 border-b border-gray-100">
-                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Switch Business Unit
-                            </p>
-                        </div>
-                        {/* Sort to show active BU first */}
-                        {[...availableBusinessUnits]
-                            .sort((a, b) => {
-                                // Active BU goes first
-                                if (a.id === currentBusinessUnit?.id) return -1;
-                                if (b.id === currentBusinessUnit?.id) return 1;
-                                return 0;
-                            })
-                            .map((bu) => (
-                                <Menu.Item key={bu.id}>
-                                    {({ active }) => (
-                                        <button
-                                            onClick={() => handleSwitch(bu.id)}
-                                            disabled={isSwitching}
-                                            className={cn(
-                                                'w-full flex items-center px-4 py-2.5 text-sm transition-colors',
-                                                active ? 'bg-gray-50' : '',
-                                                bu.id === currentBusinessUnit?.id
-                                                    ? 'text-indigo-600 bg-indigo-50/50'
-                                                    : 'text-gray-700',
-                                                isSwitching && 'opacity-50 cursor-not-allowed'
-                                            )}
-                                        >
-                                            <LazyLogo
-                                                src={bu.logo}
-                                                alt={bu.name}
-                                                className="w-8 h-8 mr-3"
-                                                fallbackText={bu.code}
-                                            />
-                                            <div className="flex-1 text-left">
-                                                <div className="font-medium">{bu.name}</div>
-                                                <div className="text-xs text-gray-500">{bu.code}</div>
-                                            </div>
-                                            {bu.id === currentBusinessUnit?.id && (
-                                                <Check className="w-4 h-4 text-indigo-600" />
-                                            )}
-                                        </button>
-                                    )}
-                                </Menu.Item>
-                            ))}
-                    </div>
-                </Menu.Items>
-            </Transition>
-        </Menu>
+        <div 
+            className={cn(
+                "flex items-center justify-center font-bold text-white bg-gradient-to-br rounded-full flex-shrink-0",
+                sizeClasses[size],
+                gradients[gradientIndex]
+            )}
+        >
+            {bu.code.substring(0, 2)}
+        </div>
     );
 }
+
+// Smooth checkmark
+function SmoothCheck({ isVisible }: { isVisible: boolean }) {
+    return (
+        <AnimatePresence>
+            {isVisible && (
+                <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ 
+                        type: 'spring',
+                        stiffness: 300,
+                        damping: 20,
+                    }}
+                    className="flex-shrink-0 text-indigo-600"
+                >
+                    <svg 
+                        className="w-6 h-6" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                    >
+                        <motion.path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            d="M5 13l4 4L19 7"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                        />
+                    </svg>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+}
+
+// BU item in dropdown
+function BuMenuItem({ 
+    bu, 
+    isActive, 
+    onClick,
+}: { 
+    bu: BusinessUnit; 
+    isActive: boolean; 
+    onClick: () => void;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={isActive}
+            className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                isActive 
+                    ? "bg-indigo-50 cursor-default" 
+                    : "hover:bg-gray-50 active:bg-gray-100"
+            )}
+        >
+            <BuLogo bu={bu} size="md" />
+            
+            <div className="flex-1 min-w-0">
+                <span className={cn(
+                    "font-semibold text-base block",
+                    isActive ? "text-gray-900" : "text-gray-900"
+                )}>
+                    {bu.code}
+                </span>
+                <p className="text-sm text-gray-500 truncate">{bu.name}</p>
+            </div>
+            
+            <SmoothCheck isVisible={isActive} />
+        </button>
+    );
+}
+
+export function BusinessUnitSwitcher() {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const { currentBusinessUnit, availableBusinessUnits, switchBusinessUnit, isSwitching } = useBusinessUnit();
+    
+    // Sort: active BU first
+    const sortedBusinessUnits = useMemo(() => {
+        if (!currentBusinessUnit || !availableBusinessUnits.length) return availableBusinessUnits;
+        
+        return [...availableBusinessUnits].sort((a, b) => {
+            if (a.id === currentBusinessUnit.id) return -1;
+            if (b.id === currentBusinessUnit.id) return 1;
+            return a.code.localeCompare(b.code);
+        });
+    }, [availableBusinessUnits, currentBusinessUnit]);
+    
+    // Close on outside click
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+    
+    // Close on escape
+    useEffect(() => {
+        function handleEscape(event: KeyboardEvent) {
+            if (event.key === 'Escape') setIsOpen(false);
+        }
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, []);
+    
+    const handleSwitch = async (buId: number) => {
+        setIsOpen(false);
+        await switchBusinessUnit(buId);
+    };
+    
+    if (!currentBusinessUnit) return null;
+    
+    const hasMultipleBUs = availableBusinessUnits.length > 1;
+    
+    // Single BU - just display
+    if (!hasMultipleBUs) {
+        return (
+            <div className="flex items-center gap-2 px-3 py-2">
+                <BuLogo bu={currentBusinessUnit} size="sm" />
+                <span className="text-sm font-medium text-gray-700">
+                    {currentBusinessUnit.name}
+                </span>
+            </div>
+        );
+    }
+    
+    return (
+        <div ref={dropdownRef} className="relative">
+            {/* Trigger - Logo + Full Name (rounded-xl, not too curved) */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={isSwitching}
+                className={cn(
+                    "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
+                    isOpen 
+                        ? "border-indigo-500 bg-white shadow-sm" 
+                        : "border-gray-200 bg-white hover:border-gray-300",
+                    "focus:outline-none focus:border-indigo-500",
+                    isSwitching && "opacity-70 cursor-wait"
+                )}
+            >
+                <BuLogo bu={currentBusinessUnit} size="sm" />
+                
+                <span className="text-sm font-medium text-gray-900 hidden sm:block">
+                    {currentBusinessUnit.name}
+                </span>
+                
+                <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                </motion.div>
+            </button>
+            
+            {/* Dropdown */}
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        variants={dropdownVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-50"
+                    >
+                        {/* Header */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                            <h3 className="text-base font-semibold text-gray-900">
+                                Switch Business Unit
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                Select a business unit to switch context
+                            </p>
+                        </div>
+                        
+                        {/* List */}
+                        <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                            {sortedBusinessUnits.map((bu) => (
+                                <BuMenuItem
+                                    key={bu.id}
+                                    bu={bu}
+                                    isActive={bu.id === currentBusinessUnit.id}
+                                    onClick={() => handleSwitch(bu.id)}
+                                />
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+export default BusinessUnitSwitcher;

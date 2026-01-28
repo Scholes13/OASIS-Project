@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge, StatusBadge, ActivityTypeBadge } from "../ui/Badge"
-import { Button } from "../ui/Button"
+import { Button } from "../ui/button"
 import { TaskDetailModal } from "./TaskDetailModal"
 import type { Task, PageProps } from "@/types"
 
@@ -173,11 +173,10 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
               <ActivityTypeBadge
                 name={task.activity_type?.name ?? "Unknown"}
                 color={task.activity_type?.color}
-                size="sm"
               />
-              <StatusBadge status={task.status} size="sm" />
+              <StatusBadge status={task.status} />
               {overdue && (
-                <Badge variant="destructive" size="sm">
+                <Badge variant="danger">
                   <AlertTriangle className="h-3 w-3 mr-1" />
                   Overdue
                 </Badge>
@@ -201,11 +200,11 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
             <Clock className="h-3 w-3" />
             <span>{format(new Date(task.due_date), "HH:mm", { locale: idLocale }) || "All day"}</span>
           </div>
-          {task.duration_minutes && (
+          {(task as any).duration_minutes && (
             <div className="flex items-center gap-1">
               <ArrowRight className="h-3 w-3" />
               <span>
-                {Math.floor(task.duration_minutes / 60)}h {task.duration_minutes % 60}m
+                {Math.floor((task as any).duration_minutes / 60)}h {(task as any).duration_minutes % 60}m
               </span>
             </div>
           )}
@@ -219,7 +218,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
 
         {/* Expanded details */}
         <AnimatePresence>
-          {isExpanded && task.task_details && (
+          {isExpanded && (task as any).task_details && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
@@ -227,7 +226,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
               className="overflow-hidden"
             >
               <p className="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-600">
-                {task.task_details}
+                {(task as any).task_details}
               </p>
             </motion.div>
           )}

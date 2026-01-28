@@ -8,21 +8,22 @@ use App\Models\Modules\Activity\SubActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SubActivityController extends Controller
 {
     /**
      * Display a listing of sub-activities.
      */
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $query = SubActivity::with('activityType')
             ->withCount('employeeTasks');
 
         // Filter by activity type
-        if ($request->filled('activity_type')) {
-            $query->where('activity_type_id', $request->activity_type);
+        if ($request->filled('activity_type_id')) {
+            $query->where('activity_type_id', $request->activity_type_id);
         }
 
         // Search filter
@@ -40,20 +41,62 @@ class SubActivityController extends Controller
         }
 
         $subActivities = $query->ordered()->paginate(15)->appends($request->query());
-        $activityTypes = ActivityType::ordered()->get();
+        
+        // Transform data for Inertia
+        $subActivities->through(function ($subActivity) {
+            return [
+                'id' => $subActivity->id,
+                'name' => $subActivity->name,
+                'code' => $subActivity->code,
+                'is_active' => $subActivity->is_active,
+                'sort_order' => $subActivity->sort_order,
+                'activity_type' => [
+                    'id' => $subActivity->activityType->id,
+                    'name' => $subActivity->activityType->name,
+                    'color' => $subActivity->activityType->color,
+                ],
+                'usage_count' => $subActivity->employee_tasks_count,
+                'created_at' => $subActivity->created_at->toISOString(),
+            ];
+        });
+        
+        $activityTypes = ActivityType::ordered()->get()->map(function ($type) {
+            return [
+                'id' => $type->id,
+                'name' => $type->name,
+                'color' => $type->color,
+            ];
+        });
 
-        return view('admin.sub-activities.index', compact('subActivities', 'activityTypes'));
+        return Inertia::render('Admin/SubActivities/Index', [
+            'subActivities' => $subActivities,
+            'activityTypes' => $activityTypes,
+            'filters' => [
+                'search' => $request->search,
+                'activity_type_id' => $request->activity_type_id ? (int) $request->activity_type_id : null,
+            ],
+        ]);
     }
 
     /**
      * Show the form for creating a new sub-activity.
      */
-    public function create(Request $request): View
+    public function create(Request $request): Response
     {
-        $activityTypes = ActivityType::active()->ordered()->get();
+        $activityTypes = ActivityType::active()->ordered()->get()->map(function ($type) {
+            return [
+                'id' => $type->id,
+                'name' => $type->name,
+                'color' => $type->color,
+            ];
+        });
+        
         $selectedActivityTypeId = $request->get('activity_type');
 
-        return view('admin.sub-activities.create', compact('activityTypes', 'selectedActivityTypeId'));
+        return Inertia::render('Admin/SubActivities/Create', [
+            'activityTypes' => $activityTypes,
+            'selectedActivityTypeId' => $selectedActivityTypeId,
+        ]);
     }
 
     /**
@@ -63,18 +106,22 @@ class SubActivityController extends Controller
     {
         $validated = $request->validate([
             'activity_type_id' => 'required|exists:employee_activity_types,id',
-            'code' => [
+            'name' => [
                 'required',
                 'string',
-                'max:20',
+                'max:100',
                 Rule::unique('employee_sub_activities')->where(function ($query) use ($request) {
                     return $query->where('activity_type_id', $request->activity_type_id);
                 }),
             ],
-            'name' => 'required|string|max:100',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
         ]);
+
+        // Generate code from name if not provided
+        if (!isset($validated['code'])) {
+            $validated['code'] = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $validated['name']), 0, 20));
+        }
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['sort_order'] = $request->input('sort_order', 0);
@@ -88,21 +135,52 @@ class SubActivityController extends Controller
     /**
      * Display the specified sub-activity.
      */
-    public function show(SubActivity $subActivity): View
+    public function show(SubActivity $subActivity): Response
     {
         $subActivity->load('activityType');
 
-        return view('admin.sub-activities.show', compact('subActivity'));
+        return Inertia::render('Admin/SubActivities/Show', [
+            'subActivity' => [
+                'id' => $subActivity->id,
+                'name' => $subActivity->name,
+                'code' => $subActivity->code,
+                'is_active' => $subActivity->is_active,
+                'sort_order' => $subActivity->sort_order,
+                'activity_type' => [
+                    'id' => $subActivity->activityType->id,
+                    'name' => $subActivity->activityType->name,
+                    'color' => $subActivity->activityType->color,
+                ],
+                'created_at' => $subActivity->created_at->toISOString(),
+                'updated_at' => $subActivity->updated_at->toISOString(),
+            ],
+        ]);
     }
 
     /**
      * Show the form for editing the specified sub-activity.
      */
-    public function edit(SubActivity $subActivity): View
+    public function edit(SubActivity $subActivity): Response
     {
-        $activityTypes = ActivityType::ordered()->get();
+        $activityTypes = ActivityType::ordered()->get()->map(function ($type) {
+            return [
+                'id' => $type->id,
+                'name' => $type->name,
+                'color' => $type->color,
+            ];
+        });
 
-        return view('admin.sub-activities.edit', compact('subActivity', 'activityTypes'));
+        return Inertia::render('Admin/SubActivities/Edit', [
+            'subActivity' => [
+                'id' => $subActivity->id,
+                'name' => $subActivity->name,
+                'code' => $subActivity->code,
+                'is_active' => $subActivity->is_active,
+                'sort_order' => $subActivity->sort_order,
+                'activity_type_id' => $subActivity->activity_type_id,
+            ],
+            'activityTypes' => $activityTypes,
+        ]);
     }
 
     /**
@@ -112,18 +190,22 @@ class SubActivityController extends Controller
     {
         $validated = $request->validate([
             'activity_type_id' => 'required|exists:employee_activity_types,id',
-            'code' => [
+            'name' => [
                 'required',
                 'string',
-                'max:20',
+                'max:100',
                 Rule::unique('employee_sub_activities')->where(function ($query) use ($request) {
                     return $query->where('activity_type_id', $request->activity_type_id);
                 })->ignore($subActivity->id),
             ],
-            'name' => 'required|string|max:100',
             'is_active' => 'boolean',
             'sort_order' => 'integer|min:0',
         ]);
+
+        // Generate code from name if not provided
+        if (!isset($validated['code'])) {
+            $validated['code'] = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $validated['name']), 0, 20));
+        }
 
         $validated['is_active'] = $request->boolean('is_active', true);
 

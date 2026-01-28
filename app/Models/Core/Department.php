@@ -58,7 +58,9 @@ class Department extends Model
         'business_unit_id',
         'code',
         'name',
+        'head_id',
         'is_active',
+        'sort_order',
         'is_purchasing_department',
         'default_purchasing_admin_id',
     ];
@@ -89,6 +91,22 @@ class Department extends Model
     public function businessUnit(): BelongsTo
     {
         return $this->belongsTo(BusinessUnit::class);
+    }
+
+    /**
+     * Get the department head
+     */
+    public function head(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'head_id');
+    }
+
+    /**
+     * Get the purchasing admin for this department
+     */
+    public function purchasingAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'default_purchasing_admin_id');
     }
 
     /**

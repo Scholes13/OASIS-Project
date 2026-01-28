@@ -19,6 +19,8 @@ export function Toaster({
       richColors={richColors}
       closeButton={closeButton}
       duration={duration}
+      expand={true}
+      gap={8}
       toastOptions={{
         classNames: {
           toast: "group border-gray-200 bg-white text-gray-900 shadow-lg",

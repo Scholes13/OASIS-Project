@@ -242,8 +242,8 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                                     >
                                         {attachment.mime_type?.startsWith("image/") ? (
                                             <LazyImage
-                                                src={attachment.url}
-                                                alt={attachment.original_name}
+                                                src={attachment.url || ''}
+                                                alt={attachment.original_name || attachment.filename}
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (

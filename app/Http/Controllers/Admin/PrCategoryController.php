@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrCategory;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PrCategoryController extends Controller
 {
@@ -13,9 +14,23 @@ class PrCategoryController extends Controller
      */
     public function index()
     {
-        $categories = PrCategory::ordered()->paginate(10);
+        $categories = PrCategory::withCount('purchaseRequests as usage_count')
+            ->ordered()
+            ->paginate(15);
 
-        return view('admin.pr-categories.index', compact('categories'));
+        return Inertia::render('Admin/PrCategories/Index', [
+            'categories' => [
+                'data' => $categories->items(),
+                'pagination' => [
+                    'current_page' => $categories->currentPage(),
+                    'last_page' => $categories->lastPage(),
+                    'per_page' => $categories->perPage(),
+                    'total' => $categories->total(),
+                    'from' => $categories->firstItem(),
+                    'to' => $categories->lastItem(),
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -23,7 +38,8 @@ class PrCategoryController extends Controller
      */
     public function create()
     {
-        return view('admin.pr-categories.create');
+        // Not needed for inline forms - handled by index page
+        return redirect()->route('admin.pr-categories.index');
     }
 
     /**
@@ -45,8 +61,7 @@ class PrCategoryController extends Controller
 
         PrCategory::create($validated);
 
-        return redirect()->route('admin.pr-categories.index')
-            ->with('success', 'Category created successfully.');
+        return redirect()->route('admin.pr-categories.index');
     }
 
     /**
@@ -54,7 +69,8 @@ class PrCategoryController extends Controller
      */
     public function show(PrCategory $prCategory)
     {
-        return view('admin.pr-categories.show', compact('prCategory'));
+        // Not needed for inline forms - handled by index page
+        return redirect()->route('admin.pr-categories.index');
     }
 
     /**
@@ -62,7 +78,8 @@ class PrCategoryController extends Controller
      */
     public function edit(PrCategory $prCategory)
     {
-        return view('admin.pr-categories.edit', compact('prCategory'));
+        // Not needed for inline forms - handled by index page
+        return redirect()->route('admin.pr-categories.index');
     }
 
     /**
@@ -83,8 +100,7 @@ class PrCategoryController extends Controller
 
         $prCategory->update($validated);
 
-        return redirect()->route('admin.pr-categories.index')
-            ->with('success', 'Category updated successfully.');
+        return redirect()->route('admin.pr-categories.index');
     }
 
     /**
@@ -93,14 +109,15 @@ class PrCategoryController extends Controller
     public function destroy(PrCategory $prCategory)
     {
         // Check if category is being used
-        if ($prCategory->purchaseRequests()->exists()) {
+        $usageCount = $prCategory->purchaseRequests()->count();
+        
+        if ($usageCount > 0) {
             return redirect()->route('admin.pr-categories.index')
-                ->with('error', 'Cannot delete category that is being used by purchase requests.');
+                ->withErrors(['delete' => "Cannot delete category that is being used by {$usageCount} purchase request(s)."]);
         }
 
         $prCategory->delete();
 
-        return redirect()->route('admin.pr-categories.index')
-            ->with('success', 'Category deleted successfully.');
+        return redirect()->route('admin.pr-categories.index');
     }
 }

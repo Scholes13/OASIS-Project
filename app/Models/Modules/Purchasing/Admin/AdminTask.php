@@ -250,6 +250,54 @@ class AdminTask extends Model
     }
 
     /**
+     * Check if the taskable (PR/ST) was approved offline
+     */
+    public function isOfflineApproved(): bool
+    {
+        if (!$this->taskable) {
+            return false;
+        }
+
+        return $this->taskable->offline_approved_at !== null;
+    }
+
+    /**
+     * Get offline approval document path
+     */
+    public function getOfflineApprovalDocumentPath(): ?string
+    {
+        if (!$this->taskable) {
+            return null;
+        }
+
+        return $this->taskable->offline_approval_document_path ?? null;
+    }
+
+    /**
+     * Get offline approval date
+     */
+    public function getOfflineApprovedAt(): ?\Illuminate\Support\Carbon
+    {
+        if (!$this->taskable || !$this->taskable->offline_approved_at) {
+            return null;
+        }
+
+        return $this->taskable->offline_approved_at;
+    }
+
+    /**
+     * Get offline approval notes
+     */
+    public function getOfflineApprovalNotes(): ?string
+    {
+        if (!$this->taskable) {
+            return null;
+        }
+
+        return $this->taskable->offline_approval_notes ?? null;
+    }
+
+    /**
      * Activity log options
      */
     public function getActivitylogOptions(): LogOptions

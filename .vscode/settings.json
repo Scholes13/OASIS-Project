@@ -15,5 +15,6 @@
     "tailwindCSS.experimental.classRegex": [
         ["class(?:Name)?\\s*=\\s*['\"]([^'\"]*)['\"]", "['\"]([^'\"]*)"],
         ["@apply\\s+([^;]+);", "([\\w-]+)"]
-    ]
+    ],
+    "typescript.autoClosingTags": false
 }

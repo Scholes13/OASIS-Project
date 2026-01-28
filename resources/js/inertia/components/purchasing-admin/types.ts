@@ -27,6 +27,9 @@ export interface AdminTask {
         total_amount?: number;
         status?: string;
         used_for?: string;
+        offline_approved_at?: string | null;
+        offline_approval_document_path?: string | null;
+        offline_approval_notes?: string | null;
     };
     assigned_admin?: {
         id: number;

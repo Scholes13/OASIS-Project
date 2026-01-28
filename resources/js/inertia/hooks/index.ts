@@ -1,37 +1,15 @@
-// Business Unit Hook
-export { useBusinessUnit } from "./useBusinessUnit"
-export type { BusinessUnit } from "./useBusinessUnit"
+/**
+ * Hooks Index
+ * 
+ * Central export point for all custom React hooks.
+ */
 
-// Layout Store Hooks
-export {
-    useLayoutStore,
-    useSidebarState,
-    useBusinessUnitState,
-    useUserState,
-    useNavigationState,
-    useMenuSectionExpanded,
-    useHydrateLayout,
-    useLayoutActions,
-} from "./useLayoutStore"
-export type {
-    LayoutState,
-    LayoutActions,
-    User,
-    NavigationMenu,
-    MenuSection,
-    MenuItem,
-    FlashMessages,
-    SharedProps,
-} from "./useLayoutStore"
+// Form Submission Hooks
+export { useFormSubmission, useAsyncAction } from './useFormSubmission';
 
-// Filters Hook
-export { useFilters, useSearchFilter, useDateRangeFilter, useStatusFilter } from "./useFilters"
+// Optimistic Update Hooks
+export { useOptimisticUpdate, useOptimisticList } from './useOptimisticUpdate';
 
-// Keyboard Shortcuts
-export { 
-  useKeyboardShortcuts, 
-  useActivityShortcuts, 
-  useGlobalShortcuts,
-  ShortcutHelp,
-  activityShortcuts,
-} from "./useKeyboardShortcuts"
+// Re-export types
+export type { default as useFormSubmissionType } from './useFormSubmission';
+export type { default as useOptimisticUpdateType } from './useOptimisticUpdate';

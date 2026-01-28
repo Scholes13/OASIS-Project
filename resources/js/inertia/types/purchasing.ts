@@ -1,7 +1,53 @@
 // Purchasing Module Types
 
-import { User, Department, BusinessUnit, PaginatedData, PageProps } from './index';
-export type { User, Department, BusinessUnit, PaginatedData, PageProps };
+// Base types (duplicated to avoid circular imports)
+interface User {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    avatar_url?: string;
+    primary_department_id?: number;
+}
+
+interface Department {
+    id: number;
+    name: string;
+    code: string;
+    business_unit_id?: number;
+}
+
+interface BusinessUnit {
+    id: number;
+    code: string;
+    name: string;
+    logo: string | null;
+}
+
+interface PaginationMeta {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    links: Array<{ url: string | null; label: string; active: boolean }>;
+    path: string;
+    per_page: number;
+    to: number | null;
+    total: number;
+}
+
+interface PaginatedData<T> {
+    data: T[];
+    links: {
+        first: string;
+        last: string;
+        prev: string | null;
+        next: string | null;
+    };
+    meta: PaginationMeta;
+}
+
+// Export base types for use in other files
+export type { User, Department, BusinessUnit, PaginatedData };
 
 // Purchase Request Status
 export type PurchaseRequestStatus =
@@ -213,7 +259,10 @@ export interface ApprovalItem {
 }
 
 // Approvals Page Props
-export interface ApprovalsPageProps extends PageProps {
+export interface ApprovalsPageProps {
+    auth: {
+        user: User | null;
+    };
     pendingApprovals: PaginatedData<ApprovalItem>;
     recentApprovals: ApprovalItem[];
     stats: {
@@ -225,4 +274,5 @@ export interface ApprovalsPageProps extends PageProps {
     can: {
         processApprovals: boolean;
     };
+    [key: string]: unknown;
 }

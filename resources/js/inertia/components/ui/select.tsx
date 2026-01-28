@@ -42,7 +42,7 @@ export function Select({
           {required && <span className="ml-1 text-red-500">*</span>}
         </label>
       )}
-      <Listbox value={value} onChange={onChange} disabled={disabled}>
+      <Listbox value={value ?? undefined} onChange={onChange} disabled={disabled}>
         <div className="relative">
           <Listbox.Button
             className={cn(

@@ -42,6 +42,7 @@ interface PrefetchConfig {
  * - Automatic cancellation if hover ends before delay
  * - Prevents duplicate prefetch requests
  * - Respects Inertia headers for proper data fetching
+ * - Skips non-Inertia routes (Livewire, external links)
  * 
  * @param config - Prefetch configuration options
  * @returns Object with prefetch handlers for onMouseEnter and onMouseLeave
@@ -80,6 +81,58 @@ export function usePrefetch(config: PrefetchConfig = {}) {
     const prefetchedRef = useRef<Set<string>>(new Set());
 
     /**
+     * Check if a URL is an Inertia route that should be prefetched
+     * Skip Livewire routes and external links
+     */
+    const isInertiaRoute = useCallback((href: string): boolean => {
+        // Skip external links
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+            return false;
+        }
+
+        // Skip hash links
+        if (href.startsWith('#')) {
+            return false;
+        }
+
+        // List of known Livewire route prefixes (non-Inertia)
+        const livewireRoutePrefixes = [
+            '/dashboard',
+            '/purchase-requests',
+            '/stock-requests',
+            '/approvals',
+            '/purchasing',
+            '/sales-crm',
+            '/profile',
+            '/docs',
+            '/reports',
+        ];
+
+        // List of known Inertia route prefixes
+        const inertiaRoutePrefixes = [
+            '/admin',
+            '/activity',
+        ];
+
+        // Check if it's a known Inertia route
+        for (const prefix of inertiaRoutePrefixes) {
+            if (href.startsWith(prefix)) {
+                return true;
+            }
+        }
+
+        // Check if it's a known Livewire route
+        for (const prefix of livewireRoutePrefixes) {
+            if (href.startsWith(prefix)) {
+                return false;
+            }
+        }
+
+        // Default: don't prefetch unknown routes
+        return false;
+    }, []);
+
+    /**
      * Handle mouse enter event
      * Starts prefetch timer when user hovers over a link
      */
@@ -88,6 +141,9 @@ export function usePrefetch(config: PrefetchConfig = {}) {
         const href = event.currentTarget.getAttribute('href');
         
         if (!href) return;
+
+        // Skip non-Inertia routes
+        if (!isInertiaRoute(href)) return;
 
         // Skip if already prefetched
         if (prefetchedRef.current.has(href)) return;
@@ -129,7 +185,7 @@ export function usePrefetch(config: PrefetchConfig = {}) {
                 prefetchedRef.current.delete(href);
             });
         }, delay);
-    }, [delay, only]);
+    }, [delay, only, isInertiaRoute]);
 
     /**
      * Handle mouse leave event

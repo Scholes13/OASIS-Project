@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
+use App\Services\Modules\Activity\BackdatePermissionService;
 use App\Services\Modules\Activity\TaskService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class ActivityInertiaController extends Controller
     protected const CACHE_TTL = 300; // 5 minutes
 
     public function __construct(
-        protected TaskService $taskService
+        protected TaskService $taskService,
+        protected BackdatePermissionService $backdateService
     ) {
     }
 
@@ -167,10 +169,25 @@ class ActivityInertiaController extends Controller
             ->select(['id', 'name', 'email'])
             ->get();
 
+        // Get backdate permission info
+        $backdatePermission = $this->backdateService->checkUserPermission($user->id);
+        $allowedDateRange = $this->backdateService->getAllowedDateRange($user);
+
         return Inertia::render('Activity/TaskForm', [
             'task' => null,
             'activityTypes' => ActivityType::with('subActivities')->get(),
             'departmentUsers' => $departmentUsers,
+            'backdatePermission' => $backdatePermission ? [
+                'id' => $backdatePermission->id,
+                'status' => $backdatePermission->status,
+                'requested_date' => $backdatePermission->requested_date->format('Y-m-d'),
+                'granted_until' => $backdatePermission->granted_until?->format('Y-m-d H:i:s'),
+                'is_active' => $backdatePermission->isActive(),
+            ] : null,
+            'allowedDateRange' => [
+                'from' => $allowedDateRange['from']->format('Y-m-d'),
+                'to' => $allowedDateRange['to']->format('Y-m-d'),
+            ],
         ]);
     }
 
@@ -186,14 +203,28 @@ class ActivityInertiaController extends Controller
             'sub_activity_id' => 'nullable|exists:employee_sub_activities,id',
             'status' => 'required|in:planned,in_progress,completed,cancelled',
             'priority' => 'required|in:low,medium,high',
+            'task_date' => 'required|date',
             'due_date' => 'required|date',
-            'start_date' => 'nullable|date',
             'participant_ids' => 'nullable|array',
             'participant_ids.*' => 'exists:users,id',
         ]);
 
         $user = Auth::user();
         $buId = session('current_business_unit_id');
+
+        // Validate task_date against backdate permission
+        $taskDate = \Carbon\Carbon::parse($validated['task_date']);
+        if (!$this->backdateService->canCreateTaskWithDate($user, $taskDate)) {
+            $allowedRange = $this->backdateService->getAllowedDateRange($user);
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'task_date' => 'Task date is outside allowed range. You can only create tasks from ' .
+                        $allowedRange['from']->format('Y-m-d') . ' to ' . 
+                        $allowedRange['to']->format('Y-m-d') . '. ' .
+                        'Request backdate access if you need to create tasks with older dates.'
+                ]);
+        }
 
         DB::beginTransaction();
         try {
@@ -207,8 +238,8 @@ class ActivityInertiaController extends Controller
                 'task_description' => $validated['task_description'] ?? null,
                 'status' => $validated['status'],
                 'priority' => $validated['priority'],
+                'task_date' => $validated['task_date'],
                 'due_date' => $validated['due_date'],
-                'start_date' => $validated['start_date'] ?? null,
             ]);
 
             // Add creator as owner participant
@@ -256,10 +287,25 @@ class ActivityInertiaController extends Controller
             ->select(['id', 'name', 'email'])
             ->get();
 
+        // Get backdate permission info
+        $backdatePermission = $this->backdateService->checkUserPermission($user->id);
+        $allowedDateRange = $this->backdateService->getAllowedDateRange($user);
+
         return Inertia::render('Activity/TaskForm', [
             'task' => $task,
             'activityTypes' => ActivityType::with('subActivities')->get(),
             'departmentUsers' => $departmentUsers,
+            'backdatePermission' => $backdatePermission ? [
+                'id' => $backdatePermission->id,
+                'status' => $backdatePermission->status,
+                'requested_date' => $backdatePermission->requested_date->format('Y-m-d'),
+                'granted_until' => $backdatePermission->granted_until?->format('Y-m-d H:i:s'),
+                'is_active' => $backdatePermission->isActive(),
+            ] : null,
+            'allowedDateRange' => [
+                'from' => $allowedDateRange['from']->format('Y-m-d'),
+                'to' => $allowedDateRange['to']->format('Y-m-d'),
+            ],
         ]);
     }
 
@@ -327,7 +373,6 @@ class ActivityInertiaController extends Controller
             'status' => 'required|in:planned,in_progress,completed,cancelled',
             'priority' => 'required|in:low,medium,high',
             'due_date' => 'required|date',
-            'start_date' => 'nullable|date',
             'participant_ids' => 'nullable|array',
             'participant_ids.*' => 'exists:users,id',
         ]);
@@ -345,7 +390,6 @@ class ActivityInertiaController extends Controller
                 'status' => $validated['status'],
                 'priority' => $validated['priority'],
                 'due_date' => $validated['due_date'],
-                'start_date' => $validated['start_date'] ?? null,
                 'completed_at' => $validated['status'] === 'completed' ? now() : null,
             ]);
 
@@ -867,6 +911,32 @@ class ActivityInertiaController extends Controller
                 'bottleneck' => 0,
                 'top_category' => '-'
             ];
+        }
+    }
+
+    /**
+     * Submit backdate request from React/Inertia
+     */
+    public function submitBackdateRequest(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|min:10|max:500',
+        ], [
+            'reason.required' => 'Please provide a reason for backdate access',
+            'reason.min' => 'Reason must be at least 10 characters',
+            'reason.max' => 'Reason cannot exceed 500 characters',
+        ]);
+
+        try {
+            $user = Auth::user();
+            
+            $permission = $this->backdateService->requestPermission([
+                'reason' => $validated['reason'],
+            ], $user);
+
+            return back()->with('success', 'Backdate request submitted successfully. Your department head will review it.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['reason' => $e->getMessage()]);
         }
     }
 

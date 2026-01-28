@@ -5,6 +5,7 @@ namespace App\Services\Modules\Activity;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Activity\TaskAttachment;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,11 @@ use Illuminate\Support\Facades\Storage;
 
 class TaskService
 {
+    public function __construct(
+        protected BackdatePermissionService $backdateService
+    ) {
+    }
+
     /**
      * Create a new employee task
      *
@@ -19,6 +25,21 @@ class TaskService
      */
     public function create(array $data, User $user): EmployeeTask
     {
+        // Validate task_date against backdate permission
+        if (isset($data['task_date'])) {
+            $taskDate = Carbon::parse($data['task_date']);
+            
+            if (!$this->backdateService->canCreateTaskWithDate($user, $taskDate)) {
+                $allowedRange = $this->backdateService->getAllowedDateRange($user);
+                throw new Exception(
+                    'Task date is outside allowed range. You can only create tasks from ' .
+                    $allowedRange['from']->format('Y-m-d') . ' to ' . 
+                    $allowedRange['to']->format('Y-m-d') . '. ' .
+                    'Request backdate access if you need to create tasks with older dates.'
+                );
+            }
+        }
+
         return DB::transaction(function () use ($data, $user) {
             $task = EmployeeTask::create([
                 'business_unit_id' => session('current_business_unit_id'),
@@ -29,6 +50,7 @@ class TaskService
                 'sub_activity_id' => $data['sub_activity_id'] ?? null,
                 'task_title' => $data['task_title'],
                 'due_date' => $data['due_date'],
+                'task_date' => $data['task_date'] ?? now()->toDateString(),
                 'notes' => $data['notes'] ?? null,
             ]);
 

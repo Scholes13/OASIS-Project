@@ -179,6 +179,16 @@
                                             SLA
                                         </span>
                                     @endif
+
+                                    {{-- Offline Approval Indicator --}}
+                                    @if($task->isOfflineApproved())
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                            </svg>
+                                            Offline
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -223,6 +233,38 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                                     </svg>
                                     <span>Unassigned</span>
+                                </div>
+                            @endif
+
+                            {{-- Offline Approval Info --}}
+                            @if($task->isOfflineApproved())
+                                <div class="pt-3 mt-3 border-t border-purple-100 bg-purple-50 -mx-5 px-5 py-3 -mb-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center text-sm text-purple-700">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                            </svg>
+                                            <span class="font-medium">Offline Approved</span>
+                                        </div>
+                                        @if($task->getOfflineApprovalDocumentPath())
+                                            <a 
+                                                href="{{ asset('storage/' . $task->getOfflineApprovalDocumentPath()) }}" 
+                                                target="_blank"
+                                                class="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 bg-purple-100 rounded hover:bg-purple-200 transition-colors">
+                                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                                View Document
+                                            </a>
+                                        @endif
+                                    </div>
+                                    <p class="text-xs text-purple-600 mt-1">
+                                        {{ $task->getOfflineApprovedAt()->format('d M Y, H:i') }}
+                                        @if($task->getOfflineApprovalNotes())
+                                            • {{ Str::limit($task->getOfflineApprovalNotes(), 50) }}
+                                        @endif
+                                    </p>
                                 </div>
                             @endif
 

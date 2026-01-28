@@ -10,6 +10,7 @@ use App\Models\Core\UserBusinessUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class UserManagementController extends Controller
 {
@@ -58,7 +59,65 @@ class UserManagementController extends Controller
         $businessUnits = BusinessUnit::active()->orderBy('name')->get();
         $departments = Department::with('businessUnit')->orderBy('name')->get();
 
-        return view('admin.users.index', compact('users', 'businessUnits', 'departments'));
+        // Transform users to include primary_business_unit
+        $transformedUsers = collect($users->items())->map(function ($user) {
+            $primaryBU = $user->activeBusinessUnits->firstWhere('is_primary', true);
+            
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+                'global_role' => $user->global_role,
+                'is_active' => $user->is_active,
+                'is_super_admin' => $user->isSuperAdmin(),
+                'primary_business_unit' => $primaryBU ? [
+                    'id' => $primaryBU->businessUnit->id,
+                    'name' => $primaryBU->businessUnit->name,
+                    'code' => $primaryBU->businessUnit->code,
+                ] : null,
+                'business_units' => $user->activeBusinessUnits->map(fn($ubu) => [
+                    'id' => $ubu->businessUnit->id,
+                    'name' => $ubu->businessUnit->name,
+                    'code' => $ubu->businessUnit->code,
+                ]),
+            ];
+        });
+
+        return Inertia::render('Admin/Users/Index', [
+            'users' => [
+                'data' => $transformedUsers,
+                'pagination' => [
+                    'current_page' => $users->currentPage(),
+                    'last_page' => $users->lastPage(),
+                    'per_page' => $users->perPage(),
+                    'total' => $users->total(),
+                    'from' => $users->firstItem(),
+                    'to' => $users->lastItem(),
+                ],
+            ],
+            'filters' => [
+                'businessUnits' => $businessUnits->map(fn($bu) => [
+                    'value' => $bu->id,
+                    'label' => $bu->name,
+                ]),
+                'departments' => $departments->map(fn($d) => [
+                    'value' => $d->id,
+                    'label' => $d->name,
+                ]),
+                'roles' => [
+                    ['value' => 'super_admin', 'label' => 'Super Admin'],
+                    ['value' => 'user', 'label' => 'User'],
+                ],
+            ],
+            'queryParams' => [
+                'search' => $request->input('search'),
+                'business_unit' => $request->input('business_unit'),
+                'department' => $request->input('department'),
+                'global_role' => $request->input('global_role'),
+                'page' => $request->input('page', 1),
+            ],
+        ]);
     }
 
     /**
@@ -69,7 +128,14 @@ class UserManagementController extends Controller
         $businessUnits = BusinessUnit::active()->with('departments.positions')->orderBy('name')->get();
         $users = User::active()->orderBy('name')->get(); // For supervisor selection
 
-        return view('admin.users.create', compact('businessUnits', 'users'));
+        return Inertia::render('Admin/Users/Create', [
+            'businessUnits' => $businessUnits,
+            'users' => $users->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+            ]),
+        ]);
     }
 
     /**
@@ -122,10 +188,10 @@ class UserManagementController extends Controller
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'phone_number' => $validated['phone_number'],
+                'phone_number' => $validated['phone_number'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'global_role' => $validated['global_role'],
-                'supervisor_id' => $validated['supervisor_id'],
+                'supervisor_id' => $validated['supervisor_id'] ?? null,
                 'primary_department_id' => $primaryBU['department_id'],
                 'primary_position_id' => $primaryBU['position_id'],
                 'is_active' => $validated['is_active'] ?? true,
@@ -202,7 +268,47 @@ class UserManagementController extends Controller
             'activeBusinessUnits.position',
         ]);
 
-        return view('admin.users.show', compact('user'));
+        return Inertia::render('Admin/Users/Show', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+                'global_role' => $user->global_role,
+                'is_active' => $user->is_active,
+                'is_super_admin' => $user->isSuperAdmin(),
+                'created_at' => $user->created_at->toISOString(),
+                'updated_at' => $user->updated_at->toISOString(),
+                'supervisor' => $user->supervisor ? [
+                    'id' => $user->supervisor->id,
+                    'name' => $user->supervisor->name,
+                    'email' => $user->supervisor->email,
+                ] : null,
+                'supervisor_id' => $user->supervisor_id,
+                'business_units' => $user->activeBusinessUnits->map(fn($ubu) => [
+                    'business_unit' => [
+                        'id' => $ubu->businessUnit->id,
+                        'name' => $ubu->businessUnit->name,
+                        'code' => $ubu->businessUnit->code,
+                    ],
+                    'department' => [
+                        'id' => $ubu->department->id,
+                        'name' => $ubu->department->name,
+                    ],
+                    'position' => [
+                        'id' => $ubu->position->id,
+                        'name' => $ubu->position->name,
+                    ],
+                    'is_primary' => $ubu->is_primary,
+                ]),
+                'subordinates' => $user->subordinates->map(fn($sub) => [
+                    'id' => $sub->id,
+                    'name' => $sub->name,
+                    'email' => $sub->email,
+                    'is_active' => $sub->is_active,
+                ]),
+            ],
+        ]);
     }
 
     /**
@@ -210,11 +316,44 @@ class UserManagementController extends Controller
      */
     public function edit(User $user)
     {
-        $user->load(['activeBusinessUnits']);
+        $user->load(['activeBusinessUnits.businessUnit', 'activeBusinessUnits.department', 'activeBusinessUnits.position']);
         $businessUnits = BusinessUnit::active()->with('departments.positions')->orderBy('name')->get();
         $users = User::where('id', '!=', $user->id)->active()->orderBy('name')->get();
 
-        return view('admin.users.edit', compact('user', 'businessUnits', 'users'));
+        return Inertia::render('Admin/Users/Edit', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+                'global_role' => $user->global_role,
+                'supervisor_id' => $user->supervisor_id,
+                'is_active' => $user->is_active,
+                'is_super_admin' => $user->isSuperAdmin(),
+                'business_units' => $user->activeBusinessUnits->map(fn($ubu) => [
+                    'business_unit' => [
+                        'id' => $ubu->businessUnit->id,
+                        'name' => $ubu->businessUnit->name,
+                        'code' => $ubu->businessUnit->code,
+                    ],
+                    'department' => [
+                        'id' => $ubu->department->id,
+                        'name' => $ubu->department->name,
+                    ],
+                    'position' => [
+                        'id' => $ubu->position->id,
+                        'name' => $ubu->position->name,
+                    ],
+                    'is_primary' => $ubu->is_primary,
+                ]),
+            ],
+            'businessUnits' => $businessUnits,
+            'users' => $users->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+            ]),
+        ]);
     }
 
     /**
@@ -251,9 +390,9 @@ class UserManagementController extends Controller
         $updateData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'phone_number' => $validated['phone_number'],
+            'phone_number' => $validated['phone_number'] ?? null,
             'global_role' => $validated['global_role'],
-            'supervisor_id' => $validated['supervisor_id'],
+            'supervisor_id' => $validated['supervisor_id'] ?? null,
             'primary_department_id' => $primaryBU['department_id'],
             'primary_position_id' => $primaryBU['position_id'],
             'is_active' => $validated['is_active'] ?? true,

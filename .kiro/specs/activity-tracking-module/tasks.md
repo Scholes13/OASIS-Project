@@ -231,5 +231,129 @@
 
     - _Requirements: All_
 
-- [ ] 9. Checkpoint - Ensure all tests pass
+- [x] 9. Checkpoint - Ensure all tests pass
+  - All Activity module tests pass (10 tests, 12 assertions)
+  - Fixed BackdatePermissionService to use correct relationship name (`businessUnits` instead of `userBusinessUnits`)
+  - Fixed access_level query to use string values (`executive`, `general_manager`, `department_head`) instead of numeric comparison
+
+## Phase 6: Backdate Restriction & Approval Flow
+
+- [x] 10. Backdate Permission Database & Models
+  - [x] 10.1 Create migration: `backdate_permissions` table in `database/migrations/modules/activity/`
+    - Fields: id, user_id, department_id, business_unit_id, requested_date, reason, status (pending/approved/rejected/expired), approved_by, approved_at, rejected_by, rejected_at, rejection_reason, granted_until, created_at, updated_at
+    - Indexes: user_id, department_id, status, granted_until
+    - _Requirements: 11.2, 11.3, 12.2, 12.3, 13.1_
+  - [x] 10.2 Create model: `BackdatePermission` in `app/Models/Modules/Activity/`
+    - Relationships: belongsTo User (requester), belongsTo User (approver), belongsTo Department, belongsTo BusinessUnit
+    - Scopes: active(), pending(), forUser(), forDepartment()
+    - Helper methods: isActive(), isExpired(), canBackdateTo($date)
+    - _Requirements: 11.2, 12.1, 13.2_
+  - [x] 10.3 Create `BackdatePermissionService` in `app/Services/Modules/Activity/`
+    - Methods: requestPermission(), approveRequest(), rejectRequest(), checkUserPermission(), expireOldPermissions()
+    - _Requirements: 11.2, 11.3, 12.2, 12.5, 13.1, 13.3_
+  - [x] 10.4 Run migration
+
+- [x] 11. Backdate Validation in Task Creation
+  - [x] 11.1 Update `TaskForm` component to add backdate validation logic
+    - Check user's active backdate permission
+    - Calculate allowed date range (default: yesterday to today)
+    - If active permission exists, extend range to granted_until
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - [x] 11.2 Update `task-form.blade.php` to disable dates in date picker
+    - Use Alpine.js to disable dates older than allowed range
+    - Show helper text: "You can backdate up to [date]" or "Request backdate access for older dates"
+    - _Requirements: 10.1, 10.2_
+  - [x] 11.3 Add server-side validation in `TaskService::create()`
+    - Validate task_date against user's backdate permission
+    - Return validation error if date is too old
+    - _Requirements: 10.3, 13.4_
+  - [x] 11.4 Add "Request Backdate Access" button in task form
+    - Show button when user needs older dates
+    - Link to backdate request page
+    - _Requirements: 11.1, 14.1_
+
+- [x] 12. Backdate Request Management (Employee View)
+  - [x] 12.1 Create `BackdateRequests` Livewire component in `app/Livewire/Modules/Activity/`
+    - Show user's own backdate requests with status
+    - Show "Request Backdate Access" button (disabled if pending request exists)
+    - Show active permission countdown timer if exists
+    - Handle request submission
+    - _Requirements: 11.1, 14.1, 14.2, 14.3, 14.4, 14.5_
+  - [x] 12.2 Create `backdate-requests.blade.php` view
+    - Request list table with status badges (pending: yellow, approved: green, rejected: red, expired: gray)
+    - Request form modal (requested_date, reason)
+    - Active permission alert with countdown
+    - Request detail modal showing rejection_reason if rejected
+    - _Requirements: 14.2, 14.3, 14.6_
+  - [x] 12.3 Implement request submission in BackdateRequests component
+    - Validate: no pending request, requested_date not in future
+    - Call BackdatePermissionService::requestPermission()
+    - Notify department head
+    - _Requirements: 11.2, 11.3, 11.4, 11.5_
+  - [x] 12.4 Add route: `/activity/backdate-requests`
+    - _Requirements: 14.1_
+
+- [x] 13. Backdate Approval Management (Department Head View)
+  - [x] 13.1 Create `BackdateApprovals` Livewire component in `app/Livewire/Modules/Activity/`
+    - Show pending requests from department
+    - Show history of approved/rejected requests with filters
+    - Handle approve/reject actions
+    - _Requirements: 12.1, 12.6, 15.1, 15.2, 15.6_
+  - [x] 13.2 Create `backdate-approvals.blade.php` view
+    - Pending requests table with requester info
+    - Action buttons: Approve, Reject
+    - Reject modal with rejection_reason textarea
+    - History table with status filters
+    - _Requirements: 15.2, 15.3, 15.4, 15.5, 15.6_
+  - [x] 13.3 Implement approve action
+    - Call BackdatePermissionService::approveRequest()
+    - Set granted_until = end of today (23:59:59)
+    - Expire previous active permission for same user
+    - Notify requester
+    - _Requirements: 12.2, 12.3, 12.4, 13.3_
+  - [x] 13.4 Implement reject action
+    - Require rejection_reason
+    - Call BackdatePermissionService::rejectRequest()
+    - Notify requester with reason
+    - _Requirements: 12.5_
+  - [x] 13.5 Add route: `/activity/backdate-approvals` with department head middleware
+    - _Requirements: 15.1_
+
+- [x] 14. Backdate Permission Lifecycle & Automation
+  - [x] 14.1 Create scheduled command: `ExpireBackdatePermissions`
+    - Run hourly to check and expire permissions where granted_until < now
+    - Update status to 'expired'
+    - _Requirements: 13.1_
+  - [x] 14.2 Register command in `app/Console/Kernel.php`
+    - Schedule to run every hour
+    - _Requirements: 13.1_
+  - [x] 14.3 Add permission check helper in `EmployeeTask` model
+    - Method: canBackdateTo($date) - checks user's active permission
+    - _Requirements: 13.2, 13.4, 13.5_
+
+- [x] 15. Notifications
+  - [x] 15.1 Create notification: `BackdateRequestSubmitted` for department heads
+    - _Requirements: 11.3_
+  - [x] 15.2 Create notification: `BackdateRequestApproved` for requester
+    - _Requirements: 12.4_
+  - [x] 15.3 Create notification: `BackdateRequestRejected` for requester
+    - _Requirements: 12.5_
+
+- [x] 16. Integration & UI Updates
+  - [x] 16.1 Add backdate menu items to Activity sidebar section
+    - "My Backdate Requests" for all users
+    - "Backdate Approvals" for department heads only
+    - _Requirements: 14.1, 15.1_
+  - [x] 16.2 Add backdate permission indicator in task form
+    - Show active permission status with countdown
+    - Show "Request Access" button if needed
+    - _Requirements: 10.4, 14.4_
+  - [x] 16.3 Update `product.md` with backdate feature documentation
+    - _Requirements: All backdate requirements_
+
+- [x] 17. Checkpoint - Test backdate flow end-to-end
+  - Test employee request submission
+  - Test department head approval/rejection
+  - Test permission expiration
+  - Test backdate validation in task creation
   - Ensure all tests pass, ask the user if questions arise.

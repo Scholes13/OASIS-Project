@@ -83,6 +83,7 @@ export interface TaskParticipantUser {
     user_id: number;
     employee_task_id: number;
     name: string;
+    email?: string;
     user?: User;
 }
 
@@ -93,6 +94,7 @@ export interface Task {
     status: TaskStatus;
     priority: TaskPriority;
     due_date: string;
+    task_date?: string;
     start_date?: string;
     completed_at?: string;
     business_unit_id: number;
@@ -192,6 +194,5 @@ export interface ActivityStat {
 }
 
 // Re-export types from other modules
-export * from './dashboard';
 export * from './purchasing';
-export * from './purchasing-admin';
+export * from './admin';

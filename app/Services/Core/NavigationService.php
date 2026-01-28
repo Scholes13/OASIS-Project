@@ -143,6 +143,23 @@ class NavigationService
             ];
         }
 
+        // PR Categories (Super Admin only)
+        if ($user->isSuperAdmin()) {
+            $items[] = [
+                'name' => 'PR Categories',
+                'href' => route('admin.pr-categories.index'),
+                'icon' => 'tag',
+                'active' => request()->routeIs('admin.pr-categories.*'),
+            ];
+
+            $items[] = [
+                'name' => 'SLA Settings',
+                'href' => route('admin.sla-settings.index'),
+                'icon' => 'clock',
+                'active' => request()->routeIs('admin.sla-settings.*'),
+            ];
+        }
+
         return [
             'name' => 'Purchasing',
             'items' => $items,
@@ -154,30 +171,50 @@ class NavigationService
      */
     protected function getActivityTrackingSection(User $user, int $businessUnitId): array
     {
-        return [
-            'name' => 'Activity Tracking',
-            'items' => [
+        $items = [];
+
+        // Activity menu with children
+        $items[] = [
+            'name' => 'Activity',
+            'href' => route('activity.dashboard'),
+            'icon' => 'clipboard-list',
+            'active' => request()->routeIs('activity.*'),
+            'children' => [
                 [
-                    'name' => 'Activity',
+                    'name' => 'Dashboard',
                     'href' => route('activity.dashboard'),
-                    'icon' => 'clipboard-list',
-                    'active' => request()->routeIs('activity.*'),
-                    'children' => [
-                        [
-                            'name' => 'Dashboard',
-                            'href' => route('activity.dashboard'),
-                            'icon' => 'chart-pie',
-                            'active' => request()->routeIs('activity.dashboard'),
-                        ],
-                        [
-                            'name' => 'My Tasks',
-                            'href' => route('activity.task.index'),
-                            'icon' => 'calendar',
-                            'active' => request()->routeIs('activity.task.*'),
-                        ],
-                    ],
+                    'icon' => 'chart-pie',
+                    'active' => request()->routeIs('activity.dashboard'),
+                ],
+                [
+                    'name' => 'My Tasks',
+                    'href' => route('activity.task.index'),
+                    'icon' => 'calendar',
+                    'active' => request()->routeIs('activity.task.*'),
                 ],
             ],
+        ];
+
+        // Activity Types & Sub-Activities (Super Admin only)
+        if ($user->isSuperAdmin()) {
+            $items[] = [
+                'name' => 'Activity Types',
+                'href' => route('admin.activity-types.index'),
+                'icon' => 'list',
+                'active' => request()->routeIs('admin.activity-types.*'),
+            ];
+
+            $items[] = [
+                'name' => 'Sub-Activities',
+                'href' => route('admin.sub-activities.index'),
+                'icon' => 'list',
+                'active' => request()->routeIs('admin.sub-activities.*'),
+            ];
+        }
+
+        return [
+            'name' => 'Activity Tracking',
+            'items' => $items,
         ];
     }
 
@@ -236,6 +273,13 @@ class NavigationService
             'href' => route('admin.business-units.index'),
             'icon' => 'briefcase',
             'active' => request()->routeIs('admin.business-units.*'),
+        ];
+
+        $items[] = [
+            'name' => 'Email Notifications',
+            'href' => route('admin.notification-settings.index'),
+            'icon' => 'mail',
+            'active' => request()->routeIs('admin.notification-settings.*'),
         ];
 
         return [

@@ -6,7 +6,7 @@ import { PageProps, PaginatedData } from '@/types';
 import { PurchaseRequest } from '@/types/purchasing';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate, formatTime } from '@/lib/formatters';

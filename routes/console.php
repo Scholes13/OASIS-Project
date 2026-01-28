@@ -13,3 +13,9 @@ Schedule::command('sla:check-violations')
     ->hourly()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule backdate permission expiration checks every hour
+Schedule::command('backdate:expire-permissions')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();

@@ -10,6 +10,7 @@ use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class AdminController extends Controller
 {
@@ -29,39 +30,57 @@ class AdminController extends Controller
             'total_assignments' => \App\Models\Core\UserBusinessUnit::where('is_active', true)->count(),
             'total_purchase_requests' => PurchaseRequest::count(),
             'pending_approvals' => PrApproval::where('status', 'pending')->count(),
-            'active_sequences' => NumberSequence::where('is_active', true)->count(),
+            'active_sequences' => NumberSequence::count(),
         ];
 
         // Recent users
         $recentUsers = User::with(['activeBusinessUnits.businessUnit'])
             ->latest()
             ->limit(5)
-            ->get();
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_active' => $user->is_active,
+                    'global_role' => $user->global_role,
+                    'created_at' => $user->created_at->toISOString(),
+                ];
+            });
 
         // Business unit breakdown with user count
         $businessUnitStats = BusinessUnit::where('is_active', true)
             ->withCount(['userBusinessUnits as user_count' => function ($query) {
                 $query->where('is_active', true);
             }])
-            ->get();
+            ->get()
+            ->map(function ($bu) {
+                return [
+                    'id' => $bu->id,
+                    'name' => $bu->name,
+                    'code' => $bu->code,
+                    'user_count' => $bu->user_count,
+                ];
+            });
 
-        // Monthly PR trends (SQLite compatible)
+        // Monthly PR trends (MySQL compatible)
         $monthlyPRs = DB::table('purchase_requests')
-            ->select(DB::raw("CAST(strftime('%m', created_at) AS INTEGER) as month"), DB::raw('COUNT(*) as count'))
-            ->whereRaw("strftime('%Y', created_at) = ?", [now()->year])
-            ->groupBy(DB::raw("strftime('%m', created_at)"))
+            ->select(DB::raw("MONTH(created_at) as month"), DB::raw('COUNT(*) as count'))
+            ->whereYear('created_at', now()->year)
+            ->groupBy(DB::raw("MONTH(created_at)"))
             ->orderBy('month')
             ->get()
             ->mapWithKeys(function ($item) {
                 return [now()->month($item->month)->format('M') => $item->count];
             });
 
-        return view('admin.dashboard', compact(
-            'stats',
-            'recentUsers',
-            'businessUnitStats',
-            'monthlyPRs'
-        ));
+        return Inertia::render('Admin/Dashboard', [
+            'stats' => $stats,
+            'recentUsers' => $recentUsers,
+            'businessUnitStats' => $businessUnitStats,
+            'monthlyPRs' => $monthlyPRs,
+        ]);
     }
 
     /**

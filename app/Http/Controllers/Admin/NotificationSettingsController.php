@@ -27,7 +27,24 @@ class NotificationSettingsController extends Controller
 
         $settings = NotificationSetting::getInstance();
 
-        return view('admin.notification-settings.index', compact('settings'));
+        return \Inertia\Inertia::render('Admin/NotificationSettings/Index', [
+            'settings' => [
+                'smtp_host' => $settings->smtp_host,
+                'smtp_port' => $settings->smtp_port,
+                'smtp_username' => $settings->smtp_username,
+                'smtp_password' => $settings->smtp_password ? '********' : null, // Mask password
+                'smtp_encryption' => $settings->smtp_encryption,
+                'mail_from_address' => $settings->mail_from_address,
+                'mail_from_name' => $settings->mail_from_name,
+                'email_enabled' => $settings->email_enabled,
+                'fallback_to_database' => $settings->fallback_to_database,
+                'link_expiry_days' => $settings->link_expiry_days,
+                'retry_failed_emails' => $settings->retry_failed_emails,
+                'total_sent' => $settings->total_sent,
+                'total_failed' => $settings->total_failed,
+                'last_email_sent_at' => $settings->last_email_sent_at?->toISOString(),
+            ],
+        ]);
     }
 
     /**
@@ -65,9 +82,7 @@ class NotificationSettingsController extends Controller
         // Clear cache
         EmailNotificationService::refreshSettings();
 
-        return redirect()
-            ->route('admin.notification-settings.index')
-            ->with('success', 'Notification settings updated successfully.');
+        return back()->with('success', 'Notification settings updated successfully.');
     }
 
     /**
@@ -87,13 +102,9 @@ class NotificationSettingsController extends Controller
         $result = $emailService->sendTestEmail($validated['test_email'], Auth::user()->name);
 
         if ($result['success']) {
-            return redirect()
-                ->route('admin.notification-settings.index')
-                ->with('success', $result['message']);
+            return back()->with('success', $result['message']);
         } else {
-            return redirect()
-                ->route('admin.notification-settings.index')
-                ->with('error', $result['message']);
+            return back()->with('error', $result['message']);
         }
     }
 

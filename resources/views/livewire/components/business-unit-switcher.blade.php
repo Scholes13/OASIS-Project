@@ -160,8 +160,8 @@
                 @endforeach
             </div>
         </div>
-    @else
-        <!-- Single Business Unit Display -->
+    @elseif($currentBusinessUnit['id'] ?? null)
+        <!-- Single Business Unit Display (always show if user has a business unit) -->
         <div class="flex items-center space-x-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
             @if($currentBusinessUnit['logo'] ?? null)
                 <img src="{{ asset('storage/' . $currentBusinessUnit['logo']) }}" 
@@ -170,7 +170,7 @@
             @else
                 <div class="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center">
                     <span class="text-xs font-semibold text-indigo-600">
-                        {{ substr($currentBusinessUnit['code'], 0, 2) }}
+                        {{ substr($currentBusinessUnit['code'] ?? '', 0, 2) }}
                     </span>
                 </div>
             @endif

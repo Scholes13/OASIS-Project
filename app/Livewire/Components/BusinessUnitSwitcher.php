@@ -65,29 +65,14 @@ class BusinessUnitSwitcher extends Component
             return;
         }
 
-        // ✅ FIX: Always fetch fresh logo from DB to ensure sync after switch
-        $sessionBuId = session('current_business_unit_id');
-        $sessionLogo = null;
-        
-        // Always fetch logo from database to ensure it's current
-        if ($sessionBuId) {
-            $currentBu = BusinessUnit::find($sessionBuId);
-            if ($currentBu) {
-                $sessionLogo = $currentBu->logo;
-                // Update session with fresh logo
-                session(['current_business_unit_logo' => $sessionLogo]);
-            }
-        }
-        
-        $this->currentBusinessUnit = [
-            'id' => $sessionBuId,
-            'code' => session('current_business_unit_code'),
-            'name' => session('current_business_unit_name'),
-            'logo' => $sessionLogo,
-        ];
-
         // Super admins don't have business unit assignments
         if ($user->global_role === 'super_admin') {
+            $this->currentBusinessUnit = [
+                'id' => null,
+                'code' => 'WG',
+                'name' => 'Werkudara Group',
+                'logo' => null,
+            ];
             $this->availableBusinessUnits = collect([
                 [
                     'id' => null,
@@ -110,6 +95,56 @@ class BusinessUnitSwitcher extends Component
             now()->addMinutes(self::CACHE_TTL_BUSINESS_UNITS),
             fn () => $this->fetchBusinessUnitsFromDatabase($user)
         );
+
+        // ✅ FIX: Get current business unit from session, or fallback to first available
+        $sessionBuId = session('current_business_unit_id');
+        $sessionLogo = null;
+        
+        // Always fetch logo from database to ensure it's current
+        if ($sessionBuId) {
+            $currentBu = BusinessUnit::find($sessionBuId);
+            if ($currentBu) {
+                $sessionLogo = $currentBu->logo;
+                // Update session with fresh logo
+                session(['current_business_unit_logo' => $sessionLogo]);
+            }
+            
+            $this->currentBusinessUnit = [
+                'id' => $sessionBuId,
+                'code' => session('current_business_unit_code'),
+                'name' => session('current_business_unit_name'),
+                'logo' => $sessionLogo,
+            ];
+        } elseif ($this->availableBusinessUnits->isNotEmpty()) {
+            // ✅ FIX: If no session but user has business units, use the first one
+            $firstBu = $this->availableBusinessUnits->first();
+            
+            // Set session with first available business unit
+            session([
+                'current_business_unit_id' => $firstBu['id'],
+                'current_business_unit_code' => $firstBu['code'],
+                'current_business_unit_name' => $firstBu['name'],
+                'current_business_unit_logo' => $firstBu['logo'] ?? null,
+            ]);
+            
+            $this->currentBusinessUnit = [
+                'id' => $firstBu['id'],
+                'code' => $firstBu['code'],
+                'name' => $firstBu['name'],
+                'logo' => $firstBu['logo'] ?? null,
+            ];
+            
+            // Update tracked session ID
+            $this->sessionBusinessUnitId = $firstBu['id'];
+        } else {
+            // No business units available
+            $this->currentBusinessUnit = [
+                'id' => null,
+                'code' => null,
+                'name' => null,
+                'logo' => null,
+            ];
+        }
     }
 
     /**

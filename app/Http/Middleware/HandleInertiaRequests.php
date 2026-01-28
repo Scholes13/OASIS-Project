@@ -64,6 +64,7 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Get the current business unit data including logo.
+     * Note: Logo is returned as relative path for React components to construct URL
      */
     protected function getCurrentBusinessUnit(?int $businessUnitId): ?array
     {
@@ -81,12 +82,13 @@ class HandleInertiaRequests extends Middleware
             'id' => $businessUnit->id,
             'code' => $businessUnit->code,
             'name' => $businessUnit->name,
-            'logo' => $businessUnit->logo ? asset('storage/' . $businessUnit->logo) : null,
+            'logo' => $businessUnit->logo, // Relative path - React prepends /storage/
         ];
     }
 
     /**
      * Get available business units for the user.
+     * Note: Logo is returned as relative path for React components to construct URL
      */
     protected function getAvailableBusinessUnits($user): array
     {
@@ -104,7 +106,7 @@ class HandleInertiaRequests extends Middleware
                 'id' => $bu->id,
                 'code' => $bu->code,
                 'name' => $bu->name,
-                'logo' => $bu->logo ? asset('storage/' . $bu->logo) : null,
+                'logo' => $bu->logo, // Relative path - React prepends /storage/
             ])
             ->toArray();
     }

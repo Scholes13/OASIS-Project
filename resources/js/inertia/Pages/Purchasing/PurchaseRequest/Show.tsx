@@ -18,7 +18,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { PRShowProps } from '@/types/purchasing';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
 
@@ -48,7 +48,15 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     const StatusIcon = currentStatus.icon;
 
     // Permissions
-    const permissions = can || purchaseRequest.can || {};
+    const permissions = can || purchaseRequest.can || {} as {
+        approve?: boolean;
+        reject?: boolean;
+        edit?: boolean;
+        resubmit?: boolean;
+        downloadPdf?: boolean;
+        markOfflineApproved?: boolean;
+        void?: boolean;
+    };
 
 
     // Handle void action
@@ -61,7 +69,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
 
         setIsSubmitting(true);
         router.post(
-            route('purchase-requests.void', purchaseRequest.id),
+            route('purchase-requests.void', { purchaseRequest: purchaseRequest.id }),
             { reason: voidReason },
             {
                 onSuccess: () => {
@@ -92,7 +100,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
         }
 
         router.post(
-            route('purchase-requests.mark-offline-approved', purchaseRequest.id),
+            route('purchase-requests.mark-offline-approved', { purchaseRequest: purchaseRequest.id }),
             formData as any,
             {
                 onSuccess: () => {
@@ -110,7 +118,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     // Handle resubmit
     const handleResubmit = () => {
         router.post(
-            route('purchase-requests.resubmit', purchaseRequest.id),
+            route('purchase-requests.resubmit', { purchaseRequest: purchaseRequest.id }),
             {},
             {
                 onSuccess: () => {
@@ -128,7 +136,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
         e.preventDefault();
         setIsSubmitting(true);
         router.post(
-            route('purchase-requests.approve', purchaseRequest.id),
+            route('purchase-requests.approve', { purchaseRequest: purchaseRequest.id }),
             { notes: approvalNotes },
             {
                 onSuccess: () => {
@@ -152,7 +160,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
         }
         setIsSubmitting(true);
         router.post(
-            route('purchase-requests.reject', purchaseRequest.id),
+            route('purchase-requests.reject', { purchaseRequest: purchaseRequest.id }),
             { notes: rejectionNotes },
             {
                 onSuccess: () => {
@@ -238,7 +246,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
 
                         {/* Action Buttons */}
                         <div className="flex items-center space-x-2">
-                            {permissions.approve && (
+                            {permissions?.approve && (
                                 <Button
                                     variant="default"
                                     size="sm"
@@ -250,7 +258,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                 </Button>
                             )}
 
-                            {permissions.reject && (
+                            {permissions?.reject && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -262,9 +270,9 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                 </Button>
                             )}
 
-                            {permissions.edit && (
+                            {permissions?.edit && (
                                 <Link
-                                    href={route('purchase-requests.edit', purchaseRequest.id)}
+                                    href={route('purchase-requests.edit', { purchaseRequest: purchaseRequest.id })}
                                     className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                                 >
                                     <Edit className="w-4 h-4 mr-1.5" />
@@ -272,7 +280,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                 </Link>
                             )}
 
-                            {permissions.resubmit && (
+                            {permissions?.resubmit && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -284,9 +292,9 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                 </Button>
                             )}
 
-                            {permissions.downloadPdf && (
+                            {permissions?.downloadPdf && (
                                 <a
-                                    href={route('purchase-requests.pdf-public', purchaseRequest.id)}
+                                    href={route('purchase-requests.pdf-public', { purchaseRequest: purchaseRequest.id })}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
@@ -296,7 +304,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                 </a>
                             )}
 
-                            {permissions.markOfflineApproved && (
+                            {permissions?.markOfflineApproved && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -308,7 +316,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                 </Button>
                             )}
 
-                            {permissions.void && (
+                            {permissions?.void && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -622,8 +630,8 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                                                     approval.status === 'approved'
                                                                         ? 'success'
                                                                         : approval.status === 'rejected'
-                                                                        ? 'destructive'
-                                                                        : 'secondary'
+                                                                        ? 'danger'
+                                                                        : 'default'
                                                                 }
                                                                 className="ml-2"
                                                             >

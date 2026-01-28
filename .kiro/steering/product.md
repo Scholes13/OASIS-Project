@@ -1,143 +1,98 @@
-# Product Overview
+---
+inclusion: always
+---
 
-## Oasis (Office Administration System)
+# Oasis - Product Context
 
-An enterprise-grade office administration platform designed for multi-business unit operations with modular architecture supporting various business processes.
+Enterprise office administration platform for Werkudara Group with multi-business unit support.
 
-### Core Purpose
+## Domain Model
 
-Oasis streamlines office administration workflows across multiple business units under Werkudara Group with automated routing, role-based access control, and comprehensive audit trails.
+### Modules
+| Module | Status | Purpose |
+|--------|--------|---------|
+| Purchasing (PR/ST) | Active | Purchase & stock request workflows |
+| Activity Tracking | Active | Employee task management |
+| Sales CRM | Planned | Customer relationship management |
+| Core Admin | Active | Users, departments, business units |
 
-### System Architecture
+### Business Unit Hierarchy
+- **WG** (Werkudara Group) - Parent holding
+- Child units: **WNS**, **UK**, **MRP** (dynamic, configurable)
 
-Oasis is built as a modular system with the following modules:
+## Key Domain Concepts
 
-- **Purchasing Module** (Primary Module)
-  - Purchase Request (PR) - Request creation and approval workflows
-  - Stock Request - Inventory request management
-  - Purchasing - Procurement operations
-- **Activity Tracking Module** - Employee task and workload management
-- **Sales CRM Module** - Customer relationship management
-- **Core Administration** - User, department, and business unit management
-
-### Key Features
-
-#### Core System Features
-- **Universal Multi-Business Unit Architecture**: Single codebase supporting multiple business units with dynamic routing and context switching
-- **Modular Design**: Extensible module system for different business processes
-- **Role-Based Access Control**: Hierarchical permissions using Spatie Permission package
-- **Activity Logging**: Comprehensive audit trails using Spatie Activity Log
-- **Real-time Dashboard**: Live statistics, charts, and activity feeds with date range filtering
-
-#### Purchasing Module Features
-
-- **Purchase Request (PR) Management**:
-  - Automated approval workflows with rule-based routing
-  - Sequential PR numbering with business unit-specific formats
-  - QR code verification for document tracking
-  - Multi-level approval chains (sequential/parallel)
-  - Offline approval support for paper-based workflows
-  - Email notifications for approval requests
-  - Item-level tracking with images and specifications
-  - Category-based organization
-  - Draft, submit, approve, reject, void workflows
-  - Real-time status tracking and history
-
-- **Stock Request (ST) Management** *(In Development)*:
-  - Automated approval workflows with rule-based routing
-  - Sequential ST numbering with business unit-specific formats
-  - QR code verification for document tracking
-  - Multi-level approval chains (sequential/parallel)
-  - Offline approval support for paper-based workflows
-  - Email notifications for approval requests
-  - Item-level tracking with images and specifications
-  - Category-based organization
-  - Draft, submit, approve, reject, void workflows
-  - Real-time status tracking and history
-
-- **Purchasing Operations** *(Planned)*:
-  - Procurement workflow management
-  - Vendor management
-  - Purchase order processing
-
-#### Activity Tracking Module Features
-
-- **Employee Task Management**:
-  - Create and track work activities/tasks
-  - Collaborative tasks - multiple users can join and work on the same task
-  - Shared status and timestamps across all participants
-  - Department-scoped visibility - users see tasks from their department
-  - Task lifecycle: planned → in_progress → completed/cancelled
-  - Due date tracking with overdue alerts
-  - File attachments support (images, PDF, documents)
-
-- **Activity Types & Sub-Activities**:
-  - Configurable activity categories (Meeting, Web Development, Event, etc.)
-  - Sub-activities for detailed categorization
-  - Color-coded activity types for visual organization
-  - Admin-managed activity type configuration
-
-- **Analytics & Dashboards**:
-  - Personal Dashboard: Individual task summary, hours worked, activity breakdown
-  - Department Analytics: Team workload, completion rates, overdue tracking
-  - Business Unit Analytics: Cross-department productivity trends
-  - Date range filtering for all analytics views
-
-- **Collaboration Features**:
-  - Join existing department tasks
-  - Shared task status - any participant can start/complete
-  - Participant tracking with owner designation
-  - Activity logging for audit trails
-
-### Business Units
-
-#### Hierarchical Structure
-
-**Parent Holding Company:**
-- **WG** (Werkudara Group) - Parent holding company
-
-**Child Business Units:**
-- **WNS** (Werkudara Nirwana Sakti)
-- **UK** (Utama Kalapana)
-- **MRP** (Maharaja Pratama)
-
-#### Business Unit Management
-
-- Child business units are **dynamic and configurable** - new units can be added or removed
-- Users can be assigned to **multiple business units** with different roles/positions
-- Each user has a **primary business unit** assignment (not fixed to WNS)
-- Users can **switch between assigned business units** via BusinessUnitSwitcher component
-- All modules (PR, ST, etc.) are **business unit-aware** and filter data based on active context
-- Approval workflows, numbering sequences, and permissions are **business unit-specific**
-
-### User Roles & Positions
-
-- Super Admin (full system access)
-- General Manager, Director, CEO (top management - reports access)
-- Finance Manager (financial oversight)
-- Department Heads (approval authority)
-- Regular Users (PR/ST creators)
+### Business Unit Context
+- Session-based: `current_business_unit_id`, `current_business_unit_name`, `current_business_unit_code`
+- All data queries MUST filter by active business unit
+- Users can belong to multiple units with different roles
+- Event `business-unit-switched` triggers context refresh
 
 ### Workflow States
+```
+Purchase/Stock Request: draft → submitted → in_approval → approved|rejected|voided
+Employee Task: planned → in_progress → completed|cancelled
+```
 
-#### Purchase/Stock Request States
-- **draft**: Initial creation, editable
-- **submitted**: Sent for approval
-- **in_approval**: Currently in approval chain
-- **approved**: Fully approved
-- **rejected**: Denied by approver
-- **voided**: Cancelled/invalidated
+### User Roles (Authorization Hierarchy)
+1. Super Admin - bypasses all checks (`$user->isSuperAdmin()`)
+2. Top Management (GM, Director, CEO) - reports access via `view-reports` gate
+3. Finance Manager - financial oversight
+4. Department Heads - approval authority
+5. Regular Users - request creators
 
-#### Task States (Activity Module)
-- **planned**: Task created, not yet started
-- **in_progress**: Task actively being worked on
-- **completed**: Task finished successfully
-- **cancelled**: Task cancelled by owner
+## Implementation Guidelines
 
-### Target Users
+### Frontend Stack
+- **React/Inertia is PRIMARY** - All new features MUST use React/Inertia
+- **Livewire is LEGACY** - Only maintain existing Purchasing module views
+- Pages: `resources/js/inertia/Pages/`
+- Components: `resources/js/inertia/components/`
 
-Enterprise organizations requiring:
-- Structured purchase and stock request workflows with multi-level approvals
-- Employee task tracking and workload management
-- Audit compliance and cross-business unit operations
-- Collaborative work tracking and productivity analytics
+### When Building New Features
+- Use React/Inertia with TypeScript
+- CRUD patterns: Index, Create, Edit, Show pages
+- Use existing components: `DataTable`, `StatCard`, `FileUpload`, `ColorPicker`
+- See `resources/js/inertia/components/admin/README.md`
+
+### When Building Purchasing Features (Legacy Livewire)
+- PR/ST share similar patterns: approval workflows, numbering, QR codes, offline approval
+- Use `ApprovalWorkflowService` for routing logic
+- Numbering is business unit-specific via `UniversalPRNumberingService` / `UniversalStockNumberingService`
+- Support both online and offline (paper-based) approval flows
+
+### When Building Activity Features (React/Inertia)
+- Tasks are department-scoped (users see their department's tasks)
+- Collaborative: multiple participants can join/update same task
+- Backdate system: 1-day default limit, request-based for older dates
+- Activity types are admin-configurable with color coding
+
+## Data Relationships
+
+### Core Entities
+```
+User → UserBusinessUnit → BusinessUnit
+User → Department → BusinessUnit
+PurchaseRequest → PrItem, PrApproval, PrCategory
+StockRequest → StockItem, StockApproval
+EmployeeTask → TaskParticipant, TaskAttachment, ActivityType → SubActivity
+```
+
+### Approval Chain Pattern
+- Sequential or parallel approval steps
+- Each step: approver, status, timestamp, optional QR signature
+- Offline approval: document upload, designated date tracking
+
+## Validation Rules
+
+### Business Logic Constraints
+- PR/ST numbers are unique per business unit per year
+- Approval workflows are business unit-specific
+- Task backdating requires permission (default: yesterday only)
+- Department heads approve their department's requests
+
+### Status Transitions
+- Only `draft` status allows editing
+- `submitted` triggers approval workflow
+- `voided` is terminal (no further transitions)
+- Task `completed`/`cancelled` are terminal states

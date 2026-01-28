@@ -7,6 +7,8 @@ import {
     User,
     FileText,
     Package,
+    Shield,
+    Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AdminTask } from './types';
@@ -87,6 +89,7 @@ export function PurchasingTaskCard({
 
     const canClaim = task.status === 'pending_followup' && !task.assigned_admin_id;
     const canStart = task.status === 'pending_followup' && task.assigned_admin_id;
+    const isOfflineApproved = taskable?.offline_approved_at != null;
 
     return (
         <motion.div
@@ -101,7 +104,7 @@ export function PurchasingTaskCard({
             {/* Header */}
             <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <span className={cn(
                             "px-2 py-0.5 rounded text-xs font-semibold",
                             typeColor
@@ -115,6 +118,12 @@ export function PurchasingTaskCard({
                         )}>
                             {statusStyle.label}
                         </span>
+                        {isOfflineApproved && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 flex items-center gap-1">
+                                <Shield className="h-3 w-3" />
+                                Offline
+                            </span>
+                        )}
                     </div>
                     {task.assigned_admin?.name && (
                         <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -146,6 +155,39 @@ export function PurchasingTaskCard({
                     <Clock className="h-3.5 w-3.5" />
                     <span>{formatDate(task.entered_at)}</span>
                 </div>
+
+                {/* Offline Approval Info */}
+                {isOfflineApproved && (
+                    <div className="mt-3 pt-3 border-t border-purple-100 bg-purple-50 -mx-4 px-4 py-2 -mb-4 rounded-b-lg">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-xs text-purple-700">
+                                <Shield className="h-3.5 w-3.5" />
+                                <span className="font-medium">Offline Approved</span>
+                            </div>
+                            {taskable?.offline_approval_document_path && (
+                                <a
+                                    href={`/storage/${taskable.offline_approval_document_path}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-700 bg-purple-100 rounded hover:bg-purple-200 transition-colors"
+                                >
+                                    <Eye className="h-3 w-3" />
+                                    View Doc
+                                </a>
+                            )}
+                        </div>
+                        <p className="text-xs text-purple-600 mt-1">
+                            {taskable?.offline_approved_at && new Date(taskable.offline_approved_at).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Actions */}

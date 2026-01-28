@@ -7,6 +7,7 @@ use App\Models\Core\BusinessUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class BusinessUnitController extends Controller
 {
@@ -15,7 +16,8 @@ class BusinessUnitController extends Controller
      */
     public function index(Request $request)
     {
-        $query = BusinessUnit::withCount(['departments', 'users', 'purchaseRequests']);
+        $query = BusinessUnit::with(['parent', 'children'])
+            ->withCount(['departments', 'users', 'purchaseRequests']);
 
         // Search functionality
         if ($request->filled('search')) {
@@ -34,7 +36,41 @@ class BusinessUnitController extends Controller
 
         $businessUnits = $query->orderBy('name')->paginate(15);
 
-        return view('admin.business-units.index', compact('businessUnits'));
+        // Format business units for Inertia
+        $formattedBusinessUnits = $businessUnits->through(function ($bu) {
+            return [
+                'id' => $bu->id,
+                'name' => $bu->name,
+                'code' => $bu->code,
+                'logo_url' => $bu->logo ? asset('storage/' . $bu->logo) : null,
+                'is_active' => $bu->is_active,
+                'parent_id' => $bu->parent_id,
+                'parent' => $bu->parent ? [
+                    'id' => $bu->parent->id,
+                    'name' => $bu->parent->name,
+                    'code' => $bu->parent->code,
+                ] : null,
+                'children' => $bu->children->map(function ($child) {
+                    return [
+                        'id' => $child->id,
+                        'name' => $child->name,
+                        'code' => $child->code,
+                        'is_active' => $child->is_active,
+                    ];
+                }),
+                'user_count' => $bu->users_count ?? 0,
+                'department_count' => $bu->departments_count ?? 0,
+                'created_at' => $bu->created_at->toISOString(),
+            ];
+        });
+
+        return Inertia::render('Admin/BusinessUnits/Index', [
+            'businessUnits' => $formattedBusinessUnits,
+            'filters' => [
+                'search' => $request->search,
+                'status' => $request->status,
+            ],
+        ]);
     }
 
     /**
@@ -44,13 +80,17 @@ class BusinessUnitController extends Controller
     {
         $parentBusinessUnits = BusinessUnit::where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($bu) {
+                return [
+                    'value' => $bu->id,
+                    'label' => "{$bu->name} ({$bu->code})",
+                ];
+            });
 
-        // Get users who can be General Managers
-        $managers = \App\Models\Core\User::where('is_active', true)
-            ->get(['id', 'name', 'email']);
-
-        return view('admin.business-units.create', compact('parentBusinessUnits', 'managers'));
+        return Inertia::render('Admin/BusinessUnits/Create', [
+            'parentBusinessUnits' => $parentBusinessUnits,
+        ]);
     }
 
     /**
@@ -58,7 +98,7 @@ class BusinessUnitController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:10|unique:business_units,code',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
@@ -67,7 +107,7 @@ class BusinessUnitController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'parent_id' => 'nullable|exists:business_units,id',
-            'manager_id' => 'nullable|exists:users,id',
+            'is_active' => 'boolean',
         ]);
 
         // Handle logo upload
@@ -76,27 +116,23 @@ class BusinessUnitController extends Controller
             $logoPath = $request->file('logo')->store('business-units', 'public');
         }
 
-        // Create business unit only
+        // Create business unit
         $businessUnit = BusinessUnit::create([
-            'name' => $request->name,
-            'code' => strtoupper($request->code),
+            'name' => $validated['name'],
+            'code' => strtoupper($validated['code']),
             'logo' => $logoPath,
-            'description' => $request->description,
-            'address' => $request->address,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'parent_id' => $request->parent_id,
-            'manager_id' => $request->manager_id,
+            'description' => $validated['description'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'] ?? null,
+            'parent_id' => $validated['parent_id'] ?? null,
             'numbering_config' => [],
-            'is_active' => $request->boolean('is_active', true),
+            'is_active' => $validated['is_active'] ?? true,
         ]);
 
         return redirect()
             ->route('admin.business-units.index')
-            ->with('success_create_unit', [
-                'title' => 'Success Create Business Unit',
-                'name' => $businessUnit->name,
-            ]);
+            ->with('success', "Business unit '{$businessUnit->name}' created successfully.");
     }
 
     /**
@@ -108,24 +144,104 @@ class BusinessUnitController extends Controller
             'parent',
             'children',
             'manager',
-            'departments.users',
-            'users.user',
-            'purchaseRequests' => function ($query) {
-                $query->latest()->limit(10);
-            },
+            'departments',
         ]);
+
+        // Get users assigned to this business unit
+        $users = \App\Models\Core\User::whereHas('businessUnits', function ($query) use ($businessUnit) {
+            $query->where('business_unit_id', $businessUnit->id);
+        })->with(['primaryBusinessUnit', 'primaryDepartment', 'primaryPosition'])
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_active' => $user->is_active,
+                    'primary_business_unit' => $user->primaryBusinessUnit ? [
+                        'id' => $user->primaryBusinessUnit->id,
+                        'name' => $user->primaryBusinessUnit->name,
+                        'code' => $user->primaryBusinessUnit->code,
+                    ] : null,
+                    'primary_department' => $user->primaryDepartment ? [
+                        'id' => $user->primaryDepartment->id,
+                        'name' => $user->primaryDepartment->name,
+                    ] : null,
+                    'primary_position' => $user->primaryPosition ? [
+                        'id' => $user->primaryPosition->id,
+                        'name' => $user->primaryPosition->name,
+                    ] : null,
+                ];
+            });
+
+        // Get departments
+        $departments = $businessUnit->departments->map(function ($dept) {
+            return [
+                'id' => $dept->id,
+                'name' => $dept->name,
+                'code' => $dept->code,
+                'is_active' => $dept->is_active,
+                'users_count' => $dept->users()->count(),
+            ];
+        });
 
         // Statistics
         $stats = [
             'total_departments' => $businessUnit->departments()->count(),
-            'active_departments' => $businessUnit->departments()->where('is_active', true)->count(),
-            'total_users' => $businessUnit->users()->count(),
-            'active_users' => $businessUnit->users()->where('is_active', true)->count(),
-            'total_prs' => $businessUnit->purchaseRequests()->count(),
-            'pending_prs' => $businessUnit->purchaseRequests()->where('status', 'submitted')->count(),
+            'total_users' => \App\Models\Core\UserBusinessUnit::where('business_unit_id', $businessUnit->id)->count(),
+            'total_purchase_requests' => $businessUnit->purchaseRequests()->count(),
+            'active_sequences' => $businessUnit->numberSequences()->count(),
         ];
 
-        return view('admin.business-units.show', compact('businessUnit', 'stats'));
+        // Format business unit data
+        $businessUnitData = [
+            'id' => $businessUnit->id,
+            'code' => $businessUnit->code,
+            'name' => $businessUnit->name,
+            'description' => $businessUnit->description,
+            'address' => $businessUnit->address,
+            'phone' => $businessUnit->phone,
+            'email' => $businessUnit->email,
+            'logo' => $businessUnit->logo ? asset('storage/' . $businessUnit->logo) : null,
+            'is_active' => $businessUnit->is_active,
+            'parent_id' => $businessUnit->parent_id,
+            'manager_id' => $businessUnit->manager_id,
+            'sort_order' => $businessUnit->sort_order,
+            'created_at' => $businessUnit->created_at->toISOString(),
+            'updated_at' => $businessUnit->updated_at->toISOString(),
+            'parent' => $businessUnit->parent ? [
+                'id' => $businessUnit->parent->id,
+                'name' => $businessUnit->parent->name,
+                'code' => $businessUnit->parent->code,
+            ] : null,
+            'children' => $businessUnit->children->map(function ($child) {
+                return [
+                    'id' => $child->id,
+                    'name' => $child->name,
+                    'code' => $child->code,
+                    'is_active' => $child->is_active,
+                ];
+            }),
+            'manager' => $businessUnit->manager ? [
+                'id' => $businessUnit->manager->id,
+                'name' => $businessUnit->manager->name,
+                'email' => $businessUnit->manager->email,
+            ] : null,
+        ];
+
+        // Check permissions
+        $can = [
+            'edit' => auth()->user()->isSuperAdmin(),
+            'delete' => auth()->user()->isSuperAdmin() && $businessUnit->code !== 'WG',
+        ];
+
+        return inertia('Admin/BusinessUnits/Show', [
+            'businessUnit' => $businessUnitData,
+            'departments' => $departments,
+            'users' => $users,
+            'stats' => $stats,
+            'can' => $can,
+        ]);
     }
 
     /**
@@ -136,13 +252,32 @@ class BusinessUnitController extends Controller
         $parentBusinessUnits = BusinessUnit::where('id', '!=', $businessUnit->id)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($bu) {
+                return [
+                    'value' => $bu->id,
+                    'label' => "{$bu->name} ({$bu->code})",
+                ];
+            });
 
-        $managers = \App\Models\Core\User::where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        // Format business unit data
+        $businessUnitData = [
+            'id' => $businessUnit->id,
+            'name' => $businessUnit->name,
+            'code' => $businessUnit->code,
+            'logo' => $businessUnit->logo ? asset('storage/' . $businessUnit->logo) : null,
+            'description' => $businessUnit->description,
+            'address' => $businessUnit->address,
+            'phone' => $businessUnit->phone,
+            'email' => $businessUnit->email,
+            'parent_id' => $businessUnit->parent_id,
+            'is_active' => $businessUnit->is_active,
+        ];
 
-        return view('admin.business-units.edit', compact('businessUnit', 'parentBusinessUnits', 'managers'));
+        return Inertia::render('Admin/BusinessUnits/Edit', [
+            'businessUnit' => $businessUnitData,
+            'parentBusinessUnits' => $parentBusinessUnits,
+        ]);
     }
 
     /**
@@ -150,7 +285,7 @@ class BusinessUnitController extends Controller
      */
     public function update(Request $request, BusinessUnit $businessUnit)
     {
-        $validatedData = $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => ['required', 'string', 'max:10', Rule::unique('business_units')->ignore($businessUnit->id)],
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
@@ -160,8 +295,6 @@ class BusinessUnitController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'parent_id' => 'nullable|exists:business_units,id',
-            'manager_id' => 'nullable|exists:users,id',
-            'config' => 'nullable|array',
             'is_active' => 'boolean',
         ]);
 
@@ -173,7 +306,7 @@ class BusinessUnitController extends Controller
         // Handle logo removal
         if ($request->boolean('remove_logo') && $businessUnit->logo) {
             \Storage::disk('public')->delete($businessUnit->logo);
-            $validatedData['logo'] = null;
+            $validated['logo'] = null;
         }
 
         // Handle logo upload
@@ -182,17 +315,25 @@ class BusinessUnitController extends Controller
             if ($businessUnit->logo) {
                 \Storage::disk('public')->delete($businessUnit->logo);
             }
-            $validatedData['logo'] = $request->file('logo')->store('business-units', 'public');
+            $validated['logo'] = $request->file('logo')->store('business-units', 'public');
         }
 
-        $businessUnit->update($validatedData);
+        // Update business unit
+        $businessUnit->update([
+            'name' => $validated['name'],
+            'code' => strtoupper($validated['code']),
+            'logo' => $validated['logo'] ?? $businessUnit->logo,
+            'description' => $validated['description'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'] ?? null,
+            'parent_id' => $validated['parent_id'] ?? null,
+            'is_active' => $validated['is_active'] ?? $businessUnit->is_active,
+        ]);
 
         return redirect()
             ->route('admin.business-units.index')
-            ->with('success_update_unit', [
-                'title' => 'Success Update Business Unit',
-                'name' => $businessUnit->name,
-            ]);
+            ->with('success', "Business unit '{$businessUnit->name}' updated successfully.");
     }
 
     /**
@@ -202,32 +343,31 @@ class BusinessUnitController extends Controller
     {
         // Prevent deletion of Werkudara Group (parent company)
         if ($businessUnit->code === 'WG') {
-            return back()->with('error', 'Cannot delete the parent company (Werkudara Group).');
+            return back()->withErrors(['delete' => 'Cannot delete the parent company (Werkudara Group).']);
         }
 
         // Check if business unit has child business units
         if ($businessUnit->children()->exists()) {
-            return back()->with('error', 'Cannot delete business unit that has child business units. Please reassign or delete child units first.');
+            return back()->withErrors(['delete' => 'Cannot delete business unit that has child business units. Please reassign or delete child units first.']);
+        }
+
+        // Check if business unit has departments
+        $departmentCount = $businessUnit->departments()->count();
+        if ($departmentCount > 0) {
+            return back()->withErrors(['delete' => "Cannot delete business unit that has {$departmentCount} departments. Please delete or reassign departments first."]);
         }
 
         // Check if business unit has active users
         $activeUsers = $businessUnit->users()->count();
-
         if ($activeUsers > 0) {
-            return back()->with('error', "Cannot delete business unit that has {$activeUsers} users. Please reassign users first.");
+            return back()->withErrors(['delete' => "Cannot delete business unit that has {$activeUsers} users. Please reassign users first."]);
         }
 
         DB::transaction(function () use ($businessUnit) {
-            // Delete all positions in departments
-            foreach ($businessUnit->departments as $department) {
-                $department->positions()->delete();
+            // Delete logo if exists
+            if ($businessUnit->logo) {
+                \Storage::disk('public')->delete($businessUnit->logo);
             }
-
-            // Delete all departments
-            $businessUnit->departments()->delete();
-
-            // Delete user assignments (inactive users)
-            $businessUnit->users()->delete();
 
             // Delete numbering sequences
             $businessUnit->numberSequences()->delete();
@@ -243,10 +383,7 @@ class BusinessUnitController extends Controller
 
         return redirect()
             ->route('admin.business-units.index')
-            ->with('success_delete_unit', [
-                'title' => 'Success Delete Business Unit',
-                'name' => $businessUnitName,
-            ]);
+            ->with('success', "Business unit '{$businessUnitName}' deleted successfully.");
     }
 
     /**
@@ -258,7 +395,7 @@ class BusinessUnitController extends Controller
 
         $status = $businessUnit->is_active ? 'activated' : 'deactivated';
 
-        return back()->with('success', "Business unit {$status} successfully.");
+        return back()->with('success', "Business unit '{$businessUnit->name}' {$status} successfully.");
     }
 
     /**

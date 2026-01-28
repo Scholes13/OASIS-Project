@@ -5,6 +5,7 @@ namespace App\Models\Modules\Activity;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
+use App\Services\Modules\Activity\BackdatePermissionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,6 +26,7 @@ class EmployeeTask extends Model
         'activity_type_id',
         'sub_activity_id',
         'task_title',
+        'task_date',
         'due_date',
         'notes',
         'status',
@@ -40,6 +42,7 @@ class EmployeeTask extends Model
     ];
 
     protected $casts = [
+        'task_date' => 'date',
         'due_date' => 'date',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
@@ -377,5 +380,20 @@ class EmployeeTask extends Model
         }
 
         return "{$minutes}m";
+    }
+
+    /**
+     * Check if a user can backdate to a specific date
+     * 
+     * @param \Carbon\Carbon|string $date The date to check
+     * @param User $user The user to check permission for
+     * @return bool
+     */
+    public static function canBackdateTo($date, User $user): bool
+    {
+        $backdateService = app(BackdatePermissionService::class);
+        $taskDate = $date instanceof \Carbon\Carbon ? $date : \Carbon\Carbon::parse($date);
+        
+        return $backdateService->canCreateTaskWithDate($user, $taskDate);
     }
 }

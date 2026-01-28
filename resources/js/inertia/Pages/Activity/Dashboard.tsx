@@ -11,7 +11,7 @@ import {
 import { useBusinessUnit } from '@/hooks/useBusinessUnit';
 import FilterDropdown from '@/components/activity/FilterDropdown';
 import { LoadingOverlay } from '@/components/ui/LoadingSpinner';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { ActivityDataTable } from '@/components/activity/ActivityDataTable';
 import { KanbanBoard } from '@/components/activity/KanbanBoard';
 import { ActivityCalendar } from '@/components/activity/ActivityCalendar';
@@ -61,8 +61,8 @@ const viewAnimations = {
     },
 };
 
-const springTransition = { type: "spring", stiffness: 300, damping: 30 };
-const smoothTransition = { duration: 0.35, ease: [0.4, 0, 0.2, 1] };
+const springTransition = { type: "spring" as const, stiffness: 300, damping: 30 };
+const smoothTransition = { duration: 0.35, ease: "easeInOut" as const };
 
 // ============================================================================
 // STATS CARD COMPONENT - Enterprise Style with Large Metrics
@@ -95,7 +95,7 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, byActi
     const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
     const [isFiltering, setIsFiltering] = useState(false);
 
-    const { currentBusinessUnit, isLoading: isBuLoading } = useBusinessUnit([
+    const { currentBusinessUnit, isSwitching: isBuLoading } = useBusinessUnit([
         'stats', 'tasks', 'byActivityType'
     ]);
 
@@ -122,7 +122,7 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, byActi
                         ...Object.fromEntries(
                             Object.entries(localFilters).filter(([_, v]) => v !== '')
                         ),
-                        view: view !== 'overview' ? view : undefined,
+                        view: view,
                     },
                     {
                         preserveState: true,

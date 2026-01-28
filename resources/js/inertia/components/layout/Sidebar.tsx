@@ -15,7 +15,10 @@ import {
     ChevronUp,
     FileText,
     List,
-    CheckCircle
+    CheckCircle,
+    Tag,
+    Mail,
+    Clock
 } from 'lucide-react';
 import { PageProps } from '../../types';
 import { cn } from '../../lib/utils';
@@ -41,6 +44,9 @@ const iconMap: Record<string, any> = {
     'file-text': FileText,
     'list': List,
     'check-circle': CheckCircle,
+    'tag': Tag,
+    'mail': Mail,
+    'clock': Clock,
 };
 
 export default function Sidebar({ minimized, onToggle }: SidebarProps) {

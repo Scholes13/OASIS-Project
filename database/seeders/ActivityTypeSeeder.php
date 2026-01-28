@@ -17,7 +17,7 @@ class ActivityTypeSeeder extends Seeder
             [
                 'code' => 'MEETING',
                 'name' => 'Meeting',
-                'color' => 'blue',
+                'color' => '#3b82f6',  // Blue-500
                 'sort_order' => 1,
                 'sub_activities' => [
                     ['code' => 'MEETING_CLIENT', 'name' => 'Meeting Client', 'sort_order' => 1],
@@ -30,7 +30,7 @@ class ActivityTypeSeeder extends Seeder
             [
                 'code' => 'WEBDEV',
                 'name' => 'Web Development',
-                'color' => 'indigo',
+                'color' => '#6366f1',  // Indigo-500
                 'sort_order' => 2,
                 'sub_activities' => [
                     ['code' => 'FIX_BUG', 'name' => 'Fix Bug', 'sort_order' => 1],
@@ -43,7 +43,7 @@ class ActivityTypeSeeder extends Seeder
             [
                 'code' => 'EVENT',
                 'name' => 'Event',
-                'color' => 'purple',
+                'color' => '#a855f7',  // Purple-500
                 'sort_order' => 3,
                 'sub_activities' => [
                     ['code' => 'EVENT_PLANNING', 'name' => 'Event Planning', 'sort_order' => 1],
@@ -54,7 +54,7 @@ class ActivityTypeSeeder extends Seeder
             [
                 'code' => 'INTERNAL',
                 'name' => 'Internal Meeting',
-                'color' => 'gray',
+                'color' => '#6b7280',  // Gray-500
                 'sort_order' => 4,
                 'sub_activities' => [
                     ['code' => 'DAILY_STANDUP', 'name' => 'Daily Standup', 'sort_order' => 1],
@@ -65,7 +65,7 @@ class ActivityTypeSeeder extends Seeder
             [
                 'code' => 'ADMIN',
                 'name' => 'Administrative',
-                'color' => 'yellow',
+                'color' => '#f59e0b',  // Amber-500
                 'sort_order' => 5,
                 'sub_activities' => [
                     ['code' => 'DOCUMENTATION', 'name' => 'Documentation', 'sort_order' => 1],
@@ -76,7 +76,7 @@ class ActivityTypeSeeder extends Seeder
             [
                 'code' => 'TRAINING',
                 'name' => 'Training',
-                'color' => 'green',
+                'color' => '#22c55e',  // Green-500
                 'sort_order' => 6,
                 'sub_activities' => [
                     ['code' => 'INTERNAL_TRAINING', 'name' => 'Internal Training', 'sort_order' => 1],

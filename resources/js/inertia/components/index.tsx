@@ -9,5 +9,5 @@ export { ErrorBoundary, AsyncBoundary, useErrorHandler } from "./ErrorBoundary"
 
 // View Components (Activity Module)
 export { KanbanBoard } from "./activity/KanbanBoard"
-export { CalendarView } from "./activity/CalendarView"
-export { TimelineView } from "./activity/TimelineView"
+export { ActivityCalendar } from "./activity/ActivityCalendar"
+export { ActivityTimeline } from "./activity/ActivityTimeline"

@@ -92,6 +92,9 @@ Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function
     Route::post('/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('password');
 });
 
+// Profile route alias for backward compatibility with navigation
+Route::middleware(['auth'])->get('/profile', [\App\Http\Controllers\ProfileController::class, 'show'])->name('profile');
+
 // Main Dashboard Route
 Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(function () {
     // Main Dashboard (Quick Access after login)
@@ -278,6 +281,13 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/{task}/edit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'edit'])->name('edit')->whereNumber('task');
             Route::put('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'update'])->name('update')->whereNumber('task');
             Route::delete('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'destroy'])->name('destroy')->whereNumber('task');
+        });
+
+        // Backdate Permission Routes
+        Route::prefix('backdate')->name('backdate.')->group(function () {
+            Route::get('/requests', \App\Livewire\Modules\Activity\BackdateRequests::class)->name('requests');
+            Route::post('/request/submit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'submitBackdateRequest'])->name('request.submit');
+            Route::get('/approvals', \App\Livewire\Modules\Activity\BackdateApprovals::class)->name('approvals');
         });
     });
 

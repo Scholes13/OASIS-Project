@@ -16,7 +16,7 @@ import {
     Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "../ui/Button"
+import { Button } from "../ui/button"
 import { showToast } from "../ui/toast"
 import { TaskDetailModal } from "./TaskDetailModal"
 import type { Task, PageProps } from "@/types"

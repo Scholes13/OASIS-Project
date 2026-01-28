@@ -1,312 +1,431 @@
-import { useEffect, useRef } from 'react';
+/**
+ * BuTransitionOverlay Component
+ * 
+ * Modern full-screen overlay with animated background.
+ * Clean design without cards - just logos and minimal text.
+ */
+
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { LazyLogo } from '../ui/LazyImage';
+import { cn } from '@/lib/utils';
 import {
     useBuTransitionStore,
     useBuTransitionPhase,
     useBuTransitionFrom,
     useBuTransitionTo,
-    useBuTransitionSteps,
-    useBuTransitionError,
     useIsTransitioning,
-    type TransitionStep,
-} from '../../stores/buTransitionStore';
+    useBuTransitionError,
+} from '@/stores/buTransitionStore';
 
-/**
- * Logo display component with animation
- */
-function AnimatedLogo({ 
-    businessUnit, 
-    type,
-    isActive 
+interface BusinessUnitDisplay {
+    code: string;
+    name: string;
+    logo: string | null;
+}
+
+// Floating orb component for background animation
+function FloatingOrb({ 
+    delay = 0, 
+    duration = 20,
+    size = 300,
+    color = 'indigo',
+    initialX = 0,
+    initialY = 0,
 }: { 
-    businessUnit: { code: string; name: string; logo: string | null } | null;
-    type: 'from' | 'to';
-    isActive: boolean;
+    delay?: number;
+    duration?: number;
+    size?: number;
+    color?: 'indigo' | 'purple' | 'blue' | 'cyan' | 'pink';
+    initialX?: number;
+    initialY?: number;
 }) {
-    const isFrom = type === 'from';
-    
-    return (
-        <motion.div
-            initial={{ 
-                opacity: 0, 
-                scale: 0.5,
-                x: isFrom ? 0 : 30 
-            }}
-            animate={{ 
-                opacity: isActive ? (isFrom ? 0.5 : 1) : 0,
-                scale: isActive ? 1 : 0.5,
-                x: 0,
-                filter: isFrom && isActive ? 'grayscale(0.5)' : 'none',
-            }}
-            transition={{ 
-                type: 'spring',
-                stiffness: 300,
-                damping: 25,
-                delay: isFrom ? 0 : 0.3,
-            }}
-            className={cn(
-                'flex flex-col items-center gap-3',
-                isFrom && 'opacity-50'
-            )}
-        >
-            <div className={cn(
-                'w-20 h-20 rounded-2xl flex items-center justify-center',
-                'shadow-xl transition-all duration-300',
-                businessUnit?.logo ? 'bg-white/80' : 'bg-gradient-to-br from-indigo-500 to-purple-600',
-                isActive && !isFrom && 'ring-4 ring-indigo-500/30'
-            )}>
-                {businessUnit?.logo ? (
-                    <LazyLogo
-                        src={businessUnit.logo}
-                        alt={businessUnit.name}
-                        className="w-16 h-16 rounded-xl"
-                        fallbackText={businessUnit.code}
-                    />
-                ) : (
-                    <span className="text-2xl font-bold text-white">
-                        {businessUnit?.code?.substring(0, 2) || 'BU'}
-                    </span>
-                )}
-            </div>
-            <span className={cn(
-                'text-sm font-medium',
-                isFrom ? 'text-gray-400' : 'text-gray-700'
-            )}>
-                {businessUnit?.name || 'Unknown'}
-            </span>
-        </motion.div>
-    );
-}
-
-/**
- * Animated arrow between logos
- */
-function TransitionArrow({ isActive }: { isActive: boolean }) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.3 }}
-            animate={{ 
-                opacity: isActive ? 1 : 0,
-                scale: isActive ? 1 : 0.3,
-            }}
-            transition={{ 
-                type: 'spring',
-                stiffness: 400,
-                damping: 25,
-                delay: 0.5,
-            }}
-            className="mx-6"
-        >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                <motion.div
-                    animate={{ x: [0, 4, 0] }}
-                    transition={{ 
-                        repeat: Infinity, 
-                        duration: 1,
-                        ease: 'easeInOut',
-                    }}
-                >
-                    <ArrowRight className="w-6 h-6 text-white" />
-                </motion.div>
-            </div>
-        </motion.div>
-    );
-}
-
-/**
- * Progress step indicator
- */
-function StepIndicator({ step, index }: { step: TransitionStep; index: number }) {
-    const getIcon = () => {
-        switch (step.status) {
-            case 'completed':
-                return <Check className="w-4 h-4 text-green-600" />;
-            case 'active':
-                return <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />;
-            case 'error':
-                return <AlertCircle className="w-4 h-4 text-red-600" />;
-            default:
-                return <span className="w-4 h-4 rounded-full bg-gray-300" />;
-        }
+    const colorMap = {
+        indigo: 'from-indigo-400/30 to-indigo-600/20',
+        purple: 'from-purple-400/30 to-purple-600/20',
+        blue: 'from-blue-400/30 to-blue-600/20',
+        cyan: 'from-cyan-400/30 to-cyan-600/20',
+        pink: 'from-pink-400/30 to-pink-600/20',
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="flex items-center gap-3"
+            className={cn(
+                "absolute rounded-full bg-gradient-to-br blur-3xl",
+                colorMap[color]
+            )}
+            style={{ width: size, height: size }}
+            initial={{ x: initialX, y: initialY, scale: 0.8, opacity: 0 }}
+            animate={{
+                x: [initialX, initialX + 100, initialX - 50, initialX],
+                y: [initialY, initialY - 80, initialY + 60, initialY],
+                scale: [0.8, 1.1, 0.9, 0.8],
+                opacity: [0.4, 0.7, 0.5, 0.4],
+            }}
+            transition={{
+                duration,
+                delay,
+                repeat: Infinity,
+                ease: 'easeInOut',
+            }}
+        />
+    );
+}
+
+// Animated grid lines for tech feel
+function GridLines() {
+    return (
+        <div className="absolute inset-0 overflow-hidden opacity-[0.03]">
+            <div 
+                className="absolute inset-0"
+                style={{
+                    backgroundImage: `
+                        linear-gradient(rgba(99, 102, 241, 0.5) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(99, 102, 241, 0.5) 1px, transparent 1px)
+                    `,
+                    backgroundSize: '60px 60px',
+                }}
+            />
+        </div>
+    );
+}
+
+// Particle dots floating
+function ParticleDots() {
+    const particles = useMemo(() => 
+        Array.from({ length: 30 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: Math.random() * 4 + 2,
+            duration: Math.random() * 10 + 15,
+            delay: Math.random() * 5,
+        })), []
+    );
+
+    return (
+        <div className="absolute inset-0 overflow-hidden">
+            {particles.map((p) => (
+                <motion.div
+                    key={p.id}
+                    className="absolute rounded-full bg-indigo-500/20"
+                    style={{
+                        width: p.size,
+                        height: p.size,
+                        left: `${p.x}%`,
+                        top: `${p.y}%`,
+                    }}
+                    animate={{
+                        y: [0, -30, 0],
+                        opacity: [0.2, 0.6, 0.2],
+                    }}
+                    transition={{
+                        duration: p.duration,
+                        delay: p.delay,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                    }}
+                />
+            ))}
+        </div>
+    );
+}
+
+// Clean logo without background box
+function TransitionLogo({ 
+    bu, 
+    variant = 'default',
+    size = 'lg'
+}: { 
+    bu: BusinessUnitDisplay | null;
+    variant?: 'default' | 'faded';
+    size?: 'md' | 'lg' | 'xl';
+}) {
+    if (!bu) return null;
+    
+    const sizeClasses = {
+        md: 'w-16 h-16 text-xl',
+        lg: 'w-24 h-24 text-3xl',
+        xl: 'w-32 h-32 text-4xl',
+    };
+    
+    const gradients = [
+        'from-indigo-500 via-purple-500 to-pink-500',
+        'from-emerald-500 via-teal-500 to-cyan-500',
+        'from-orange-500 via-red-500 to-pink-500',
+        'from-blue-500 via-indigo-500 to-purple-500',
+        'from-pink-500 via-rose-500 to-red-500',
+    ];
+    const gradientIndex = bu.code.charCodeAt(0) % gradients.length;
+    
+    const baseClasses = cn(
+        "flex items-center justify-center flex-shrink-0 transition-all duration-500",
+        sizeClasses[size],
+        variant === 'faded' && "opacity-30 grayscale scale-90"
+    );
+    
+    if (bu.logo) {
+        return (
+            <motion.div 
+                className={cn(baseClasses, "rounded-3xl overflow-hidden")}
+                whileHover={{ scale: 1.05 }}
+            >
+                <img 
+                    src={`/storage/${bu.logo}`} 
+                    alt={bu.code} 
+                    className="w-full h-full object-contain drop-shadow-2xl"
+                />
+            </motion.div>
+        );
+    }
+    
+    return (
+        <motion.div 
+            className={cn(
+                baseClasses, 
+                "rounded-3xl bg-gradient-to-br shadow-2xl",
+                gradients[gradientIndex]
+            )}
         >
-            <div className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
-                step.status === 'completed' && 'bg-green-100',
-                step.status === 'active' && 'bg-indigo-100',
-                step.status === 'error' && 'bg-red-100',
-                step.status === 'pending' && 'bg-gray-100',
-            )}>
-                {getIcon()}
-            </div>
-            <span className={cn(
-                'text-sm font-medium transition-colors',
-                step.status === 'completed' && 'text-green-700',
-                step.status === 'active' && 'text-indigo-700',
-                step.status === 'error' && 'text-red-700',
-                step.status === 'pending' && 'text-gray-400',
-            )}>
-                {step.label}
+            <span className="font-bold text-white drop-shadow-lg">
+                {bu.code.substring(0, 2)}
             </span>
         </motion.div>
     );
 }
 
-/**
- * Main BU Transition Overlay Component
- * 
- * Shows a full-screen glassmorphism overlay during business unit switch
- * with animated logos and progress steps.
- */
+// Animated connection line between logos
+function ConnectionLine({ isActive }: { isActive: boolean }) {
+    return (
+        <div className="relative w-32 h-1 mx-8">
+            {/* Base line */}
+            <div className="absolute inset-0 bg-gray-200/50 rounded-full" />
+            
+            {/* Animated progress */}
+            <motion.div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: isActive ? '100%' : '0%' }}
+                transition={{ duration: 1.5, ease: 'easeInOut' }}
+            />
+            
+            {/* Glowing dot */}
+            <motion.div
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
+                style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.8)' }}
+                initial={{ left: '0%', opacity: 0 }}
+                animate={{ 
+                    left: isActive ? '100%' : '0%',
+                    opacity: isActive ? [0, 1, 1, 0] : 0,
+                }}
+                transition={{ duration: 1.5, ease: 'easeInOut' }}
+            />
+        </div>
+    );
+}
+
+// Pulsing ring effect around target logo
+function PulsingRing() {
+    return (
+        <>
+            {[0, 1, 2].map((i) => (
+                <motion.div
+                    key={i}
+                    className="absolute inset-0 rounded-3xl border-2 border-indigo-500/30"
+                    initial={{ scale: 1, opacity: 0.6 }}
+                    animate={{ scale: 1.5 + i * 0.2, opacity: 0 }}
+                    transition={{
+                        duration: 2,
+                        delay: i * 0.4,
+                        repeat: Infinity,
+                        ease: 'easeOut',
+                    }}
+                />
+            ))}
+        </>
+    );
+}
+
+// Main overlay component
 export default function BuTransitionOverlay() {
     const isTransitioning = useIsTransitioning();
     const phase = useBuTransitionPhase();
     const fromBu = useBuTransitionFrom();
     const toBu = useBuTransitionTo();
-    const steps = useBuTransitionSteps();
     const errorMessage = useBuTransitionError();
-    const overlayRef = useRef<HTMLDivElement>(null);
-
-    // Prevent body scroll when overlay is active
+    const reset = useBuTransitionStore(state => state.reset);
+    
+    const [showConnection, setShowConnection] = useState(false);
+    
+    // Trigger connection animation
+    useEffect(() => {
+        if (isTransitioning && phase !== 'idle') {
+            const timer = setTimeout(() => setShowConnection(true), 500);
+            return () => clearTimeout(timer);
+        } else {
+            setShowConnection(false);
+        }
+    }, [isTransitioning, phase]);
+    
+    // Prevent body scroll
     useEffect(() => {
         if (isTransitioning) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = '';
         }
-        return () => {
-            document.body.style.overflow = '';
-        };
+        return () => { document.body.style.overflow = ''; };
     }, [isTransitioning]);
-
-    const isActive = phase !== 'idle' && phase !== 'completing';
-
+    
     return (
         <AnimatePresence>
             {isTransitioning && (
                 <motion.div
-                    ref={overlayRef}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed inset-0 z-[9999] flex items-center justify-center"
+                    transition={{ duration: 0.4 }}
+                    className="fixed inset-0 z-[99999] flex items-center justify-center overflow-hidden"
                 >
-                    {/* Glassmorphism backdrop */}
-                    <div className="absolute inset-0 bg-white/70 backdrop-blur-xl" />
+                    {/* Animated gradient background */}
+                    <motion.div 
+                        className="absolute inset-0 bg-gradient-to-br from-slate-50 via-indigo-50/50 to-purple-50/50"
+                        animate={{
+                            background: [
+                                'linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #faf5ff 100%)',
+                                'linear-gradient(135deg, #faf5ff 0%, #f8fafc 50%, #eef2ff 100%)',
+                                'linear-gradient(135deg, #eef2ff 0%, #faf5ff 50%, #f8fafc 100%)',
+                            ],
+                        }}
+                        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+                    />
                     
-                    {/* Gradient orbs for visual interest */}
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl" />
+                    {/* Grid lines */}
+                    <GridLines />
+                    
+                    {/* Floating orbs */}
+                    <FloatingOrb delay={0} duration={25} size={400} color="indigo" initialX={-200} initialY={-100} />
+                    <FloatingOrb delay={2} duration={20} size={300} color="purple" initialX={200} initialY={100} />
+                    <FloatingOrb delay={4} duration={22} size={350} color="blue" initialX={100} initialY={-200} />
+                    <FloatingOrb delay={1} duration={18} size={250} color="cyan" initialX={-150} initialY={200} />
+                    <FloatingOrb delay={3} duration={24} size={280} color="pink" initialX={250} initialY={-50} />
+                    
+                    {/* Particle dots */}
+                    <ParticleDots />
                     
                     {/* Content */}
-                    <div className="relative z-10 flex flex-col items-center">
-                        {/* Logo transition area */}
-                        <div className="flex items-center mb-12">
-                            <AnimatedLogo 
-                                businessUnit={fromBu} 
-                                type="from" 
-                                isActive={isActive}
-                            />
-                            <TransitionArrow isActive={isActive} />
-                            <AnimatedLogo 
-                                businessUnit={toBu} 
-                                type="to" 
-                                isActive={isActive}
-                            />
-                        </div>
-
-                        {/* Title */}
-                        <motion.h2
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.6 }}
-                            className="text-2xl font-semibold text-gray-900 mb-2"
-                        >
-                            Switching to {toBu?.name || 'new context'}
-                        </motion.h2>
-                        
-                        <motion.p
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.7 }}
-                            className="text-gray-500 mb-8"
-                        >
-                            Please wait while we prepare your workspace...
-                        </motion.p>
-
-                        {/* Progress steps */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.8 }}
-                            className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 min-w-[320px]"
-                        >
-                            <div className="space-y-4">
-                                {steps.map((step, index) => (
-                                    <StepIndicator key={step.id} step={step} index={index} />
-                                ))}
-                            </div>
-
-                            {/* Error message */}
-                            {phase === 'error' && errorMessage && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg"
-                                >
-                                    <div className="flex items-start gap-2">
-                                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm font-medium text-red-800">
-                                                Something went wrong
-                                            </p>
-                                            <p className="text-sm text-red-600 mt-1">
-                                                {errorMessage}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => useBuTransitionStore.getState().reset()}
-                                        className="mt-3 w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                    >
-                                        Dismiss
-                                    </button>
-                                </motion.div>
-                            )}
-                        </motion.div>
-
-                        {/* Loading bar */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 1 }}
-                            className="mt-8 w-64 h-1.5 bg-gray-200 rounded-full overflow-hidden"
-                        >
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -30 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="relative z-10 flex flex-col items-center"
+                    >
+                        {phase === 'error' ? (
+                            /* Error State - Minimal */
                             <motion.div
-                                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-full"
-                                style={{ backgroundSize: '200% 100%' }}
-                                animate={{
-                                    backgroundPosition: ['0% 0%', '100% 0%', '0% 0%'],
-                                }}
-                                transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    ease: 'linear',
-                                }}
-                            />
-                        </motion.div>
-                    </div>
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="text-center"
+                            >
+                                <motion.div
+                                    className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center"
+                                    animate={{ scale: [1, 1.05, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                >
+                                    <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </motion.div>
+                                
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                                    Switch Failed
+                                </h3>
+                                <p className="text-sm text-gray-500 mb-6 max-w-xs">
+                                    {errorMessage || 'Something went wrong'}
+                                </p>
+                                
+                                <motion.button
+                                    onClick={reset}
+                                    className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full font-medium text-sm shadow-lg shadow-indigo-500/30"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                >
+                                    Try Again
+                                </motion.button>
+                            </motion.div>
+                        ) : (
+                            /* Main Transition UI - Clean & Modern */
+                            <>
+                                {/* Logo transition area */}
+                                <div className="flex items-center justify-center mb-10">
+                                    {/* From Logo */}
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -50 }}
+                                        animate={{ 
+                                            opacity: showConnection ? 0.4 : 1, 
+                                            x: 0,
+                                            scale: showConnection ? 0.85 : 1,
+                                        }}
+                                        transition={{ duration: 0.6 }}
+                                    >
+                                        <TransitionLogo 
+                                            bu={fromBu} 
+                                            size="lg"
+                                            variant={showConnection ? 'faded' : 'default'}
+                                        />
+                                    </motion.div>
+                                    
+                                    {/* Connection Line */}
+                                    <ConnectionLine isActive={showConnection} />
+                                    
+                                    {/* To Logo with pulsing effect */}
+                                    <motion.div
+                                        initial={{ opacity: 0, x: 50 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.6, delay: 0.2 }}
+                                        className="relative"
+                                    >
+                                        {showConnection && <PulsingRing />}
+                                        <TransitionLogo bu={toBu} size="lg" />
+                                    </motion.div>
+                                </div>
+                                
+                                {/* Minimal text */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="text-center"
+                                >
+                                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                                        Switching to{' '}
+                                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                            {toBu?.name || 'Business Unit'}
+                                        </span>
+                                    </h2>
+                                    
+                                    {/* Animated dots instead of progress bar */}
+                                    <div className="flex items-center justify-center gap-1.5 mt-4">
+                                        {[0, 1, 2].map((i) => (
+                                            <motion.div
+                                                key={i}
+                                                className="w-2 h-2 rounded-full bg-indigo-500"
+                                                animate={{
+                                                    scale: [1, 1.5, 1],
+                                                    opacity: [0.3, 1, 0.3],
+                                                }}
+                                                transition={{
+                                                    duration: 1,
+                                                    delay: i * 0.2,
+                                                    repeat: Infinity,
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
+                    </motion.div>
                 </motion.div>
             )}
         </AnimatePresence>

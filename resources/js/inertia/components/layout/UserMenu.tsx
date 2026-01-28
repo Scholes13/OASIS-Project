@@ -5,33 +5,41 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { PageProps } from '../../types';
 import { cn } from '../../lib/utils';
 import { LazyAvatar } from '../ui/LazyImage';
+import { useLogoutStore } from '@/stores/logoutStore';
 
 export default function UserMenu() {
     const { auth } = usePage<PageProps>().props;
     const user = auth.user;
+    const startLogout = useLogoutStore((state) => state.startLogout);
 
     if (!user) {
         return null;
     }
 
     const handleLogout = () => {
-        // Use native form submission to handle redirect to non-Inertia (Blade) login page
-        // This prevents the login page from opening in an Inertia modal
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/logout';
+        // Start logout animation with user name
+        startLogout(user.name);
+        
+        // Delay actual logout to show animation
+        setTimeout(() => {
+            // Use native form submission to handle redirect to non-Inertia (Blade) login page
+            // This prevents the login page from opening in an Inertia modal
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/logout';
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (csrfToken) {
-            const hiddenField = document.createElement('input');
-            hiddenField.type = 'hidden';
-            hiddenField.name = '_token';
-            hiddenField.value = csrfToken;
-            form.appendChild(hiddenField);
-        }
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (csrfToken) {
+                const hiddenField = document.createElement('input');
+                hiddenField.type = 'hidden';
+                hiddenField.name = '_token';
+                hiddenField.value = csrfToken;
+                form.appendChild(hiddenField);
+            }
 
-        document.body.appendChild(form);
-        form.submit();
+            document.body.appendChild(form);
+            form.submit();
+        }, 2500); // Show animation for 2.5 seconds before actual logout
     };
 
     return (

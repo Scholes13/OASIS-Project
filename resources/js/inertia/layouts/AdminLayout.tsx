@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from '@/components/ui/toast';
+import LogoutOverlay from '@/components/layout/LogoutOverlay';
 import { ChevronRight } from 'lucide-react';
 
 export interface Breadcrumb {
@@ -20,6 +21,9 @@ export function AdminLayout({ children, title, breadcrumbs = [] }: AdminLayoutPr
     <ErrorBoundary>
       {/* Toast Notifications */}
       <Toaster position="top-right" richColors closeButton duration={5000} />
+      
+      {/* Logout Overlay - renders above everything */}
+      <LogoutOverlay />
       
       {/* Skip to main content link for keyboard users */}
       <a

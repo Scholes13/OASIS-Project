@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import BuTransitionOverlay from '../components/layout/BuTransitionOverlay';
+import LogoutOverlay from '../components/layout/LogoutOverlay';
 import { Toaster } from '../components/ui/toast';
 import { cn } from '../lib/utils';
 
@@ -39,6 +40,9 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             
             {/* BU Transition Overlay - renders above everything */}
             <BuTransitionOverlay />
+            
+            {/* Logout Overlay - renders above everything */}
+            <LogoutOverlay />
             
             <div className="min-h-screen bg-gray-50">
                 {/* Sidebar */}

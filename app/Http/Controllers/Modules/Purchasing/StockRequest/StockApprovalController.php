@@ -9,6 +9,7 @@ use App\Services\Core\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class StockApprovalController extends Controller
 {
@@ -48,7 +49,10 @@ class StockApprovalController extends Controller
         $currentApproval = $approval->stockRequest->currentApproval();
         $canApprove = $currentApproval && $currentApproval->id === $approval->id;
 
-        return view('purchasing.approvals.stock-request.show', compact('approval', 'canApprove'));
+        return Inertia::render('Purchasing/StockApproval/Show', [
+            'approval' => $this->transformApprovalDetail($approval),
+            'canApprove' => $canApprove,
+        ]);
     }
 
 
@@ -284,7 +288,145 @@ class StockApprovalController extends Controller
      */
     public function index(Request $request)
     {
-        return view('purchasing.approvals.stock-request.index');
+        $userId = Auth::id();
+
+        $pendingApprovals = StockApproval::with([
+            'stockRequest:id,st_number,user_id,department_id,purpose,status',
+            'stockRequest.user:id,name',
+            'stockRequest.department:id,name,code',
+        ])
+            ->where('approver_id', $userId)
+            ->where('status', 'pending')
+            ->orderByDesc('assigned_at')
+            ->paginate(15)
+            ->withQueryString()
+            ->through(fn (StockApproval $approval) => $this->transformApprovalListItem($approval));
+
+        $recentApprovals = StockApproval::with([
+            'stockRequest:id,st_number,user_id,department_id,purpose,status',
+            'stockRequest.user:id,name',
+            'stockRequest.department:id,name,code',
+        ])
+            ->where('approver_id', $userId)
+            ->whereIn('status', ['approved', 'rejected'])
+            ->orderByDesc('responded_at')
+            ->limit(10)
+            ->get()
+            ->map(fn (StockApproval $approval) => $this->transformApprovalListItem($approval))
+            ->values();
+
+        $statsBaseQuery = StockApproval::query()->where('approver_id', $userId);
+
+        $stats = [
+            'pending' => (clone $statsBaseQuery)->where('status', 'pending')->count(),
+            'approved' => (clone $statsBaseQuery)->where('status', 'approved')->count(),
+            'rejected' => (clone $statsBaseQuery)->where('status', 'rejected')->count(),
+        ];
+        $stats['total'] = $stats['pending'] + $stats['approved'] + $stats['rejected'];
+
+        return Inertia::render('Purchasing/StockApproval/Index', [
+            'pendingApprovals' => $pendingApprovals,
+            'recentApprovals' => $recentApprovals,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * Transform approval for index and history lists.
+     */
+    protected function transformApprovalListItem(StockApproval $approval): array
+    {
+        return [
+            'id' => $approval->id,
+            'step_order' => $approval->step_order,
+            'approval_type' => $approval->approval_type,
+            'task_type' => $approval->task_type,
+            'status' => $approval->status,
+            'assigned_at' => $approval->assigned_at?->toISOString(),
+            'responded_at' => $approval->responded_at?->toISOString(),
+            'notes' => $approval->notes,
+            'stock_request' => [
+                'id' => $approval->stockRequest?->id,
+                'st_number' => $approval->stockRequest?->st_number,
+                'purpose' => $approval->stockRequest?->purpose,
+                'status' => $approval->stockRequest?->status,
+                'requester' => $approval->stockRequest?->user?->name,
+                'department' => $approval->stockRequest?->department?->name,
+                'department_code' => $approval->stockRequest?->department?->code,
+            ],
+        ];
+    }
+
+    /**
+     * Transform approval for detail page.
+     */
+    protected function transformApprovalDetail(StockApproval $approval): array
+    {
+        return [
+            'id' => $approval->id,
+            'step_order' => $approval->step_order,
+            'approval_type' => $approval->approval_type,
+            'task_type' => $approval->task_type,
+            'status' => $approval->status,
+            'notes' => $approval->notes,
+            'assigned_at' => $approval->assigned_at?->toISOString(),
+            'responded_at' => $approval->responded_at?->toISOString(),
+            'approver' => [
+                'id' => $approval->approver?->id,
+                'name' => $approval->approver?->name,
+                'email' => $approval->approver?->email,
+            ],
+            'stock_request' => [
+                'id' => $approval->stockRequest?->id,
+                'st_number' => $approval->stockRequest?->st_number,
+                'purpose' => $approval->stockRequest?->purpose,
+                'status' => $approval->stockRequest?->status,
+                'date_of_request' => $approval->stockRequest?->date_of_request?->toDateString(),
+                'expected_date' => $approval->stockRequest?->expected_date?->toDateString(),
+                'submitted_at' => $approval->stockRequest?->submitted_at?->toISOString(),
+                'user' => [
+                    'id' => $approval->stockRequest?->user?->id,
+                    'name' => $approval->stockRequest?->user?->name,
+                    'email' => $approval->stockRequest?->user?->email,
+                ],
+                'department' => [
+                    'id' => $approval->stockRequest?->department?->id,
+                    'name' => $approval->stockRequest?->department?->name,
+                    'code' => $approval->stockRequest?->department?->code,
+                ],
+                'business_unit' => [
+                    'id' => $approval->stockRequest?->businessUnit?->id,
+                    'name' => $approval->stockRequest?->businessUnit?->name,
+                    'code' => $approval->stockRequest?->businessUnit?->code,
+                    'logo' => $approval->stockRequest?->businessUnit?->logo,
+                ],
+                'items' => $approval->stockRequest?->items
+                    ? $approval->stockRequest->items->map(fn ($item) => [
+                        'id' => $item->id,
+                        'item_name' => $item->item_name,
+                        'specifications' => $item->specifications,
+                        'quantity' => $item->quantity,
+                        'unit' => $item->unit,
+                    ])->values()->all()
+                    : [],
+                'approvals' => $approval->stockRequest?->approvals
+                    ? $approval->stockRequest->approvals->map(fn ($item) => [
+                        'id' => $item->id,
+                        'step_order' => $item->step_order,
+                        'approval_type' => $item->approval_type,
+                        'task_type' => $item->task_type,
+                        'status' => $item->status,
+                        'notes' => $item->notes,
+                        'responded_at' => $item->responded_at?->toISOString(),
+                        'approver' => [
+                            'id' => $item->approver?->id,
+                            'name' => $item->approver?->name,
+                            'email' => $item->approver?->email,
+                        ],
+                    ])->values()->all()
+                    : [],
+            ],
+        ];
     }
 
     /**

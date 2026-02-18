@@ -7,6 +7,7 @@ use App\Models\Core\NotificationSetting;
 use App\Services\Core\EmailNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class NotificationSettingsController extends Controller
 {
@@ -27,7 +28,7 @@ class NotificationSettingsController extends Controller
 
         $settings = NotificationSetting::getInstance();
 
-        return \Inertia\Inertia::render('Admin/NotificationSettings/Index', [
+        return Inertia::render('Admin/NotificationSettings/Index', [
             'settings' => [
                 'smtp_host' => $settings->smtp_host,
                 'smtp_port' => $settings->smtp_port,
@@ -128,6 +129,24 @@ class NotificationSettingsController extends Controller
             'last_email_sent' => $settings->last_email_sent_at,
         ];
 
-        return view('admin.notification-settings.statistics', compact('stats', 'settings'));
+        return Inertia::render('Admin/NotificationSettings/Statistics', [
+            'stats' => [
+                'total_sent' => $stats['total_sent'],
+                'total_failed' => $stats['total_failed'],
+                'success_rate' => $stats['success_rate'],
+                'last_email_sent' => $stats['last_email_sent']?->toISOString(),
+            ],
+            'settings' => [
+                'email_enabled' => $settings->email_enabled,
+                'fallback_to_database' => $settings->fallback_to_database,
+                'retry_failed_emails' => $settings->retry_failed_emails,
+                'link_expiry_days' => $settings->link_expiry_days,
+                'smtp_host' => $settings->smtp_host,
+                'smtp_port' => $settings->smtp_port,
+                'smtp_encryption' => $settings->smtp_encryption,
+                'mail_from_address' => $settings->mail_from_address,
+                'mail_from_name' => $settings->mail_from_name,
+            ],
+        ]);
     }
 }

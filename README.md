@@ -228,6 +228,37 @@ composer test
 php artisan test --filter=ActivityReporting
 ```
 
+## CI/CD (GitHub Actions + VPS)
+
+This repository now includes two workflows:
+
+- `ci` (`.github/workflows/ci.yml`)
+  - Runs on push and pull request to `main` and `v4-beta`
+  - Executes Laravel migrations + tests
+  - Verifies frontend build (`npm run build`)
+
+- `deploy-vps` (`.github/workflows/deploy-vps.yml`)
+  - Auto deploys on push to `main`
+  - Also supports manual deploy via `workflow_dispatch`
+  - Pulls latest code on VPS, installs dependencies, runs migration, and optimizes caches
+
+### Required GitHub Secrets
+
+Set these in repository secrets before enabling deployment:
+
+- `VPS_HOST` - VPS IP/domain
+- `VPS_USER` - SSH user with deploy permission
+- `VPS_SSH_KEY` - private SSH key content (recommended dedicated deploy key)
+- `VPS_APP_PATH` - absolute project path on VPS (example: `/var/www/numbering`)
+
+### VPS Requirements
+
+- Project already cloned on VPS at `VPS_APP_PATH`
+- `git`, `php`, `composer` installed and available in PATH
+- `npm` installed if frontend build is executed on VPS
+- Correct `.env` already present on VPS
+- Queue worker managed by Supervisor (recommended)
+
 ## Contributing
 
 Please review the contribution guidelines before submitting pull requests.

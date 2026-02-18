@@ -1,10 +1,40 @@
-# .gitignore self-reference
-.gitignore
+# Dependencies
+/vendor/
+/node_modules/
 
-# Laravel Compiled Views (Issue #1 fix)
-/storage/framework/views/*.php
+# Build artifacts
+/public/build/
+/public/hot
 
-# Other Laravel generated files
+# Environment and runtime
+/.env
+/.env.*
+!/.env.example
+/storage/*.key
+
+# Laravel generated files
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
 /storage/framework/cache/*
+!/storage/framework/cache/.gitignore
 /storage/framework/sessions/*
-/storage/logs/*.log
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+
+# Test and tooling caches
+/.phpunit.result.cache
+/.phpunit.cache/
+/coverage/
+
+# IDE and OS files
+/.idea/
+/.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

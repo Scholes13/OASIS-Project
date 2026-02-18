@@ -362,6 +362,8 @@ export interface ActivityType {
     id: number;
     name: string;
     color: string;
+    code?: string;
+    department_prefix?: string;
     sub_activities_count?: number;
     usage_count?: number;
     created_at: string;

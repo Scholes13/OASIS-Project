@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit2, Trash2, X, Check, Filter } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Check, Filter, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SubActivityIndexProps, SubActivity, SubActivityFormData, ActivityType } from '@/types/admin';
+import { SubActivity, SubActivityFormData, ActivityType } from '@/types/admin';
+import { PageProps } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,10 +12,43 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
 
-function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps) {
+// Laravel pagination structure (without meta wrapper)
+interface LaravelPagination<T> {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+}
+
+interface BusinessUnit {
+    id: number;
+    code: string;
+    name: string;
+}
+
+interface Props extends PageProps {
+    subActivities: LaravelPagination<SubActivity>;
+    activityTypes: ActivityType[];
+    businessUnits: BusinessUnit[];
+    isSuperAdmin: boolean;
+    filters: {
+        search?: string;
+        activity_type_id?: number;
+        business_unit_id?: number;
+        status?: string;
+    };
+}
+
+function Index({ subActivities, activityTypes, businessUnits, isSuperAdmin, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [activityTypeFilter, setActivityTypeFilter] = useState(
         filters.activity_type_id ? filters.activity_type_id.toString() : ''
+    );
+    const [businessUnitFilter, setBusinessUnitFilter] = useState(
+        filters.business_unit_id ? filters.business_unit_id.toString() : ''
     );
     const [editingId, setEditingId] = useState<number | null>(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -24,12 +58,22 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Build current filters for navigation
+    const buildFilters = (overrides: Record<string, string | undefined> = {}) => {
+        const currentFilters: Record<string, string | undefined> = {
+            search: search || undefined,
+            activity_type_id: activityTypeFilter || undefined,
+            business_unit_id: businessUnitFilter || undefined,
+        };
+        return { ...currentFilters, ...overrides };
+    };
+
     // Debounced search
     React.useEffect(() => {
         const timer = setTimeout(() => {
             router.get(
                 route('admin.sub-activities.index'),
-                { search, activity_type_id: activityTypeFilter || undefined },
+                buildFilters(),
                 { preserveState: true, replace: true }
             );
         }, 300);
@@ -43,7 +87,20 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
         setActivityTypeFilter(stringValue);
         router.get(
             route('admin.sub-activities.index'),
-            { search, activity_type_id: stringValue || undefined },
+            buildFilters({ activity_type_id: stringValue || undefined }),
+            { preserveState: true, replace: true }
+        );
+    };
+
+    // Handle business unit filter change (super admin only)
+    const handleBusinessUnitFilterChange = (value: string | number) => {
+        const stringValue = value.toString();
+        setBusinessUnitFilter(stringValue);
+        // Reset activity type filter when business unit changes
+        setActivityTypeFilter('');
+        router.get(
+            route('admin.sub-activities.index'),
+            { search: search || undefined, business_unit_id: stringValue || undefined },
             { preserveState: true, replace: true }
         );
     };
@@ -196,7 +253,7 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
 
                 {/* Search and Filters */}
                 <div className="bg-white rounded-xl border border-gray-200 p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`grid grid-cols-1 gap-4 ${isSuperAdmin ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input
@@ -207,6 +264,24 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                 className="pl-10"
                             />
                         </div>
+                        {isSuperAdmin && businessUnits.length > 0 && (
+                            <div className="relative">
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
+                                <Select
+                                    value={businessUnitFilter}
+                                    onChange={handleBusinessUnitFilterChange}
+                                    options={[
+                                        { value: '', label: 'All Business Units' },
+                                        ...businessUnits.map((bu) => ({
+                                            value: bu.id.toString(),
+                                            label: `${bu.code} - ${bu.name}`,
+                                        })),
+                                    ]}
+                                    placeholder="All Business Units"
+                                    className="pl-10"
+                                />
+                            </div>
+                        )}
                         <div className="relative">
                             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
                             <Select
@@ -216,7 +291,9 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                     { value: '', label: 'All Activity Types' },
                                     ...activityTypes.map((type) => ({
                                         value: type.id.toString(),
-                                        label: type.name,
+                                        label: type.department_prefix 
+                                            ? `${type.name} (${type.department_prefix})` 
+                                            : type.name,
                                     })),
                                 ]}
                                 placeholder="All Activity Types"
@@ -252,7 +329,9 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                             }
                                             options={activityTypes.map((type) => ({
                                                 value: type.id.toString(),
-                                                label: type.name,
+                                                label: type.department_prefix
+                                                    ? `${type.name} (${type.department_prefix})`
+                                                    : type.name,
                                             }))}
                                             placeholder="Select activity type"
                                         />
@@ -318,7 +397,9 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                         <Badge
                                             className={getColorClasses(group.activityType.color)}
                                         >
-                                            {group.activityType.name}
+                                            {group.activityType.department_prefix
+                                                ? `${group.activityType.name} (${group.activityType.department_prefix})`
+                                                : group.activityType.name}
                                         </Badge>
                                         <span className="text-sm text-gray-600">
                                             {group.subActivities.length} sub-activities
@@ -352,7 +433,9 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                                             }
                                                             options={activityTypes.map((type) => ({
                                                                 value: type.id.toString(),
-                                                                label: type.name,
+                                                                label: type.department_prefix
+                                                                    ? `${type.name} (${type.department_prefix})`
+                                                                    : type.name,
                                                             }))}
                                                             placeholder="Select activity type"
                                                         />
@@ -435,14 +518,14 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                 )}
 
                 {/* Pagination */}
-                {subActivities.meta.last_page > 1 && (
+                {subActivities.last_page > 1 && (
                     <div className="bg-white rounded-xl border border-gray-200 px-6 py-4 flex items-center justify-between">
                         <div className="text-sm text-gray-600">
-                            Showing {subActivities.meta.from} to {subActivities.meta.to} of{' '}
-                            {subActivities.meta.total} results
+                            Showing {subActivities.from} to {subActivities.to} of{' '}
+                            {subActivities.total} results
                         </div>
                         <div className="flex items-center gap-2">
-                            {subActivities.meta.current_page > 1 && (
+                            {subActivities.current_page > 1 && (
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -450,8 +533,8 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                         router.get(
                                             route('admin.sub-activities.index'),
                                             {
-                                                ...filters,
-                                                page: subActivities.meta.current_page - 1,
+                                                ...buildFilters(),
+                                                page: subActivities.current_page - 1,
                                             },
                                             { preserveState: true }
                                         )
@@ -460,7 +543,7 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                     Previous
                                 </Button>
                             )}
-                            {subActivities.meta.current_page < subActivities.meta.last_page && (
+                            {subActivities.current_page < subActivities.last_page && (
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -468,8 +551,8 @@ function Index({ subActivities, activityTypes, filters }: SubActivityIndexProps)
                                         router.get(
                                             route('admin.sub-activities.index'),
                                             {
-                                                ...filters,
-                                                page: subActivities.meta.current_page + 1,
+                                                ...buildFilters(),
+                                                page: subActivities.current_page + 1,
                                             },
                                             { preserveState: true }
                                         )

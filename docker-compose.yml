@@ -3,7 +3,7 @@
 
 services:
   app:
-    image: ${DOCKER_IMAGE:-ghcr.io/your-org/numbering}:${IMAGE_TAG:-latest}
+    image: ${DOCKER_IMAGE:-ghcr.io/scholes13/numbering}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: .env
     extra_hosts:
@@ -37,7 +37,7 @@ services:
       - app-network
 
   queue:
-    image: ${DOCKER_IMAGE:-ghcr.io/your-org/numbering}:${IMAGE_TAG:-latest}
+    image: ${DOCKER_IMAGE:-ghcr.io/scholes13/numbering}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=90
     env_file: .env
@@ -53,7 +53,7 @@ services:
       - app-network
 
   scheduler:
-    image: ${DOCKER_IMAGE:-ghcr.io/your-org/numbering}:${IMAGE_TAG:-latest}
+    image: ${DOCKER_IMAGE:-ghcr.io/scholes13/numbering}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     command: php artisan schedule:work
     env_file: .env

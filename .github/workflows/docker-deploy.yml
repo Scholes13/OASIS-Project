@@ -3,7 +3,6 @@ name: Docker Build & Deploy
 on:
   push:
     branches:
-      - main
       - staging
   workflow_dispatch:
     inputs:
@@ -14,7 +13,7 @@ on:
         type: choice
         options:
           - staging
-          - production
+          # - production  # Uncomment when ready to migrate production to Docker
 
 env:
   REGISTRY: ghcr.io
@@ -82,19 +81,20 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             ENV="${{ github.event.inputs.environment }}"
-          elif [ "${{ github.ref_name }}" = "main" ]; then
-            ENV="production"
-          else
+          elif [ "${{ github.ref_name }}" = "staging" ]; then
             ENV="staging"
+          else
+            echo "::error::Unknown branch for deployment"
+            exit 1
           fi
           echo "environment=$ENV" >> "$GITHUB_OUTPUT"
 
           if [ "$ENV" = "production" ]; then
-            echo "app_path=/opt/numbering/production" >> "$GITHUB_OUTPUT"
+            echo "app_path=/opt/oasis/production" >> "$GITHUB_OUTPUT"
             echo "domain=oasis.werkudara.com" >> "$GITHUB_OUTPUT"
             echo "app_port=8080" >> "$GITHUB_OUTPUT"
           else
-            echo "app_path=/opt/numbering/staging" >> "$GITHUB_OUTPUT"
+            echo "app_path=/opt/oasis/staging" >> "$GITHUB_OUTPUT"
             echo "domain=staging.oasis.werkudara.com" >> "$GITHUB_OUTPUT"
             echo "app_port=8081" >> "$GITHUB_OUTPUT"
           fi

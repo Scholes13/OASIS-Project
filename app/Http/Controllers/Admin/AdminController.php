@@ -95,7 +95,9 @@ class AdminController extends Controller
             'queue' => $this->checkQueueHealth(),
         ];
 
-        return view('admin.system-health', compact('health'));
+        return Inertia::render('Admin/SystemHealth', [
+            'health' => $health,
+        ]);
     }
 
     /**

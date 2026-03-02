@@ -377,12 +377,16 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Number Sequence Management (placeholder routes)
         Route::get('/number-sequences', function () {
-            return view('admin.number-sequences.index');
+            return redirect()
+                ->route('admin.dashboard')
+                ->with('info', 'Number sequence management page is not available yet.');
         })->name('number-sequences.index');
 
         // Workflow Management (placeholder routes)
         Route::get('/workflows', function () {
-            return view('admin.workflows.index');
+            return redirect()
+                ->route('admin.dashboard')
+                ->with('info', 'Workflow management page is not available yet.');
         })->name('workflows.index');
     });
 });

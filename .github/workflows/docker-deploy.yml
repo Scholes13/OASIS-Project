@@ -1,0 +1,162 @@
+name: Docker Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set variables
+        id: vars
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            ENV="production"
+          else
+            ENV="staging"
+          fi
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+
+          if [ "$ENV" = "production" ]; then
+            echo "app_path=/opt/numbering/production" >> "$GITHUB_OUTPUT"
+            echo "domain=oasis.werkudara.com" >> "$GITHUB_OUTPUT"
+            echo "app_port=8080" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_path=/opt/numbering/staging" >> "$GITHUB_OUTPUT"
+            echo "domain=staging.oasis.werkudara.com" >> "$GITHUB_OUTPUT"
+            echo "app_port=8081" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            APP_PATH="${{ steps.env.outputs.app_path }}"
+            IMAGE_TAG="${{ github.ref_name }}-${{ needs.build-and-push.outputs.short_sha }}"
+            REGISTRY="${{ env.REGISTRY }}"
+            IMAGE_NAME="${{ env.IMAGE_NAME }}"
+
+            cd "$APP_PATH"
+
+            # Save current image tag for rollback
+            PREV_TAG=$(grep IMAGE_TAG .env.docker 2>/dev/null | cut -d= -f2 || echo "latest")
+
+            # Write new image tag
+            cat > .env.docker << EOF
+            DOCKER_IMAGE=${REGISTRY}/${IMAGE_NAME}
+            IMAGE_TAG=${IMAGE_TAG}
+            APP_PORT=${{ steps.env.outputs.app_port }}
+            EOF
+
+            # Login to GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull new image and deploy
+            docker compose pull
+            docker compose up -d --remove-orphans
+
+            # Wait for containers to be healthy
+            sleep 10
+
+            # Run migrations
+            docker compose exec -T app php artisan migrate --force
+
+            # Rebuild caches
+            docker compose exec -T app php artisan optimize
+
+            # Health check
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "https://${{ steps.env.outputs.domain }}/up" || echo "000")
+
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "::error::Health check failed (HTTP $HTTP_CODE). Rolling back..."
+              cat > .env.docker << EOF
+              DOCKER_IMAGE=${REGISTRY}/${IMAGE_NAME}
+              IMAGE_TAG=${PREV_TAG}
+              APP_PORT=${{ steps.env.outputs.app_port }}
+            EOF
+              docker compose pull
+              docker compose up -d
+              exit 1
+            fi
+
+            echo "Deploy successful! Health check passed (HTTP $HTTP_CODE)"
+
+            # Prune old images
+            docker image prune -f

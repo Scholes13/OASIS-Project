@@ -2,9 +2,12 @@
 
 namespace App\Models\Core;
 
+use App\Models\Modules\Activity\ActivityType;
+use App\Models\Modules\Activity\SubActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -58,9 +61,7 @@ class Department extends Model
         'business_unit_id',
         'code',
         'name',
-        'head_id',
         'is_active',
-        'sort_order',
         'is_purchasing_department',
         'default_purchasing_admin_id',
     ];
@@ -185,11 +186,56 @@ class Department extends Model
     }
 
     /**
+     * Get activity types assigned to this department
+     */
+    public function activityTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(ActivityType::class, 'department_activity_types')
+            ->withPivot(['is_default', 'sort_order'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
+    /**
+     * Get active activity types for this department, ordered
+     */
+    public function activeActivityTypes(): BelongsToMany
+    {
+        return $this->activityTypes()->where('is_active', true);
+    }
+
+    /**
+     * Get sub-activities assigned to this department
+     */
+    public function subActivities(): BelongsToMany
+    {
+        return $this->belongsToMany(SubActivity::class, 'department_sub_activities')
+            ->withPivot(['is_default', 'sort_order'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
+    /**
+     * Get active sub-activities for this department, ordered
+     */
+    public function activeSubActivities(): BelongsToMany
+    {
+        return $this->subActivities()->where('is_active', true);
+    }
+
+    /**
      * Ensure default hierarchy positions exist for the department.
      */
     public function ensureDefaultPositions(): void
     {
         $positions = [
+            [
+                'code' => 'EXEC_'.strtoupper($this->code),
+                'name' => 'Executive of '.$this->name,
+                'level' => 'hod',
+                'access_level' => 'executive',
+                'hierarchy_level' => 0,
+            ],
             [
                 'code' => 'HOD_'.strtoupper($this->code),
                 'name' => 'Head of '.$this->name,

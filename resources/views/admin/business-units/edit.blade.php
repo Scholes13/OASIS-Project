@@ -33,7 +33,7 @@
                                        id="code"
                                        value="{{ old('code', $businessUnit->code) }}"
                                        required
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('code') border-red-300 @enderror">
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('code') border-red-300 @enderror">
                                 @error('code')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -47,7 +47,7 @@
                                        id="name"
                                        value="{{ old('name', $businessUnit->name) }}"
                                        required
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('name') border-red-300 @enderror">
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('name') border-red-300 @enderror">
                                 @error('name')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -60,7 +60,7 @@
                             <textarea name="description" 
                                       id="description"
                                       rows="3"
-                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('description') border-red-300 @enderror">{{ old('description', $businessUnit->description) }}</textarea>
+                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('description') border-red-300 @enderror">{{ old('description', $businessUnit->description) }}</textarea>
                             @error('description')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
@@ -92,13 +92,13 @@
                             @endif
 
                             <!-- File Upload Input -->
-                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-400 transition-colors duration-200">
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-primary transition-colors duration-200">
                                 <div class="space-y-1 text-center">
                                     <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                         <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                     <div class="flex text-sm text-gray-600">
-                                        <label for="logo" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                        <label for="logo" class="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary">
                                             <span>Upload a file</span>
                                             <input id="logo" 
                                                    name="logo" 
@@ -132,7 +132,7 @@
                             <label for="parent_id" class="block text-sm font-medium text-gray-700">Parent Business Unit</label>
                             <select name="parent_id" 
                                     id="parent_id" 
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('parent_id') border-red-300 @enderror">
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('parent_id') border-red-300 @enderror">
                                 <option value="">Select Parent (Optional)</option>
                                 @foreach($parentBusinessUnits as $parent)
                                     <option value="{{ $parent->id }}" {{ old('parent_id', $businessUnit->parent_id) == $parent->id ? 'selected' : '' }}>
@@ -160,7 +160,7 @@
                             <textarea name="address" 
                                       id="address"
                                       rows="3"
-                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('address') border-red-300 @enderror">{{ old('address', $businessUnit->address) }}</textarea>
+                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('address') border-red-300 @enderror">{{ old('address', $businessUnit->address) }}</textarea>
                             @error('address')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
@@ -174,7 +174,7 @@
                                        name="phone" 
                                        id="phone"
                                        value="{{ old('phone', $businessUnit->phone) }}"
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('phone') border-red-300 @enderror">
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('phone') border-red-300 @enderror">
                                 @error('phone')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -187,7 +187,7 @@
                                        name="email" 
                                        id="email"
                                        value="{{ old('email', $businessUnit->email) }}"
-                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 @error('email') border-red-300 @enderror">
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary @error('email') border-red-300 @enderror">
                                 @error('email')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -257,7 +257,7 @@
                                    id="is_active"
                                    value="1"
                                    {{ old('is_active', $businessUnit->is_active) ? 'checked' : '' }}
-                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
                             <label for="is_active" class="ml-2 block text-sm text-gray-900">
                                 Active
                             </label>
@@ -274,7 +274,7 @@
                                 Cancel
                             </a>
                             <button type="submit" 
-                                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors duration-200">
+                                    class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors duration-200">
                                 <i class="fas fa-save mr-2"></i>Update Business Unit
                             </button>
                         </div>

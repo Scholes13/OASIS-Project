@@ -10,7 +10,7 @@ class DashboardController extends Controller
 {
     /**
      * Display the main dashboard.
-     * 
+     *
      * This is the landing page after login, providing quick access to:
      * - Recent activities
      * - Quick actions (Create PR, Create ST, View Tasks)
@@ -68,16 +68,24 @@ class DashboardController extends Controller
             ->whereIn('status', ['draft', 'submitted', 'in_approval'])
             ->count();
 
-        // Pending Approvals (PRs)
+        // Pending Approvals (PRs) - only count those whose parent request is in_approval
         $stats['pending_approvals'] = \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval::query()
             ->where('approver_id', $user->id)
             ->where('status', 'pending')
+            ->whereHas('purchaseRequest', function ($q) use ($currentBusinessUnitId) {
+                $q->where('status', 'in_approval')
+                    ->where('business_unit_id', $currentBusinessUnitId);
+            })
             ->count();
 
-        // Add Stock Request approvals
+        // Add Stock Request approvals - only count those whose parent request is in_approval
         $stats['pending_approvals'] += \App\Models\Modules\Purchasing\StockRequest\StockApproval::query()
             ->where('approver_id', $user->id)
             ->where('status', 'pending')
+            ->whereHas('stockRequest', function ($q) use ($currentBusinessUnitId) {
+                $q->where('status', 'in_approval')
+                    ->where('business_unit_id', $currentBusinessUnitId);
+            })
             ->count();
 
         // My Active Tasks (Activity Tracking)
@@ -151,16 +159,24 @@ class DashboardController extends Controller
     {
         $count = 0;
 
-        // PR Approvals
+        // PR Approvals - only count those whose parent request is in_approval
         $count += \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval::query()
             ->where('approver_id', $user->id)
             ->where('status', 'pending')
+            ->whereHas('purchaseRequest', function ($q) use ($currentBusinessUnitId) {
+                $q->where('status', 'in_approval')
+                    ->where('business_unit_id', $currentBusinessUnitId);
+            })
             ->count();
 
-        // ST Approvals
+        // ST Approvals - only count those whose parent request is in_approval
         $count += \App\Models\Modules\Purchasing\StockRequest\StockApproval::query()
             ->where('approver_id', $user->id)
             ->where('status', 'pending')
+            ->whereHas('stockRequest', function ($q) use ($currentBusinessUnitId) {
+                $q->where('status', 'in_approval')
+                    ->where('business_unit_id', $currentBusinessUnitId);
+            })
             ->count();
 
         return $count;

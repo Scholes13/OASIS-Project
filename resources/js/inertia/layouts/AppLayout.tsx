@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useCallback } from 'react';
 import { Head } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
@@ -24,53 +24,104 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         }
     }, []);
 
-    // Save sidebar state to localStorage
-    const toggleSidebar = () => {
+    // Close mobile sidebar on route change or Escape key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && mobileSidebarOpen) {
+                setMobileSidebarOpen(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [mobileSidebarOpen]);
+
+    // Lock body scroll when mobile sidebar is open
+    useEffect(() => {
+        if (mobileSidebarOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [mobileSidebarOpen]);
+
+    const toggleSidebar = useCallback(() => {
         const newState = !sidebarMinimized;
         setSidebarMinimized(newState);
         localStorage.setItem('sidebar-minimized', String(newState));
-    };
+    }, [sidebarMinimized]);
+
+    const closeMobileSidebar = useCallback(() => {
+        setMobileSidebarOpen(false);
+    }, []);
+
+    const toggleMobileSidebar = useCallback(() => {
+        setMobileSidebarOpen(prev => !prev);
+    }, []);
 
     return (
         <>
             {title && <Head title={title} />}
-            
+
+            {/* Skip to Content — WCAG 2.1 keyboard navigation */}
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-primary focus:font-semibold focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-primary focus:outline-none"
+            >
+                Skip to content
+            </a>
+
             {/* Toast Notifications */}
             <Toaster position="top-right" richColors closeButton duration={5000} />
-            
-            {/* BU Transition Overlay - renders above everything */}
-            <BuTransitionOverlay />
-            
-            {/* Logout Overlay - renders above everything */}
-            <LogoutOverlay />
-            
-            <div className="min-h-screen bg-gray-50">
-                {/* Sidebar */}
-                <Sidebar minimized={sidebarMinimized} onToggle={toggleSidebar} />
 
-                {/* Mobile Sidebar Overlay */}
+            {/* BU Transition Overlay */}
+            <BuTransitionOverlay />
+
+            {/* Logout Overlay */}
+            <LogoutOverlay />
+
+            <div className="flex h-screen overflow-hidden bg-background">
+                {/* Sidebar — hidden on mobile, shown on lg+ */}
+                <div className="hidden lg:block">
+                    <Sidebar minimized={sidebarMinimized} onToggle={toggleSidebar} />
+                </div>
+
+                {/* Mobile Sidebar Overlay + Drawer */}
                 {mobileSidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-                        onClick={() => setMobileSidebarOpen(false)}
-                    />
+                    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
+                        {/* Backdrop */}
+                        <div
+                            className="fixed inset-0 bg-black/50 transition-opacity"
+                            onClick={closeMobileSidebar}
+                            aria-hidden="true"
+                        />
+                        {/* Drawer */}
+                        <div className="fixed inset-y-0 left-0 w-60 z-50">
+                            <Sidebar minimized={false} onToggle={closeMobileSidebar} />
+                        </div>
+                    </div>
                 )}
 
-                {/* Navbar */}
-                <Navbar
-                    onMenuClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-                    sidebarMinimized={sidebarMinimized}
-                />
-
-                {/* Main Content */}
-                <main
+                {/* Main Wrapper — responsive margin: 0 on mobile, ml-16/ml-64 on lg+ */}
+                <div
                     className={cn(
-                        'pt-16 transition-all duration-300',
-                        sidebarMinimized ? 'ml-16' : 'ml-64'
+                        'flex flex-1 flex-col overflow-hidden transition-all duration-300',
+                        'lg:ml-16',
+                        !sidebarMinimized && 'lg:ml-60'
                     )}
                 >
-                    {children}
-                </main>
+                    {/* Navbar */}
+                    <Navbar
+                        onMenuClick={toggleMobileSidebar}
+                        sidebarMinimized={sidebarMinimized}
+                    />
+
+                    {/* Main Content — scrollable area */}
+                    <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">
+                        {children}
+                    </main>
+                </div>
             </div>
         </>
     );

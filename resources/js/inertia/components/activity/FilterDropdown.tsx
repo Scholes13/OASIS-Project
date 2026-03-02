@@ -42,11 +42,11 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
             <Popover className="relative">
                 {({ open }) => (
                     <>
-                        <Popover.Button className="inline-flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm">
+                        <Popover.Button className="inline-flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm">
                             <SlidersHorizontal className="w-4 h-4 mr-1.5" strokeWidth={1.5} />
                             Filter
                             {hasActiveFilters && (
-                                <span className="ml-1.5 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+                                <span className="ml-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
                             )}
                         </Popover.Button>
 
@@ -69,7 +69,7 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
                                         <select
                                             value={localFilters.activity_type_id}
                                             onChange={(e) => handleChange('activity_type_id', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                                         >
                                             <option value="">All Types</option>
                                             {(activityTypes ?? []).map((type) => (
@@ -88,7 +88,7 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
                                         <select
                                             value={localFilters.status}
                                             onChange={(e) => handleChange('status', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                                         >
                                             <option value="">All Status</option>
                                             <option value="planned">Planned</option>
@@ -108,7 +108,7 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
                                                 type="date"
                                                 value={localFilters.date_from}
                                                 onChange={(e) => handleChange('date_from', e.target.value)}
-                                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                                             />
                                         </div>
                                         <div>
@@ -119,7 +119,7 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
                                                 type="date"
                                                 value={localFilters.date_to}
                                                 onChange={(e) => handleChange('date_to', e.target.value)}
-                                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                                             />
                                         </div>
                                     </div>

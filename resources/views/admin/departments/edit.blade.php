@@ -147,7 +147,7 @@
                                                id="is_active"
                                                value="1"
                                                {{ old('is_active', $department->is_active) ? 'checked' : '' }}
-                                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                               class="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50">
                                         <label for="is_active" class="ml-2 text-sm text-gray-700">
                                             <span class="font-medium">Active Department</span>
                                             <span class="block text-xs text-gray-500">Active departments can be assigned to users and positions</span>

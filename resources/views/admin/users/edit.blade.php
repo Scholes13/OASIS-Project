@@ -31,7 +31,7 @@
                                        id="name"
                                        value="{{ old('name', $user->name) }}"
                                        required
-                                       class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                 @error('name')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -45,7 +45,7 @@
                                        id="email"
                                        value="{{ old('email', $user->email) }}"
                                        required
-                                       class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                 @error('email')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -58,7 +58,7 @@
                                        name="phone_number" 
                                        id="phone_number"
                                        value="{{ old('phone_number', $user->phone_number) }}"
-                                       class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                       class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                 @error('phone_number')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -67,7 +67,7 @@
                             <!-- Global Role -->
                             <div>
                                 <label for="global_role" class="block text-sm font-medium text-gray-700 mb-1">Global Role *</label>
-                                <select name="global_role" id="global_role" required class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <select name="global_role" id="global_role" required class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                     <option value="user" {{ old('global_role', $user->global_role) === 'user' ? 'selected' : '' }}>User</option>
                                     <option value="super_admin" {{ old('global_role', $user->global_role) === 'super_admin' ? 'selected' : '' }}>Super Admin</option>
                                 </select>
@@ -79,7 +79,7 @@
                             <!-- Supervisor -->
                             <div>
                                 <label for="supervisor_id" class="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
-                                <select name="supervisor_id" id="supervisor_id" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <select name="supervisor_id" id="supervisor_id" class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                     <option value="">No Supervisor</option>
                                     @foreach($users as $supervisor)
                                         <option value="{{ $supervisor->id }}" {{ old('supervisor_id', $user->supervisor_id) == $supervisor->id ? 'selected' : '' }}>
@@ -101,7 +101,7 @@
                                            id="is_active"
                                            value="1"
                                            {{ old('is_active', $user->is_active) ? 'checked' : '' }}
-                                           class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                           class="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring-primary">
                                     <label for="is_active" class="ml-2 text-sm text-gray-700">Active</label>
                                 </div>
                                 @error('is_active')
@@ -120,7 +120,7 @@
                                     <input type="password" 
                                            name="password" 
                                            id="password"
-                                           class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                           class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                     @error('password')
                                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                     @enderror
@@ -131,7 +131,7 @@
                                     <input type="password" 
                                            name="password_confirmation" 
                                            id="password_confirmation"
-                                           class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                           class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                 </div>
                             </div>
                         </div>
@@ -160,7 +160,7 @@
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
                                             <select name="business_units[{{ $index }}][business_unit_id]" 
-                                                    class="business-unit-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                                                    class="business-unit-select w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary" 
                                                     required>
                                                 <option value="">Select Business Unit</option>
                                                 @foreach($businessUnits as $bu)
@@ -177,7 +177,7 @@
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Department *</label>
                                             <select name="business_units[{{ $index }}][department_id]" 
-                                                    class="department-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                                                    class="department-select w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary" 
                                                     required>
                                                 <option value="">Select Department</option>
                                                 @if($assignment->businessUnit)
@@ -196,7 +196,7 @@
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">Position *</label>
                                             <select name="business_units[{{ $index }}][position_id]" 
-                                                    class="position-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                                                    class="position-select w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary" 
                                                     required>
                                                 <option value="">Select Position</option>
                                                 @if($assignment->department)
@@ -219,7 +219,7 @@
                                                    name="primary_business_unit"
                                                    value="{{ $index }}"
                                                    {{ $assignment->is_primary ? 'checked' : '' }}
-                                                   class="primary-radio rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                   class="primary-radio rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring-primary">
                                             <label class="ml-2 text-sm text-gray-700">Set as Primary Assignment</label>
                                         </div>
                                     </div>
@@ -246,7 +246,7 @@
                                 Cancel
                             </a>
                             <button type="submit" 
-                                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md transition-colors duration-200">
+                                    class="bg-primary hover:bg-blue-600 text-white px-6 py-2 rounded-md transition-colors duration-200">
                                 <i class="fas fa-save mr-2"></i>Update User
                             </button>
                         </div>
@@ -290,7 +290,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Business Unit *</label>
                             <select name="business_units[${businessUnitIndex}][business_unit_id]"
-                                    class="business-unit-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="business-unit-select w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
                                     required>
                                 <option value="">Select Business Unit</option>
                                 @foreach($businessUnits as $bu)
@@ -305,7 +305,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Department *</label>
                             <select name="business_units[${businessUnitIndex}][department_id]"
-                                    class="department-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="department-select w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
                                     required>
                                 <option value="">Select Department</option>
                             </select>
@@ -315,7 +315,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Position *</label>
                             <select name="business_units[${businessUnitIndex}][position_id]"
-                                    class="position-select w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="position-select w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary"
                                     required>
                                 <option value="">Select Position</option>
                             </select>
@@ -328,7 +328,7 @@
                             <input type="radio"
                                    name="primary_business_unit"
                                    value="${businessUnitIndex}"
-                                   class="primary-radio rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                   class="primary-radio rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring-primary">
                             <label class="ml-2 text-sm text-gray-700">Set as Primary Assignment</label>
                         </div>
                     </div>

@@ -53,7 +53,7 @@ class BackdateRequestRejected extends Notification
             'rejection_reason' => $this->backdatePermission->rejection_reason,
             'rejected_at' => $this->backdatePermission->rejected_at?->toISOString(),
             'message' => "Your backdate permission request for {$this->backdatePermission->requested_date->format('d M Y')} has been rejected",
-            'action_url' => route('activity.backdate-requests'),
+            'action_url' => route('activity.backdate.requests'),
         ];
     }
 }

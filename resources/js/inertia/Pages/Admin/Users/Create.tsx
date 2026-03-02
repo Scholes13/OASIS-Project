@@ -369,7 +369,7 @@ export default function Create({ businessUnits, users }: CreateProps) {
                       <Label className="font-medium">
                         Assignment {index + 1}
                         {primaryIndex === index && (
-                          <span className="ml-2 text-xs text-indigo-600">(Primary)</span>
+                          <span className="ml-2 text-xs text-primary">(Primary)</span>
                         )}
                       </Label>
                     </div>

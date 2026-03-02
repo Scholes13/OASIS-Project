@@ -5,14 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { FileUpload } from '@/components/admin/FileUpload';
-import { BusinessUnit, SelectOption } from '@/types/admin';
+import { SelectOption } from '@/types/admin';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm as useReactHookForm } from 'react-hook-form';
 
 interface CreateProps {
-  parentBusinessUnits: BusinessUnit[];
+  parentBusinessUnits: SelectOption[];
   managers: SelectOption[];
 }
 
@@ -97,15 +97,17 @@ export default function Create({ parentBusinessUnits, managers }: CreateProps) {
     <>
       <Head title="Create Business Unit" />
 
-      <div className="p-6 max-w-3xl">
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">Business Unit Information</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Create a new business unit in the organization
-            </p>
-          </div>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Create Business Unit</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Add a new business unit to the organization
+          </p>
+        </div>
 
+        {/* Form Card */}
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -157,7 +159,7 @@ export default function Create({ parentBusinessUnits, managers }: CreateProps) {
                 id="description"
                 {...register('description')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Brief description of the business unit"
               />
               {errors.description && (
@@ -196,7 +198,7 @@ export default function Create({ parentBusinessUnits, managers }: CreateProps) {
                 id="address"
                 {...register('address')}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Full address of the business unit"
               />
               {errors.address && (
@@ -213,10 +215,7 @@ export default function Create({ parentBusinessUnits, managers }: CreateProps) {
                   onChange={(value) => setValue('parent_id', value ? parseInt(value.toString()) : null)}
                   options={[
                     { value: '', label: 'None (Top Level)' },
-                    ...parentBusinessUnits.map((bu) => ({
-                      value: bu.id.toString(),
-                      label: `${bu.name} (${bu.code})`,
-                    })),
+                    ...parentBusinessUnits,
                   ]}
                 />
                 <p className="mt-1 text-sm text-gray-500">
@@ -243,7 +242,7 @@ export default function Create({ parentBusinessUnits, managers }: CreateProps) {
                 type="checkbox"
                 id="is_active"
                 {...register('is_active')}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
               />
               <Label htmlFor="is_active" className="mb-0">
                 Active

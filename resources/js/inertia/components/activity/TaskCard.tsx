@@ -1,14 +1,15 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { StatusBadge, ActivityTypeBadge } from '../ui/Badge';
-import type { Task } from '@/types';
+import type { Task, PageProps } from '@/types';
 
 interface TaskCardProps {
     task: Task;
     index?: number;
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null): string {
+    if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('id-ID', {
         day: '2-digit',
@@ -17,12 +18,15 @@ function formatDate(dateString: string): string {
     });
 }
 
-function isOverdue(dueDate: string, status: string): boolean {
+function isOverdue(dueDate: string | null, status: string): boolean {
+    if (!dueDate) return false;
     if (status === 'completed' || status === 'cancelled') return false;
     return new Date(dueDate) < new Date();
 }
 
 export default function TaskCard({ task, index = 0 }: TaskCardProps) {
+    const { availableDepartments } = usePage<PageProps>().props;
+    const hasMultipleDepartments = (availableDepartments as any[])?.length > 1;
     const overdue = isOverdue(task.due_date, task.status);
     const participants = task.participants || [];
 
@@ -34,14 +38,19 @@ export default function TaskCard({ task, index = 0 }: TaskCardProps) {
         >
             <Link
                 href={route('activity.task.show', { task: task.id })}
-                className="block bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all p-4"
+                className="block bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all p-4"
             >
-                {/* Header: Activity Type + Overdue Badge */}
-                <div className="flex items-center gap-2 mb-2">
+                {/* Header: Activity Type + Department Badge (if multi-dept) + Overdue Badge */}
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <ActivityTypeBadge 
                         name={task.activity_type?.name ?? 'Unknown'} 
                         color={task.activity_type?.color ?? '#6B7280'} 
                     />
+                    {hasMultipleDepartments && task.department?.code && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 rounded" title={task.department.name}>
+                            {task.department.code}
+                        </span>
+                    )}
                     {overdue && (
                         <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
                             Overdue
@@ -73,7 +82,7 @@ export default function TaskCard({ task, index = 0 }: TaskCardProps) {
                                 return (
                                     <div
                                         key={id}
-                                        className="w-7 h-7 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
+                                        className="w-7 h-7 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
                                         title={name}
                                     >
                                         {name.charAt(0).toUpperCase()}

@@ -26,6 +26,7 @@ class EmployeeTask extends Model
         'activity_type_id',
         'sub_activity_id',
         'task_title',
+        'task_description',
         'task_date',
         'due_date',
         'notes',
@@ -206,7 +207,7 @@ class EmployeeTask extends Model
             return false;
         }
 
-        return $this->due_date->isPast();
+        return $this->due_date && $this->due_date->isPast();
     }
 
     /**
@@ -261,7 +262,7 @@ class EmployeeTask extends Model
      */
     public function canBeStartedBy(User $user): bool
     {
-        if (!$this->canBeStarted()) {
+        if (! $this->canBeStarted()) {
             return false;
         }
 
@@ -287,7 +288,7 @@ class EmployeeTask extends Model
      */
     public function canBeCompletedBy(User $user): bool
     {
-        if (!$this->canBeCompleted()) {
+        if (! $this->canBeCompleted()) {
             return false;
         }
 
@@ -384,16 +385,15 @@ class EmployeeTask extends Model
 
     /**
      * Check if a user can backdate to a specific date
-     * 
-     * @param \Carbon\Carbon|string $date The date to check
-     * @param User $user The user to check permission for
-     * @return bool
+     *
+     * @param  \Carbon\Carbon|string  $date  The date to check
+     * @param  User  $user  The user to check permission for
      */
     public static function canBackdateTo($date, User $user): bool
     {
         $backdateService = app(BackdatePermissionService::class);
         $taskDate = $date instanceof \Carbon\Carbon ? $date : \Carbon\Carbon::parse($date);
-        
+
         return $backdateService->canCreateTaskWithDate($user, $taskDate);
     }
 }

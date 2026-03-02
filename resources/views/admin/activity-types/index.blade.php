@@ -6,7 +6,7 @@
                 <p class="text-sm text-gray-600 mt-1">Manage activity types for employee task tracking</p>
             </div>
             <a href="{{ route('admin.activity-types.create') }}" 
-               class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+               class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
@@ -24,10 +24,10 @@
                            name="search" 
                            value="{{ request('search') }}"
                            placeholder="Search by name or code..."
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary">
                 </div>
                 <div class="w-40">
-                    <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary">
                         <option value="">All Status</option>
                         <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
                         <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
@@ -85,7 +85,7 @@
                                             'yellow' => 'bg-yellow-100 text-yellow-800',
                                             'red' => 'bg-red-100 text-red-800',
                                             'gray' => 'bg-gray-100 text-gray-800',
-                                            'indigo' => 'bg-indigo-100 text-indigo-800',
+                                            'indigo' => 'bg-blue-100 text-blue-800',
                                             'amber' => 'bg-amber-100 text-amber-800',
                                             'emerald' => 'bg-emerald-100 text-emerald-800',
                                             'cyan' => 'bg-cyan-100 text-cyan-800',
@@ -99,7 +99,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <a href="{{ route('admin.sub-activities.index', ['activity_type' => $type->id]) }}" 
-                                       class="text-indigo-600 hover:text-indigo-900">
+                                       class="text-primary hover:text-primary">
                                         {{ $type->sub_activities_count }} sub-activities
                                     </a>
                                 </td>
@@ -120,7 +120,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
                                         <a href="{{ route('admin.activity-types.edit', $type) }}" 
-                                           class="text-indigo-600 hover:text-indigo-900">
+                                           class="text-primary hover:text-primary">
                                             Edit
                                         </a>
                                         @if($type->employee_tasks_count === 0)
@@ -141,7 +141,7 @@
                         @empty
                             <tr>
                                 <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                                    No activity types found. <a href="{{ route('admin.activity-types.create') }}" class="text-indigo-600 hover:text-indigo-900">Create one</a>
+                                    No activity types found. <a href="{{ route('admin.activity-types.create') }}" class="text-primary hover:text-primary">Create one</a>
                                 </td>
                             </tr>
                         @endforelse

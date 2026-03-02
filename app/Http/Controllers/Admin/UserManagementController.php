@@ -62,7 +62,7 @@ class UserManagementController extends Controller
         // Transform users to include primary_business_unit
         $transformedUsers = collect($users->items())->map(function ($user) {
             $primaryBU = $user->activeBusinessUnits->firstWhere('is_primary', true);
-            
+
             return [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -76,7 +76,7 @@ class UserManagementController extends Controller
                     'name' => $primaryBU->businessUnit->name,
                     'code' => $primaryBU->businessUnit->code,
                 ] : null,
-                'business_units' => $user->activeBusinessUnits->map(fn($ubu) => [
+                'business_units' => $user->activeBusinessUnits->map(fn ($ubu) => [
                     'id' => $ubu->businessUnit->id,
                     'name' => $ubu->businessUnit->name,
                     'code' => $ubu->businessUnit->code,
@@ -97,11 +97,11 @@ class UserManagementController extends Controller
                 ],
             ],
             'filters' => [
-                'businessUnits' => $businessUnits->map(fn($bu) => [
+                'businessUnits' => $businessUnits->map(fn ($bu) => [
                     'value' => $bu->id,
                     'label' => $bu->name,
                 ]),
-                'departments' => $departments->map(fn($d) => [
+                'departments' => $departments->map(fn ($d) => [
                     'value' => $d->id,
                     'label' => $d->name,
                 ]),
@@ -130,7 +130,7 @@ class UserManagementController extends Controller
 
         return Inertia::render('Admin/Users/Create', [
             'businessUnits' => $businessUnits,
-            'users' => $users->map(fn($u) => [
+            'users' => $users->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -285,7 +285,7 @@ class UserManagementController extends Controller
                     'email' => $user->supervisor->email,
                 ] : null,
                 'supervisor_id' => $user->supervisor_id,
-                'business_units' => $user->activeBusinessUnits->map(fn($ubu) => [
+                'business_units' => $user->activeBusinessUnits->map(fn ($ubu) => [
                     'business_unit' => [
                         'id' => $ubu->businessUnit->id,
                         'name' => $ubu->businessUnit->name,
@@ -301,7 +301,7 @@ class UserManagementController extends Controller
                     ],
                     'is_primary' => $ubu->is_primary,
                 ]),
-                'subordinates' => $user->subordinates->map(fn($sub) => [
+                'subordinates' => $user->subordinates->map(fn ($sub) => [
                     'id' => $sub->id,
                     'name' => $sub->name,
                     'email' => $sub->email,
@@ -330,7 +330,7 @@ class UserManagementController extends Controller
                 'supervisor_id' => $user->supervisor_id,
                 'is_active' => $user->is_active,
                 'is_super_admin' => $user->isSuperAdmin(),
-                'business_units' => $user->activeBusinessUnits->map(fn($ubu) => [
+                'business_units' => $user->activeBusinessUnits->map(fn ($ubu) => [
                     'business_unit' => [
                         'id' => $ubu->businessUnit->id,
                         'name' => $ubu->businessUnit->name,
@@ -348,7 +348,7 @@ class UserManagementController extends Controller
                 ]),
             ],
             'businessUnits' => $businessUnits,
-            'users' => $users->map(fn($u) => [
+            'users' => $users->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -425,13 +425,13 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Remove the specified user
+     * Remove the specified user (deactivate)
      */
     public function destroy(User $user)
     {
         // Prevent deleting super admin
         if ($user->isSuperAdmin()) {
-            return back()->withErrors(['error' => 'Cannot delete Super Admin user.']);
+            return back()->withErrors(['error' => 'Cannot deactivate Super Admin user.']);
         }
 
         // Soft delete by deactivating
@@ -440,6 +440,138 @@ class UserManagementController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', 'User deactivated successfully.');
+    }
+
+    /**
+     * Permanently delete the specified user
+     *
+     * This method preserves user names in related records before deletion.
+     * The migration adds _name columns and SET NULL on delete for FKs.
+     */
+    public function forceDelete(User $user)
+    {
+        // Prevent deleting super admin
+        if ($user->isSuperAdmin()) {
+            return back()->withErrors(['error' => 'Cannot delete Super Admin user.']);
+        }
+
+        // Prevent deleting yourself
+        if ($user->id === auth()->id()) {
+            return back()->withErrors(['error' => 'Cannot delete your own account.']);
+        }
+
+        \DB::beginTransaction();
+
+        try {
+            $userName = $user->name;
+
+            // Save user name to related records before deletion
+            // (The FK SET NULL will clear the user_id, but name is preserved)
+
+            // PR Approvals
+            \DB::table('pr_approvals')
+                ->where('approver_id', $user->id)
+                ->whereNull('approver_name')
+                ->update(['approver_name' => $userName]);
+
+            // Stock Approvals
+            \DB::table('stock_approvals')
+                ->where('approver_id', $user->id)
+                ->whereNull('approver_name')
+                ->update(['approver_name' => $userName]);
+
+            // Purchase Requests
+            \DB::table('purchase_requests')
+                ->where('user_id', $user->id)
+                ->whereNull('requester_name')
+                ->update(['requester_name' => $userName]);
+
+            \DB::table('purchase_requests')
+                ->where('last_modified_by', $user->id)
+                ->whereNull('last_modified_by_name')
+                ->update(['last_modified_by_name' => $userName]);
+
+            \DB::table('purchase_requests')
+                ->where('offline_approved_by', $user->id)
+                ->whereNull('offline_approved_by_name')
+                ->update(['offline_approved_by_name' => $userName]);
+
+            // Stock Requests
+            \DB::table('stock_requests')
+                ->where('user_id', $user->id)
+                ->whereNull('requester_name')
+                ->update(['requester_name' => $userName]);
+
+            \DB::table('stock_requests')
+                ->where('last_modified_by', $user->id)
+                ->whereNull('last_modified_by_name')
+                ->update(['last_modified_by_name' => $userName]);
+
+            \DB::table('stock_requests')
+                ->where('offline_approved_by', $user->id)
+                ->whereNull('offline_approved_by_name')
+                ->update(['offline_approved_by_name' => $userName]);
+
+            // Employee Tasks
+            \DB::table('employee_tasks')
+                ->where('created_by', $user->id)
+                ->whereNull('created_by_name')
+                ->update(['created_by_name' => $userName]);
+
+            \DB::table('employee_tasks')
+                ->where('completed_by', $user->id)
+                ->whereNull('completed_by_name')
+                ->update(['completed_by_name' => $userName]);
+
+            // Task Participants
+            \DB::table('task_participants')
+                ->where('user_id', $user->id)
+                ->whereNull('participant_name')
+                ->update(['participant_name' => $userName]);
+
+            // Backdate Permissions
+            \DB::table('backdate_permissions')
+                ->where('user_id', $user->id)
+                ->whereNull('user_name')
+                ->update(['user_name' => $userName]);
+
+            \DB::table('backdate_permissions')
+                ->where('approved_by', $user->id)
+                ->whereNull('approved_by_name')
+                ->update(['approved_by_name' => $userName]);
+
+            \DB::table('backdate_permissions')
+                ->where('rejected_by', $user->id)
+                ->whereNull('rejected_by_name')
+                ->update(['rejected_by_name' => $userName]);
+
+            // Delete user's business unit assignments
+            $user->businessUnits()->delete();
+
+            // Detach roles and permissions (Spatie)
+            $user->roles()->detach();
+            $user->permissions()->detach();
+
+            // Delete activity log entries for this user
+            \DB::table('activities')->where('user_id', $user->id)->delete();
+
+            // Hard delete user (FK SET NULL will handle the rest)
+            $user->delete();
+
+            \DB::commit();
+
+            return redirect()->route('admin.users.index')
+                ->with('success', "User '{$userName}' permanently deleted.");
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Failed to delete user', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['error' => 'Failed to delete user: '.$e->getMessage()]);
+        }
     }
 
     /**

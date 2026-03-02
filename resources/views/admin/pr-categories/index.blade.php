@@ -6,7 +6,7 @@
                 <p class="text-sm text-gray-600 mt-1">Manage purchase request categories</p>
             </div>
             <a href="{{ route('admin.pr-categories.create') }}" 
-               class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+               class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
@@ -59,7 +59,7 @@
                                             'yellow' => 'bg-yellow-100 text-yellow-800',
                                             'red' => 'bg-red-100 text-red-800',
                                             'gray' => 'bg-gray-100 text-gray-800',
-                                            'indigo' => 'bg-indigo-100 text-indigo-800',
+                                            'indigo' => 'bg-blue-100 text-blue-800',
                                         ];
                                         $colorClass = $colorClasses[$category->color] ?? 'bg-gray-100 text-gray-800';
                                     @endphp
@@ -81,7 +81,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
                                         <a href="{{ route('admin.pr-categories.edit', $category) }}" 
-                                           class="text-indigo-600 hover:text-indigo-900">
+                                           class="text-primary hover:text-primary">
                                             Edit
                                         </a>
                                         <form action="{{ route('admin.pr-categories.destroy', $category) }}" 
@@ -100,7 +100,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                    No categories found. <a href="{{ route('admin.pr-categories.create') }}" class="text-indigo-600 hover:text-indigo-900">Create one</a>
+                                    No categories found. <a href="{{ route('admin.pr-categories.create') }}" class="text-primary hover:text-primary">Create one</a>
                                 </td>
                             </tr>
                         @endforelse

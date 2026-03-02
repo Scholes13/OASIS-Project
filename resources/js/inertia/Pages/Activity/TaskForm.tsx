@@ -83,7 +83,7 @@ function Time24Input({ id, value, onChange, hasError = false }: Time24InputProps
         onChange(`${hour}:${nextMinute || '00'}`);
     };
 
-    const baseClass = `w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white ${hasError ? 'border-red-500' : 'border-gray-200'}`;
+    const baseClass = `w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${hasError ? 'border-red-500' : 'border-gray-200'}`;
 
     return (
         <div className="grid grid-cols-2 gap-2">
@@ -323,7 +323,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
     const backRoute = isEditing ? route('activity.task.show', { task: task!.id }) : route('activity.task.index');
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-12">
+        <div className="w-full pb-12">
             <Head title={isEditing ? `Edit: ${task?.task_title}` : 'New Task'} />
 
             {/* Top Navigation Bar */}
@@ -406,7 +406,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                             type="text"
                                             value={data.task_title}
                                             onChange={(e) => setData('task_title', e.target.value)}
-                                            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${errors.task_title ? 'border-red-500 focus:ring-red-500/20' : 'border-gray-200'
+                                            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${errors.task_title ? 'border-red-500 focus:ring-red-500/20' : 'border-gray-200'
                                                 }`}
                                             placeholder="e.g., Q3 Financial Report Review"
                                         />
@@ -423,7 +423,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                             value={data.task_description}
                                             onChange={(e) => setData('task_description', e.target.value)}
                                             rows={6}
-                                            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-y"
+                                            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-y"
                                             placeholder="Provide detailed description, objectives, and any necessary context..."
                                         />
                                     </div>
@@ -436,7 +436,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                     <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
                                         <h3 className="text-lg font-semibold text-gray-900">Participants</h3>
                                         {data.participant_ids.length > 0 && (
-                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
                                                 {data.participant_ids.length} Selected
                                             </span>
                                         )}
@@ -447,7 +447,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                 <label
                                                     key={user.id}
                                                     className={`relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer group ${data.participant_ids.includes(user.id)
-                                                        ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500'
+                                                        ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-300'
                                                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                                         }`}
                                                 >
@@ -458,20 +458,20 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                         className="sr-only"
                                                     />
                                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${data.participant_ids.includes(user.id)
-                                                        ? 'bg-indigo-600 text-white'
+                                                        ? 'bg-primary text-white'
                                                         : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
                                                         }`}>
                                                         {user.name.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className={`font-medium truncate ${data.participant_ids.includes(user.id) ? 'text-indigo-900' : 'text-gray-900'
+                                                        <p className={`font-medium truncate ${data.participant_ids.includes(user.id) ? 'text-primary' : 'text-gray-900'
                                                             }`}>
                                                             {user.name}
                                                         </p>
                                                         <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                                     </div>
                                                     {data.participant_ids.includes(user.id) && (
-                                                        <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-indigo-500"></div>
+                                                        <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary"></div>
                                                     )}
                                                 </label>
                                             ))}
@@ -509,7 +509,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                     setData('sub_activity_id', subId);
                                                 }
                                             }}
-                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                                         >
                                             <option value="">Select sub activity...</option>
                                             {sortedSubActivities.map((sub) => (
@@ -527,7 +527,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                         <select
                                             value={data.activity_type_id}
                                             onChange={(e) => setData('activity_type_id', e.target.value)}
-                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-gray-50 ${errors.activity_type_id ? 'border-red-500' : 'border-gray-200'
+                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50 ${errors.activity_type_id ? 'border-red-500' : 'border-gray-200'
                                                 }`}
                                         >
                                             <option value="">Select type...</option>
@@ -564,7 +564,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                     setData(prev => ({ ...prev, status: newStatus, due_date: '' }));
                                                 }
                                             }}
-                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                                         >
                                             <option value="planned">Planned</option>
                                             <option value="in_progress">In Progress</option>
@@ -616,7 +616,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                             onChange={(e) => setData('task_date', e.target.value)}
                                             min={allowedDateRange.from}
                                             max={allowedDateRange.to}
-                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white ${errors.task_date ? 'border-red-500' : 'border-gray-200'
+                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${errors.task_date ? 'border-red-500' : 'border-gray-200'
                                                 }`}
                                         />
                                         {errors.task_date && (
@@ -629,7 +629,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                 </p>
                                             ) : (
                                                 <p className="mt-1 text-xs text-gray-500">
-                                                    You can backdate up to {allowedDateRange.from}. Need older dates? <button type="button" onClick={() => setShowBackdateModal(true)} className="text-indigo-600 hover:text-indigo-700 font-medium underline">Request backdate access</button>
+                                                    You can backdate up to {allowedDateRange.from}. Need older dates? <button type="button" onClick={() => setShowBackdateModal(true)} className="text-primary hover:text-primary font-medium underline">Request backdate access</button>
                                                 </p>
                                             )
                                         )}
@@ -691,7 +691,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                                 }}
                                                                 min={data.task_date}
                                                                 max={allowedDateRange.to}
-                                                                className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white ${errors.completed_date ? 'border-red-500' : 'border-gray-200'
+                                                                className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${errors.completed_date ? 'border-red-500' : 'border-gray-200'
                                                                     }`}
                                                             />
                                                             {errors.completed_date && (
@@ -729,8 +729,8 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
 
                                                 {/* Duration Preview - for completed tasks */}
                                                 {data.status === 'completed' && data.start_time && data.end_time && data.completed_date && (
-                                                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-                                                        <p className="text-sm text-indigo-700">
+                                                    <div className="bg-primary border border-primary rounded-lg p-3">
+                                                        <p className="text-sm text-primary">
                                                             <span className="font-medium">Durasi:</span>{' '}
                                                             {(() => {
                                                                 const startDate = new Date(`${data.task_date}T${data.start_time}`);
@@ -766,7 +766,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                             onChange={(e) => setData('due_date', e.target.value)}
                                             min={allowedDateRange.from}
                                             max={allowedDateRange.to}
-                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white ${errors.due_date ? 'border-red-500' : 'border-gray-200'
+                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${errors.due_date ? 'border-red-500' : 'border-gray-200'
                                                 }`}
                                         />
                                         {errors.due_date && (
@@ -779,7 +779,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                 </p>
                                             ) : (
                                                 <p className="mt-1 text-xs text-gray-500">
-                                                    You can backdate up to yesterday. <button type="button" onClick={() => setShowBackdateModal(true)} className="text-indigo-600 hover:text-indigo-700 underline">Request more</button>
+                                                    You can backdate up to yesterday. <button type="button" onClick={() => setShowBackdateModal(true)} className="text-primary hover:text-primary underline">Request more</button>
                                                 </p>
                                             )
                                         )}
@@ -825,7 +825,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                         value={backdateData.requested_date}
                                                         onChange={(e) => setBackdateData('requested_date', e.target.value)}
                                                         max={new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                                     />
                                                     {backdateErrors.requested_date && (
                                                         <p className="mt-1 text-sm text-red-600">{backdateErrors.requested_date}</p>
@@ -845,7 +845,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                                         onChange={(e) => setBackdateData('reason', e.target.value)}
                                                         rows={4}
                                                         placeholder="Explain why you need backdate access..."
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                                     />
                                                     {backdateErrors.reason && (
                                                         <p className="mt-1 text-sm text-red-600">{backdateErrors.reason}</p>
@@ -879,7 +879,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                     <button
                                         type="submit"
                                         disabled={backdateProcessing || backdateData.reason.trim().length < 10 || !backdateData.requested_date}
-                                        className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {backdateProcessing ? 'Submitting...' : 'Submit Request'}
                                     </button>
@@ -889,7 +889,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                             setShowBackdateModal(false);
                                             resetBackdate();
                                         }}
-                                        className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                                        className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:w-auto sm:text-sm"
                                     >
                                         Cancel
                                     </button>
@@ -928,14 +928,14 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                             <div className="bg-gray-50 px-6 py-4 space-y-3">
                                 <button
                                     onClick={handleCreateAnother}
-                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-primary text-base font-medium text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
                                 >
                                     <Plus className="h-5 w-5" />
                                     Buat Task Lagi
                                 </button>
                                 <button
                                     onClick={handleViewTask}
-                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
                                 >
                                     <Eye className="h-5 w-5" />
                                     Lihat Task

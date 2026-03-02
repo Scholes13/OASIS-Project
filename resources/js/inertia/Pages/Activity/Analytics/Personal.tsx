@@ -18,8 +18,7 @@ export default function Personal({ stats, weeklyProgress, tasksByType }: Persona
         <>
             <Head title="Personal Analytics" />
 
-            <div className="py-6">
-                <div className="px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-6 py-6 lg:px-8">
                     {/* Back Button */}
                     <div className="mb-6">
                         <Link
@@ -50,7 +49,7 @@ export default function Personal({ stats, weeklyProgress, tasksByType }: Persona
                             >
                                 <Card>
                                     <CardBody className="text-center">
-                                        <span className="text-3xl font-bold text-indigo-600">{stat.value}</span>
+                                        <span className="text-3xl font-bold text-primary">{stat.value}</span>
                                         <p className="text-sm text-gray-500">{stat.label}</p>
                                     </CardBody>
                                 </Card>
@@ -123,7 +122,7 @@ export default function Personal({ stats, weeklyProgress, tasksByType }: Persona
                                             </div>
                                             <div className="bg-gray-200 rounded-full h-3">
                                                 <motion.div
-                                                    className="bg-indigo-500 h-3 rounded-full"
+                                                    className="bg-primary h-3 rounded-full"
                                                     initial={{ width: 0 }}
                                                     animate={{ width: `${(item.count / maxByType) * 100}%` }}
                                                     transition={{ duration: 0.5 }}
@@ -134,10 +133,8 @@ export default function Personal({ stats, weeklyProgress, tasksByType }: Persona
                                 </div>
                             </CardBody>
                         </Card>
-                    </div>
                 </div>
             </div>
         </>
     );
 }
-

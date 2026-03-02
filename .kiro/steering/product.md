@@ -44,8 +44,7 @@ Employee Task: planned → in_progress → completed|cancelled
 ## Implementation Guidelines
 
 ### Frontend Stack
-- **React/Inertia is PRIMARY** - All new features MUST use React/Inertia
-- **Livewire is LEGACY** - Only maintain existing Purchasing module views
+- **React/Inertia** - All features use React/Inertia with TypeScript
 - Pages: `resources/js/inertia/Pages/`
 - Components: `resources/js/inertia/components/`
 
@@ -55,13 +54,13 @@ Employee Task: planned → in_progress → completed|cancelled
 - Use existing components: `DataTable`, `StatCard`, `FileUpload`, `ColorPicker`
 - See `resources/js/inertia/components/admin/README.md`
 
-### When Building Purchasing Features (Legacy Livewire)
+### When Building Purchasing Features
 - PR/ST share similar patterns: approval workflows, numbering, QR codes, offline approval
 - Use `ApprovalWorkflowService` for routing logic
 - Numbering is business unit-specific via `UniversalPRNumberingService` / `UniversalStockNumberingService`
 - Support both online and offline (paper-based) approval flows
 
-### When Building Activity Features (React/Inertia)
+### When Building Activity Features
 - Tasks are department-scoped (users see their department's tasks)
 - Collaborative: multiple participants can join/update same task
 - Backdate system: 1-day default limit, request-based for older dates

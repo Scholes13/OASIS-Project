@@ -81,6 +81,7 @@ trait EnumeratesValues
         'first',
         'flatMap',
         'groupBy',
+        'hasSole',
         'keyBy',
         'last',
         'map',
@@ -340,11 +341,11 @@ trait EnumeratesValues
      */
     public function value($key, $default = null)
     {
-        if ($value = $this->firstWhere($key)) {
-            return data_get($value, $key, $default);
-        }
+        $value = $this->first(function ($target) use ($key) {
+            return data_has($target, $key);
+        });
 
-        return value($default);
+        return data_get($value, $key, $default);
     }
 
     /**
@@ -961,15 +962,12 @@ trait EnumeratesValues
     public function jsonSerialize(): array
     {
         return array_map(function ($value) {
-            if ($value instanceof JsonSerializable) {
-                return $value->jsonSerialize();
-            } elseif ($value instanceof Jsonable) {
-                return json_decode($value->toJson(), true);
-            } elseif ($value instanceof Arrayable) {
-                return $value->toArray();
-            }
-
-            return $value;
+            return match (true) {
+                $value instanceof JsonSerializable => $value->jsonSerialize(),
+                $value instanceof Jsonable => json_decode($value->toJson(), true),
+                $value instanceof Arrayable => $value->toArray(),
+                default => $value,
+            };
         }, $this->all());
     }
 
@@ -987,11 +985,12 @@ trait EnumeratesValues
     /**
      * Get the collection of items as pretty print formatted JSON.
      *
+     * @param  int  $options
      * @return string
      */
-    public function toPrettyJson()
+    public function toPrettyJson(int $options = 0)
     {
-        return $this->toJson(JSON_PRETTY_PRINT);
+        return $this->toJson(JSON_PRETTY_PRINT | $options);
     }
 
     /**

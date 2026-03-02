@@ -103,6 +103,7 @@ class User extends Authenticatable
         'global_role',
         'is_active',
         'password',
+        'last_active_business_unit_id',
     ];
 
     /**
@@ -143,6 +144,14 @@ class User extends Authenticatable
     public function primaryDepartment(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'primary_department_id');
+    }
+
+    /**
+     * Get the last active business unit
+     */
+    public function lastActiveBusinessUnit(): BelongsTo
+    {
+        return $this->belongsTo(BusinessUnit::class, 'last_active_business_unit_id');
     }
 
     /**
@@ -296,15 +305,24 @@ class User extends Authenticatable
     }
 
     /**
-     * Get user's access level.
+     * Get user's access level, optionally scoped to a specific business unit.
+     *
+     * When $businessUnitId is provided, looks up the user's position in that
+     * specific BU via user_business_units. This supports scenarios where a user
+     * is HOD in one BU but C-Level/Director in another.
+     *
+     * @param  int|null  $businessUnitId  Scope access level to this BU context
      */
-    public function getAccessLevel(): string
+    public function getAccessLevel(?int $businessUnitId = null): string
     {
         if ($this->isSuperAdmin()) {
             return 'super_admin';
         }
 
-        $position = $this->primaryPosition;
+        // If BU context provided, look up position in that specific BU
+        $position = $businessUnitId
+            ? $this->getPositionInBusinessUnit($businessUnitId)
+            : $this->primaryPosition;
 
         if ($position && $position->access_level === 'executive') {
             return 'executive';
@@ -318,22 +336,88 @@ class User extends Authenticatable
             return 'general_manager';
         }
 
-        if ($position && $position->access_level) {
-            return $position->access_level;
-        }
-
-        if ($position) {
+        // Check position level first (c_level, hod, leader, staff)
+        if ($position && $position->level) {
             switch ($position->level) {
+                case 'c_level':
+                    return 'executive';
                 case 'hod':
                     return 'department_head';
                 case 'leader':
                     return 'team_leader';
-                default:
+                case 'staff':
                     return 'staff';
             }
         }
 
+        // Fallback to access_level if level is not set
+        if ($position && $position->access_level && $position->access_level !== 'staff') {
+            return $position->access_level;
+        }
+
         return 'staff';
+    }
+
+    /**
+     * Get user's position in a specific business unit.
+     *
+     * Looks up user_business_units for the given BU and returns the
+     * associated Position model. Falls back to primaryPosition if
+     * no BU-specific assignment is found.
+     */
+    public function getPositionInBusinessUnit(int $businessUnitId): ?Position
+    {
+        $assignment = $this->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->with('position')
+            ->first();
+
+        if ($assignment && $assignment->position) {
+            return $assignment->position;
+        }
+
+        return $this->primaryPosition;
+    }
+
+    /**
+     * Check if user has top management access in any active business unit.
+     *
+     * Used by Gates as the canonical check for BOD/Director-level access.
+     * Queries position through user_business_units pivot — supports multi-BU
+     * context where a user may be staff in BU-A but C-Level in BU-B.
+     */
+    public function hasTopManagementAccess(): bool
+    {
+        return $this->activeBusinessUnits()
+            ->whereHas('position', fn ($q) => $q->topManagement())
+            ->exists();
+    }
+
+    /**
+     * Check if user has manager-and-above access in any active business unit.
+     *
+     * Used by Gates for mid-level management access (department analytics,
+     * purchasing admin, etc.)
+     */
+    public function hasManagerAccess(): bool
+    {
+        return $this->activeBusinessUnits()
+            ->whereHas('position', fn ($q) => $q->managerAndAbove())
+            ->exists();
+    }
+
+    /**
+     * Check if user has top management access in a specific parent/root BU.
+     *
+     * Used for cross-BU administrative access (e.g., parent BU top management
+     * can access child BU purchasing admin).
+     */
+    public function hasTopManagementInParentBU(): bool
+    {
+        return $this->activeBusinessUnits()
+            ->whereHas('businessUnit', fn ($q) => $q->whereNull('parent_id'))
+            ->whereHas('position', fn ($q) => $q->topManagement())
+            ->exists();
     }
 
     /**
@@ -376,7 +460,7 @@ class User extends Authenticatable
         // Use getAccessibleBusinessUnitIds() which handles hierarchy
         // This allows parent BU users (e.g., WG top management) to access child BUs
         $accessibleIds = $this->getAccessibleBusinessUnitIds();
-        
+
         return in_array($businessUnitId, $accessibleIds, true);
     }
 
@@ -517,7 +601,7 @@ class User extends Authenticatable
 
         $accessLevel = $this->getAccessLevel();
 
-        if ($accessLevel === 'executive') {
+        if ($accessLevel === 'executive' || $this->hasTopManagementAccess()) {
             $ids = [];
 
             foreach ($this->activeBusinessUnits()->with('businessUnit')->get() as $assignment) {
@@ -558,16 +642,62 @@ class User extends Authenticatable
     }
 
     /**
-     * Get user role in specific business unit
+     * Get user role in specific business unit.
+     *
+     * Returns the access level based on the user's position assignment
+     * in the given business unit, not their global primary position.
      */
     public function getRoleInBusinessUnit($businessUnitId): ?string
     {
-        // Since role field was removed, return access level based on position
         if ($this->canAccessBusinessUnit($businessUnitId)) {
-            return $this->getAccessLevel();
+            return $this->getAccessLevel((int) $businessUnitId);
         }
 
         return null;
+    }
+
+    /**
+     * ========================================
+     * Multi-Department Context Helper Methods
+     * ========================================
+     */
+
+    /**
+     * Get current department ID from session, with fallback to primary
+     */
+    public function getCurrentDepartmentId(): ?int
+    {
+        return session('current_department_id') ?? $this->primary_department_id;
+    }
+
+    /**
+     * Get all departments user belongs to in current business unit
+     */
+    public function getDepartmentsInCurrentBusinessUnit(): \Illuminate\Support\Collection
+    {
+        $currentBusinessUnitId = session('current_business_unit_id');
+
+        if (! $currentBusinessUnitId) {
+            return collect();
+        }
+
+        return $this->businessUnits()
+            ->where('business_unit_id', $currentBusinessUnitId)
+            ->where('is_active', true)
+            ->with('department:id,name,code')
+            ->get()
+            ->pluck('department')
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Check if user has multiple departments in current business unit
+     */
+    public function hasMultipleDepartmentsInCurrentBusinessUnit(): bool
+    {
+        return $this->getDepartmentsInCurrentBusinessUnit()->count() > 1;
     }
 
     /**

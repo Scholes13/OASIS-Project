@@ -1,13 +1,14 @@
 import * as React from "react"
 import { Link, router, usePage } from "@inertiajs/react"
 import { ColumnDef } from "@tanstack/react-table"
-import { 
-    format, 
-    isPast, 
-    isToday, 
-    isThisWeek, 
-    isThisMonth, 
-    startOfDay, 
+import {
+    format,
+    isPast,
+    isToday,
+    isTomorrow,
+    isThisWeek,
+    isThisMonth,
+    startOfDay,
     endOfDay,
     startOfWeek,
     endOfWeek,
@@ -27,18 +28,20 @@ import {
     Users,
     ChevronDown,
     Circle,
+    Check,
     PlayCircle,
     CheckCircle2,
     XCircle,
     ListTodo,
     Calendar,
     X,
+    Download,
 } from "lucide-react"
 import { DataTable, SortableHeader } from "../ui/data-table"
 import { cn } from "@/lib/utils"
 import { TaskDetailModal } from "./TaskDetailModal"
 import { showToast } from "../ui/toast"
-import type { Task, PaginatedData, PageProps, TaskStatus, TaskStats } from "@/types"
+import type { Task, PaginatedData, PageProps, TaskStatus, TaskStats, TaskFilters } from "@/types"
 import { Popover, Transition, Portal } from "@headlessui/react"
 
 type ViewMode = "my" | "department"
@@ -52,6 +55,7 @@ interface DateRange {
 interface ActivityDataTableProps {
     tasks: PaginatedData<Task>
     stats?: TaskStats
+    filters?: TaskFilters & { scope?: string }
     onRowClick?: (task: Task) => void
     showActions?: boolean
     compact?: boolean
@@ -62,22 +66,34 @@ interface ActivityDataTableProps {
 // HELPER FUNCTIONS
 // ============================================================================
 
-function isOverdue(dueDate: string, status: string): boolean {
+function isOverdue(dueDate: string | null, status: string): boolean {
+    if (!dueDate) return false
     if (status === "completed" || status === "cancelled") return false
     return isPast(new Date(dueDate)) && !isToday(new Date(dueDate))
 }
 
-function formatDueDate(dateString: string) {
+function formatDueDate(dateString: string | null) {
+    if (!dateString) return '-'
     return format(new Date(dateString), "dd MMM yyyy", { locale: idLocale })
 }
 
+function canEditTask(task: Task, currentUserId: number | undefined): boolean {
+    if (!currentUserId) return false
+    const isParticipant = task.participants?.some(p =>
+        p.user_id === currentUserId || p.id === currentUserId
+    )
+    const isCreator = task.created_by === currentUserId
+    return isParticipant || isCreator
+}
+
 // Check if task due date is within date range
-function isWithinDateFilter(dueDate: string, filterType: DateFilterType, customRange: DateRange): boolean {
+function isWithinDateFilter(dueDate: string | null, filterType: DateFilterType, customRange: DateRange): boolean {
     if (filterType === "all") return true
-    
+    if (!dueDate) return false
+
     const taskDate = parseISO(dueDate)
     const today = new Date()
-    
+
     switch (filterType) {
         case "today":
             return isToday(taskDate)
@@ -119,7 +135,7 @@ const dateFilterOptions: { value: DateFilterType; label: string }[] = [
 
 function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateFilterProps) {
     const [showCustom, setShowCustom] = React.useState(false)
-    
+
     const handleFilterChange = (newValue: DateFilterType) => {
         onChange(newValue)
         if (newValue === "custom") {
@@ -128,14 +144,14 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
             setShowCustom(false)
         }
     }
-    
+
     const getDisplayLabel = () => {
         if (value === "custom" && customRange.start && customRange.end) {
             return `${format(customRange.start, "dd MMM", { locale: idLocale })} - ${format(customRange.end, "dd MMM", { locale: idLocale })}`
         }
         return dateFilterOptions.find(opt => opt.value === value)?.label || "Semua"
     }
-    
+
     return (
         <Popover className="relative">
             {({ close }) => (
@@ -143,8 +159,8 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                     <Popover.Button
                         className={cn(
                             "inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors",
-                            value !== "all" 
-                                ? "border-indigo-300 bg-indigo-50 text-indigo-700" 
+                            value !== "all"
+                                ? "border-blue-200 bg-blue-50 text-blue-700"
                                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                         )}
                     >
@@ -152,7 +168,7 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                         <span className="font-medium">{getDisplayLabel()}</span>
                         <ChevronDown className="h-3.5 w-3.5 opacity-50" />
                     </Popover.Button>
-                    
+
                     <Transition
                         as={React.Fragment}
                         enter="transition ease-out duration-100"
@@ -175,19 +191,19 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                                         }}
                                         className={cn(
                                             "flex w-full items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors",
-                                            value === option.value 
-                                                ? "bg-indigo-50 text-indigo-700 font-medium" 
+                                            value === option.value
+                                                ? "bg-blue-50 text-blue-700 font-medium"
                                                 : "text-gray-700 hover:bg-gray-50"
                                         )}
                                     >
                                         {option.label}
                                         {value === option.value && (
-                                            <CheckCircle2 className="h-4 w-4 ml-auto text-indigo-500" />
+                                            <CheckCircle2 className="h-4 w-4 ml-auto text-primary" />
                                         )}
                                     </button>
                                 ))}
                             </div>
-                            
+
                             {/* Custom Range */}
                             <div className="p-3">
                                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Custom Range</p>
@@ -201,7 +217,7 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                                                 const date = e.target.value ? new Date(e.target.value) : null
                                                 onCustomRangeChange({ ...customRange, start: date })
                                             }}
-                                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         />
                                     </div>
                                     <div>
@@ -213,7 +229,7 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                                                 const date = e.target.value ? new Date(e.target.value) : null
                                                 onCustomRangeChange({ ...customRange, end: date })
                                             }}
-                                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         />
                                     </div>
                                     <button
@@ -227,7 +243,7 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                                         className={cn(
                                             "w-full py-2 text-sm font-medium rounded-lg transition-colors",
                                             customRange.start && customRange.end
-                                                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                                                ? "bg-primary text-white hover:bg-blue-600"
                                                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
                                         )}
                                     >
@@ -235,7 +251,7 @@ function DateFilter({ value, onChange, customRange, onCustomRangeChange }: DateF
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {/* Clear Filter */}
                             {value !== "all" && (
                                 <div className="p-2 border-t border-gray-100">
@@ -268,12 +284,12 @@ type StatusFilter = "all" | "in_progress" | "overdue" | "completed"
 
 const colorThemes = {
     indigo: {
-        bg: "bg-indigo-50",
-        border: "border-indigo-200",
-        hoverBorder: "hover:border-indigo-400",
-        text: "text-indigo-700",
-        icon: "text-indigo-600",
-        ring: "ring-indigo-500",
+        bg: "bg-blue-500",
+        border: "border-primary",
+        hoverBorder: "hover:border-primary",
+        text: "text-primary",
+        icon: "text-primary",
+        ring: "ring-primary",
     },
     amber: {
         bg: "bg-amber-50",
@@ -328,10 +344,10 @@ interface InteractiveStatsCardProps {
 function InteractiveStatsCard({ config, value, isActive, isQuietDefault, onClick }: InteractiveStatsCardProps) {
     // Use neutral theme for Total when it's the quiet default
     const theme = isQuietDefault ? colorThemes.neutral : colorThemes[config.color]
-    
+
     // Show ring only when actively filtered (not for quiet default)
     const showRing = isActive && !isQuietDefault
-    
+
     return (
         <button
             onClick={onClick}
@@ -372,7 +388,7 @@ interface MetricCardsProps {
 
 function MetricCards({ stats, filteredCount, activeFilter, onFilterChange }: MetricCardsProps) {
     const safeStats = stats || { total: filteredCount, planned: 0, in_progress: 0, completed: 0, overdue: 0 }
-    
+
     const statsConfig: StatsCardConfig[] = [
         {
             label: "Total Activities",
@@ -409,14 +425,14 @@ function MetricCards({ stats, filteredCount, activeFilter, onFilterChange }: Met
             default: return 0
         }
     }
-    
+
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 py-5">
             {statsConfig.map((config) => {
                 const isActive = activeFilter === config.status
                 // "Quiet Default": Total card is neutral when filter is "all"
                 const isQuietDefault = config.status === "all" && activeFilter === "all"
-                
+
                 return (
                     <InteractiveStatsCard
                         key={config.status}
@@ -436,7 +452,7 @@ function MetricCards({ stats, filteredCount, activeFilter, onFilterChange }: Met
 // SUBTLE STATUS BADGE - Modern Enterprise Style
 // ============================================================================
 
-const statusConfig: Record<string, { 
+const statusConfig: Record<string, {
     label: string
     icon: React.ReactNode
     bg: string
@@ -473,7 +489,7 @@ const statusConfig: Record<string, {
     },
 }
 
-function StatusDropdown({ task }: { task: Task }) {
+function StatusDropdown({ task, isReadOnly = false }: { task: Task; isReadOnly?: boolean }) {
     const [isUpdating, setIsUpdating] = React.useState(false)
     const buttonRef = React.useRef<HTMLButtonElement>(null)
     const [panelPosition, setPanelPosition] = React.useState({ top: 0, left: 0, openUpward: false })
@@ -492,7 +508,7 @@ function StatusDropdown({ task }: { task: Task }) {
             {
                 preserveScroll: true,
                 preserveState: false,
-                only: ['tasks', 'stats', 'byActivityType'],
+                only: ['tasks', 'stats', 'filters'],
                 onSuccess: () => {
                     showToast.success("Status updated", `${task.task_title} → ${statusConfig[newStatus]?.label}`)
                     close()
@@ -508,13 +524,28 @@ function StatusDropdown({ task }: { task: Task }) {
             const rect = buttonRef.current.getBoundingClientRect()
             const spaceBelow = window.innerHeight - rect.bottom
             const openUpward = spaceBelow < 200
-            
+
             setPanelPosition({
                 top: openUpward ? rect.top - 6 : rect.bottom + 6,
                 left: rect.left,
                 openUpward,
             })
         }
+    }
+
+    // Read-only: just show status badge without dropdown
+    if (isReadOnly) {
+        return (
+            <div
+                className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap ring-1 ring-inset opacity-75",
+                    current.bg, current.text, current.ring
+                )}
+            >
+                {current.icon}
+                {current.label}
+            </div>
+        )
     }
 
     return (
@@ -524,7 +555,7 @@ function StatusDropdown({ task }: { task: Task }) {
                     <Popover.Button
                         ref={buttonRef}
                         className={cn(
-                            "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium ring-1 ring-inset transition-all",
+                            "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium whitespace-nowrap ring-1 ring-inset transition-all",
                             current.bg, current.text, current.ring,
                             "hover:ring-2",
                             isUpdating && "opacity-50 cursor-wait"
@@ -573,7 +604,7 @@ function StatusDropdown({ task }: { task: Task }) {
                                         <span className={config.text}>{config.icon}</span>
                                         <span className="text-gray-700">{config.label}</span>
                                         {task.status === key && (
-                                            <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-indigo-500" />
+                                            <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-primary" />
                                         )}
                                     </button>
                                 ))}
@@ -591,7 +622,7 @@ function StatusDropdown({ task }: { task: Task }) {
 // ============================================================================
 
 const avatarColors = [
-    "bg-indigo-100 text-indigo-700",
+    "bg-blue-50 text-blue-700",
     "bg-emerald-100 text-emerald-700",
     "bg-amber-100 text-amber-700",
     "bg-rose-100 text-rose-700",
@@ -626,7 +657,7 @@ function AvatarStack({ participants, max = 2 }: { participants: any[]; max?: num
                     )
                 })}
                 {remaining > 0 && (
-                    <div 
+                    <div
                         className="w-9 h-9 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-semibold text-gray-600 shadow-sm"
                         style={{ marginLeft: -10 }}
                     >
@@ -644,7 +675,7 @@ function AvatarStack({ participants, max = 2 }: { participants: any[]; max?: num
 
 const typeColors: Record<string, string> = {
     blue: "bg-blue-50 text-blue-700 ring-blue-200",
-    indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+    indigo: "bg-blue-50 text-blue-700 ring-primary",
     purple: "bg-purple-50 text-purple-700 ring-purple-200",
     pink: "bg-pink-50 text-pink-700 ring-pink-200",
     red: "bg-red-50 text-red-700 ring-red-200",
@@ -675,7 +706,23 @@ function TypeBadge({ name, color }: { name: string; color?: string }) {
 // ROW ACTION MENU - Hidden by Default
 // ============================================================================
 
-function RowActions({ task, visible }: { task: Task; visible: boolean }) {
+function RowActions({ task, visible, isReadOnly = false }: { task: Task; visible: boolean; isReadOnly?: boolean }) {
+    // Read-only: only show View action
+    if (isReadOnly) {
+        return (
+            <Link
+                href={route("activity.task.show", { task: task.id })}
+                className={cn(
+                    "p-1.5 rounded-md hover:bg-gray-100 transition-all",
+                    visible ? "opacity-100" : "opacity-0"
+                )}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <Eye className="h-4 w-4 text-gray-400" strokeWidth={1.5} />
+            </Link>
+        )
+    }
+
     return (
         <Popover className="relative">
             <Popover.Button
@@ -733,17 +780,35 @@ function RowActions({ task, visible }: { task: Task; visible: boolean }) {
 // TABLE COLUMNS - Modern Typography Hierarchy
 // ============================================================================
 
+interface ColumnMeta {
+    viewMode: ViewMode
+    currentUserId: number | undefined
+    hasMultipleDepartments: boolean
+}
+
 const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
     const columns: ColumnDef<Task>[] = [
         {
             accessorKey: "task_title",
             header: ({ column }) => <SortableHeader column={column} title="Activity" />,
-            cell: ({ row }) => {
+            cell: ({ row, table }) => {
                 const task = row.original
                 const overdue = isOverdue(task.due_date, task.status)
+                const meta = table.options.meta as ColumnMeta | undefined
+                const showDeptBadge = meta?.hasMultipleDepartments && task.department?.code
                 return (
                     <div className="min-w-[200px] max-w-[320px]">
-                        <p className="font-medium text-gray-900 truncate text-base">{task.task_title}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900 truncate text-base">{task.task_title}</p>
+                            {showDeptBadge && (
+                                <span
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 flex-shrink-0"
+                                    title={task.department.name}
+                                >
+                                    {task.department.code}
+                                </span>
+                            )}
+                        </div>
                         {overdue && (
                             <span className="inline-flex items-center text-xs text-rose-500 mt-0.5 font-medium">
                                 <AlertTriangle className="h-3.5 w-3.5 mr-0.5" strokeWidth={2} />
@@ -781,7 +846,11 @@ const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
         {
             accessorKey: "status",
             header: "Status",
-            cell: ({ row }) => <StatusDropdown task={row.original} />,
+            cell: ({ row, table }) => {
+                const meta = table.options.meta as ColumnMeta | undefined
+                const isReadOnly = meta?.viewMode === "department" && !canEditTask(row.original, meta?.currentUserId)
+                return <StatusDropdown task={row.original} isReadOnly={isReadOnly} />
+            },
         },
         {
             accessorKey: "participants",
@@ -796,10 +865,11 @@ const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
             id: "actions",
             header: "",
             cell: ({ row, table }) => {
-                // Access hover state from row - we'll handle this via CSS
+                const meta = table.options.meta as ColumnMeta | undefined
+                const isReadOnly = meta?.viewMode === "department" && !canEditTask(row.original, meta?.currentUserId)
                 return (
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <RowActions task={row.original} visible={true} />
+                        <RowActions task={row.original} visible={true} isReadOnly={isReadOnly} />
                     </div>
                 )
             },
@@ -817,44 +887,45 @@ const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
 export function ActivityDataTable({
     tasks,
     stats,
+    filters,
     onRowClick,
     showActions = true,
     compact = false,
     showHeader = true,
 }: ActivityDataTableProps) {
-    const [viewMode, setViewMode] = React.useState<ViewMode>("my")
+    // Sync viewMode with backend scope filter
+    const initialScope = (filters?.scope as ViewMode) || "my"
+    const [viewMode, setViewMode] = React.useState<ViewMode>(initialScope)
     const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all")
     const [dateFilter, setDateFilter] = React.useState<DateFilterType>("all")
     const [customRange, setCustomRange] = React.useState<DateRange>({ start: null, end: null })
     const [selectedTask, setSelectedTask] = React.useState<Task | null>(null)
     const [showModal, setShowModal] = React.useState(false)
+    const [updatingTaskId, setUpdatingTaskId] = React.useState<number | null>(null)
 
-    const { auth } = usePage<PageProps>().props
+    // Sync viewMode when filters.scope changes from backend
+    React.useEffect(() => {
+        if (filters?.scope) {
+            setViewMode(filters.scope as ViewMode)
+        }
+    }, [filters?.scope])
+
+    const { auth, availableDepartments } = usePage<PageProps>().props
     const currentUserId = auth?.user?.id
+    const hasMultipleDepartments = (availableDepartments as any[])?.length > 1
     const taskData = tasks?.data ?? []
 
-    // Filter tasks by view mode, status, and date
+    // Filter tasks by status and date only (viewMode is now handled by backend)
     const filteredTasks = React.useMemo(() => {
         let filtered = taskData.filter((task) => task.status !== "cancelled")
-        
-        // Filter by view mode (my tasks vs department)
-        if (viewMode === "my") {
-            filtered = filtered.filter((task) => {
-                const isCreator = task.created_by === currentUserId
-                const isParticipant = task.participants?.some(
-                    (p) => p.user_id === currentUserId || p.id === currentUserId
-                )
-                return isCreator || isParticipant
-            })
-        }
-        
+
         // Filter by date range
         if (dateFilter !== "all") {
-            filtered = filtered.filter((task) => 
+            filtered = filtered.filter((task) =>
                 isWithinDateFilter(task.due_date, dateFilter, customRange)
             )
         }
-        
+
         // Filter by status (from stats cards)
         if (statusFilter !== "all") {
             if (statusFilter === "overdue") {
@@ -863,44 +934,9 @@ export function ActivityDataTable({
                 filtered = filtered.filter((task) => task.status === statusFilter)
             }
         }
-        
+
         return filtered
-    }, [taskData, viewMode, currentUserId, statusFilter, dateFilter, customRange])
-
-    // Calculate stats based on viewMode and dateFilter (ALWAYS calculate locally for sync)
-    const calculatedStats = React.useMemo(() => {
-        // Get tasks filtered by view mode and date (not status filter) for accurate card counts
-        let baseTasks = taskData.filter((task) => task.status !== "cancelled")
-        
-        // Apply view mode filter to stats
-        if (viewMode === "my") {
-            baseTasks = baseTasks.filter((task) => {
-                const isCreator = task.created_by === currentUserId
-                const isParticipant = task.participants?.some(
-                    (p) => p.user_id === currentUserId || p.id === currentUserId
-                )
-                return isCreator || isParticipant
-            })
-        }
-        
-        // Apply date filter to stats
-        if (dateFilter !== "all") {
-            baseTasks = baseTasks.filter((task) => 
-                isWithinDateFilter(task.due_date, dateFilter, customRange)
-            )
-        }
-        
-        const overdue = baseTasks.filter(t => isOverdue(t.due_date, t.status)).length
-        return {
-            total: baseTasks.length,
-            planned: baseTasks.filter(t => t.status === "planned").length,
-            in_progress: baseTasks.filter(t => t.status === "in_progress").length,
-            completed: baseTasks.filter(t => t.status === "completed").length,
-            overdue,
-        }
-    }, [taskData, viewMode, currentUserId, dateFilter, customRange])
-
-    const columns = React.useMemo(() => createColumns(showActions), [showActions])
+    }, [taskData, statusFilter, dateFilter, customRange])
 
     const handleRowClick = (task: Task) => {
         if (onRowClick) {
@@ -910,27 +946,32 @@ export function ActivityDataTable({
             setShowModal(true)
         }
     }
-    
-    // Reset status filter when view mode changes
+
+    // Handle view mode change - send to backend for server-side filtering
     const handleViewModeChange = (mode: ViewMode) => {
         setViewMode(mode)
         setStatusFilter("all")
-    }
-    
-    // Reset date filter
-    const handleDateFilterReset = () => {
-        setDateFilter("all")
-        setCustomRange({ start: null, end: null })
+
+        // Send scope to backend for correct pagination
+        router.get(
+            route('activity.task.index'),
+            { scope: mode },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['stats', 'tasks', 'filters'],
+            }
+        )
     }
 
     // Get filter label for subtitle
     const getFilterLabel = () => {
         const labels: string[] = []
-        
+
         if (statusFilter !== "all") {
             labels.push(statusFilter === "overdue" ? "overdue" : statusFilter.replace("_", " "))
         }
-        
+
         if (dateFilter !== "all") {
             if (dateFilter === "custom" && customRange.start && customRange.end) {
                 labels.push(`${format(customRange.start, "dd MMM", { locale: idLocale })} - ${format(customRange.end, "dd MMM", { locale: idLocale })}`)
@@ -945,30 +986,241 @@ export function ActivityDataTable({
                 if (dateLabels[dateFilter]) labels.push(dateLabels[dateFilter])
             }
         }
-        
+
         return labels.length > 0 ? labels.join(", ") : null
     }
 
+    const priorityBadgeClass: Record<string, string> = {
+        high: "bg-red-100 text-red-600",
+        medium: "bg-amber-100 text-amber-600",
+        low: "bg-sky-100 text-sky-600",
+    }
+
+    const statusBadgeConfig: Record<string, { label: string; className: string }> = {
+        planned: { label: "To Do", className: "bg-slate-100 text-slate-600" },
+        in_progress: { label: "In Progress", className: "bg-[#e8f3ff] text-primary" },
+        completed: { label: "Done", className: "bg-emerald-100 text-emerald-700" },
+        cancelled: { label: "Cancelled", className: "bg-gray-100 text-gray-500" },
+    }
+
+    const groupedListTasks = React.useMemo(() => {
+        const sorted = [...filteredTasks].sort((a, b) => {
+            if (!a.due_date && !b.due_date) return a.task_title.localeCompare(b.task_title)
+            if (!a.due_date) return 1
+            if (!b.due_date) return -1
+            return parseISO(a.due_date).getTime() - parseISO(b.due_date).getTime()
+        })
+
+        const today: Task[] = []
+        const upcoming: Task[] = []
+
+        sorted.forEach((task) => {
+            const isUpcomingTask = task.status === "planned"
+
+            if (!task.due_date) {
+                if (isUpcomingTask) {
+                    upcoming.push(task)
+                }
+                return
+            }
+
+            const dueDate = parseISO(task.due_date)
+            const isLate = isPast(dueDate) && !isToday(dueDate) && task.status !== "completed"
+
+            if (isToday(dueDate) || isLate) {
+                today.push(task)
+            } else if (isUpcomingTask) {
+                upcoming.push(task)
+            }
+        })
+
+        return { today, upcoming }
+    }, [filteredTasks])
+
+    const formatTaskDue = (dueDate: string | null) => {
+        if (!dueDate) return "No due date"
+        const parsedDate = parseISO(dueDate)
+        if (isToday(parsedDate)) return "Today"
+        if (isTomorrow(parsedDate)) return "Tomorrow"
+        return format(parsedDate, "dd MMM", { locale: idLocale })
+    }
+
+    const handleToggleTaskComplete = (task: Task, isCompleted: boolean) => {
+        const isReadOnly = viewMode === "department" && !canEditTask(task, currentUserId)
+        if (isReadOnly || updatingTaskId === task.id) return
+
+        const newStatus: TaskStatus = isCompleted ? "planned" : "completed"
+        setUpdatingTaskId(task.id)
+
+        router.put(
+            route("activity.task.update", { task: task.id }),
+            { status: newStatus },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ["tasks", "stats", "filters"],
+                onSuccess: () => {
+                    showToast.success(
+                        "Task updated",
+                        `${task.task_title} marked as ${newStatus === "completed" ? "done" : "to do"}`
+                    )
+                },
+                onError: () => showToast.error("Failed to update task status"),
+                onFinish: () => setUpdatingTaskId(null),
+            }
+        )
+    }
+
+    const renderTaskSection = (title: string, sectionTasks: Task[]) => (
+        <section className="mb-6">
+            <h3 className="mb-3 text-[15px] font-bold text-slate-800 tracking-tight ml-2">{title}</h3>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col">
+                <div className="min-w-[850px] w-full flex flex-col">
+                    {/* Native Grid Table Header */}
+                    <div className="grid grid-cols-[50px_minmax(250px,_3fr)_180px_120px_120px_120px_50px] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-semibold text-slate-500">
+                        <div></div>
+                        <div>Task Name</div>
+                        <div>Category</div>
+                        <div>Priority</div>
+                        <div>Due Date</div>
+                        <div>Status</div>
+                        <div></div>
+                    </div>
+
+                    {/* Table Body */}
+                    {sectionTasks.length === 0 ? (
+                        <div className="px-6 py-8 text-sm text-slate-500 text-center">No tasks in this section.</div>
+                    ) : (
+                        sectionTasks.map((task) => {
+                            const isCompleted = task.status === "completed"
+                            const isReadOnly = viewMode === "department" && !canEditTask(task, currentUserId)
+                            const categoryLabel = task.activity_type?.name || "General"
+                            const statusBadge = statusBadgeConfig[task.status] || statusBadgeConfig.planned
+
+                            return (
+                                <div
+                                    key={task.id}
+                                    onClick={() => handleRowClick(task)}
+                                    className="group grid cursor-pointer grid-cols-[50px_minmax(250px,_3fr)_180px_120px_120px_120px_50px] items-center gap-3 border-b border-slate-100 px-4 py-3.5 last:border-b-0 hover:bg-slate-50/60 transition-colors"
+                                >
+                                    <div className="flex items-center justify-center">
+                                        <button
+                                            type="button"
+                                            disabled={isReadOnly || updatingTaskId === task.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleToggleTaskComplete(task, isCompleted)
+                                            }}
+                                            className={cn(
+                                                "inline-flex h-[18px] w-[18px] items-center justify-center rounded-[4px] border transition-colors shadow-sm",
+                                                isCompleted
+                                                    ? "border-[#16599c] bg-[#16599c] text-white"
+                                                    : "border-slate-300 hover:border-[#16599c] text-transparent bg-white",
+                                                (isReadOnly || updatingTaskId === task.id) && "cursor-not-allowed opacity-50 hover:border-slate-300"
+                                            )}
+                                        >
+                                            <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                        </button>
+                                    </div>
+
+                                    <div className="min-w-0 pr-4">
+                                        <p className={cn(
+                                            "truncate text-[14px] font-medium transition-colors duration-200",
+                                            isCompleted ? "text-slate-400 line-through" : "text-slate-900"
+                                        )}>
+                                            {task.task_title}
+                                        </p>
+                                    </div>
+
+                                    <div className="min-w-0 pr-4">
+                                        <p className="truncate text-[13px] text-slate-500">{categoryLabel}</p>
+                                    </div>
+
+                                    <div>
+                                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border", 
+                                            task.priority === 'high' ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                            task.priority === 'medium' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                            "bg-sky-50 text-sky-600 border-sky-100"
+                                        )}>
+                                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                        </span>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-[13px] text-slate-500">{formatTaskDue(task.due_date)}</p>
+                                    </div>
+
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <StatusDropdown task={task} isReadOnly={isReadOnly} />
+                                    </div>
+
+                                    <div className="flex justify-end pr-2">
+                                        {showActions && (
+                                            <div
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <RowActions task={task} visible={true} isReadOnly={isReadOnly} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        </section>
+    );
+
     return (
         <>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
+            <div className={cn(
+                "overflow-visible",
+                !compact && "rounded-xl bg-white border border-border shadow-[0_8px_24px_rgba(15,53,85,0.06)]"
+            )}>
                 {/* Unified Header with Context Switcher */}
                 {showHeader && (
-                    <div className="px-6 py-5 border-b border-gray-100">
+                    <div className="border-b border-border px-6 py-5">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <h2 className="text-base font-semibold text-gray-900">Activity List</h2>
-                                <p className="text-sm text-gray-500 mt-0.5">
-                                    {getFilterLabel() 
+                                <h2 className="text-base font-semibold text-foreground">Activity List</h2>
+                                <p className="mt-0.5 text-sm text-muted-foreground">
+                                    {getFilterLabel()
                                         ? `Showing ${getFilterLabel()} tasks`
-                                        : viewMode === "my" 
+                                        : viewMode === "my"
                                             ? "Your personal tasks and activities"
                                             : "All department activities"
                                     }
                                 </p>
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
+                                {/* Export Button */}
+                                <a
+                                    href={route('activity.task.export', {
+                                        scope: viewMode, // 'my' or 'department'
+                                        date_from: dateFilter === 'custom' && customRange.start
+                                            ? format(customRange.start, 'yyyy-MM-dd')
+                                            : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')
+                                                : dateFilter === 'week' ? format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+                                                    : dateFilter === 'month' ? format(startOfMonth(new Date()), 'yyyy-MM-dd')
+                                                        : undefined,
+                                        date_to: dateFilter === 'custom' && customRange.end
+                                            ? format(customRange.end, 'yyyy-MM-dd')
+                                            : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')
+                                                : dateFilter === 'week' ? format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+                                                    : dateFilter === 'month' ? format(endOfMonth(new Date()), 'yyyy-MM-dd')
+                                                        : undefined,
+                                        status: statusFilter !== 'all' ? statusFilter : undefined,
+                                    })}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-[color:rgba(24,98,167,0.22)] bg-[color:rgba(24,98,167,0.1)] px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-[color:rgba(24,98,167,0.16)]"
+                                >
+                                    <Download className="h-4 w-4" strokeWidth={1.5} />
+                                    Export XLSX
+                                </a>
+
                                 {/* Date Filter */}
                                 <DateFilter
                                     value={dateFilter}
@@ -976,67 +1228,70 @@ export function ActivityDataTable({
                                     customRange={customRange}
                                     onCustomRangeChange={setCustomRange}
                                 />
-                                
-                                {/* Context Switcher - Segmented Control */}
-                                <div className="flex items-center p-1 bg-gray-100 rounded-lg">
-                                    <button
-                                        onClick={() => handleViewModeChange("my")}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                                            viewMode === "my"
-                                                ? "bg-white text-gray-900 shadow-sm"
-                                                : "text-gray-600 hover:text-gray-900"
-                                        )}
-                                    >
-                                        <User className="h-3.5 w-3.5" />
-                                        My Tasks
-                                    </button>
-                                    <button
-                                        onClick={() => handleViewModeChange("department")}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                                            viewMode === "department"
-                                                ? "bg-white text-gray-900 shadow-sm"
-                                                : "text-gray-600 hover:text-gray-900"
-                                        )}
-                                    >
-                                        <Users className="h-3.5 w-3.5" />
-                                        Department
-                                    </button>
-                                </div>
+
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Interactive Stats Cards - Soft Colored with Quiet Default */}
-                {showHeader && (
-                    <MetricCards 
-                        stats={calculatedStats} 
-                        filteredCount={filteredTasks.length}
-                        activeFilter={statusFilter}
-                        onFilterChange={setStatusFilter}
-                    />
-                )}
+                {/* List Section - grouped by due date context */}
+                <div className={cn("space-y-8", showHeader && "border-t border-border p-6")}>
+                    {renderTaskSection("Today", groupedListTasks.today)}
+                    {renderTaskSection("Upcoming", groupedListTasks.upcoming)}
 
-                {/* Table with Search Inside */}
-                <div className="border-t border-gray-100 overflow-visible">
-                    <DataTable
-                        columns={columns}
-                        data={filteredTasks}
-                        searchKey="task_title"
-                        searchPlaceholder="Search activities..."
-                        onRowClick={handleRowClick}
-                        pageSize={compact ? 5 : 10}
-                        emptyMessage={
-                            statusFilter !== "all"
-                                ? `No ${getFilterLabel()} tasks found.`
-                                : viewMode === "my"
-                                    ? "No tasks assigned to you yet."
-                                    : "No activities in your department."
-                        }
-                        rowClassName="group"
-                    />
+                    {tasks?.meta?.last_page > 1 && (
+                        <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-muted-foreground">
+                                Showing {tasks.meta.from ?? 0} - {tasks.meta.to ?? 0} of {tasks.meta.total} tasks
+                            </p>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={!tasks.links.prev}
+                                    onClick={() => {
+                                        if (tasks.links.prev) {
+                                            router.visit(tasks.links.prev, {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                only: ["tasks", "stats", "filters"],
+                                            })
+                                        }
+                                    }}
+                                    className={cn(
+                                        "rounded-md border px-3 py-1.5 text-sm",
+                                        tasks.links.prev
+                                            ? "border-border bg-background text-foreground hover:bg-secondary"
+                                            : "cursor-not-allowed border-border bg-slate-50 text-slate-400"
+                                    )}
+                                >
+                                    Previous
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={!tasks.links.next}
+                                    onClick={() => {
+                                        if (tasks.links.next) {
+                                            router.visit(tasks.links.next, {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                                only: ["tasks", "stats", "filters"],
+                                            })
+                                        }
+                                    }}
+                                    className={cn(
+                                        "rounded-md border px-3 py-1.5 text-sm",
+                                        tasks.links.next
+                                            ? "border-border bg-background text-foreground hover:bg-secondary"
+                                            : "cursor-not-allowed border-border bg-slate-50 text-slate-400"
+                                    )}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1053,4 +1308,3 @@ export function ActivityDataTable({
 }
 
 export default ActivityDataTable
-

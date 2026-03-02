@@ -2,12 +2,24 @@ import { Head, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { ArrowLeft, Edit, Users, Building2, UserCircle, Shield } from 'lucide-react';
+import { ArrowLeft, Edit, Users, Building2, UserCircle, Shield, Activity } from 'lucide-react';
 import type { DepartmentWithStats, Position } from '@/types/admin';
+
+interface SubActivity {
+  id: number;
+  code: string;
+  name: string;
+  activity_type: {
+    id: number;
+    name: string;
+    color: string;
+  } | null;
+}
 
 interface ShowProps {
   department: DepartmentWithStats & {
     positions?: Position[];
+    sub_activities?: SubActivity[];
     user_assignments?: Array<{
       id: number;
       name: string;
@@ -53,7 +65,9 @@ function Show({ department }: ShowProps) {
               Back
             </Button>
             <Button
-              onClick={() => router.visit(route('admin.departments.edit', { department: department.id }))}
+              onClick={() =>
+                router.visit(route('admin.departments.edit', { department: department.id }))
+              }
               className="flex items-center gap-2"
             >
               <Edit className="w-4 h-4" />
@@ -111,9 +125,7 @@ function Show({ department }: ShowProps) {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      Status
-                    </label>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Status</label>
                     <Badge variant={department.is_active ? 'success' : 'default'}>
                       {department.is_active ? 'Active' : 'Inactive'}
                     </Badge>
@@ -153,9 +165,7 @@ function Show({ department }: ShowProps) {
                           <p className="font-medium text-gray-900">{position.name}</p>
                           <p className="text-sm text-gray-500">Code: {position.code}</p>
                         </div>
-                        <Badge variant="default">
-                          {position.access_level || 'staff'}
-                        </Badge>
+                        <Badge variant="default">{position.access_level || 'staff'}</Badge>
                       </div>
                     ))}
                   </div>
@@ -167,20 +177,59 @@ function Show({ department }: ShowProps) {
               </div>
             </Card>
 
+            {/* Sub Activities */}
+            <Card>
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Sub Activities</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Sub activities assigned to this department
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Activity className="w-4 h-4" />
+                  <span>{department.sub_activities?.length || 0} sub-activity(s)</span>
+                </div>
+              </div>
+              <div className="p-6">
+                {department.sub_activities && department.sub_activities.length > 0 ? (
+                  <div className="space-y-2">
+                    {department.sub_activities.map((sub: SubActivity) => (
+                      <div
+                        key={sub.id}
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: sub.activity_type?.color || '#6B7280' }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{sub.name}</p>
+                          <p className="text-xs text-gray-500">{sub.activity_type?.name || 'N/A'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No sub activities assigned to this department.
+                    <br />
+                    <span className="text-sm">Edit the department to assign sub activities.</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
             {/* User Assignments */}
             <Card>
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">User Assignments</h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Users assigned to this department
-                  </p>
+                  <p className="text-sm text-gray-500 mt-1">Users assigned to this department</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Users className="w-4 h-4" />
-                  <span>
-                    {department.user_assignments?.length || 0} user(s)
-                  </span>
+                  <span>{department.user_assignments?.length || 0} user(s)</span>
                 </div>
               </div>
               <div className="p-6">
@@ -215,9 +264,7 @@ function Show({ department }: ShowProps) {
                               {user.email}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <Badge variant="default">
-                                {user.position?.name || 'N/A'}
-                              </Badge>
+                              <Badge variant="default">{user.position?.name || 'N/A'}</Badge>
                             </td>
                           </tr>
                         ))}
@@ -240,10 +287,10 @@ function Show({ department }: ShowProps) {
                 <h2 className="text-lg font-semibold text-gray-900">Statistics</h2>
               </div>
               <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-primary rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                      <Users className="w-5 h-5 text-indigo-600" />
+                    <div className="p-2 bg-primary rounded-lg">
+                      <Users className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Total Users</p>
@@ -267,6 +314,20 @@ function Show({ department }: ShowProps) {
                     </div>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Activity className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Sub Activities</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {department.sub_activities?.length || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </Card>
 
@@ -279,7 +340,9 @@ function Show({ department }: ShowProps) {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => router.visit(route('admin.departments.edit', { department: department.id }))}
+                  onClick={() =>
+                    router.visit(route('admin.departments.edit', { department: department.id }))
+                  }
                 >
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Department
@@ -287,7 +350,9 @@ function Show({ department }: ShowProps) {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => router.visit(route('admin.users.index', { department_id: department.id }))}
+                  onClick={() =>
+                    router.visit(route('admin.users.index', { department_id: department.id }))
+                  }
                 >
                   <Users className="w-4 h-4 mr-2" />
                   View Users

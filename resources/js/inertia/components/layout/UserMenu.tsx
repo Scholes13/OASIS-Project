@@ -54,7 +54,7 @@ export default function UserMenu() {
                         <div className="text-xs text-gray-500">{user.email}</div>
                         {user.role && (
                             <div className="mt-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
                                     {user.role}
                                 </span>
                             </div>

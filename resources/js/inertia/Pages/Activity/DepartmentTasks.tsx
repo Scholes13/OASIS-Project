@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import type { PageProps, PaginatedData, Task } from '@/types';
 import TaskCard from '@/components/activity/TaskCard';
-import AppLayout from '@/layouts/AppLayout';
 
 interface DepartmentTasksProps extends PageProps {
     tasks: PaginatedData<Task>;
@@ -12,11 +11,11 @@ interface DepartmentTasksProps extends PageProps {
 
 export default function DepartmentTasks({ tasks }: DepartmentTasksProps) {
     return (
-        <AppLayout title="Department Tasks">
+        <>
             <Head title="Department Tasks" />
 
-            <div className="w-full h-full bg-gray-50" style={{ width: '100%', maxWidth: 'none', margin: 0, padding: 0 }}>
-                <div className="w-full h-full" style={{ width: '100%', maxWidth: 'none', padding: '1.5rem' }}>
+            <div className="w-full px-6 py-6 lg:px-8">
+                <div className="w-full">
                     {/* Back Button */}
                     <div className="mb-6">
                         <Link
@@ -72,7 +71,7 @@ export default function DepartmentTasks({ tasks }: DepartmentTasksProps) {
                                     href={link.url || '#'}
                                     className={`px-3 py-1.5 text-sm rounded-md ${
                                         link.active
-                                            ? 'bg-indigo-600 text-white'
+                                            ? 'bg-primary text-white'
                                             : link.url
                                             ? 'text-gray-600 hover:bg-gray-100'
                                             : 'text-gray-300 cursor-not-allowed'
@@ -85,7 +84,7 @@ export default function DepartmentTasks({ tasks }: DepartmentTasksProps) {
                     )}
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }
 

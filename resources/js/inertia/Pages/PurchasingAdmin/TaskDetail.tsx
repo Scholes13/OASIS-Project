@@ -104,7 +104,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                             <p className="text-gray-500 mt-2">The requested task could not be found.</p>
                             <Link
                                 href={route('purchasing.admin.tasks')}
-                                className="mt-4 inline-flex items-center text-indigo-600 hover:text-indigo-800"
+                                className="mt-4 inline-flex items-center text-primary hover:text-primary"
                             >
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Back to Tasks
@@ -173,7 +173,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                                 {/* Type Badge */}
                                                 <span className={cn(
                                                     'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
-                                                    isPR ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                                                    isPR ? 'bg-blue-50 text-blue-700' : 'bg-purple-100 text-purple-700'
                                                 )}>
                                                     {isPR ? (
                                                         <><FileText className="w-3.5 h-3.5 mr-1" /> Purchase Request</>
@@ -302,7 +302,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                             <button
                                                 onClick={handleClaim}
                                                 disabled={isLoading}
-                                                className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm disabled:opacity-50"
+                                                className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm disabled:opacity-50"
                                             >
                                                 <User className="w-5 h-5 mr-2" />
                                                 Claim Task

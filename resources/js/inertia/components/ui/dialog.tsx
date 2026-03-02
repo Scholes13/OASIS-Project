@@ -65,7 +65,7 @@ export function DialogHeader({ children, className, onClose }: DialogHeaderProps
       {onClose && (
         <button
           type="button"
-          className="rounded-md p-1 text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-md p-1 text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
           onClick={onClose}
           aria-label="Close dialog"
         >

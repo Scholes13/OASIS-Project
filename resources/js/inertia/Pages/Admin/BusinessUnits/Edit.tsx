@@ -14,7 +14,7 @@ import { X } from 'lucide-react';
 
 interface EditProps {
   businessUnit: BusinessUnitWithStats & { logo_url?: string };
-  parentBusinessUnits: BusinessUnitWithStats[];
+  parentBusinessUnits: SelectOption[];
   managers: SelectOption[];
 }
 
@@ -195,7 +195,7 @@ export default function Edit({ businessUnit, parentBusinessUnits, managers }: Ed
                 id="description"
                 {...register('description')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Brief description of the business unit"
               />
               {errors.description && (
@@ -234,7 +234,7 @@ export default function Edit({ businessUnit, parentBusinessUnits, managers }: Ed
                 id="address"
                 {...register('address')}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Full address of the business unit"
               />
               {errors.address && (
@@ -251,10 +251,7 @@ export default function Edit({ businessUnit, parentBusinessUnits, managers }: Ed
                   onChange={(value) => setValue('parent_id', value ? parseInt(value.toString()) : null)}
                   options={[
                     { value: '', label: 'None (Top Level)' },
-                    ...parentBusinessUnits.map((bu) => ({
-                      value: bu.id.toString(),
-                      label: `${bu.name} (${bu.code})`,
-                    })),
+                    ...parentBusinessUnits,
                   ]}
                 />
                 <p className="mt-1 text-sm text-gray-500">
@@ -281,7 +278,7 @@ export default function Edit({ businessUnit, parentBusinessUnits, managers }: Ed
                 type="checkbox"
                 id="is_active"
                 {...register('is_active')}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
               />
               <Label htmlFor="is_active" className="mb-0">
                 Active

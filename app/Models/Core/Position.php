@@ -128,6 +128,14 @@ class Position extends Model
     }
 
     /**
+     * Scope for C-Level positions
+     */
+    public function scopeCLevel($query)
+    {
+        return $query->where('level', 'c_level');
+    }
+
+    /**
      * Scope for HOD positions
      */
     public function scopeHod($query)
@@ -152,6 +160,55 @@ class Position extends Model
     }
 
     /**
+     * Scope for top management positions (C-Level + Executive access).
+     *
+     * Used by authorization Gates as single source of truth for
+     * determining BOD/Director-level access across all modules.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function scopeTopManagement($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('level', 'c_level')
+                ->orWhere('access_level', 'executive');
+        });
+    }
+
+    /**
+     * Scope for manager-and-above positions (C-Level + HOD + General Manager).
+     *
+     * Used by authorization Gates for mid-level management access
+     * such as department analytics and purchasing admin.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function scopeManagerAndAbove($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereIn('level', ['c_level', 'hod'])
+                ->orWhereIn('access_level', ['executive', 'general_manager', 'department_head']);
+        });
+    }
+
+    /**
+     * Check if this position qualifies as top management.
+     */
+    public function isTopManagement(): bool
+    {
+        return $this->level === 'c_level' || $this->access_level === 'executive';
+    }
+
+    /**
+     * Check if this position qualifies as manager-and-above.
+     */
+    public function isManagerAndAbove(): bool
+    {
+        return in_array($this->level, ['c_level', 'hod'])
+            || in_array($this->access_level, ['executive', 'general_manager', 'department_head']);
+    }
+
+    /**
      * Get full position name with department
      * ✅ OPTIMIZED: Added null safety to prevent N+1 query crash
      */
@@ -161,6 +218,14 @@ class Position extends Model
         $departmentName = $this->department?->name ?? 'Unknown Department';
 
         return $departmentName.' - '.$this->name;
+    }
+
+    /**
+     * Check if this is a C-Level / Director position
+     */
+    public function isCLevel(): bool
+    {
+        return $this->level === 'c_level';
     }
 
     /**

@@ -33,7 +33,7 @@ const userColumns: ColumnDef<User>[] = [
         accessorKey: 'role',
         header: 'Role',
         cell: ({ row }) => (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
                 {row.original.role}
             </span>
         ),
@@ -59,13 +59,13 @@ const userColumns: ColumnDef<User>[] = [
         cell: ({ row }) => (
             <div className="flex items-center gap-2">
                 <button
-                    className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                    className="p-1.5 text-gray-600 hover:text-primary hover:bg-blue-600 rounded transition-colors"
                     aria-label="View user"
                 >
                     <Eye className="w-4 h-4" />
                 </button>
                 <button
-                    className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                    className="p-1.5 text-gray-600 hover:text-primary hover:bg-blue-600 rounded transition-colors"
                     aria-label="Edit user"
                 >
                     <Pencil className="w-4 h-4" />
@@ -169,7 +169,7 @@ export function SelectableTableExample() {
                     type="checkbox"
                     checked={table.getIsAllRowsSelected()}
                     onChange={table.getToggleAllRowsSelectedHandler()}
-                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
             ),
             cell: ({ row }) => (
@@ -177,7 +177,7 @@ export function SelectableTableExample() {
                     type="checkbox"
                     checked={row.getIsSelected()}
                     onChange={row.getToggleSelectedHandler()}
-                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
             ),
         },

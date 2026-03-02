@@ -169,7 +169,7 @@ describe('Business Unit Switch Interactions', () => {
 
     await waitFor(() => {
       const currentOption = screen.getByText('WNS Business Unit').closest('button');
-      expect(currentOption).toHaveClass('bg-indigo-50');
+      expect(currentOption).toHaveClass('bg-primary');
     });
   });
 

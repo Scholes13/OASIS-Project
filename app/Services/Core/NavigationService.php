@@ -3,16 +3,20 @@
 namespace App\Services\Core;
 
 use App\Models\Core\User;
-use Illuminate\Support\Facades\Gate;
+use App\Services\Modules\CashflowProjection\CashflowProjectionAccessService;
 
 class NavigationService
 {
+    public function __construct(
+        protected CashflowProjectionAccessService $cashflowProjectionAccessService,
+    ) {}
+
     /**
      * Build navigation menu for the given user and business unit.
      */
     public function buildMenuForUser(User $user, ?int $businessUnitId): array
     {
-        if (!$businessUnitId) {
+        if (! $businessUnitId) {
             return ['sections' => []];
         }
 
@@ -36,10 +40,18 @@ class NavigationService
             $sections[] = $this->getSalesCrmSection($user, $businessUnitId);
         }
 
+        // Cashflow Projection section
+        if ($this->canAccessCashflowProjection($user, $businessUnitId)) {
+            $sections[] = $this->getCashflowProjectionSection($user, $businessUnitId);
+        }
+
         // Administration section
         if ($this->canAccessAdministration($user)) {
             $sections[] = $this->getAdministrationSection($user);
         }
+
+        // Docs & Help section (available to all users)
+        $sections[] = $this->getDocsHelpSection();
 
         return ['sections' => array_filter($sections)];
     }
@@ -77,7 +89,7 @@ class NavigationService
             'name' => 'Purchase Requests',
             'href' => route('purchase-requests.index'),
             'icon' => 'file-text',
-            'active' => request()->routeIs('purchase-requests.*') && !request()->routeIs('purchase-requests.all'),
+            'active' => request()->routeIs('purchase-requests.*') && ! request()->routeIs('purchase-requests.all'),
         ];
 
         // Stock Requests submenu
@@ -131,7 +143,7 @@ class NavigationService
                         'name' => 'Tasks',
                         'href' => route('purchasing.admin.tasks'),
                         'icon' => 'check-circle',
-                        'active' => request()->routeIs('purchasing.admin.tasks*') && !request()->routeIs('purchasing.admin.task-history*'),
+                        'active' => request()->routeIs('purchasing.admin.tasks*') && ! request()->routeIs('purchasing.admin.task-history*'),
                     ],
                     [
                         'name' => 'My Task History',
@@ -195,6 +207,15 @@ class NavigationService
             ],
         ];
 
+        if ($this->canAccessActivityAdmin($user, $businessUnitId)) {
+            $items[0]['children'][] = [
+                'name' => 'Activity Admin',
+                'href' => route('activity.admin.dashboard'),
+                'icon' => 'shield-check',
+                'active' => request()->routeIs('activity.admin.*'),
+            ];
+        }
+
         // Activity Types & Sub-Activities (Super Admin only)
         if ($user->isSuperAdmin()) {
             $items[] = [
@@ -250,7 +271,7 @@ class NavigationService
         $items = [];
 
         // Only Super Admin can access administration
-        if (!$user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin()) {
             return [];
         }
 
@@ -282,9 +303,34 @@ class NavigationService
             'active' => request()->routeIs('admin.notification-settings.*'),
         ];
 
+        $items[] = [
+            'name' => 'Activity Admin Assignment',
+            'href' => route('admin.activity-admins.index'),
+            'icon' => 'shield-check',
+            'active' => request()->routeIs('admin.activity-admins.*'),
+        ];
+
         return [
             'name' => 'Administration',
             'items' => $items,
+        ];
+    }
+
+    /**
+     * Get docs & help section.
+     */
+    protected function getDocsHelpSection(): array
+    {
+        return [
+            'name' => 'Support',
+            'items' => [
+                [
+                    'name' => 'Docs & Help',
+                    'href' => route('docs-help'),
+                    'icon' => 'book-open',
+                    'active' => request()->routeIs('docs-help'),
+                ],
+            ],
         ];
     }
 
@@ -293,12 +339,14 @@ class NavigationService
      */
     protected function canAccessPurchasing(User $user, int $businessUnitId): bool
     {
-        // Super Admin can access everything
         if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // Check if user has access to this business unit
+        if ($user->hasTopManagementAccess()) {
+            return true;
+        }
+
         return $user->businessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->exists();
@@ -309,26 +357,18 @@ class NavigationService
      */
     protected function canAccessPurchasingAdmin(User $user, int $businessUnitId): bool
     {
-        // Super Admin can access everything
         if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // Top Management in Parent BU
-        $isTopManagementParent = $user->businessUnits()
-            ->whereHas('businessUnit', fn($q) => $q->whereNull('parent_id'))
-            ->whereHas('position', fn($q) => $q->whereIn('access_level', [1, 2]))
-            ->exists();
-
-        if ($isTopManagementParent) {
+        if ($user->hasTopManagementAccess()) {
             return true;
         }
 
-        // Purchasing Admin in current BU
         return $user->businessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->where('is_purchasing_admin', true)
-            ->whereHas('department', fn($q) => $q->where('is_purchasing_department', true))
+            ->whereHas('department', fn ($q) => $q->where('is_purchasing_department', true))
             ->exists();
     }
 
@@ -337,14 +377,35 @@ class NavigationService
      */
     protected function canAccessActivityTracking(User $user, int $businessUnitId): bool
     {
-        // Super Admin can access everything
         if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // Check if user has access to this business unit
+        if ($user->hasTopManagementAccess()) {
+            return true;
+        }
+
         return $user->businessUnits()
             ->where('business_unit_id', $businessUnitId)
+            ->exists();
+    }
+
+    /**
+     * Check if user can access activity admin features.
+     */
+    protected function canAccessActivityAdmin(User $user, int $businessUnitId): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasTopManagementAccess()) {
+            return true;
+        }
+
+        return $user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_activity_admin', true)
             ->exists();
     }
 
@@ -364,5 +425,62 @@ class NavigationService
     protected function canAccessAdministration(User $user): bool
     {
         return $user->isSuperAdmin();
+    }
+
+    /**
+     * Get cashflow projection section.
+     * Finance users see all 3 pages; non-finance (HoD) only see Entries.
+     */
+    protected function getCashflowProjectionSection(User $user, int $businessUnitId): array
+    {
+        $isFinance = $this->cashflowProjectionAccessService->isFinanceUser($user, $businessUnitId);
+
+        $children = [];
+
+        if ($isFinance) {
+            $children[] = [
+                'name' => 'Dashboard',
+                'href' => route('cashflow-projection.index'),
+                'icon' => 'chart-pie',
+                'active' => request()->routeIs('cashflow-projection.index'),
+            ];
+        }
+
+        $children[] = [
+            'name' => 'Entries',
+            'href' => route('cashflow-projection.entries'),
+            'icon' => 'pencil-square',
+            'active' => request()->routeIs('cashflow-projection.entries'),
+        ];
+
+        if ($isFinance) {
+            $children[] = [
+                'name' => 'Settings',
+                'href' => route('cashflow-projection.settings'),
+                'icon' => 'cog-6-tooth',
+                'active' => request()->routeIs('cashflow-projection.settings'),
+            ];
+        }
+
+        return [
+            'name' => 'Cashflow Projection',
+            'items' => [
+                [
+                    'name' => 'Cashflow',
+                    'href' => $isFinance ? route('cashflow-projection.index') : route('cashflow-projection.entries'),
+                    'icon' => 'briefcase',
+                    'active' => request()->routeIs('cashflow-projection.*'),
+                    'children' => $children,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Check if user can access cashflow projection module.
+     */
+    protected function canAccessCashflowProjection(User $user, int $businessUnitId): bool
+    {
+        return $this->cashflowProjectionAccessService->canAccess($user, $businessUnitId);
     }
 }

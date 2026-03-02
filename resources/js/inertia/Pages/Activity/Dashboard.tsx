@@ -1,102 +1,72 @@
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus,
     List,
     Columns3,
-    Calendar,
+    Calendar as CalendarIcon,
     Clock,
+    LayoutDashboard,
+    PieChart,
+    ArrowUpRight,
+    CheckCircle2,
+    Clock as ClockIcon,
+    AlertCircle,
+    MoreHorizontal
 } from 'lucide-react';
 import { useBusinessUnit } from '@/hooks/useBusinessUnit';
 import FilterDropdown from '@/components/activity/FilterDropdown';
 import { LoadingOverlay } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/button';
-import { ActivityDataTable } from '@/components/activity/ActivityDataTable';
-import { KanbanBoard } from '@/components/activity/KanbanBoard';
-import { ActivityCalendar } from '@/components/activity/ActivityCalendar';
-import { ActivityTimeline } from '@/components/activity/ActivityTimeline';
-import { Toaster } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
-import type { PageProps, Task, TaskStats, TaskFilters, ActivityType, PaginatedData, ActivityByType } from '@/types';
+import { TaskFormModal } from '@/components/activity/TaskFormModal';
+import type { PageProps, Task, TaskStats, TaskFilters, ActivityType, PaginatedData } from '@/types';
+
+const ActivityDataTable = lazy(() => import('@/components/activity/ActivityDataTable'));
+const KanbanBoard = lazy(() => import('@/components/activity/KanbanBoard'));
+const ActivityCalendar = lazy(() => import('@/components/activity/ActivityCalendar'));
+const ActivityTimeline = lazy(() => import('@/components/activity/ActivityTimeline'));
 
 interface DashboardProps extends PageProps {
     stats: TaskStats;
     tasks: PaginatedData<Task>;
-    activityTypes: ActivityType[];
+    activityTypes: any;
     filters: TaskFilters;
-    byActivityType: ActivityByType[];
+    departmentUsers?: any[];
+    backdatePermission?: any;
+    allowedDateRange?: any;
+    backdateEnabled?: boolean;
+    prioritizedActivityTypes?: any;
 }
 
 type ViewType = 'list' | 'board' | 'calendar' | 'timeline';
 
 const viewConfig: { id: ViewType; icon: React.ReactNode; tooltip: string }[] = [
     { id: 'list', icon: <List className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'List View' },
-    { id: 'board', icon: <Columns3 className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'Board' },
-    { id: 'calendar', icon: <Calendar className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'Calendar' },
+    { id: 'board', icon: <Columns3 className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'Kanban Board' },
+    { id: 'calendar', icon: <CalendarIcon className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'Calendar' },
     { id: 'timeline', icon: <Clock className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'Timeline' },
 ];
 
-// Animation variants for different views
-const viewAnimations = {
-    list: {
-        initial: { opacity: 0, y: 20, scale: 0.98 },
-        animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: -20, scale: 0.98 },
-    },
-    board: {
-        initial: { opacity: 0, x: 40 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -40 },
-    },
-    calendar: {
-        initial: { opacity: 0, scale: 0.95 },
-        animate: { opacity: 1, scale: 1 },
-        exit: { opacity: 0, scale: 0.95 },
-    },
-    timeline: {
-        initial: { opacity: 0, y: 30 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -30 },
-    },
-};
-
-const springTransition = { type: "spring" as const, stiffness: 300, damping: 30 };
-const smoothTransition = { duration: 0.35, ease: "easeInOut" as const };
-
-// ============================================================================
-// STATS CARD COMPONENT - Enterprise Style with Large Metrics
-// ============================================================================
-
-interface StatsCardProps {
-    title: string;
-    value: number;
-    icon: React.ReactNode;
-    iconBg?: string;
-    iconColor?: string;
-}
-
-function StatsCard({ title, value, icon, iconBg = "bg-gray-100", iconColor = "text-gray-600" }: StatsCardProps) {
-    return (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-500">{title}</span>
-                <div className={cn("p-2 rounded-lg", iconBg)}>
-                    <span className={iconColor}>{icon}</span>
-                </div>
-            </div>
-            <p className="text-3xl font-bold tracking-tight text-gray-900">{value}</p>
-        </div>
-    );
-}
-
-export default function Dashboard({ stats, tasks, activityTypes, filters, byActivityType }: DashboardProps) {
+export default function Dashboard({ stats, tasks, activityTypes, filters, departmentUsers = [], backdatePermission, allowedDateRange, backdateEnabled, prioritizedActivityTypes }: DashboardProps) {
     const [view, setView] = useState<ViewType>('list');
     const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
     const [isFiltering, setIsFiltering] = useState(false);
+    const [showTaskModal, setShowTaskModal] = useState(false);
+    const [initialTaskDate, setInitialTaskDate] = useState<string | null>(null);
+
+    const handleCreateTaskClick = (options?: { date?: string }) => {
+        setInitialTaskDate(options?.date ?? null);
+
+        router.reload({
+            only: ['departmentUsers', 'backdatePermission', 'allowedDateRange', 'backdateEnabled', 'prioritizedActivityTypes'],
+            onSuccess: () => setShowTaskModal(true),
+        });
+    };
 
     const { currentBusinessUnit, isSwitching: isBuLoading } = useBusinessUnit([
-        'stats', 'tasks', 'byActivityType'
+        'stats', 'tasks', 'filters'
     ]);
 
     useEffect(() => {
@@ -127,7 +97,7 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, byActi
                     {
                         preserveState: true,
                         preserveScroll: true,
-                        only: ['stats', 'tasks', 'byActivityType'],
+                        only: ['stats', 'tasks', 'filters'],
                         onFinish: () => setIsFiltering(false),
                     }
                 );
@@ -156,121 +126,163 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, byActi
     const taskData = tasks?.data ?? [];
     const safeStats = stats ?? { total: 0, planned: 0, in_progress: 0, completed: 0, overdue: 0 };
 
+    // Calculate completion rate
+    const completionRate = safeStats.total > 0
+        ? Math.round((safeStats.completed / safeStats.total) * 100)
+        : 0;
+
     return (
-        <>
-            <Head title="Activity Tasks" />
-            <Toaster />
+        <div className="w-full font-sans text-slate-800">
+            <Head title="Tasks" />
 
-            {/* Page content - AppLayout handles the outer container */}
-            <div className="relative min-h-screen bg-gray-50">
-                {isLoading && <LoadingOverlay message="Loading..." />}
+            {isLoading && <LoadingOverlay message="Syncing workspace..." />}
 
-                <div className="w-full p-6">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                        <div>
-                            <h1 className="text-xl font-semibold text-gray-900">Activity Tasks</h1>
-                            <p className="mt-0.5 text-sm text-gray-500">
-                                Track and manage your work activities
-                                {currentBusinessUnit && (
-                                    <span className="text-indigo-600"> · {currentBusinessUnit.name}</span>
+            {/* Main Content Area */}
+            <div className="w-full px-6 py-6 lg:px-8">
+                <div className="w-full flex flex-col gap-6">
+                    
+                    {/* Header Inline with the Page (Linear/Notion style) */}
+                    <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">My Tasks</h1>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className="inline-flex items-center rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-200 shadow-sm">
+                                    {safeStats.total} Total
+                                </span>
+                                {safeStats.in_progress > 0 && (
+                                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 border border-blue-100 shadow-sm">
+                                        {safeStats.in_progress} Active
+                                    </span>
                                 )}
-                            </p>
+                                {safeStats.overdue > 0 && (
+                                    <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 border border-rose-100 shadow-sm">
+                                        {safeStats.overdue} Overdue
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                        <Link href={route('activity.task.create')}>
-                            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
-                                <Plus className="h-4 w-4 mr-1.5" strokeWidth={2} />
-                                New Activity
-                            </Button>
-                        </Link>
-                    </div>
 
-                    {/* View Switcher & Filter - NO redundant search here */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                        <div className="inline-flex items-center p-1 bg-white rounded-lg border border-gray-200 shadow-sm">
-                            {viewConfig.map(({ id, icon, tooltip }) => (
-                                <motion.button
-                                    key={id}
-                                    onClick={() => handleViewChange(id)}
-                                    title={tooltip}
-                                    className={cn(
-                                        "relative p-2 rounded-md transition-colors duration-150",
-                                        view === id
-                                            ? "text-white"
-                                            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                    )}
-                                    whileHover={{ scale: view === id ? 1 : 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
+                        {/* Control Bar (Filters & Views) */}
+                        <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                            
+                            {/* View Switcher Tabs */}
+                            <div className="flex bg-slate-50/80 p-1 rounded-lg border border-slate-100">
+                                {viewConfig.map(({ id, icon, tooltip }) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => handleViewChange(id)}
+                                        title={tooltip}
+                                        className={cn(
+                                            "flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200",
+                                            view === id
+                                                ? "bg-white text-[#16599c] shadow-sm font-semibold ring-1 ring-slate-200/50"
+                                                : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+                                        )}
+                                    >
+                                        <span className={cn(view === id ? "text-[#16599c]" : "text-slate-400")}>
+                                            {icon}
+                                        </span>
+                                        <span className="capitalize hidden md:inline-block">{id}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+
+                            {/* Scope Toggle (My Tasks vs Team) */}
+                            <div className="flex items-center bg-slate-50/80 p-1 rounded-lg border border-slate-100">
+                                <button 
+                                    onClick={() => setLocalFilters(prev => ({ ...prev, scope: 'my' }))}
+                                    className={cn("px-4 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200", (!localFilters.scope || localFilters.scope === 'my') ? "bg-white text-[#16599c] shadow-sm font-semibold ring-1 ring-slate-200/50" : "text-slate-500 hover:text-slate-800")}
                                 >
-                                    {view === id && (
-                                        <motion.div
-                                            layoutId="activeViewIndicator"
-                                            className="absolute inset-0 bg-indigo-600 rounded-md shadow-sm"
-                                            transition={springTransition}
-                                        />
-                                    )}
-                                    <span className="relative z-10">{icon}</span>
-                                </motion.button>
-                            ))}
-                        </div>
+                                    My Tasks
+                                </button>
+                                <button 
+                                    onClick={() => setLocalFilters(prev => ({ ...prev, scope: 'department' }))}
+                                    className={cn("px-4 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200", localFilters.scope === 'department' ? "bg-white text-[#16599c] shadow-sm font-semibold ring-1 ring-slate-200/50" : "text-slate-500 hover:text-slate-800")}
+                                >
+                                    Team
+                                </button>
+                            </div>
 
-                        {view !== 'calendar' && view !== 'list' && (
-                            <FilterDropdown
-                                filters={localFilters}
-                                onChange={setLocalFilters}
-                                activityTypes={activityTypes}
-                                isFiltering={isFiltering}
-                            />
-                        )}
+                            <div className="w-px h-6 bg-slate-200 hidden md:block"></div>
+                            
+                            {/* Filter Dropdown */}
+                            <div className="hidden sm:block">
+                                <FilterDropdown
+                                    filters={localFilters}
+                                    onChange={setLocalFilters}
+                                    activityTypes={activityTypes}
+                                    isFiltering={isFiltering}
+                                />
+                            </div>
+
+                            <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+
+                            <button 
+                                onClick={() => handleCreateTaskClick()}
+                                className="ml-auto sm:ml-0 flex items-center gap-2 bg-[#16599c] hover:bg-[#124a82] text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors border-none cursor-pointer shadow-sm h-[36px]"
+                            >
+                                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                                <span className="hidden sm:inline">Create Task</span>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Main Content Area */}
-                    <AnimatePresence mode="wait">
-                        {view === 'list' && (
-                            <motion.div 
-                                key="list" 
-                                {...viewAnimations.list}
-                                transition={smoothTransition}
-                            >
-                                <ActivityDataTable tasks={tasks} stats={safeStats} />
-                            </motion.div>
-                        )}
-
-                        {view === 'board' && (
-                            <motion.div 
-                                key="board" 
-                                {...viewAnimations.board}
-                                transition={smoothTransition}
-                            >
-                                <KanbanBoard tasks={taskData} />
-                            </motion.div>
-                        )}
-
-                        {view === 'calendar' && (
-                            <motion.div 
-                                key="calendar" 
-                                {...viewAnimations.calendar}
-                                transition={smoothTransition}
-                            >
-                                <ActivityCalendar tasks={taskData} onEventClick={handleTaskClick} />
-                            </motion.div>
-                        )}
-
-                        {view === 'timeline' && (
-                            <motion.div 
-                                key="timeline" 
-                                {...viewAnimations.timeline}
-                                transition={smoothTransition}
-                            >
-                                <ActivityTimeline tasks={taskData} onTaskClick={handleTaskClick} />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    {/* Workspace Area - Rendering the views */}
+                    <div className="w-full mt-2">
+                        <Suspense
+                            fallback={
+                                <div className="flex h-64 items-center justify-center text-slate-400">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#16599c]"></div>
+                                        <span className="text-sm font-medium">Loading workspace...</span>
+                                    </div>
+                                </div>
+                            }
+                        >
+                            <AnimatePresence mode="wait" initial={false}>
+                                {view === 'list' && (
+                                    <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                                        <ActivityDataTable tasks={tasks} stats={safeStats} filters={filters} showHeader={false} compact={true} />
+                                    </motion.div>
+                                )}
+                                {view === 'board' && (
+                                    <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full min-h-[500px]">
+                                        <KanbanBoard tasks={taskData} onCreateTask={() => handleCreateTaskClick()} />
+                                    </motion.div>
+                                )}
+                                {view === 'calendar' && (
+                                    <motion.div key="calendar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
+                                        <ActivityCalendar tasks={taskData} onEventClick={handleTaskClick} onCreateTask={handleCreateTaskClick} />
+                                    </motion.div>
+                                )}
+                                {view === 'timeline' && (
+                                    <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
+                                        <ActivityTimeline tasks={taskData} onTaskClick={handleTaskClick} onCreateTask={() => handleCreateTaskClick()} />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </Suspense>
+                    </div>
                 </div>
             </div>
-        </>
+
+            {/* Create Task Modal */}
+            <TaskFormModal 
+                open={showTaskModal} 
+                onClose={() => {
+                    setShowTaskModal(false);
+                    setInitialTaskDate(null);
+                }}
+                task={null}
+                activityTypes={prioritizedActivityTypes || activityTypes}
+                departmentUsers={departmentUsers}
+                backdatePermission={backdatePermission}
+                allowedDateRange={allowedDateRange || { from: '', to: '' }}
+                backdateEnabled={backdateEnabled}
+                initialTaskDate={initialTaskDate}
+            />
+        </div>
     );
 }
-
-
-

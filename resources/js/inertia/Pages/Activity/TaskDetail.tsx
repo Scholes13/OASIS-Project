@@ -11,7 +11,8 @@ interface TaskDetailProps extends PageProps {
     task: Task;
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null): string {
+    if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('id-ID', {
         weekday: 'long',
@@ -32,7 +33,8 @@ function formatDateTime(dateString: string): string {
     });
 }
 
-function isOverdue(dueDate: string, status: string): boolean {
+function isOverdue(dueDate: string | null, status: string): boolean {
+    if (!dueDate) return false;
     if (status === 'completed' || status === 'cancelled') return false;
     return new Date(dueDate) < new Date();
 }
@@ -51,7 +53,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-12">
+        <div className="w-full pb-12">
             <Head title={task.task_title} />
 
             {/* Top Navigation Bar */}
@@ -172,7 +174,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
                                             <Users className="w-5 h-5" />
                                         </div>
                                         <h3 className="text-lg font-semibold text-gray-900">Participants</h3>
@@ -189,7 +191,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                                     key={participant.id}
                                                     className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all duration-200 group"
                                                 >
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white group-hover:ring-indigo-50 transition-all">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white group-hover:ring-primary transition-all">
                                                         {participant.name?.charAt(0)?.toUpperCase() || '?'}
                                                     </div>
                                                     <div className="min-w-0">
@@ -226,7 +228,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                                     href={`/storage/${attachment.filepath}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="group flex items-start p-4 rounded-xl border border-gray-200 hover:border-indigo-500/30 hover:shadow-md hover:bg-slate-50/50 transition-all duration-300"
+                                                    className="group flex items-start p-4 rounded-xl border border-gray-200 hover:border-primary/30 hover:shadow-md hover:bg-slate-50/50 transition-all duration-300"
                                                 >
                                                     <div className="p-3 bg-red-50 text-red-500 rounded-lg mr-4 group-hover:bg-red-100 transition-colors">
                                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,7 +236,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                                         </svg>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                                                        <p className="font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
                                                             {attachment.filename}
                                                         </p>
                                                         <p className="text-xs text-gray-500 mt-1">

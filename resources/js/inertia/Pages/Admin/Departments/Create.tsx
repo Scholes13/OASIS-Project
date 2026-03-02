@@ -3,47 +3,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/Card';
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import type { DepartmentFormProps, DepartmentFormData } from '@/types/admin';
 import { toast } from 'sonner';
-import { FormEventHandler, useState } from 'react';
-
-interface PositionInput {
-  id?: number;
-  name: string;
-  code: string;
-  access_level: 'staff' | 'supervisor' | 'manager' | 'head';
-}
+import { FormEventHandler } from 'react';
 
 export default function Create({ businessUnits, users, errors }: DepartmentFormProps) {
   const { data, setData, post, processing } = useForm<DepartmentFormData>({
     code: '',
     name: '',
     business_unit_id: 0,
-    head_id: undefined,
     is_active: true,
-    sort_order: 0,
     is_purchasing_enabled: false,
     purchasing_admin_id: undefined,
   });
 
-  const [positions, setPositions] = useState<PositionInput[]>([
-    { name: '', code: '', access_level: 'staff' },
-  ]);
-
   const handleSubmit: FormEventHandler = (e) => {
     e.preventDefault();
-
-    // Validate positions
-    const validPositions = positions.filter(p => p.name.trim() && p.code.trim());
-    
-    if (validPositions.length === 0) {
-      toast.error('Please add at least one position');
-      return;
-    }
-
-    // Update data with positions before submitting
-    setData('positions' as keyof DepartmentFormData, validPositions as any);
 
     post(route('admin.departments.store'), {
       onSuccess: () => {
@@ -56,22 +32,6 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
         toast.error(errorMessage);
       },
     });
-  };
-
-  const addPosition = () => {
-    setPositions([...positions, { name: '', code: '', access_level: 'staff' }]);
-  };
-
-  const removePosition = (index: number) => {
-    if (positions.length > 1) {
-      setPositions(positions.filter((_, i) => i !== index));
-    }
-  };
-
-  const updatePosition = (index: number, field: keyof PositionInput, value: string) => {
-    const updated = [...positions];
-    updated[index] = { ...updated[index], [field]: value };
-    setPositions(updated);
   };
 
   return (
@@ -154,7 +114,7 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
                     id="business_unit_id"
                     value={data.business_unit_id}
                     onChange={(e) => setData('business_unit_id', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                     required
                   >
                     <option value="">Select Business Unit</option>
@@ -168,24 +128,6 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
                     <p className="text-sm text-red-600">{errors.business_unit_id}</p>
                   )}
                 </div>
-
-                {/* Department Head */}
-                <div className="space-y-2">
-                  <Label htmlFor="head_id">Department Head</Label>
-                  <select
-                    id="head_id"
-                    value={data.head_id || ''}
-                    onChange={(e) => setData('head_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">No Head Assigned</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* Status */}
@@ -195,95 +137,20 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
                   id="is_active"
                   checked={data.is_active}
                   onChange={(e) => setData('is_active', e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
                 <Label htmlFor="is_active" className="cursor-pointer">
                   Active
                 </Label>
               </div>
-            </div>
-          </Card>
 
-          {/* Positions */}
-          <Card>
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Positions</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Define positions within this department
+              {/* Info about auto-generated positions */}
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Note:</strong> Default positions (Head, Leader, Staff) will be automatically created for this department.
+                  You can manage positions later from the department edit page.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addPosition}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Position
-              </Button>
-            </div>
-            <div className="p-6 space-y-4">
-              {positions.map((position, index) => (
-                <div key={index} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Position Code */}
-                    <div className="space-y-2">
-                      <Label htmlFor={`position-code-${index}`}>Code</Label>
-                      <Input
-                        id={`position-code-${index}`}
-                        type="text"
-                        value={position.code}
-                        onChange={(e) => updatePosition(index, 'code', e.target.value.toUpperCase())}
-                        placeholder="e.g., MGR, STAFF"
-                        maxLength={10}
-                      />
-                    </div>
-
-                    {/* Position Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor={`position-name-${index}`}>Name</Label>
-                      <Input
-                        id={`position-name-${index}`}
-                        type="text"
-                        value={position.name}
-                        onChange={(e) => updatePosition(index, 'name', e.target.value)}
-                        placeholder="e.g., Manager, Staff"
-                      />
-                    </div>
-
-                    {/* Access Level */}
-                    <div className="space-y-2">
-                      <Label htmlFor={`position-access-${index}`}>Access Level</Label>
-                      <select
-                        id={`position-access-${index}`}
-                        value={position.access_level}
-                        onChange={(e) => updatePosition(index, 'access_level', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      >
-                        <option value="staff">Staff</option>
-                        <option value="supervisor">Supervisor</option>
-                        <option value="manager">Manager</option>
-                        <option value="head">Head</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Remove Button */}
-                  {positions.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removePosition(index)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 mt-7"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
             </div>
           </Card>
 
@@ -300,7 +167,7 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
                   id="is_purchasing_enabled"
                   checked={data.is_purchasing_enabled}
                   onChange={(e) => setData('is_purchasing_enabled', e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
                 <Label htmlFor="is_purchasing_enabled" className="cursor-pointer">
                   Enable Purchasing for this Department
@@ -315,7 +182,7 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
                     id="purchasing_admin_id"
                     value={data.purchasing_admin_id || ''}
                     onChange={(e) => setData('purchasing_admin_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">No Admin Assigned</option>
                     {users.map((user) => (

@@ -5,7 +5,7 @@
                 {{ __('Business Units Management') }}
             </h2>
             <a href="{{ route('admin.business-units.create') }}" 
-               class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+               class="bg-primary hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
                 <i class="fas fa-plus mr-2"></i>Create New Business Unit
             </a>
         </div>
@@ -28,13 +28,13 @@
                                    id="search"
                                    value="{{ request('search') }}"
                                    placeholder="Name, code, or description..."
-                                   class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                   class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                         </div>
 
                         <!-- Status Filter -->
                         <div>
                             <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select name="status" id="status" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <select name="status" id="status" class="w-full border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
                                 <option value="">All Status</option>
                                 <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
                                 <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
@@ -43,7 +43,7 @@
 
                         <!-- Filter Buttons -->
                         <div class="flex items-end gap-2">
-                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors duration-200">
+                            <button type="submit" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors duration-200">
                                 <i class="fas fa-search mr-2"></i>Filter
                             </button>
                             <a href="{{ route('admin.business-units.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors duration-200">
@@ -81,8 +81,8 @@
                                                                  class="max-h-full max-w-full object-contain">
                                                         </div>
                                                     @else
-                                                        <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                                            <span class="text-sm font-medium text-indigo-800">
+                                                        <div class="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
+                                                            <span class="text-sm font-medium text-primary">
                                                                 {{ $bu->code }}
                                                             </span>
                                                         </div>
@@ -128,7 +128,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div class="flex items-center space-x-3">
                                                 <a href="{{ route('admin.business-units.show', $bu) }}" 
-                                                   class="text-indigo-600 hover:text-indigo-900 transition-colors duration-200"
+                                                   class="text-primary hover:text-primary transition-colors duration-200"
                                                    title="View Details">
                                                     <i class="fas fa-eye text-lg"></i>
                                                 </a>
@@ -262,7 +262,7 @@
                             </div>
                         </div>
                         <div class="flex-shrink-0 ml-3">
-                            <button type="button" class="inline-flex rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" onclick="this.parentElement.parentElement.parentElement.remove()">
+                            <button type="button" class="inline-flex rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" onclick="this.parentElement.parentElement.parentElement.remove()">
                                 <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"></path>
                                 </svg>

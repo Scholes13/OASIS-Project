@@ -167,9 +167,7 @@ class PurchaseRequestService
      */
     public function createPurchaseRequest(array $data): PurchaseRequest
     {
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($data) {
             // Generate PR number
             $prNumber = $this->numberingService->generatePRNumber(
                 Auth::user(),
@@ -218,14 +216,8 @@ class PurchaseRequestService
                 $purchaseRequest->update(['submitted_at' => now()]);
             }
 
-            DB::commit();
-
             return $purchaseRequest;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -237,9 +229,7 @@ class PurchaseRequestService
             throw new \Exception('This purchase request cannot be edited.');
         }
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($purchaseRequest, $data) {
             // Update purchase request
             $purchaseRequest->update([
                 'used_for' => $data['used_for'],
@@ -275,14 +265,8 @@ class PurchaseRequestService
             // Reset approvals if not in draft
             $purchaseRequest->resetApprovals(Auth::user());
 
-            DB::commit();
-
             return $purchaseRequest;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -307,9 +291,7 @@ class PurchaseRequestService
             throw new \Exception('This purchase request cannot be submitted.');
         }
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($purchaseRequest) {
             // Update status to submitted
             $purchaseRequest->update([
                 'status' => 'submitted',
@@ -319,14 +301,8 @@ class PurchaseRequestService
             // Create approval workflow
             $this->workflowService->createWorkflow($purchaseRequest);
 
-            DB::commit();
-
             return $purchaseRequest;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**
@@ -338,9 +314,7 @@ class PurchaseRequestService
             throw new \Exception('Only rejected purchase requests can be resubmitted.');
         }
 
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($purchaseRequest) {
             // Preserve original submitted_at timestamp (for QR token reusability)
             $originalSubmittedAt = $purchaseRequest->submitted_at;
 
@@ -358,14 +332,8 @@ class PurchaseRequestService
             // Create new approval workflow (will use preserved JSON if available)
             $this->workflowService->createWorkflow($purchaseRequest);
 
-            DB::commit();
-
             return $purchaseRequest;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
     /**

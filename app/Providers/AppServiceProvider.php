@@ -67,17 +67,17 @@ class AppServiceProvider extends ServiceProvider
             $hasTable = \Illuminate\Support\Facades\Cache::remember(
                 'schema_has_notification_settings_table',
                 3600, // 1 hour cache
-                fn() => \Illuminate\Support\Facades\Schema::hasTable('notification_settings')
+                fn () => \Illuminate\Support\Facades\Schema::hasTable('notification_settings')
             );
 
-            if (!$hasTable) {
+            if (! $hasTable) {
                 return;
             }
 
             $settings = \App\Models\Core\NotificationSetting::getInstance();
 
             // Only configure if email is enabled
-            if (!$settings->email_enabled) {
+            if (! $settings->email_enabled) {
                 return;
             }
 
@@ -102,56 +102,35 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Exception $e) {
             // Silently fail during migrations or when table doesn't exist
             \Illuminate\Support\Facades\Log::debug('Dynamic mailer configuration skipped', [
-                'reason' => $e->getMessage()
+                'reason' => $e->getMessage(),
             ]);
         }
     }
 
     /**
-     * Define authorization gates
+     * Define authorization gates.
+     *
+     * Enterprise SaaS pattern: Gates delegate to Position model scopes
+     * as the single source of truth for hierarchy-based authorization.
+     * No hardcoded position names, codes, or integer access_level values.
      */
     protected function defineGates(): void
     {
-        // View Reports Gate - Only for top management (General Manager, Director, Super Admin)
+        // View Reports Gate - Top management (C-Level / Executive)
         Gate::define('view-reports', function ($user) {
-            // Super Admin always has access
             if ($user->isSuperAdmin()) {
                 return true;
             }
 
-            // Check if user has top management positions by access_level or name
-            // access_level: 1 = CEO/Director, 2 = General Manager, 3 = Manager
-            // Also check by position name for specific roles
-            $topManagementNames = ['Top Management', 'Chief Executive Officer', 'Finance Manager'];
-
-            // Get user's active business unit assignments with top management access
-            $hasTopManagementRole = $user->activeBusinessUnits()
-                ->whereHas('position', function ($query) use ($topManagementNames) {
-                    $query->where(function ($q) use ($topManagementNames) {
-                        // Check by access_level (1 = CEO/Director, 2 = GM)
-                        $q->whereIn('access_level', [1, 2])
-                            // Or check by specific position names
-                            ->orWhereIn('name', $topManagementNames)
-                            // Or check by code pattern for managers
-                            ->orWhere('code', 'LIKE', 'MGR_FIN%')
-                            ->orWhere('code', 'TOP_MANAGEMENT')
-                            ->orWhere('code', 'CEO_LEAD');
-                    });
-                })
-                ->exists();
-
-            return $hasTopManagementRole;
+            return $user->hasTopManagementAccess();
         });
 
         // View Department Analytics Gate - For department heads and above
         Gate::define('view-department-analytics', function ($user) {
-            // Super Admin always has access
             if ($user->isSuperAdmin()) {
                 return true;
             }
 
-            // Any user with a department assignment can view their department analytics
-            // The component itself will filter to show only their department's data
             return $user->primary_department_id !== null;
         });
 
@@ -159,24 +138,22 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('access-purchasing-admin', function ($user) {
             $currentBuId = session('current_business_unit_id');
 
-            // Super Admin has full access
             if ($user->isSuperAdmin()) {
                 return true;
             }
 
-            // Check if user is top management in parent BU (Werkudara Group)
-            $isTopManagementParent = $user->activeBusinessUnits()
-                ->whereHas('businessUnit', function ($query) {
-                    $query->whereNull('parent_id'); // Parent BU has no parent
-                })
-                ->whereHas('position', function ($query) {
-                    // Top management access levels: 1 (CEO/Director), 2 (General Manager)
-                    $query->whereIn('access_level', [1, 2])
-                        ->orWhereIn('level', ['hod']); // Also include HOD level for department heads
-                })
+            // Top management in parent BU can access all child BU purchasing
+            if ($user->hasTopManagementInParentBU()) {
+                return true;
+            }
+
+            // Manager-and-above in parent BU also gets access
+            $hasManagerInParentBU = $user->activeBusinessUnits()
+                ->whereHas('businessUnit', fn ($q) => $q->whereNull('parent_id'))
+                ->whereHas('position', fn ($q) => $q->managerAndAbove())
                 ->exists();
 
-            if ($isTopManagementParent) {
+            if ($hasManagerInParentBU) {
                 return true;
             }
 
@@ -192,6 +169,22 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return false;
+        });
+
+        // Access Cashflow Projection Gate - For department heads and finance/CFC users
+        Gate::define('access-cashflow-projection', function ($user) {
+            $currentBuId = session('current_business_unit_id');
+
+            return app(\App\Services\Modules\CashflowProjection\CashflowProjectionAccessService::class)
+                ->canAccess($user, $currentBuId);
+        });
+
+        // Manage Cashflow Projection Gate - For finance/CFC users only
+        Gate::define('manage-cashflow-projection', function ($user) {
+            $currentBuId = session('current_business_unit_id');
+
+            return app(\App\Services\Modules\CashflowProjection\CashflowProjectionAccessService::class)
+                ->canManage($user, $currentBuId);
         });
     }
 }

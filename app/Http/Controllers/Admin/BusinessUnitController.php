@@ -42,7 +42,7 @@ class BusinessUnitController extends Controller
                 'id' => $bu->id,
                 'name' => $bu->name,
                 'code' => $bu->code,
-                'logo_url' => $bu->logo ? asset('storage/' . $bu->logo) : null,
+                'logo_url' => $bu->logo ? asset('storage/'.$bu->logo) : null,
                 'is_active' => $bu->is_active,
                 'parent_id' => $bu->parent_id,
                 'parent' => $bu->parent ? [
@@ -83,13 +83,23 @@ class BusinessUnitController extends Controller
             ->get()
             ->map(function ($bu) {
                 return [
-                    'value' => $bu->id,
+                    'value' => (string) $bu->id,
                     'label' => "{$bu->name} ({$bu->code})",
                 ];
             });
 
+        // Get active users as potential managers
+        $managers = \App\Models\Core\User::where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($user) => [
+                'value' => (string) $user->id,
+                'label' => $user->name,
+            ]);
+
         return Inertia::render('Admin/BusinessUnits/Create', [
             'parentBusinessUnits' => $parentBusinessUnits,
+            'managers' => $managers,
         ]);
     }
 
@@ -202,7 +212,7 @@ class BusinessUnitController extends Controller
             'address' => $businessUnit->address,
             'phone' => $businessUnit->phone,
             'email' => $businessUnit->email,
-            'logo' => $businessUnit->logo ? asset('storage/' . $businessUnit->logo) : null,
+            'logo' => $businessUnit->logo ? asset('storage/'.$businessUnit->logo) : null,
             'is_active' => $businessUnit->is_active,
             'parent_id' => $businessUnit->parent_id,
             'manager_id' => $businessUnit->manager_id,
@@ -255,28 +265,39 @@ class BusinessUnitController extends Controller
             ->get()
             ->map(function ($bu) {
                 return [
-                    'value' => $bu->id,
+                    'value' => (string) $bu->id,
                     'label' => "{$bu->name} ({$bu->code})",
                 ];
             });
+
+        // Get active users as potential managers
+        $managers = \App\Models\Core\User::where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($user) => [
+                'value' => (string) $user->id,
+                'label' => $user->name,
+            ]);
 
         // Format business unit data
         $businessUnitData = [
             'id' => $businessUnit->id,
             'name' => $businessUnit->name,
             'code' => $businessUnit->code,
-            'logo' => $businessUnit->logo ? asset('storage/' . $businessUnit->logo) : null,
+            'logo' => $businessUnit->logo ? asset('storage/'.$businessUnit->logo) : null,
             'description' => $businessUnit->description,
             'address' => $businessUnit->address,
             'phone' => $businessUnit->phone,
             'email' => $businessUnit->email,
             'parent_id' => $businessUnit->parent_id,
+            'manager_id' => $businessUnit->manager_id,
             'is_active' => $businessUnit->is_active,
         ];
 
         return Inertia::render('Admin/BusinessUnits/Edit', [
             'businessUnit' => $businessUnitData,
             'parentBusinessUnits' => $parentBusinessUnits,
+            'managers' => $managers,
         ]);
     }
 

@@ -126,7 +126,7 @@ const Dashboard: React.FC = () => {
                             <select
                                 value={datePreset}
                                 onChange={handleFilterChange}
-                                className="block w-full sm:w-auto rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-3 pr-10 py-2"
+                                className="block w-full sm:w-auto rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm pl-3 pr-10 py-2"
                             >
                                 <option value="this_month">This Month</option>
                                 <option value="last_month">Last Month</option>
@@ -189,8 +189,8 @@ const Dashboard: React.FC = () => {
                                     <p className="text-3xl font-bold text-gray-900 mt-2">{formatTime(metrics.avg_followup_time)}</p>
                                     <p className="text-xs text-gray-400 mt-1">Response</p>
                                 </div>
-                                <div className="p-3 bg-indigo-50 rounded-lg">
-                                    <Users className="w-6 h-6 text-indigo-600" />
+                                <div className="p-3 bg-primary rounded-lg">
+                                    <Users className="w-6 h-6 text-primary" />
                                 </div>
                             </div>
                         </motion.div>
@@ -402,7 +402,7 @@ const Dashboard: React.FC = () => {
                     >
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                             <h3 className="text-base font-semibold text-gray-900">Recent Tasks</h3>
-                            <Link href={route('purchasing.admin.tasks')} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                            <Link href={route('purchasing.admin.tasks')} className="text-sm text-primary hover:text-primary font-medium">
                                 View All →
                             </Link>
                         </div>

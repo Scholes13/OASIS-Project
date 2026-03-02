@@ -122,11 +122,11 @@ function ChartSkeleton({ height = 300 }: { height?: number }) {
 Inertia shows a progress bar at the top of the page during navigation (configured in `app.tsx`):
 
 ```typescript
-progress: {
-  color: '#4F46E5',
+ progress: {
+  color: '#2596be',
   showSpinner: true,
   delay: 250,
-}
+ }
 ```
 
 ## Performance Metrics

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { installBodySpacingGuard } from './inertia/lib/layoutFixes';
 window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
@@ -10,3 +11,5 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 document.addEventListener('livewire:init', () => {
     console.log('Livewire initialized');
 });
+
+installBodySpacingGuard();

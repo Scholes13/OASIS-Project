@@ -219,13 +219,13 @@ export default defineConfig({
             'date-fns',
             'clsx',
             'tailwind-merge',
+            'recharts',
+            '@tanstack/react-table',
         ],
         // Exclude large dependencies that should be code-split
         exclude: [
             '@fullcalendar/core',
             '@fullcalendar/react',
-            'recharts',
-            '@tanstack/react-table',
         ],
     },
     

@@ -33,7 +33,7 @@ export function UpcomingTasks({ tasks }: UpcomingTasksProps) {
                                     task.is_critical ? "bg-red-500" : "bg-amber-400"
                                 )} />
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-base font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                                    <p className="text-base font-medium text-gray-900 truncate group-hover:text-primary transition-colors">
                                         {task.title}
                                     </p>
                                     <p className={cn(

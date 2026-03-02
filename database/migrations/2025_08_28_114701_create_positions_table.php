@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('department_id')->constrained('departments')->onDelete('cascade');
             $table->string('name')->comment('Position title/name');
             $table->string('code', 50)->comment('Position code');
-            $table->enum('level', ['hod', 'leader', 'staff'])->comment('Position hierarchy level');
+            $table->enum('level', ['c_level', 'hod', 'leader', 'staff'])->comment('Position hierarchy level');
             $table->integer('hierarchy_level')->default(1)->comment('Numeric hierarchy level for sorting');
             $table->boolean('is_active')->default(true);
             $table->timestamps();

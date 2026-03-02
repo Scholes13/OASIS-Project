@@ -15,8 +15,7 @@ class TaskService
 {
     public function __construct(
         protected BackdatePermissionService $backdateService
-    ) {
-    }
+    ) {}
 
     /**
      * Create a new employee task
@@ -28,13 +27,13 @@ class TaskService
         // Validate task_date against backdate permission
         if (isset($data['task_date'])) {
             $taskDate = Carbon::parse($data['task_date']);
-            
-            if (!$this->backdateService->canCreateTaskWithDate($user, $taskDate)) {
+
+            if (! $this->backdateService->canCreateTaskWithDate($user, $taskDate)) {
                 $allowedRange = $this->backdateService->getAllowedDateRange($user);
                 throw new Exception(
-                    'Task date is outside allowed range. You can only create tasks from ' .
-                    $allowedRange['from']->format('Y-m-d') . ' to ' . 
-                    $allowedRange['to']->format('Y-m-d') . '. ' .
+                    'Task date is outside allowed range. You can only create tasks from '.
+                    $allowedRange['from']->format('Y-m-d').' to '.
+                    $allowedRange['to']->format('Y-m-d').'. '.
                     'Request backdate access if you need to create tasks with older dates.'
                 );
             }
@@ -43,13 +42,13 @@ class TaskService
         return DB::transaction(function () use ($data, $user) {
             $task = EmployeeTask::create([
                 'business_unit_id' => session('current_business_unit_id'),
-                'department_id' => $user->primary_department_id,
+                'department_id' => session('current_department_id'),
                 'created_by' => $user->id,
                 'status' => 'planned',
                 'activity_type_id' => $data['activity_type_id'],
                 'sub_activity_id' => $data['sub_activity_id'] ?? null,
                 'task_title' => $data['task_title'],
-                'due_date' => $data['due_date'],
+                'due_date' => $data['due_date'] ?? null,
                 'task_date' => $data['task_date'] ?? now()->toDateString(),
                 'notes' => $data['notes'] ?? null,
             ]);

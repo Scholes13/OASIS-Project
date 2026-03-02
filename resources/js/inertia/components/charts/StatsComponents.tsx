@@ -370,7 +370,7 @@ export function WeeklyHoursSummary({
                 <div
                   className={cn(
                     "h-full rounded-full transition-all duration-300",
-                    isOverTarget ? "bg-amber-500" : "bg-indigo-500"
+                    isOverTarget ? "bg-amber-500" : "bg-blue-500"
                   )}
                   style={{ width: `${percentage}%` }}
                 />

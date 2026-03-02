@@ -60,7 +60,6 @@ class PurchaseRequest extends Model
 
     protected $table = 'purchase_requests';
 
-
     protected $fillable = [
         'pr_number',
         'business_unit_id',
@@ -222,7 +221,7 @@ class PurchaseRequest extends Model
     {
         $total = $this->approvals()->count();
         $approved = $this->approvals()->where('status', 'approved')->count();
-        
+
         return [
             'approved' => $approved,
             'total' => $total,
@@ -235,9 +234,9 @@ class PurchaseRequest extends Model
     public function getApprovalProgressText(): string
     {
         $progress = $this->getApprovalProgress();
+
         return "{$progress['approved']}/{$progress['total']}";
     }
-
 
     /**
      * Scope for specific status
@@ -444,9 +443,6 @@ class PurchaseRequest extends Model
         // Add void reason to edit history
         $this->addToEditHistory('voided', $reason, $user->id);
 
-        // Trigger resequencing if needed
-        $this->triggerResequencing();
-
         return true;
     }
 
@@ -505,7 +501,6 @@ class PurchaseRequest extends Model
         }
     }
 
-
     /**
      * Create approval workflow
      */
@@ -554,36 +549,6 @@ class PurchaseRequest extends Model
             }
         } else {
             throw new \Exception('No approval workflow found for this purchase request');
-        }
-    }
-
-    /**
-     * Trigger resequencing for voided PR
-     * ✅ FIX: Use regex for robust number extraction (format-agnostic)
-     */
-    protected function triggerResequencing(): void
-    {
-        // Add number to void list for resequencing
-        if ($this->sequence) {
-            try {
-                // Use regex to extract the last numeric segment from PR number
-                // Works with any format: "PR.GA/2025/07/080", "PR-GA-2025-080", etc.
-                if (preg_match('/(\d+)(?!.*\d)/', $this->pr_number, $matches)) {
-                    $number = (int) $matches[1];
-                    $this->sequence->addVoidNumber($number);
-                } else {
-                    \Log::warning('Failed to extract number from PR for resequencing', [
-                        'pr_number' => $this->pr_number,
-                        'pr_id' => $this->id,
-                    ]);
-                }
-            } catch (\Exception $e) {
-                \Log::error('Error during resequencing trigger', [
-                    'pr_id' => $this->id,
-                    'pr_number' => $this->pr_number,
-                    'error' => $e->getMessage(),
-                ]);
-            }
         }
     }
 

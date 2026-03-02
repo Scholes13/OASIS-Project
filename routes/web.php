@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
 use Illuminate\Support\Facades\Auth;
@@ -82,7 +83,7 @@ if (app()->environment('local')) {
 }
 
 // Docs & Help page (authenticated)
-Route::get('docs-help', \App\Livewire\DocsHelp::class)
+Route::get('docs-help', [\App\Http\Controllers\DocsHelpController::class, 'index'])
     ->middleware(['auth'])
     ->name('docs-help');
 
@@ -127,6 +128,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{purchaseRequest}/resubmit', [PurchaseRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
         Route::post('/{purchaseRequest}/mark-offline-approved', [PurchaseRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
+        Route::post('/{purchaseRequest}/resend-approval-email', [PurchaseRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
 
         // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
@@ -237,18 +239,18 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {
         // Activities
         Route::prefix('activities')->name('activities.')->group(function () {
-            Route::get('/', \App\Livewire\Modules\SalesCrm\ActivityIndex::class)->name('index');
-            Route::get('/create', \App\Livewire\Modules\SalesCrm\ActivityForm::class)->name('create');
-            Route::get('/{activityId}', \App\Livewire\Modules\SalesCrm\ActivityForm::class)->name('show');
-            Route::get('/{activityId}/edit', \App\Livewire\Modules\SalesCrm\ActivityForm::class)->name('edit');
+            Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesIndex'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'activitiesCreate'])->name('create');
+            Route::get('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesShow'])->name('show');
+            Route::get('/{activity}/edit', [\App\Http\Controllers\SalesCrmController::class, 'activitiesEdit'])->name('edit');
         });
 
         // Contacts
         Route::prefix('contacts')->name('contacts.')->middleware('can:view_contacts')->group(function () {
-            Route::get('/', \App\Livewire\Modules\SalesCrm\ContactIndex::class)->name('index');
-            Route::get('/create', \App\Livewire\Modules\SalesCrm\ContactForm::class)->name('create');
-            Route::get('/{contactId}', \App\Livewire\Modules\SalesCrm\ContactForm::class)->name('show');
-            Route::get('/{contactId}/edit', \App\Livewire\Modules\SalesCrm\ContactForm::class)->name('edit');
+            Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsIndex'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'contactsCreate'])->name('create');
+            Route::get('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsShow'])->name('show');
+            Route::get('/{contact}/edit', [\App\Http\Controllers\SalesCrmController::class, 'contactsEdit'])->name('edit');
         });
     });
 
@@ -257,7 +259,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     // ============================================================================
     Route::prefix('activity')->name('activity.')->group(function () {
         // Redirect root to task
-        Route::get('/', fn() => redirect()->route('activity.task.index'));
+        Route::get('/', fn () => redirect()->route('activity.task.index'));
 
         // Dashboard (Personal & Department Analytics)
         Route::get('/dashboard', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'dashboard'])->name('dashboard');
@@ -272,10 +274,22 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             ->middleware('activity.reporting.access')
             ->name('reporting.manager');
 
+        // Activity Admin routes
+        Route::prefix('admin')->name('admin.')->middleware('activity.admin.access')->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'dashboard'])->name('dashboard');
+            Route::get('/department/{department}', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'departmentDetail'])->name('department')->whereNumber('department');
+            Route::get('/task/{task}', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'taskDetail'])->name('task')->whereNumber('task');
+            Route::get('/export', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'export'])->name('export');
+            Route::get('/backdate/approvals', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'backdateApprovals'])->name('backdate.approvals');
+            Route::post('/backdate/{id}/approve', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'approveBackdate'])->name('backdate.approve')->whereNumber('id');
+            Route::post('/backdate/{id}/reject', [\App\Http\Controllers\Modules\Activity\ActivityAdminController::class, 'rejectBackdate'])->name('backdate.reject')->whereNumber('id');
+        });
+
         // Task Routes (List, Board, Calendar, Timeline views)
         Route::prefix('task')->name('task.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'index'])->name('index');
             Route::get('/create', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'create'])->name('create');
+            Route::get('/export', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'export'])->name('export');
             Route::post('/', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'store'])->name('store');
             Route::get('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'show'])->name('show')->whereNumber('task');
             Route::get('/{task}/edit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'edit'])->name('edit')->whereNumber('task');
@@ -285,10 +299,22 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Backdate Permission Routes
         Route::prefix('backdate')->name('backdate.')->group(function () {
-            Route::get('/requests', \App\Livewire\Modules\Activity\BackdateRequests::class)->name('requests');
+            Route::get('/requests', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateRequests'])->name('requests');
             Route::post('/request/submit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'submitBackdateRequest'])->name('request.submit');
-            Route::get('/approvals', \App\Livewire\Modules\Activity\BackdateApprovals::class)->name('approvals');
+            Route::get('/approvals', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateApprovals'])->name('approvals');
         });
+    });
+
+    // ============================================================================
+    // Cashflow Projection Routes
+    // ============================================================================
+    Route::prefix('cashflow-projection')->name('cashflow-projection.')->middleware('can:access-cashflow-projection')->group(function () {
+        Route::get('/', [CashflowProjectionController::class, 'index'])->name('index');
+        Route::get('/entries', [CashflowProjectionController::class, 'entries'])->name('entries');
+        Route::get('/settings', [CashflowProjectionController::class, 'settings'])->name('settings');
+        Route::get('/export', [CashflowProjectionController::class, 'export'])->name('export');
+        Route::post('/line-items', [CashflowProjectionController::class, 'storeLineItem'])->name('line-items.store');
+        Route::post('/finance-inputs', [CashflowProjectionController::class, 'upsertFinanceInput'])->name('finance-inputs.upsert');
     });
 
     // Reports Routes (Top Management Only - Coming Soon)
@@ -332,6 +358,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // Activity Type & Sub-Activity Management
         Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class);
         Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class);
+        Route::prefix('activity-admins')->name('activity-admins.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'index'])->name('index');
+            Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
+        });
 
         // Notification Settings (Super Admin Only)
         Route::get('/notification-settings', [\App\Http\Controllers\Admin\NotificationSettingsController::class, 'index'])->name('notification-settings.index');
@@ -357,4 +387,4 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     });
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

@@ -162,7 +162,7 @@ export const LazyAvatar: React.FC<LazyAvatarProps> = ({
         return (
             <div
                 className={cn(
-                    'rounded-full bg-indigo-600 flex items-center justify-center',
+                    'rounded-full bg-primary flex items-center justify-center',
                     sizeClasses[size],
                     className
                 )}

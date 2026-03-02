@@ -19,13 +19,13 @@ class ApprovalWorkflowService
      */
     public function createWorkflow(PurchaseRequest $purchaseRequest): bool
     {
-        try {
-            DB::beginTransaction();
-
+        DB::transaction(function () use ($purchaseRequest) {
             // Check if PR has existing custom approval workflow (preserved from JSON)
             if ($purchaseRequest->approval_workflow && is_array($purchaseRequest->approval_workflow)) {
                 // Recreate workflow from preserved JSON
-                return $this->recreateWorkflowFromJson($purchaseRequest);
+                $this->recreateWorkflowFromJson($purchaseRequest);
+
+                return;
             }
 
             // Otherwise, determine approvers based on business rules (automatic workflow)
@@ -44,13 +44,7 @@ class ApprovalWorkflowService
                 'is_sequential_approval' => true,
                 'status' => 'in_approval',
             ]);
-
-            DB::commit();
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
 
         // Send notifications AFTER transaction commits
 
@@ -73,28 +67,25 @@ class ApprovalWorkflowService
     /**
      * Create approval workflow from user-submitted request data
      * Used when creating/editing PR with custom approval workflow
-     * 
-     * @param PurchaseRequest $purchaseRequest The PR to create workflow for
-     * @param array $approvalWorkflow Array of approval steps from form
-     * @param string|null $notes Optional notes for the workflow
-     * @return bool
+     *
+     * @param  PurchaseRequest  $purchaseRequest  The PR to create workflow for
+     * @param  array  $approvalWorkflow  Array of approval steps from form
+     * @param  string|null  $notes  Optional notes for the workflow
      */
     public function createWorkflowFromRequest(PurchaseRequest $purchaseRequest, array $approvalWorkflow, ?string $notes = null): bool
     {
-        try {
-            DB::beginTransaction();
-
+        DB::transaction(function () use ($purchaseRequest, $approvalWorkflow, $notes) {
             // Build workflow structure for storage
             $workflowData = [];
             foreach ($approvalWorkflow as $index => $step) {
                 $approver = User::find($step['approver_id']);
-                if (!$approver) {
+                if (! $approver) {
                     throw new \Exception("Approver with ID {$step['approver_id']} not found");
                 }
 
                 $stepOrder = $index + 1;
                 $taskType = $step['task_type'] ?? 'approval';
-                
+
                 $workflowData[] = [
                     'approver_id' => $approver->id,
                     'approver_name' => $approver->name,
@@ -125,26 +116,20 @@ class ApprovalWorkflowService
                 'is_sequential_approval' => true,
                 'status' => 'in_approval',
             ]);
+        });
 
-            DB::commit();
-
-            // Send notification to first approver
-            try {
-                $this->notifyNextApprover($purchaseRequest);
-            } catch (\Exception $e) {
-                Log::warning('Failed to send approval notification', [
-                    'pr_id' => $purchaseRequest->id,
-                    'pr_number' => $purchaseRequest->pr_number,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            return true;
-
+        // Send notification to first approver AFTER transaction commits
+        try {
+            $this->notifyNextApprover($purchaseRequest);
         } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
+            Log::warning('Failed to send approval notification', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'error' => $e->getMessage(),
+            ]);
         }
+
+        return true;
     }
 
     /**
@@ -482,9 +467,7 @@ class ApprovalWorkflowService
             );
         }
 
-        try {
-            DB::beginTransaction();
-
+        $purchaseRequest = DB::transaction(function () use ($approval, $action, $notes) {
             // Update current approval
             $approval->update([
                 'status' => $action,
@@ -504,27 +487,23 @@ class ApprovalWorkflowService
                 $this->handleRejectionStep($purchaseRequest);
             }
 
-            DB::commit();
+            return $purchaseRequest;
+        });
 
-            // Dispatch event for auto-logging AFTER transaction commits
-            // This allows the activity tracking module to automatically log the approval action
-            try {
-                \App\Events\Purchasing\PrApprovalCompleted::dispatch($approval);
-            } catch (\Exception $e) {
-                // Log but don't fail the approval process if event dispatch fails
-                Log::warning('Failed to dispatch PrApprovalCompleted event', [
-                    'approval_id' => $approval->id,
-                    'pr_number' => $purchaseRequest->pr_number,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            return true;
-
+        // Dispatch event for auto-logging AFTER transaction commits
+        // This allows the activity tracking module to automatically log the approval action
+        try {
+            \App\Events\Purchasing\PrApprovalCompleted::dispatch($approval);
         } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
+            // Log but don't fail the approval process if event dispatch fails
+            Log::warning('Failed to dispatch PrApprovalCompleted event', [
+                'approval_id' => $approval->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'error' => $e->getMessage(),
+            ]);
         }
+
+        return true;
     }
 
     /**
@@ -819,9 +798,7 @@ class ApprovalWorkflowService
      */
     public function resetWorkflow(PurchaseRequest $purchaseRequest): bool
     {
-        try {
-            DB::beginTransaction();
-
+        DB::transaction(function () use ($purchaseRequest) {
             // Delete existing approvals
             $purchaseRequest->approvals()->delete();
 
@@ -835,14 +812,8 @@ class ApprovalWorkflowService
                 'approved_at' => null,
                 'rejected_at' => null,
             ]);
+        });
 
-            DB::commit();
-
-            return true;
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        return true;
     }
 }

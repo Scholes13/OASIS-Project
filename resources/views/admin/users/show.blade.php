@@ -133,7 +133,7 @@
 
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @if($assignment->is_primary)
-                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
                                                         <i class="fas fa-star mr-1"></i>Primary
                                                     </span>
                                                 @else
@@ -162,8 +162,8 @@
                                 <div class="border border-gray-200 rounded-lg p-4">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-8 w-8">
-                                            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                                                <span class="text-xs font-medium text-indigo-800">
+                                            <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                                                <span class="text-xs font-medium text-primary">
                                                     {{ strtoupper(substr($subordinate->name, 0, 2)) }}
                                                 </span>
                                             </div>

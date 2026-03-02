@@ -53,7 +53,7 @@ class BackdateRequestApproved extends Notification
             'granted_until' => $this->backdatePermission->granted_until?->toISOString(),
             'approved_at' => $this->backdatePermission->approved_at?->toISOString(),
             'message' => "Your backdate permission request for {$this->backdatePermission->requested_date->format('d M Y')} has been approved",
-            'action_url' => route('activity.backdate-requests'),
+            'action_url' => route('activity.backdate.requests'),
         ];
     }
 }

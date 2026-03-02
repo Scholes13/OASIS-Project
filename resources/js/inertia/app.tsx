@@ -62,8 +62,8 @@ createInertiaApp({
         );
     },
     progress: {
-        // Progress bar color (Indigo-600 to match primary brand color)
-        color: '#4F46E5',
+        // Progress bar color (Blue-600 to match primary brand color)
+        color: '#2563eb',
         
         // Show spinner in top-right corner during navigation
         showSpinner: true,

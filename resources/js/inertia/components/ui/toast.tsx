@@ -25,7 +25,7 @@ export function Toaster({
         classNames: {
           toast: "group border-gray-200 bg-white text-gray-900 shadow-lg",
           description: "text-gray-500",
-          actionButton: "bg-indigo-600 text-white",
+          actionButton: "bg-primary text-white",
           cancelButton: "bg-gray-100 text-gray-500",
           closeButton: "bg-white border-gray-200 hover:bg-gray-100",
         },

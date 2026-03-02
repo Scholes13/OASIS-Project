@@ -1,35 +1,43 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Activity,
-    CheckCircle2,
-    Clock,
     AlertTriangle,
+    Building2,
+    ChevronRight,
+    Clock,
     TrendingUp,
     Users,
-    Calendar,
-    ArrowRight,
-    Plus,
-    List,
-    Layout,
-    ChevronLeft,
-    ChevronRight
+    Briefcase,
+    BarChart3,
+    Download,
+    Filter,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { format, isToday, isTomorrow, parseISO, differenceInDays } from 'date-fns';
+
+type PeriodFilter = 'today' | 'week' | 'month' | 'year' | 'all';
+
+const periodLabels: Record<PeriodFilter, string> = {
+    today: 'Today',
+    week: 'This Week',
+    month: 'This Month',
+    year: 'This Year',
+    all: 'All Time',
+};
 
 interface TaskBasic {
     id: number;
-    title: string;
-    due_date: string;
+    title?: string;
+    task_title?: string;
+    due_date?: string | null;
     is_critical?: boolean;
     status?: string;
     task_description?: string;
     activity_type?: { name: string; color: string };
+    duration_minutes?: number;
+    participants?: Array<{ id?: number; user_id?: number; name?: string; user?: { name?: string }; primary_position?: { name?: string } }>;
 }
 
 interface Stats {
@@ -66,545 +74,756 @@ interface DepartmentVisuals {
     top_category: string;
 }
 
+interface ExecutiveBusinessUnit {
+    id: number;
+    code: string;
+    name: string;
+    logo: string | null;
+    total: number;
+    completed: number;
+    in_progress: number;
+    planned: number;
+    overdue: number;
+    completed_this_month: number;
+    completion_rate: number;
+}
+
+interface ExecutiveStats {
+    aggregate: Stats & { total_business_units: number };
+    businessUnits: ExecutiveBusinessUnit[];
+    topOverdueDepartments: Array<{
+        departmentId: number;
+        department: string;
+        businessUnitId: number;
+        businessUnit: string;
+        overdueCount: number;
+    }>;
+}
+
 interface DashboardProps extends PageProps {
     personalStats: Stats;
     personalVisuals: PersonalVisuals;
     departmentStats: Stats | null;
     departmentVisuals: DepartmentVisuals | null;
     canViewReports?: boolean;
-    queryParams?: { tab?: string; page?: string; dept_tab?: string; dept_page?: string };
+    executiveStats?: ExecutiveStats | null;
+    queryParams?: {
+        tab?: string;
+        page?: string;
+        dept_tab?: string;
+        dept_page?: string;
+        distribution_period?: PeriodFilter;
+        dept_distribution_period?: PeriodFilter;
+    };
 }
 
 const smoothTransition = { duration: 0.35, ease: "easeInOut" as const };
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const FOCUS_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981'];
 
 export default function ActivityDashboard({
     personalStats,
     personalVisuals,
     departmentStats,
     departmentVisuals,
+    canViewReports,
+    executiveStats,
     queryParams
 }: DashboardProps) {
-    const [viewMode, setViewMode] = useState<'personal' | 'department'>('personal');
-    const [roadmapTab, setRoadmapTab] = useState<'todo' | 'inprogress' | 'review'>(
-        (queryParams?.tab as 'todo' | 'inprogress' | 'review') || 'todo'
+    const hasExecutive = !!(canViewReports && executiveStats);
+    const [viewMode, setViewMode] = useState<'personal' | 'department' | 'executive'>(
+        hasExecutive ? 'executive' : departmentStats ? 'department' : 'personal'
     );
-    const [deptRoadmapTab, setDeptRoadmapTab] = useState<'todo' | 'inprogress' | 'review'>(
-        (queryParams?.dept_tab as 'todo' | 'inprogress' | 'review') || 'todo'
+    const [distributionPeriod, setDistributionPeriod] = useState<PeriodFilter>(
+        (queryParams?.distribution_period as PeriodFilter) || 'all'
     );
+    const [deptDistributionPeriod, setDeptDistributionPeriod] = useState<PeriodFilter>(
+        (queryParams?.dept_distribution_period as PeriodFilter) || 'all'
+    );
+    const [isDistributionLoading, setIsDistributionLoading] = useState(false);
+    const [isDeptDistributionLoading, setIsDeptDistributionLoading] = useState(false);
 
-    const activeRoadmapList = personalVisuals?.roadmap?.data || [];
-    const pagination = personalVisuals?.roadmap;
-    const activeDeptRoadmapList = departmentVisuals?.roadmap?.data || [];
-    const deptPagination = departmentVisuals?.roadmap;
-
-    const handleTabChange = (tab: 'todo' | 'inprogress' | 'review') => {
-        setRoadmapTab(tab);
-        router.get(route('activity.dashboard'), { tab, page: 1 }, { preserveState: true, preserveScroll: true, only: ['personalVisuals', 'queryParams'] });
+    /** Navigate to admin dashboard for a specific BU, switching context first */
+    const navigateToAdminDashboard = (businessUnitId: number, departmentId?: number) => {
+        // Switch BU context then redirect to admin dashboard
+        router.post(route('api.business-unit.switch'), { business_unit_id: businessUnitId }, {
+            preserveState: false,
+            onSuccess: () => {
+                const params: Record<string, string> = {};
+                if (departmentId) {
+                    params.department_id = String(departmentId);
+                }
+                router.visit(route('activity.admin.dashboard', params));
+            },
+        });
     };
 
-    const handlePageChange = (url: string | null) => {
-        if (!url) return;
-        router.get(url, { tab: roadmapTab }, { preserveState: true, preserveScroll: true, only: ['personalVisuals', 'queryParams'] });
+    const periodQuickFilters: Array<{ key: PeriodFilter; label: string }> = [
+        { key: 'today', label: 'Day' },
+        { key: 'week', label: 'Week' },
+        { key: 'month', label: 'Month' },
+    ];
+
+    const activeStats = viewMode === 'department' && departmentStats ? departmentStats : personalStats;
+    const activeVisuals = viewMode === 'department' && departmentVisuals ? departmentVisuals : personalVisuals;
+    const roadmapData = activeVisuals?.roadmap?.data || [];
+
+    const completionRate = activeStats.total > 0
+        ? Math.round((activeStats.completed / activeStats.total) * 100)
+        : 0;
+
+    const trackedDurationMinutes = roadmapData.reduce((sum, task) => {
+        const duration = Number(task.duration_minutes || 0);
+        return sum + (Number.isFinite(duration) ? duration : 0);
+    }, 0);
+
+    const fallbackDurationMinutes =
+        (activeStats.completed * 95) +
+        (activeStats.in_progress * 60) +
+        (Math.max(activeStats.total - activeStats.completed - activeStats.in_progress, 0) * 30);
+
+    const totalDurationMinutes = trackedDurationMinutes > 0 ? trackedDurationMinutes : fallbackDurationMinutes;
+    const totalHours = Math.floor(totalDurationMinutes / 60);
+    const totalMinutes = totalDurationMinutes % 60;
+    const activeProjects = activeVisuals?.distribution?.length || 0;
+
+    const statusVerbMap: Record<string, string> = {
+        in_progress: 'Working on',
+        planned: 'Planning',
+        completed: 'Completed',
     };
 
-    const handleDeptTabChange = (tab: 'todo' | 'inprogress' | 'review') => {
-        setDeptRoadmapTab(tab);
-        router.get(route('activity.dashboard'), { dept_tab: tab, dept_page: 1 }, { preserveState: true, preserveScroll: true, only: ['departmentVisuals', 'queryParams'] });
+    const memberActivityRows = useMemo(() => {
+        const bucket = new Map<string, {
+            id: string;
+            name: string;
+            role: string;
+            activity: string;
+            status: string;
+            totalMinutes: number;
+        }>();
+
+        roadmapData.forEach((task, taskIndex) => {
+            const participants = Array.isArray(task.participants) && task.participants.length > 0
+                ? task.participants
+                : [{ id: `self-${task.id}`, name: 'You' }];
+            const duration = Number(task.duration_minutes || 0) || (task.status === 'completed' ? 90 : 45);
+            const title = task.task_title || task.title || 'Task';
+            const verb = statusVerbMap[task.status || 'planned'] || 'Working on';
+            const activityLabel = `${verb}: ${title}`;
+
+            participants.forEach((member: any, index) => {
+                const memberName = member.name || member.user?.name || `Member ${taskIndex + index + 1}`;
+                const memberRole = member.primary_position?.name || 'Team Member';
+                const memberId = String(member.id || member.user_id || `${task.id}-${memberName}`);
+                const existing = bucket.get(memberId);
+
+                if (!existing) {
+                    bucket.set(memberId, {
+                        id: memberId,
+                        name: memberName,
+                        role: memberRole,
+                        activity: activityLabel,
+                        status: task.status || 'planned',
+                        totalMinutes: duration,
+                    });
+                    return;
+                }
+
+                bucket.set(memberId, {
+                    ...existing,
+                    totalMinutes: existing.totalMinutes + duration,
+                    activity: activityLabel,
+                    status: task.status || existing.status,
+                });
+            });
+        });
+
+        return Array.from(bucket.values())
+            .sort((a, b) => b.totalMinutes - a.totalMinutes)
+            .slice(0, 5);
+    }, [roadmapData]);
+
+    const totalDistribution = (activeVisuals?.distribution || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+    const focusItems = [...(activeVisuals?.distribution || [])]
+        .sort((a, b) => Number(b.value || 0) - Number(a.value || 0))
+        .slice(0, 4)
+        .map((item, index) => ({
+            ...item,
+            color: item.color || FOCUS_COLORS[index % FOCUS_COLORS.length],
+            percentage: totalDistribution > 0 ? Math.round((Number(item.value || 0) / totalDistribution) * 100) : 0,
+        }));
+
+    const leadFocus = focusItems[0];
+
+    const generateInsight = (focus: typeof leadFocus, viewMode: 'personal' | 'department' | 'executive') => {
+        if (!focus || focus.percentage === 0) {
+            return 'No insight available yet. Complete more tasks to build recommendations.';
+        }
+
+        const name = focus.name;
+        const p = focus.percentage;
+
+        if (viewMode === 'department') {
+            if (p > 60) return `Warning: Department workload is heavily concentrated on ${name} (${p}%). High risk of bottleneck, consider reassigning tasks to balance capacity.`;
+            if (p > 40) return `${name} is currently dominating the department's focus (${p}%). Ensure other strategic priorities are not being neglected.`;
+            if (p > 25) return `Department focus is relatively balanced, with ${name} leading slightly at ${p}%. This indicates healthy task distribution.`;
+            return `Department workload is highly diversified. ${name} leads with only ${p}%, indicating a wide spread of active projects.`;
+        } else {
+            if (p > 60) return `Warning: Your personal workload is heavily focused on ${name} (${p}%). Be careful of burnout in this area and consider delegating if possible.`;
+            if (p > 40) return `You are currently dedicating ${p}% of your effort to ${name}. Ensure this aligns with your primary objectives for this period.`;
+            if (p > 25) return `Your time is fairly balanced, with ${name} taking up ${p}%. This is a good mix of responsibilities.`;
+            return `You are juggling multiple priorities. ${name} is your top focus but only takes ${p}%, indicating highly fragmented attention.`;
+        }
     };
 
-    const handleDeptPageChange = (url: string | null) => {
-        if (!url) return;
-        router.get(url, { dept_tab: deptRoadmapTab }, { preserveState: true, preserveScroll: true, only: ['departmentVisuals', 'queryParams'] });
+    // Handlers for period changes
+    const handleDistributionPeriodChange = (period: PeriodFilter) => {
+        setDistributionPeriod(period);
+        setIsDistributionLoading(true);
+        router.get(
+            route('activity.dashboard'),
+            { distribution_period: period },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['personalVisuals', 'personalStats', 'queryParams'],
+                onFinish: () => setIsDistributionLoading(false)
+            }
+        );
+    };
+
+    const handleDeptDistributionPeriodChange = (period: PeriodFilter) => {
+        setDeptDistributionPeriod(period);
+        setIsDeptDistributionLoading(true);
+        router.get(
+            route('activity.dashboard'),
+            { dept_distribution_period: period },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['departmentVisuals', 'departmentStats', 'queryParams'],
+                onFinish: () => setIsDeptDistributionLoading(false)
+            }
+        );
     };
 
     return (
         <>
             <Head title="Activity Dashboard" />
-            <div className="min-h-screen bg-slate-50">
-                <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-                    {/* Header with Switcher */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                        <div>
-                            <h1 className="text-3xl font-semibold text-gray-900">Activity Dashboard</h1>
-                            <p className="mt-1 text-base text-gray-500">
-                                {viewMode === 'personal' ? "Your personal task roadmap & insights" : "Department workload & performance overview"}
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="bg-white p-1 rounded-lg border border-gray-200 flex shadow-sm">
+            <div className="w-full font-sans text-slate-900 pb-12">
+                <main className="w-full px-6 py-6 lg:px-8">
+
+                    {/* Filter Action Bar - Modern clean card */}
+                    <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white border border-slate-200/60 shadow-sm rounded-xl px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-4">
+                            {/* Context Switch Segmented Control */}
+                            <div className="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200/50">
+                                {hasExecutive && (
+                                    <button
+                                        onClick={() => setViewMode('executive')}
+                                        className={cn(
+                                            'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
+                                            viewMode === 'executive'
+                                                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                        )}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            <Building2 className="h-3.5 w-3.5" />
+                                            Executive
+                                        </span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => setViewMode('personal')}
                                     className={cn(
-                                        "px-4 py-1.5 text-base font-medium rounded-md transition-all flex items-center gap-2",
-                                        viewMode === 'personal' ? "bg-indigo-50 text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                                        'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
+                                        viewMode === 'personal'
+                                            ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                     )}
                                 >
-                                    <Users className="h-4 w-4" />
                                     Personal
                                 </button>
                                 {departmentStats && (
                                     <button
                                         onClick={() => setViewMode('department')}
                                         className={cn(
-                                            "px-4 py-1.5 text-base font-medium rounded-md transition-all flex items-center gap-2",
-                                            viewMode === 'department' ? "bg-indigo-50 text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                                            'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
+                                            viewMode === 'department'
+                                                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                         )}
                                     >
-                                        <Layout className="h-4 w-4" />
                                         Department
                                     </button>
                                 )}
                             </div>
-                            <Link href={route('activity.task.create')}>
-                                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm rounded-full px-4">
-                                    <Plus className="h-4 w-4 mr-1.5" strokeWidth={2.5} />
-                                    New Task
-                                </Button>
+
+                            {/* Divider line for larger screens */}
+                            {viewMode !== 'executive' && (
+                                <div className="hidden md:block w-px h-6 bg-slate-200" />
+                            )}
+
+                            {/* Period Filter Segmented Control - hidden in executive mode */}
+                            {viewMode !== 'executive' && (
+                            <div className="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200/50">
+                                {periodQuickFilters.map((period) => {
+                                    const activePeriod = viewMode === 'personal' ? distributionPeriod : deptDistributionPeriod;
+                                    return (
+                                        <button
+                                            key={period.key}
+                                            onClick={() => viewMode === 'personal' ? handleDistributionPeriodChange(period.key) : handleDeptDistributionPeriodChange(period.key)}
+                                            className={cn(
+                                                'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
+                                                activePeriod === period.key
+                                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                            )}
+                                        >
+                                            {period.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            )}
+                        </div>
+
+                        {viewMode !== 'executive' && (
+                        <div className="flex items-center gap-3">
+                            <button className="flex items-center justify-center rounded-lg bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                <Filter className="mr-2 h-4 w-4 text-slate-500" />
+                                Filter
+                            </button>
+                            <Link href={route('activity.task.export', { scope: viewMode === 'personal' ? 'my' : 'department' })}>
+                                <button className="flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export Report
+                                </button>
                             </Link>
                         </div>
+                        )}
                     </div>
 
-                    <AnimatePresence mode="wait">
-                        {viewMode === 'personal' ? (
-                            <motion.div
-                                key="personal"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={smoothTransition}
-                                className="space-y-6"
-                            >
-                                {/* Row 1: Stats Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Dashboard Content */}
+                    <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                            key={viewMode}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={smoothTransition}
+                            className="space-y-6"
+                        >
+
+                        {/* ═══════ EXECUTIVE VIEW ═══════ */}
+                        {viewMode === 'executive' && executiveStats && (
+                            <>
+                                {/* Aggregate KPI Cards */}
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                                    {/* Total Tasks */}
+                                    <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm flex flex-col">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                                <BarChart3 className="h-5 w-5" strokeWidth={2} />
+                                            </div>
+                                            <h3 className="text-sm font-medium text-slate-500">Total Tasks</h3>
+                                        </div>
+                                        <div className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+                                            {executiveStats.aggregate.total.toLocaleString('id-ID')}
+                                        </div>
+                                        <div className="mt-auto text-sm text-slate-500">
+                                            Across <span className="font-medium text-slate-700">{executiveStats.aggregate.total_business_units}</span> business units
+                                        </div>
+                                    </div>
+
+                                    {/* Completion Rate */}
+                                    <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm flex flex-col">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                                <TrendingUp className="h-5 w-5" strokeWidth={2} />
+                                            </div>
+                                            <h3 className="text-sm font-medium text-slate-500">Completion Rate</h3>
+                                        </div>
+                                        <div className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+                                            {executiveStats.aggregate.total > 0
+                                                ? Math.round((executiveStats.aggregate.completed / executiveStats.aggregate.total) * 100)
+                                                : 0}%
+                                        </div>
+                                        <div className="mt-auto text-sm text-slate-500">
+                                            <span className="font-medium text-emerald-600">{executiveStats.aggregate.completed.toLocaleString('id-ID')}</span> of {executiveStats.aggregate.total.toLocaleString('id-ID')} completed
+                                        </div>
+                                    </div>
+
+                                    {/* Overdue Alert */}
                                     <div className={cn(
-                                        "rounded-xl p-5 border shadow-sm flex items-center justify-between",
-                                        personalStats.overdue > 0 ? "bg-red-50 border-red-200" : "bg-white border-gray-200"
+                                        "rounded-xl border p-6 shadow-sm flex flex-col",
+                                        executiveStats.aggregate.overdue > 0
+                                            ? "border-red-200/60 bg-red-50/30"
+                                            : "border-slate-200/60 bg-white"
                                     )}>
-                                        <div>
-                                            <p className={cn("text-base font-semibold", personalStats.overdue > 0 ? "text-red-700" : "text-gray-500")}>Overdue Tasks</p>
-                                            <p className={cn("text-3xl font-bold mt-1", personalStats.overdue > 0 ? "text-red-700" : "text-gray-900")}>{personalStats.overdue}</p>
-                                            {personalStats.overdue > 0 && (
-                                                <p className="text-sm text-red-600 mt-1 font-medium bg-red-100 px-2 py-0.5 rounded-full inline-block">Action Required</p>
-                                            )}
-                                        </div>
-                                        <div className={cn("p-3 rounded-lg border", personalStats.overdue > 0 ? "bg-red-100 border-red-200" : "bg-gray-50 border-gray-100")}>
-                                            <AlertTriangle className={cn("h-6 w-6", personalStats.overdue > 0 ? "text-red-600" : "text-gray-400")} />
-                                        </div>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-base font-semibold text-gray-500">Due This Week</p>
-                                            <p className="text-3xl font-bold text-gray-900 mt-1">{personalStats.in_progress + (personalStats.planned || 0)}</p>
-                                            <p className="text-sm text-amber-700 mt-1 font-medium bg-amber-50 px-2 py-0.5 rounded-full inline-block border border-amber-100">Active Tasks</p>
-                                        </div>
-                                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-                                            <Clock className="h-6 w-6 text-amber-600" />
-                                        </div>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-base font-semibold text-gray-500">Completion Rate</p>
-                                            <div className="flex items-baseline gap-2 mt-1">
-                                                <p className="text-3xl font-bold text-emerald-600">
-                                                    {personalStats.total > 0 ? Math.round((personalStats.completed / personalStats.total) * 100) : 0}%
-                                                </p>
-                                                <span className="text-sm text-gray-400">this month</span>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className={cn(
+                                                "flex h-10 w-10 items-center justify-center rounded-lg",
+                                                executiveStats.aggregate.overdue > 0
+                                                    ? "bg-red-100 text-red-600"
+                                                    : "bg-slate-50 text-slate-400"
+                                            )}>
+                                                <AlertTriangle className="h-5 w-5" strokeWidth={2} />
                                             </div>
-                                            <p className="text-sm text-emerald-700 mt-1 font-medium flex items-center">
-                                                <TrendingUp className="h-3 w-3 mr-1" />
-                                                {personalStats.completed} tasks done
-                                            </p>
+                                            <h3 className="text-sm font-medium text-slate-500">Overdue Tasks</h3>
                                         </div>
-                                        <div className="h-14 w-14 relative flex items-center justify-center">
-                                            <svg className="h-full w-full transform -rotate-90">
-                                                <circle cx="28" cy="28" r="22" stroke="#f3f4f6" strokeWidth="4" fill="none" />
-                                                <circle cx="28" cy="28" r="22" stroke="#10b981" strokeWidth="4" fill="none" strokeDasharray={138} strokeDashoffset={138 - (138 * (personalStats.total > 0 ? (personalStats.completed / personalStats.total) : 0))} className="transition-all duration-1000 ease-out" strokeLinecap="round" />
-                                            </svg>
+                                        <div className={cn(
+                                            "text-3xl font-bold tracking-tight mb-2",
+                                            executiveStats.aggregate.overdue > 0 ? "text-red-600" : "text-slate-900"
+                                        )}>
+                                            {executiveStats.aggregate.overdue.toLocaleString('id-ID')}
+                                        </div>
+                                        <div className="mt-auto text-sm text-slate-500">
+                                            {executiveStats.aggregate.overdue > 0
+                                                ? 'Requires immediate attention'
+                                                : 'All tasks are on schedule'}
+                                        </div>
+                                    </div>
+
+                                    {/* In Progress */}
+                                    <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm flex flex-col">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                                                <Activity className="h-5 w-5" strokeWidth={2} />
+                                            </div>
+                                            <h3 className="text-sm font-medium text-slate-500">In Progress</h3>
+                                        </div>
+                                        <div className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+                                            {executiveStats.aggregate.in_progress.toLocaleString('id-ID')}
+                                        </div>
+                                        <div className="mt-auto text-sm text-slate-500">
+                                            <span className="font-medium text-slate-700">{executiveStats.aggregate.planned}</span> planned tasks pending
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Row 2: Main Content */}
-                                <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 items-stretch">
-                                    <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                                <List className="h-5 w-5 text-indigo-600" />
-                                                My Task Roadmap
-                                            </h2>
-                                            <div className="flex bg-gray-100 p-1 rounded-lg">
-                                                {(['todo', 'inprogress', 'review'] as const).map(tab => (
-                                                    <button
-                                                        key={tab}
-                                                        onClick={() => handleTabChange(tab)}
-                                                        className={cn(
-                                                            "px-3 py-1.5 text-sm font-semibold rounded-md capitalize transition-all",
-                                                            roadmapTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                                                        )}
-                                                    >
-                                                        {tab.replace('todo', 'To Do').replace('inprogress', 'In Progress')}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                {/* Per-BU Breakdown */}
+                                <div className="rounded-xl border border-slate-200/60 bg-white shadow-sm overflow-hidden">
+                                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-white">
+                                        <div className="flex items-center gap-3">
+                                            <Building2 className="h-5 w-5 text-slate-400" />
+                                            <h3 className="text-base font-semibold text-slate-900">Business Unit Overview</h3>
                                         </div>
-                                        <div className="p-0 flex-1 overflow-auto max-h-[520px]">
-                                            {activeRoadmapList.length > 0 ? (
-                                                <table className="w-full text-left">
-                                                    <thead className="bg-gray-50 text-sm text-gray-400 uppercase tracking-wider sticky top-0 z-10">
-                                                        <tr>
-                                                            <th className="px-6 py-3 font-medium border-b border-gray-100">Task Name</th>
-                                                            <th className="px-6 py-3 font-medium border-b border-gray-100">Category</th>
-                                                            <th className="px-6 py-3 font-medium border-b border-gray-100">Deadline</th>
-                                                            <th className="px-6 py-3 font-medium text-right border-b border-gray-100">Action</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-100 text-base">
-                                                        {activeRoadmapList.map((task: any) => {
-                                                            const dueDate = parseISO(task.due_date);
-                                                            const isCritical = differenceInDays(dueDate, new Date()) <= 2 && differenceInDays(dueDate, new Date()) >= -1;
-                                                            return (
-                                                                <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group">
-                                                                    <td className="px-6 py-3.5">
-                                                                        <Link href={route('activity.task.show', task.id)} className="block">
-                                                                            <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{task.task_title || task.title}</span>
-                                                                            {task.task_description && <p className="text-sm text-gray-400 truncate max-w-[200px] mt-0.5">{task.task_description}</p>}
-                                                                        </Link>
-                                                                    </td>
-                                                                    <td className="px-6 py-3.5">
-                                                                        {task.activity_type ? (
-                                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border" style={{ backgroundColor: `${task.activity_type.color}10`, color: task.activity_type.color, borderColor: `${task.activity_type.color}30` }}>
-                                                                                {task.activity_type.name}
-                                                                            </span>
-                                                                        ) : <span className="text-gray-400">-</span>}
-                                                                    </td>
-                                                                    <td className="px-6 py-3.5">
-                                                                        <div className="flex items-center text-gray-600">
-                                                                            <Calendar className={cn("h-3.5 w-3.5 mr-1.5", isCritical ? "text-red-500" : "text-gray-400")} />
-                                                                            <span className={cn(isCritical ? "text-red-600 font-semibold" : "")}>{format(dueDate, 'MMM d')}</span>
-                                                                        </div>
-                                                                        {isCritical && <span className="text-[10px] text-red-500 font-medium block mt-0.5 ml-5">Due soon</span>}
-                                                                    </td>
-                                                                    <td className="px-6 py-3.5 text-right">
-                                                                        <Link href={route('activity.task.show', task.id)}>
-                                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-indigo-50 hover:text-indigo-600">
-                                                                                <ArrowRight className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </Link>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            ) : (
-                                                <div className="flex flex-col items-center justify-center h-64 text-center">
-                                                    <div className="p-4 bg-gray-50 rounded-full mb-3 shadow-sm border border-gray-100">
-                                                        <CheckCircle2 className="h-8 w-8 text-gray-300" />
+                                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                                            {executiveStats.businessUnits.length} units
+                                        </span>
+                                    </div>
+
+                                    <div className="divide-y divide-slate-100">
+                                        {executiveStats.businessUnits.length > 0 ? executiveStats.businessUnits.map((bu) => (
+                                            <div
+                                                key={bu.id}
+                                                onClick={() => navigateToAdminDashboard(bu.id)}
+                                                className="group flex flex-col gap-4 px-6 py-5 transition-colors hover:bg-blue-50/50 cursor-pointer sm:flex-row sm:items-center"
+                                                title={`View ${bu.name} activity details`}
+                                            >
+                                                {/* BU Identity */}
+                                                <div className="flex items-center gap-4 sm:w-[200px] shrink-0">
+                                                    {bu.logo ? (
+                                                        <img
+                                                            src={bu.logo}
+                                                            alt={bu.code}
+                                                            className="h-10 w-10 shrink-0 rounded-lg object-contain bg-white border border-slate-200 p-1"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white text-xs font-bold">
+                                                            {bu.code}
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-slate-900 truncate">{bu.name}</p>
+                                                        <p className="text-xs text-slate-500 mt-0.5">{bu.total.toLocaleString('id-ID')} total tasks</p>
                                                     </div>
-                                                    <p className="text-gray-900 font-medium">No tasks in this stage</p>
-                                                    <p className="text-base text-gray-500 mt-1">Check other tabs or create a new task</p>
-                                                    <Link href={route('activity.task.create')} className="mt-4">
-                                                        <Button variant="outline" size="sm">Create Task</Button>
-                                                    </Link>
                                                 </div>
-                                            )}
-                                        </div>
-                                        {pagination && pagination.last_page > 1 && (
-                                            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                                                <p className="text-sm text-gray-500">
-                                                    Showing <span className="font-medium">{((pagination.current_page - 1) * pagination.per_page) + 1}</span> to <span className="font-medium">{Math.min(pagination.current_page * pagination.per_page, pagination.total)}</span> of <span className="font-medium">{pagination.total}</span>
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8 gap-1 px-2 text-sm" onClick={() => handlePageChange(pagination.prev_page_url)} disabled={!pagination.prev_page_url}>
-                                                        <ChevronLeft className="h-3.5 w-3.5" /> Prev
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="h-8 gap-1 px-2 text-sm" onClick={() => handlePageChange(pagination.next_page_url)} disabled={!pagination.next_page_url}>
-                                                        Next <ChevronRight className="h-3.5 w-3.5" />
-                                                    </Button>
+
+                                                {/* Completion Bar */}
+                                                <div className="flex-1 flex items-center gap-4">
+                                                    <div className="flex-1">
+                                                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${bu.completion_rate}%` }}
+                                                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                                                className={cn(
+                                                                    "h-full rounded-full",
+                                                                    bu.completion_rate >= 80 ? "bg-emerald-500" :
+                                                                    bu.completion_rate >= 50 ? "bg-amber-500" : "bg-red-500"
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-slate-900 w-12 text-right tabular-nums">
+                                                        {bu.completion_rate}%
+                                                    </span>
                                                 </div>
+
+                                                {/* Stats Badges */}
+                                                <div className="flex items-center gap-2 sm:w-auto shrink-0">
+                                                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+                                                        ✓ {bu.completed}
+                                                    </span>
+                                                    <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/10">
+                                                        ⏳ {bu.in_progress}
+                                                    </span>
+                                                    {bu.overdue > 0 && (
+                                                        <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
+                                                            ⚠ {bu.overdue}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Navigate Arrow */}
+                                                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
+                                            </div>
+                                        )) : (
+                                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                                                <div className="rounded-full bg-slate-50 p-4 border border-slate-100 mb-4">
+                                                    <Building2 className="h-6 w-6 text-slate-400" />
+                                                </div>
+                                                <h4 className="text-sm font-semibold text-slate-900">No business unit data</h4>
+                                                <p className="mt-1 text-sm text-slate-500">Activity data will appear here once tasks are logged</p>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="lg:col-span-3 flex flex-col gap-6">
-                                        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                                            <h3 className="text-base font-bold text-gray-900 mb-4">Task Distribution</h3>
-                                            <div className="h-[180px] relative">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie data={personalVisuals.distribution} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={4} dataKey="value" cornerRadius={4}>
-                                                            {personalVisuals.distribution?.map((entry, index) => (
-                                                                <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} strokeWidth={0} />
-                                                            ))}
-                                                        </Pie>
-                                                        <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
-                                                    <span className="text-3xl font-bold text-gray-900 leading-none">{personalStats.total}</span>
-                                                    <span className="text-sm text-gray-500 mt-1">Total</span>
-                                                </div>
-                                            </div>
-                                            <div className="mt-4 space-y-2">
-                                                {personalVisuals.distribution?.slice(0, 4).map((d, i) => (
-                                                    <div key={i} className="flex items-center justify-between text-sm">
-                                                        <div className="flex items-center text-gray-600">
-                                                            <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ background: d.color }}></div>
-                                                            <span className="truncate max-w-[120px]">{d.name}</span>
-                                                        </div>
-                                                        <span className="font-medium text-gray-900 bg-gray-50 px-1.5 py-0.5 rounded">{personalStats.total > 0 ? Math.round((d.value / personalStats.total) * 100) : 0}%</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex-1 flex flex-col">
-                                            <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center justify-between">
-                                                Upcoming
-                                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">Next 7 Days</span>
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {personalVisuals.upcoming?.length > 0 ? (
-                                                    personalVisuals.upcoming.map(task => (
-                                                        <Link key={task.id} href={route('activity.task.show', { task: task.id })}>
-                                                            <div className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-all cursor-pointer border border-transparent hover:border-gray-100 group">
-                                                                <div className={cn("mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm", task.is_critical ? "bg-red-500" : "bg-amber-400")}></div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <p className="text-base font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{task.title}</p>
-                                                                    <p className={cn("text-sm font-medium mt-0.5", task.is_critical ? "text-red-500" : "text-gray-400")}>
-                                                                        {isToday(parseISO(task.due_date)) ? 'Today' : isTomorrow(parseISO(task.due_date)) ? 'Tomorrow' : format(parseISO(task.due_date), 'EEE, MMM d')}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </Link>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-center py-6">
-                                                        <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-2">
-                                                            <Calendar className="h-5 w-5 text-gray-300" />
-                                                        </div>
-                                                        <p className="text-sm text-gray-500">No deadlines this week 🎉</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-
-                        ) : (
-                            <motion.div
-                                key="department"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={smoothTransition}
-                                className="space-y-6"
-                            >
-                                {/* Row 1: Department Stats Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-base font-semibold text-gray-500">Team Overdue</p>
-                                            <p className={cn("text-3xl font-bold mt-1", (departmentVisuals?.bottleneck || 0) > 0 ? "text-red-600" : "text-gray-900")}>{departmentVisuals?.bottleneck || 0}</p>
-                                            {(departmentVisuals?.bottleneck || 0) > 0 ? (
-                                                <p className="text-sm text-red-600 mt-1 font-medium bg-red-50 px-2 py-0.5 rounded-full inline-block border border-red-100">Needs attention</p>
-                                            ) : (
-                                                <p className="text-sm text-emerald-700 mt-1 font-medium bg-emerald-50 px-2 py-0.5 rounded-full inline-block border border-emerald-100">All on track</p>
-                                            )}
-                                        </div>
-                                        <div className={cn("p-3 rounded-lg border", (departmentVisuals?.bottleneck || 0) > 0 ? "bg-red-100 border-red-200" : "bg-gray-50 border-gray-100")}>
-                                            <AlertTriangle className={cn("h-6 w-6", (departmentVisuals?.bottleneck || 0) > 0 ? "text-red-600" : "text-gray-400")} />
-                                        </div>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-base font-semibold text-gray-500">Total Active</p>
-                                            <p className="text-3xl font-bold text-gray-900 mt-1">{departmentStats?.total || 0}</p>
-                                            <p className="text-sm text-indigo-700 mt-1 font-medium bg-indigo-50 px-2 py-0.5 rounded-full inline-block border border-indigo-100">Department Tasks</p>
-                                        </div>
-                                        <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                                            <Users className="h-6 w-6 text-indigo-600" />
-                                        </div>
-                                    </div>
-                                    <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <p className="text-base font-semibold text-gray-500">Top Category</p>
-                                            <p className="text-3xl font-bold text-gray-900 mt-1 truncate max-w-[180px]" title={departmentVisuals?.top_category}>{departmentVisuals?.top_category || '-'}</p>
-                                            <p className="text-sm text-gray-500 mt-1">Most active work type</p>
-                                        </div>
-                                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-                                            <Activity className="h-6 w-6 text-amber-600" />
-                                        </div>
-                                    </div>
                                 </div>
 
-                                {/* Row 2: Main Content */}
-                                <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 items-stretch">
-                                    <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                                <List className="h-5 w-5 text-indigo-600" />
-                                                Department Task Roadmap
-                                            </h2>
-                                            <div className="flex bg-gray-100 p-1 rounded-lg">
-                                                {(['todo', 'inprogress', 'review'] as const).map(tab => (
-                                                    <button
-                                                        key={tab}
-                                                        onClick={() => handleDeptTabChange(tab)}
-                                                        className={cn(
-                                                            "px-3 py-1.5 text-sm font-semibold rounded-md capitalize transition-all",
-                                                            deptRoadmapTab === tab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                                                        )}
-                                                    >
-                                                        {tab.replace('todo', 'To Do').replace('inprogress', 'In Progress')}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                {/* Top Overdue Departments - Attention List */}
+                                {executiveStats.topOverdueDepartments.length > 0 && (
+                                    <div className="rounded-xl border border-red-200/60 bg-red-50/20 shadow-sm overflow-hidden">
+                                        <div className="flex items-center gap-3 border-b border-red-100 px-6 py-4 bg-red-50/40">
+                                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                                            <h3 className="text-sm font-semibold text-red-900">Departments Requiring Attention</h3>
                                         </div>
-                                        <div className="p-0 flex-1 overflow-auto max-h-[520px]">
-                                            {activeDeptRoadmapList.length > 0 ? (
-                                                <table className="w-full text-left">
-                                                    <thead className="bg-gray-50 text-sm text-gray-400 uppercase tracking-wider sticky top-0 z-10">
-                                                        <tr>
-                                                            <th className="px-6 py-3 font-medium border-b border-gray-100">Task Name</th>
-                                                            <th className="px-6 py-3 font-medium border-b border-gray-100">Category</th>
-                                                            <th className="px-6 py-3 font-medium border-b border-gray-100">Deadline</th>
-                                                            <th className="px-6 py-3 font-medium text-right border-b border-gray-100">Action</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-100 text-base">
-                                                        {activeDeptRoadmapList.map((task: any) => {
-                                                            const dueDate = parseISO(task.due_date);
-                                                            const isCritical = differenceInDays(dueDate, new Date()) <= 2 && differenceInDays(dueDate, new Date()) >= -1;
-                                                            return (
-                                                                <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group">
-                                                                    <td className="px-6 py-3.5">
-                                                                        <Link href={route('activity.task.show', task.id)} className="block">
-                                                                            <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{task.task_title || task.title}</span>
-                                                                            {task.task_description && <p className="text-sm text-gray-400 truncate max-w-[200px] mt-0.5">{task.task_description}</p>}
-                                                                        </Link>
-                                                                    </td>
-                                                                    <td className="px-6 py-3.5">
-                                                                        {task.activity_type ? (
-                                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border" style={{ backgroundColor: `${task.activity_type.color}10`, color: task.activity_type.color, borderColor: `${task.activity_type.color}30` }}>
-                                                                                {task.activity_type.name}
-                                                                            </span>
-                                                                        ) : <span className="text-gray-400">-</span>}
-                                                                    </td>
-                                                                    <td className="px-6 py-3.5">
-                                                                        <div className="flex items-center text-gray-600">
-                                                                            <Calendar className={cn("h-3.5 w-3.5 mr-1.5", isCritical ? "text-red-500" : "text-gray-400")} />
-                                                                            <span className={cn(isCritical ? "text-red-600 font-semibold" : "")}>{format(dueDate, 'MMM d')}</span>
-                                                                        </div>
-                                                                        {isCritical && <span className="text-[10px] text-red-500 font-medium block mt-0.5 ml-5">Due soon</span>}
-                                                                    </td>
-                                                                    <td className="px-6 py-3.5 text-right">
-                                                                        <Link href={route('activity.task.show', task.id)}>
-                                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-indigo-50 hover:text-indigo-600">
-                                                                                <ArrowRight className="h-4 w-4" />
-                                                                            </Button>
-                                                                        </Link>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            ) : (
-                                                <div className="flex flex-col items-center justify-center h-64 text-center">
-                                                    <div className="p-4 bg-gray-50 rounded-full mb-3 shadow-sm border border-gray-100">
-                                                        <CheckCircle2 className="h-8 w-8 text-gray-300" />
-                                                    </div>
-                                                    <p className="text-gray-900 font-medium">No department tasks in this stage</p>
-                                                    <p className="text-base text-gray-500 mt-1">Check other tabs or create a new task</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {deptPagination && deptPagination.last_page > 1 && (
-                                            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                                                <p className="text-sm text-gray-500">
-                                                    Showing <span className="font-medium">{((deptPagination.current_page - 1) * deptPagination.per_page) + 1}</span> to <span className="font-medium">{Math.min(deptPagination.current_page * deptPagination.per_page, deptPagination.total)}</span> of <span className="font-medium">{deptPagination.total}</span>
-                                                </p>
-                                                <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" className="h-8 gap-1 px-2 text-sm" onClick={() => handleDeptPageChange(deptPagination.prev_page_url)} disabled={!deptPagination.prev_page_url}>
-                                                        <ChevronLeft className="h-3.5 w-3.5" /> Prev
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="h-8 gap-1 px-2 text-sm" onClick={() => handleDeptPageChange(deptPagination.next_page_url)} disabled={!deptPagination.next_page_url}>
-                                                        Next <ChevronRight className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="lg:col-span-3 flex flex-col gap-6">
-                                        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                                            <h3 className="text-base font-bold text-gray-900 mb-4">Task Distribution</h3>
-                                            <div className="h-[180px] relative">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie data={departmentVisuals?.distribution || []} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={4} dataKey="value" cornerRadius={4}>
-                                                            {(departmentVisuals?.distribution || []).map((entry: any, index: number) => (
-                                                                <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                                                            ))}
-                                                        </Pie>
-                                                        <RechartsTooltip formatter={(value: any, name: any) => [value, name]} />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                    <div className="text-center">
-                                                        <p className="text-3xl font-bold text-gray-900">{departmentStats?.total || 0}</p>
-                                                        <p className="text-[10px] text-gray-400 font-medium">Total</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="mt-4 space-y-2">
-                                                {(departmentVisuals?.distribution || []).slice(0, 4).map((item: any, i: number) => (
-                                                    <div key={i} className="flex items-center justify-between text-sm">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color || COLORS[i % COLORS.length] }}></span>
-                                                            <span className="text-gray-600 font-medium">{item.name}</span>
+                                        <div className="divide-y divide-red-100/60">
+                                            {executiveStats.topOverdueDepartments.map((dept, index) => (
+                                                <div
+                                                    key={`${dept.departmentId}-${dept.businessUnitId}`}
+                                                    onClick={() => navigateToAdminDashboard(dept.businessUnitId, dept.departmentId)}
+                                                    className="group flex items-center justify-between px-6 py-3.5 hover:bg-red-50/60 cursor-pointer transition-colors"
+                                                    title={`View ${dept.department} details in ${dept.businessUnit}`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
+                                                            {index + 1}
+                                                        </span>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-slate-900">{dept.department}</p>
+                                                            <p className="text-xs text-slate-500">{dept.businessUnit}</p>
                                                         </div>
-                                                        <span className="text-gray-400">{departmentStats?.total ? Math.round((item.value / departmentStats.total) * 100) : 0}%</span>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex-1 flex flex-col">
-                                            <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center justify-between">
-                                                Upcoming
-                                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">Next 7 Days</span>
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {departmentVisuals?.upcoming && departmentVisuals.upcoming.length > 0 ? (
-                                                    departmentVisuals.upcoming.map((task: any) => (
-                                                        <Link href={route('activity.task.show', { task: task.id })} key={task.id} className="block group">
-                                                            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors -mx-2">
-                                                                <div className={cn("w-2 h-2 rounded-full flex-shrink-0", task.is_critical ? "bg-red-500" : "bg-amber-400")}></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-base font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">{task.title}</p>
-                                                                    <p className={cn("text-[10px] font-medium", task.is_critical ? "text-red-500" : "text-gray-400")}>
-                                                                        {task.is_critical ? 'Due soon' : format(parseISO(task.due_date), 'EEE, MMM d')}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </Link>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-center py-6">
-                                                        <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-2">
-                                                            <Calendar className="h-5 w-5 text-gray-300" />
-                                                        </div>
-                                                        <p className="text-sm text-gray-500">No deadlines this week 🎉</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="inline-flex items-center rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                                                            {dept.overdueCount} overdue
+                                                        </span>
+                                                        <ChevronRight className="h-4 w-4 text-red-300 group-hover:text-red-500 transition-colors" />
                                                     </div>
-                                                )}
-                                            </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
+                                )}
+                            </>
                         )}
+
+                        {/* ═══════ PERSONAL / DEPARTMENT VIEW ═══════ */}
+                        {viewMode !== 'executive' && (
+                            <>
+                            {/* Key Metrics Grid */}
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                {/* Total Hours Card */}
+                                <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm flex flex-col">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                            <Clock className="h-5 w-5" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-sm font-medium text-slate-500">
+                                            {viewMode === 'department' ? 'Team Total Hours' : 'My Total Hours'}
+                                        </h3>
+                                    </div>
+                                    <div className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+                                        {totalHours}h <span className="text-2xl text-slate-500 font-semibold">{String(totalMinutes).padStart(2, '0')}m</span>
+                                    </div>
+                                    <div className="mt-auto flex items-center text-sm">
+                                        <span className="font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded mr-2">
+                                            +{Math.max(activeStats.completed_this_month || 0, 0)} tasks
+                                        </span>
+                                        <span className="text-slate-500">completed this period</span>
+                                    </div>
+                                </div>
+
+                                {/* Active Projects Card */}
+                                <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm flex flex-col">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+                                            <Briefcase className="h-5 w-5" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-sm font-medium text-slate-500">Active Projects</h3>
+                                    </div>
+                                    <div className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+                                        {activeProjects}
+                                    </div>
+                                    <div className="mt-auto flex items-center text-sm text-slate-500">
+                                        <span className="font-medium text-slate-700 mr-1">{activeStats.in_progress}</span> task(s) currently in progress
+                                    </div>
+                                </div>
+
+                                {/* Avg Efficiency Card */}
+                                <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm flex flex-col relative overflow-hidden">
+                                    <div className="flex items-center gap-3 mb-4 relative z-10">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                                            <TrendingUp className="h-5 w-5" strokeWidth={2} />
+                                        </div>
+                                        <h3 className="text-sm font-medium text-slate-500">Avg. Efficiency</h3>
+                                    </div>
+                                    <div className="text-3xl font-bold tracking-tight text-slate-900 mb-2 relative z-10">
+                                        {completionRate}%
+                                    </div>
+                                    <div className="mt-auto flex items-center text-sm text-slate-500 relative z-10">
+                                        <span className="font-medium text-slate-700 mr-1">{activeStats.completed}</span> of {activeStats.total} tasks completed
+                                    </div>
+                                    
+                                    {/* Decorative mini bar chart in background */}
+                                    <div className="absolute right-6 bottom-6 flex items-end gap-1.5 opacity-40">
+                                        {[45, 60, 75, 50, completionRate, 80, 65].map((val, i) => (
+                                            <div
+                                                key={i}
+                                                className={cn(
+                                                    "w-2 rounded-t-sm transition-all",
+                                                    i === 4 ? "bg-blue-500" : "bg-slate-200"
+                                                )}
+                                                style={{ height: `${Math.max(val / 2, 10)}px` }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detailed Sections Grid */}
+                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                                {/* Member Activity - Takes up 2 columns */}
+                                <div className="rounded-xl border border-slate-200/60 bg-white shadow-sm lg:col-span-2 overflow-hidden flex flex-col">
+                                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-white">
+                                        <h3 className="text-base font-semibold text-slate-900">
+                                            {viewMode === 'department' ? 'Team Activity' : 'My Activity'}
+                                        </h3>
+                                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Real-time status</span>
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col">
+                                        {memberActivityRows.length > 0 ? (
+                                            <div className="flex flex-col">
+                                                {memberActivityRows.map((member) => {
+                                                    const statusColor = member.status === 'completed'
+                                                        ? 'bg-emerald-500' // Green
+                                                        : member.status === 'in_progress'
+                                                            ? 'bg-amber-500' // Orange
+                                                            : 'bg-slate-300'; // Gray for planned
+                                                    const memberHours = Math.floor(member.totalMinutes / 60);
+
+                                                    return (
+                                                        <div key={member.id} className="group flex flex-col gap-3 px-6 py-4 transition-colors hover:bg-slate-50/70 border-b border-slate-100 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+                                                            
+                                                            {/* User Info */}
+                                                            <div className="flex items-center gap-4 sm:w-[40%]">
+                                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-semibold ring-2 ring-white">
+                                                                    {member.name.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="truncate text-sm font-semibold text-slate-900">{member.name}</p>
+                                                                    <p className="text-xs text-slate-500 mt-0.5">{member.role}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Activity & Duration */}
+                                                            <div className="flex flex-1 items-center justify-between sm:justify-end sm:gap-8 mt-2 sm:mt-0">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <span className={cn('h-2 w-2 shrink-0 rounded-full', statusColor)} />
+                                                                    <span className="truncate text-sm text-slate-600 max-w-[200px] sm:max-w-[260px]">{member.activity}</span>
+                                                                </div>
+                                                                <div className="text-sm font-semibold text-slate-900 w-16 text-right tabular-nums">
+                                                                    {memberHours}h {String(member.totalMinutes % 60).padStart(2, '0')}m
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+                                                <div className="rounded-full bg-slate-50 p-4 border border-slate-100 mb-4">
+                                                    <Activity className="h-6 w-6 text-slate-400" />
+                                                </div>
+                                                <h4 className="text-sm font-semibold text-slate-900">No activity recorded yet</h4>
+                                                <p className="mt-1 text-sm text-slate-500">Track tasks to see member updates here</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Department Focus - Takes up 1 column */}
+                                <div className="flex flex-col gap-6">
+                                    <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
+                                        <div className="mb-6 flex items-center justify-between">
+                                            <h3 className="text-base font-semibold text-slate-900">
+                                            {viewMode === 'department' ? 'Department Focus' : 'Personal Focus'}
+                                        </h3>
+                                            <span className="text-xs font-medium text-slate-500">Workload allocation</span>
+                                        </div>
+
+                                        <div className={cn('space-y-6', isDistributionLoading && 'opacity-50 transition-opacity')}>
+                                            {focusItems.length > 0 ? focusItems.map((item, index) => (
+                                                <div key={`${item.name}-${index}`}>
+                                                    <div className="mb-2.5 flex items-center justify-between">
+                                                        <span className="text-sm font-medium text-slate-700">{item.name}</span>
+                                                        <span className="text-sm font-semibold text-slate-900">{item.percentage}%</span>
+                                                    </div>
+                                                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${item.percentage}%` }}
+                                                            transition={{ duration: 0.8, ease: "easeOut" }}
+                                                            className="h-full rounded-full"
+                                                            style={{
+                                                                backgroundColor: item.color || FOCUS_COLORS[index % FOCUS_COLORS.length],
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )) : (
+                                                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center">
+                                                    <p className="text-sm text-slate-500">No distribution data available</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Productivity Insight */}
+                                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-5">
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-0.5 text-blue-600 bg-blue-100 p-1.5 rounded-md">
+                                                <TrendingUp className="h-4 w-4" strokeWidth={2.5} />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-blue-900">Productivity Insight</h4>
+                                                <p className="mt-1.5 text-sm leading-relaxed text-blue-700">
+                                                    {generateInsight(leadFocus, viewMode)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </>
+                        )}
+                        </motion.div>
                     </AnimatePresence>
-                </div>
+                </main>
             </div>
         </>
     );

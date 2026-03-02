@@ -96,7 +96,7 @@ describe('Input Component', () => {
     render(<Input />);
 
     const input = screen.getByRole('textbox');
-    expect(input).toHaveClass('focus:ring-2', 'focus:ring-indigo-500');
+    expect(input).toHaveClass('focus:ring-2', 'focus:ring-primary');
   });
 
   it('applies error styles when error prop is provided', () => {

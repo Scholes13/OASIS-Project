@@ -773,7 +773,7 @@ export default defineConfig({
 createInertiaApp({
   // ...
   progress: {
-    color: '#4F46E5', // Indigo-600
+    color: '#2596be', // Brand Royal Blue
     showSpinner: true,
   },
 });
@@ -1116,4 +1116,3 @@ toast('Business unit switched', {
   },
 })
 ```
-

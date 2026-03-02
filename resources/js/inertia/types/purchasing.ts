@@ -144,6 +144,9 @@ export interface PurchaseRequest {
     items?: PRItem[];
     approvals?: PRApproval[];
 
+    // Aggregates from withCount
+    items_count?: number;
+
     // Computed properties
     approval_progress?: {
         approved: number;
@@ -226,6 +229,7 @@ export interface PRShowProps {
             delete: boolean;
             void: boolean;
             resubmit: boolean;
+            resendApprovalEmail: boolean;
             approve: boolean;
             reject: boolean;
             downloadPdf: boolean;
@@ -237,6 +241,7 @@ export interface PRShowProps {
         delete: boolean;
         void: boolean;
         resubmit: boolean;
+        resendApprovalEmail: boolean;
         approve: boolean;
         reject: boolean;
         downloadPdf: boolean;

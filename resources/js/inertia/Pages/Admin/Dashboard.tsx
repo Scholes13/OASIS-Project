@@ -96,7 +96,7 @@ export default function Dashboard({ stats, recentUsers, businessUnitStats, month
                 </div>
                 <Link
                   href="/admin/users"
-                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 transition-colors"
+                  className="text-sm text-primary hover:text-primary font-medium flex items-center gap-1 transition-colors"
                   aria-label="View all users"
                 >
                   View All
@@ -163,12 +163,12 @@ export default function Dashboard({ stats, recentUsers, businessUnitStats, month
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.6 + index * 0.05 }}
                       whileHover={{ scale: 1.02 }}
-                      className="p-4 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all cursor-pointer"
+                      className="p-4 rounded-lg border border-gray-100 hover:border-primary hover:bg-blue-600/50 transition-all cursor-pointer"
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-indigo-600" />
+                          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-primary" />
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{bu.name}</p>
@@ -234,10 +234,10 @@ export default function Dashboard({ stats, recentUsers, businessUnitStats, month
               <div className="grid grid-cols-2 gap-4">
                 <Link
                   href="/admin/users/create"
-                  className="p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+                  className="p-4 rounded-lg border border-gray-200 hover:border-primary hover:bg-blue-600 transition-all group"
                   aria-label="Create new user"
                 >
-                  <Users className="w-8 h-8 text-indigo-600 mb-2 group-hover:scale-110 transition-transform" />
+                  <Users className="w-8 h-8 text-primary mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-sm font-medium text-gray-900">Add User</p>
                   <p className="text-xs text-gray-600 mt-1">Create new user</p>
                 </Link>

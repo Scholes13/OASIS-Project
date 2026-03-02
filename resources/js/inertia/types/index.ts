@@ -21,7 +21,8 @@ export interface MenuItem {
     name: string;        // Changed from 'label' to match NavigationService
     icon: string;
     href: string;
-    active: boolean;     // Added to track active state
+    routePattern?: string | string[];  // Pattern(s) to match for active state
+    excludePattern?: string;           // Pattern to exclude from active matching
     badge?: number;      // Added for notification badges
     children?: MenuItem[];
 }
@@ -93,10 +94,14 @@ export interface Task {
     task_description: string | null;
     status: TaskStatus;
     priority: TaskPriority;
-    due_date: string;
+    due_date: string | null;
     task_date?: string;
     start_date?: string;
+    started_at?: string;
     completed_at?: string;
+    start_time?: string;
+    end_time?: string;
+    completed_date?: string;
     business_unit_id: number;
     department_id: number;
     activity_type_id: number;

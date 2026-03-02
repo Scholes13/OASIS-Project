@@ -33,6 +33,7 @@ interface TaskRoadmapProps {
     onTabChange: (tab: TabType) => void;
     onPageChange: (url: string | null) => void;
     showCreateButton?: boolean;
+    onCreateTask?: () => void;
 }
 
 export function TaskRoadmap({
@@ -43,13 +44,14 @@ export function TaskRoadmap({
     onTabChange,
     onPageChange,
     showCreateButton = true,
+    onCreateTask,
 }: TaskRoadmapProps) {
     return (
         <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <List className="h-5 w-5 text-indigo-600" />
+                    <List className="h-5 w-5 text-primary" />
                     {title}
                 </h2>
                 <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -90,7 +92,7 @@ export function TaskRoadmap({
                                     <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-3.5">
                                             <Link href={route('activity.task.show', { task: task.id })} className="block">
-                                                <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+                                                <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                                                     {task.task_title || task.title}
                                                 </span>
                                                 {task.task_description && (
@@ -131,7 +133,7 @@ export function TaskRoadmap({
                                         </td>
                                         <td className="px-6 py-3.5 text-right">
                                             <Link href={route('activity.task.show', { task: task.id })}>
-                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-indigo-50 hover:text-indigo-600">
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700">
                                                     <ArrowRight className="h-4 w-4" />
                                                 </Button>
                                             </Link>
@@ -149,9 +151,13 @@ export function TaskRoadmap({
                         <p className="text-gray-900 font-medium">No tasks in this stage</p>
                         <p className="text-base text-gray-500 mt-1">Check other tabs or create a new task</p>
                         {showCreateButton && (
-                            <Link href={route('activity.task.create')} className="mt-4">
-                                <Button variant="outline" size="sm">Create Task</Button>
-                            </Link>
+                            onCreateTask ? (
+                                <Button variant="outline" size="sm" className="mt-4" onClick={onCreateTask}>Create Task</Button>
+                            ) : (
+                                <Link href={route('activity.task.create')} className="mt-4">
+                                    <Button variant="outline" size="sm">Create Task</Button>
+                                </Link>
+                            )
                         )}
                     </div>
                 )}

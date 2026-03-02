@@ -22,99 +22,103 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { router } from "@inertiajs/react"
+import { router, usePage } from "@inertiajs/react"
 import { motion, AnimatePresence } from "framer-motion"
-import { format } from "date-fns"
+import { format, isToday, isTomorrow } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
 import {
   Clock,
   AlertTriangle,
   MoreHorizontal,
-  Paperclip,
-  MessageSquare,
+  Plus,
+  User,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
 import { TaskDetailModal } from "./TaskDetailModal"
-import type { Task } from "@/types"
+import type { Task, PageProps } from "@/types"
+
+type ViewMode = "my" | "department"
 
 // ============================================================================
 // TYPES & CONFIGURATION
 // ============================================================================
 
 interface KanbanColumn {
-  id: string
+  id: "planned" | "in_progress" | "completed"
   title: string
-  borderColor: string
-  headerBg: string
-  headerText: string
+  dotClass: string
 }
 
 interface KanbanBoardProps {
   tasks: Task[]
   onStatusChange?: (taskId: number, newStatus: string) => void
   onTaskClick?: (task: Task) => void
+  onCreateTask?: () => void
 }
 
-// Column configuration with color-coded top borders
+// Column configuration (no in-review lane)
 const columns: KanbanColumn[] = [
   {
     id: "planned",
-    title: "Planning",
-    borderColor: "border-t-slate-400",
-    headerBg: "bg-slate-100",
-    headerText: "text-slate-700",
+    title: "To Do",
+    dotClass: "bg-slate-400",
   },
   {
     id: "in_progress",
     title: "In Progress",
-    borderColor: "border-t-amber-500",
-    headerBg: "bg-amber-50",
-    headerText: "text-amber-700",
+    dotClass: "bg-blue-500",
   },
   {
     id: "completed",
-    title: "Completed",
-    borderColor: "border-t-emerald-500",
-    headerBg: "bg-emerald-50",
-    headerText: "text-emerald-700",
+    title: "Done",
+    dotClass: "bg-emerald-500",
   },
 ]
 
 // Avatar colors for team members
 const avatarColors = [
-  "bg-indigo-100 text-indigo-700",
+  "bg-blue-50 text-blue-700",
   "bg-emerald-100 text-emerald-700",
   "bg-amber-100 text-amber-700",
   "bg-rose-100 text-rose-700",
   "bg-violet-100 text-violet-700",
 ]
 
-// Activity type colors
-const typeColors: Record<string, string> = {
-  blue: "bg-blue-50 text-blue-700",
-  indigo: "bg-indigo-50 text-indigo-700",
-  purple: "bg-purple-50 text-purple-700",
-  pink: "bg-pink-50 text-pink-700",
-  red: "bg-red-50 text-red-700",
-  orange: "bg-orange-50 text-orange-700",
-  amber: "bg-amber-50 text-amber-700",
-  yellow: "bg-yellow-50 text-yellow-700",
-  lime: "bg-lime-50 text-lime-700",
-  green: "bg-green-50 text-green-700",
-  emerald: "bg-emerald-50 text-emerald-700",
-  teal: "bg-teal-50 text-teal-700",
-  cyan: "bg-cyan-50 text-cyan-700",
-  gray: "bg-gray-100 text-gray-600",
+const priorityBadgeClass: Record<string, string> = {
+  high: "bg-rose-100 text-rose-600",
+  medium: "bg-amber-100 text-amber-600",
+  low: "bg-sky-100 text-sky-600",
 }
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-function isOverdue(dueDate: string, status: string): boolean {
+function isOverdue(dueDate: string | null, status: string): boolean {
+  if (!dueDate) return false
   if (status === "completed" || status === "cancelled") return false
   return new Date(dueDate) < new Date()
+}
+
+function canEditTask(task: Task, currentUserId: number | undefined): boolean {
+  if (!currentUserId) return false
+  const isParticipant = task.participants?.some(p => 
+    p.user_id === currentUserId || p.id === currentUserId
+  )
+  const isCreator = task.created_by === currentUserId
+  return isParticipant || isCreator
+}
+
+function formatCardDueDate(dueDate: string | null): string {
+  if (!dueDate) return "No due date"
+
+  const parsed = new Date(dueDate)
+  if (isToday(parsed)) return "Today"
+  if (isTomorrow(parsed)) return "Tomorrow"
+
+  return format(parsed, "dd MMM", { locale: idLocale })
 }
 
 // ============================================================================
@@ -167,9 +171,10 @@ interface TaskCardProps {
   task: Task
   isDragging?: boolean
   onTaskClick?: (task: Task) => void
+  isReadOnly?: boolean
 }
 
-function TaskCard({ task, isDragging, onTaskClick }: TaskCardProps) {
+function TaskCard({ task, isDragging, onTaskClick, isReadOnly = false }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -177,7 +182,10 @@ function TaskCard({ task, isDragging, onTaskClick }: TaskCardProps) {
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: task.id })
+  } = useSortable({ 
+    id: task.id,
+    disabled: isReadOnly, // Disable drag for read-only tasks
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -206,8 +214,7 @@ function TaskCard({ task, isDragging, onTaskClick }: TaskCardProps) {
     onTaskClick?.(task)
   }
 
-  const typeColor = typeColors[task.activity_type?.color || "gray"] || typeColors.gray
-  const attachmentCount = task.attachments?.length || 0
+  const priorityClass = priorityBadgeClass[task.priority] || "bg-slate-100 text-slate-600"
 
   return (
     <motion.div
@@ -218,70 +225,45 @@ function TaskCard({ task, isDragging, onTaskClick }: TaskCardProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       className={cn(
-        "group bg-white p-3 rounded-lg border border-slate-200 shadow-sm cursor-pointer transition-all duration-200",
-        "hover:shadow-md hover:border-slate-300",
+        "group rounded-xl border border-border bg-background p-3.5 shadow-[0_4px_12px_rgba(15,53,85,0.05)] transition-all duration-200",
+        isReadOnly 
+          ? "cursor-default opacity-80 hover:opacity-90" 
+          : "cursor-pointer hover:border-[color:rgba(24,98,167,0.35)] hover:shadow-[0_8px_18px_rgba(15,53,85,0.08)]",
         isSortableDragging && "opacity-50 shadow-none",
-        isDragging && "ring-2 ring-indigo-500 ring-offset-2 z-50"
+        isDragging && "z-50 ring-2 ring-primary ring-offset-2",
+        task.status === "completed" && "bg-background/95"
       )}
-      {...attributes}
-      {...listeners}
+      {...(isReadOnly ? {} : { ...attributes, ...listeners })}
       onClick={handleClick}
     >
-      {/* Type Badge - Small */}
-      <div className="mb-2">
-        <span className={cn(
-          "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium",
-          typeColor
-        )}>
-          {task.activity_type?.name ?? "Activity"}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-semibold", priorityClass)}>
+          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+        </span>
+        <span className="truncate text-[11px] font-medium text-muted-foreground">
+          {task.activity_type?.name ?? "General"}
         </span>
       </div>
 
-      {/* Title */}
-      <h4 className="text-sm font-semibold text-slate-900 leading-snug mb-2 line-clamp-2">
+      <h4 className="mb-2 line-clamp-2 text-sm font-semibold leading-snug text-foreground">
         {task.task_title}
       </h4>
 
-      {/* Description - Optional */}
       {task.task_description && (
-        <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+        <p className="mb-3 line-clamp-1 text-xs text-muted-foreground">
           {task.task_description}
         </p>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <div className="flex items-center gap-2">
-          {/* Due Date */}
-          <div className={cn(
-            "flex items-center gap-1 text-[11px] font-medium",
-            overdue ? "text-rose-600" : "text-slate-500"
-          )}>
-            <Clock className="h-3 w-3" strokeWidth={2} />
-            <span>{format(new Date(task.due_date), "d MMM", { locale: idLocale })}</span>
-            {overdue && <AlertTriangle className="h-3 w-3" strokeWidth={2} />}
-          </div>
-
-          {/* Priority Dot */}
-          <div className="flex items-center gap-1">
-            <span className={cn(
-              "h-2 w-2 rounded-full",
-              task.priority === 'high' ? "bg-rose-500" :
-              task.priority === 'medium' ? "bg-amber-500" : "bg-emerald-500"
-            )} />
-            <span className="text-[10px] text-slate-400 capitalize">{task.priority || 'low'}</span>
-          </div>
-
-          {/* Attachments with Icon */}
-          {attachmentCount > 0 && (
-            <div className="flex items-center gap-0.5 text-slate-400">
-              <Paperclip className="h-3 w-3" strokeWidth={2} />
-              <span className="text-[10px]">{attachmentCount}</span>
-            </div>
-          )}
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+        <div className={cn(
+          "flex items-center gap-1.5 text-xs font-medium",
+          overdue ? "text-rose-600" : "text-muted-foreground"
+        )}>
+          <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+          <span>{formatCardDueDate(task.due_date)}</span>
+          {overdue && <AlertTriangle className="h-3.5 w-3.5" strokeWidth={2} />}
         </div>
-
-        {/* Avatar Stack */}
         <AvatarStack participants={task.participants || []} max={2} />
       </div>
     </motion.div>
@@ -294,36 +276,30 @@ function TaskCard({ task, isDragging, onTaskClick }: TaskCardProps) {
 
 function TaskCardOverlay({ task }: { task: Task }) {
   const overdue = isOverdue(task.due_date, task.status)
-  const typeColor = typeColors[task.activity_type?.color || "gray"] || typeColors.gray
+  const priorityClass = priorityBadgeClass[task.priority] || "bg-slate-100 text-slate-600"
 
   return (
-    <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xl ring-2 ring-indigo-500/20 transform rotate-2 cursor-grabbing w-[300px]">
-      <div className="mb-2">
-        <span className={cn(
-          "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium",
-          typeColor
-        )}>
-          {task.activity_type?.name ?? "Activity"}
+    <div className="w-[300px] cursor-grabbing rounded-xl border border-border bg-background p-3.5 shadow-xl ring-2 ring-primary/25">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-semibold", priorityClass)}>
+          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+        </span>
+        <span className="truncate text-[11px] font-medium text-muted-foreground">
+          {task.activity_type?.name ?? "General"}
         </span>
       </div>
 
-      <h4 className="text-sm font-semibold text-slate-900 leading-snug mb-2 line-clamp-2">
+      <h4 className="mb-2 line-clamp-2 text-sm font-semibold leading-snug text-foreground">
         {task.task_title}
       </h4>
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "flex items-center gap-1 text-[11px] font-medium",
-            overdue ? "text-rose-600" : "text-slate-500"
-          )}>
-            <Clock className="h-3 w-3" strokeWidth={2} />
-            <span>{format(new Date(task.due_date), "d MMM", { locale: idLocale })}</span>
-          </div>
-          <span className={cn(
-            "h-2 w-2 rounded-full",
-            task.priority === 'high' ? "bg-rose-500" : "bg-emerald-500"
-          )} />
+      <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+        <div className={cn(
+          "flex items-center gap-1.5 text-xs font-medium",
+          overdue ? "text-rose-600" : "text-muted-foreground"
+        )}>
+          <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+          <span>{formatCardDueDate(task.due_date)}</span>
         </div>
         <AvatarStack participants={task.participants || []} max={2} />
       </div>
@@ -339,9 +315,12 @@ interface BoardColumnProps {
   column: KanbanColumn
   tasks: Task[]
   onTaskClick?: (task: Task) => void
+  onCreateTask?: () => void
+  currentUserId?: number
+  viewMode: ViewMode
 }
 
-function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
+function BoardColumn({ column, tasks, onTaskClick, onCreateTask, currentUserId, viewMode }: BoardColumnProps) {
   // Make the column a droppable area
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -349,31 +328,21 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
 
   return (
     <div className={cn(
-      "flex flex-col rounded-xl overflow-hidden min-h-[500px]",
-      "bg-slate-50/80 border border-slate-200/60",
-      "border-t-4",
-      column.borderColor,
-      isOver && "ring-2 ring-indigo-400 ring-offset-2 bg-indigo-50/30"
+      "flex flex-col overflow-hidden rounded-xl border border-border bg-secondary/70",
+      isOver && "ring-2 ring-primary ring-offset-2"
     )}>
       {/* Column Header */}
-      <div className={cn(
-        "flex items-center justify-between px-4 py-3",
-        column.headerBg
-      )}>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <h3 className={cn("text-sm font-bold", column.headerText)}>
+          <span className={cn("h-2 w-2 rounded-full", column.dotClass)} />
+          <h3 className="text-sm font-semibold text-foreground">
             {column.title}
           </h3>
-          <span className={cn(
-            "px-2 py-0.5 rounded-full text-xs font-semibold",
-            column.headerBg,
-            column.headerText,
-            "bg-white/60"
-          )}>
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-background px-1.5 text-[11px] font-semibold text-muted-foreground">
             {tasks.length}
           </span>
         </div>
-        <button className="p-1 rounded hover:bg-white/50 text-slate-400 hover:text-slate-600 transition-colors">
+        <button className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground">
           <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />
         </button>
       </div>
@@ -383,8 +352,9 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
         <div 
           ref={setNodeRef}
           className={cn(
-            "flex-1 flex flex-col gap-2 p-3 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto transition-colors",
-            isOver && "bg-indigo-50/50"
+            "flex flex-1 flex-col gap-3 p-3 transition-colors",
+            "min-h-[420px] max-h-[calc(100vh-280px)] overflow-y-auto",
+            isOver && "bg-secondary"
           )}
         >
           <AnimatePresence mode="popLayout">
@@ -393,26 +363,47 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={cn(
-                  "flex flex-col items-center justify-center py-12 text-center rounded-lg border-2 border-dashed",
-                  isOver ? "border-indigo-300 bg-indigo-50" : "border-transparent"
+                  "flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background/80 py-10 text-center",
+                  isOver && "border-[color:rgba(24,98,167,0.35)]"
                 )}
               >
-                <div className="h-10 w-10 rounded-full bg-slate-200/50 flex items-center justify-center mb-3">
-                  <div className="h-2 w-2 rounded-full bg-slate-300" />
+                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
+                  <div className="h-2 w-2 rounded-full bg-border" />
                 </div>
-                <p className="text-slate-400 text-xs font-medium">No tasks</p>
-                <p className="text-slate-300 text-[10px] mt-1">Drag tasks here</p>
+                <p className="text-xs font-medium text-muted-foreground">No tasks</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Drag tasks here</p>
               </motion.div>
             ) : (
-              tasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onTaskClick={onTaskClick}
-                />
-              ))
+              tasks.map((task) => {
+                // In department view, tasks that user doesn't own are read-only
+                const isReadOnly = viewMode === "department" && !canEditTask(task, currentUserId)
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onTaskClick={onTaskClick}
+                    isReadOnly={isReadOnly}
+                  />
+                )
+              })
             )}
           </AnimatePresence>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (onCreateTask) {
+                onCreateTask()
+                return
+              }
+              router.visit(route("activity.task.create"))
+            }}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-[color:rgba(24,98,167,0.35)] hover:text-primary"
+          >
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+            Add Task
+          </button>
         </div>
       </SortableContext>
     </div>
@@ -423,15 +414,49 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
 // MAIN KANBAN BOARD COMPONENT
 // ============================================================================
 
-export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask }: KanbanBoardProps) {
+  const { auth, filters } = usePage<PageProps>().props as PageProps & {
+    filters?: { scope?: ViewMode }
+  }
+  const currentUserId = auth?.user?.id
+  const initialScope = filters?.scope === "department" ? "department" : "my"
+  
   const [activeTask, setActiveTask] = React.useState<Task | null>(null)
   const [localTasks, setLocalTasks] = React.useState<Task[]>(tasks)
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [viewMode, setViewMode] = React.useState<ViewMode>(initialScope)
+  // Track original status when drag starts to detect actual column changes
+  const originalStatusRef = React.useRef<KanbanColumn["id"] | null>(null)
 
   React.useEffect(() => {
     setLocalTasks(tasks)
   }, [tasks])
+
+  React.useEffect(() => {
+    if (filters?.scope === "my" || filters?.scope === "department") {
+      setViewMode(filters.scope)
+    }
+  }, [filters?.scope])
+
+  // Handle view mode change - fetch from server with correct scope
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode)
+    router.get(
+      route('activity.task.index'),
+      { scope: mode },
+      {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['stats', 'tasks', 'filters'],
+      }
+    )
+  }
+
+  // Filter tasks - hide cancelled in board
+  const filteredTasks = React.useMemo(() => {
+    return localTasks.filter((task) => task.status !== "cancelled")
+  }, [localTasks])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -444,14 +469,22 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
 
   // Group tasks by status
   const tasksByStatus = React.useMemo(() => {
-    const grouped: Record<string, Task[]> = {}
-    columns.forEach(col => {
-      grouped[col.id] = localTasks.filter(task => task.status === col.id)
-    })
-    return grouped
-  }, [localTasks])
+    const grouped: Record<KanbanColumn["id"], Task[]> = {
+      planned: [],
+      in_progress: [],
+      completed: [],
+    }
 
-  const findColumnByTaskId = (taskId: UniqueIdentifier): string | null => {
+    filteredTasks.forEach((task) => {
+      if (task.status === "planned" || task.status === "in_progress" || task.status === "completed") {
+        grouped[task.status].push(task)
+      }
+    })
+
+    return grouped
+  }, [filteredTasks])
+
+  const findColumnByTaskId = (taskId: UniqueIdentifier): KanbanColumn["id"] | null => {
     for (const column of columns) {
       if (tasksByStatus[column.id].some(t => t.id === taskId)) {
         return column.id
@@ -460,9 +493,21 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
     return null
   }
 
+  const resolveColumnId = (dropId: UniqueIdentifier): KanbanColumn["id"] | null => {
+    const directColumn = columns.find((col) => col.id === dropId)
+    if (directColumn) return directColumn.id
+    return findColumnByTaskId(dropId)
+  }
+
   const handleDragStart = (event: DragStartEvent) => {
     const task = localTasks.find(t => t.id === event.active.id)
-    if (task) setActiveTask(task)
+    if (task) {
+      setActiveTask(task)
+      // Store original status when drag starts
+      if (task.status === "planned" || task.status === "in_progress" || task.status === "completed") {
+        originalStatusRef.current = task.status
+      }
+    }
   }
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -470,43 +515,49 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
     if (!over) return
 
     const activeColumn = findColumnByTaskId(active.id)
-    const overColumn = columns.find(col => col.id === over.id)?.id || findColumnByTaskId(over.id)
+    const overColumn = resolveColumnId(over.id)
 
     if (!activeColumn || !overColumn || activeColumn === overColumn) return
 
     setLocalTasks(prev => prev.map(task => 
-      task.id === active.id ? { ...task, status: overColumn as Task["status"] } : task
+      task.id === active.id ? { ...task, status: overColumn } : task
     ))
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveTask(null)
+    
+    // Get the original status before clearing
+    const originalStatus = originalStatusRef.current
+    originalStatusRef.current = null
 
     if (!over) return
 
     const activeId = active.id as number
-    const activeColumn = findColumnByTaskId(activeId)
-    if (!activeColumn) return
+    
+    // Determine target column - check if dropped on column directly or on a task within column
+    const overColumn = resolveColumnId(over.id)
 
-    const columnTasks = tasksByStatus[activeColumn] || []
-    const oldIndex = columnTasks.findIndex(t => t.id === activeId)
-    const overTaskIndex = columnTasks.findIndex(t => t.id === over.id)
+    // Handle reordering within same column
+    if (originalStatus && overColumn && originalStatus === overColumn) {
+      const columnTasks = tasksByStatus[overColumn]
+      const oldIndex = columnTasks.findIndex(t => t.id === activeId)
+      const overTaskIndex = columnTasks.findIndex(t => t.id === Number(over.id))
 
-    if (overTaskIndex !== -1 && oldIndex !== overTaskIndex) {
-      const newColumnTasks = arrayMove(columnTasks, oldIndex, overTaskIndex)
-      setLocalTasks(prev => {
-        const otherTasks = prev.filter(t => t.status !== activeColumn)
-        return [...otherTasks, ...newColumnTasks]
-      })
-      showToast.success("Task reordered")
+      if (oldIndex !== -1 && overTaskIndex !== -1 && oldIndex !== overTaskIndex) {
+        const newColumnTasks = arrayMove(columnTasks, oldIndex, overTaskIndex)
+        setLocalTasks(prev => {
+          const otherTasks = prev.filter(t => t.status !== overColumn)
+          return [...otherTasks, ...newColumnTasks]
+        })
+        showToast.success("Task reordered")
+      }
       return
     }
 
-    const task = localTasks.find(t => t.id === activeId)
-    const overColumn = columns.find(col => col.id === over.id)?.id || findColumnByTaskId(over.id)
-
-    if (task && overColumn && task.status !== overColumn) {
+    // Handle column change - use originalStatus to detect actual change
+    if (originalStatus && overColumn && originalStatus !== overColumn) {
       if (onStatusChange) {
         onStatusChange(activeId, overColumn)
       } else {
@@ -545,13 +596,17 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6 px-1">
+
+      <div className="grid grid-cols-1 gap-4 px-1 pb-6 lg:grid-cols-3">
         {columns.map((column) => (
           <BoardColumn
             key={column.id}
             column={column}
-            tasks={tasksByStatus[column.id] || []}
+            tasks={tasksByStatus[column.id]}
             onTaskClick={handleTaskClick}
+            onCreateTask={onCreateTask}
+            currentUserId={currentUserId}
+            viewMode={viewMode}
           />
         ))}
       </div>
@@ -576,4 +631,3 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick }: KanbanBoardP
 }
 
 export default KanbanBoard
-

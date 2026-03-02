@@ -61,8 +61,8 @@ export default function ProfileIndex({ user }: ProfileProps) {
     return (
         <>
             <Head title="Profile" />
-            <div className="min-h-screen bg-slate-50">
-                <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+            <div className="w-full">
+                <div className="w-full px-6 py-6 lg:px-8">
                     {/* Header */}
                     <div className="mb-8">
                         <h1 className="text-2xl font-semibold text-gray-900">Profile Settings</h1>
@@ -103,8 +103,8 @@ export default function ProfileIndex({ user }: ProfileProps) {
                                     <div className="mt-6 pt-6 border-t border-gray-100 space-y-4">
                                         {user.role && (
                                             <div className="flex items-center gap-3 text-sm">
-                                                <div className="p-2 bg-indigo-50 rounded-lg">
-                                                    <Shield className="h-4 w-4 text-indigo-600" />
+                                                <div className="p-2 bg-primary rounded-lg">
+                                                    <Shield className="h-4 w-4 text-primary" />
                                                 </div>
                                                 <div>
                                                     <p className="text-gray-400 text-xs">Role</p>
@@ -241,7 +241,7 @@ export default function ProfileIndex({ user }: ProfileProps) {
                                                 value={data.current_password}
                                                 onChange={(e) => setData('current_password', e.target.value)}
                                                 className={cn(
-                                                    "w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors",
+                                                    "w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors",
                                                     errors.current_password ? "border-red-300 bg-red-50" : "border-gray-200"
                                                 )}
                                                 placeholder="Enter your current password"
@@ -270,7 +270,7 @@ export default function ProfileIndex({ user }: ProfileProps) {
                                                 value={data.password}
                                                 onChange={(e) => setData('password', e.target.value)}
                                                 className={cn(
-                                                    "w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors",
+                                                    "w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors",
                                                     errors.password ? "border-red-300 bg-red-50" : "border-gray-200"
                                                 )}
                                                 placeholder="Enter new password"
@@ -298,7 +298,7 @@ export default function ProfileIndex({ user }: ProfileProps) {
                                                 type={showConfirmPassword ? 'text' : 'password'}
                                                 value={data.password_confirmation}
                                                 onChange={(e) => setData('password_confirmation', e.target.value)}
-                                                className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                                                className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                                                 placeholder="Confirm new password"
                                             />
                                             <button
@@ -315,7 +315,7 @@ export default function ProfileIndex({ user }: ProfileProps) {
                                         <Button
                                             type="submit"
                                             disabled={processing}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                            className="bg-primary hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
                                         >
                                             {processing ? 'Updating...' : 'Update Password'}
                                         </Button>

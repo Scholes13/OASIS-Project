@@ -202,7 +202,7 @@ function Index({ subActivities, activityTypes, businessUnits, isSuperAdmin, filt
             yellow: 'bg-yellow-100 text-yellow-800',
             red: 'bg-red-100 text-red-800',
             gray: 'bg-gray-100 text-gray-800',
-            indigo: 'bg-indigo-100 text-indigo-800',
+            indigo: 'bg-blue-50 text-blue-700',
             amber: 'bg-amber-100 text-amber-800',
             emerald: 'bg-emerald-100 text-emerald-800',
             cyan: 'bg-cyan-100 text-cyan-800',

@@ -15,7 +15,7 @@ interface StatCardProps {
 }
 
 const colorClasses = {
-    indigo: 'bg-indigo-100 text-indigo-600',
+    indigo: 'bg-blue-50 text-blue-700',
     emerald: 'bg-emerald-100 text-emerald-600',
     amber: 'bg-amber-100 text-amber-600',
     red: 'bg-red-100 text-red-600',

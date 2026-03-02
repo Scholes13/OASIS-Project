@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Purchasing;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StorePurchaseRequestRequest extends FormRequest
 {
@@ -27,27 +26,27 @@ class StorePurchaseRequestRequest extends FormRequest
             // Business Unit and Department
             'business_unit_id' => ['required', 'integer', 'exists:business_units,id'],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
-            
+
             // Category
             'category_id' => ['nullable', 'integer', 'exists:pr_categories,id'],
-            
+
             // PR Details
             'used_for' => ['required', 'string', 'min:10', 'max:1000'],
             'date_of_request' => ['required', 'date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:date_of_request'],
-            
+
             // Currency
             'currency' => ['required', 'string', 'in:IDR,USD,EUR,SGD'],
-            
+
             // Supporting Document
             'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'], // 5MB max
-            
+
             // Approval Workflow
             'approval_workflow' => ['required', 'array', 'min:1'],
             'approval_workflow.*.approver_id' => ['required', 'integer', 'exists:users,id', 'distinct'],
-            'approval_workflow.*.task_type' => ['required', 'string', 'in:approval,review,notification'],
+            'approval_workflow.*.task_type' => ['required', 'string', 'in:approval,review,notification,paraf'],
             'approval_notes' => ['nullable', 'string', 'max:1000'],
-            
+
             // Items
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_name' => ['required', 'string', 'max:255'],
@@ -76,10 +75,10 @@ class StorePurchaseRequestRequest extends FormRequest
             'business_unit_id.exists' => 'Selected business unit is invalid.',
             'department_id.required' => 'Department is required.',
             'department_id.exists' => 'Selected department is invalid.',
-            
+
             // Category
             'category_id.exists' => 'Selected category is invalid.',
-            
+
             // PR Details
             'used_for.required' => 'Purpose / Used For field is required.',
             'used_for.min' => 'Purpose / Used For must be at least 10 characters.',
@@ -88,16 +87,16 @@ class StorePurchaseRequestRequest extends FormRequest
             'date_of_request.date' => 'Request date must be a valid date.',
             'expected_date.date' => 'Expected date must be a valid date.',
             'expected_date.after_or_equal' => 'Expected date must be on or after the request date.',
-            
+
             // Currency
             'currency.required' => 'Currency is required.',
             'currency.in' => 'Selected currency is invalid.',
-            
+
             // Supporting Document
             'supporting_document.file' => 'Supporting document must be a file.',
             'supporting_document.mimes' => 'Supporting document must be a PDF, JPG, JPEG, or PNG file.',
             'supporting_document.max' => 'Supporting document cannot exceed 5MB.',
-            
+
             // Approval Workflow
             'approval_workflow.required' => 'At least one approver is required.',
             'approval_workflow.min' => 'At least one approver is required.',
@@ -107,7 +106,7 @@ class StorePurchaseRequestRequest extends FormRequest
             'approval_workflow.*.task_type.required' => 'Task type is required.',
             'approval_workflow.*.task_type.in' => 'Invalid task type.',
             'approval_notes.max' => 'Approval notes cannot exceed 1000 characters.',
-            
+
             // Items
             'items.required' => 'At least one item is required.',
             'items.min' => 'At least one item is required.',
@@ -162,14 +161,14 @@ class StorePurchaseRequestRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Ensure business_unit_id is set from session if not provided
-        if (!$this->has('business_unit_id')) {
+        if (! $this->has('business_unit_id')) {
             $this->merge([
                 'business_unit_id' => session('current_business_unit_id'),
             ]);
         }
 
         // Ensure department_id is set from session if not provided
-        if (!$this->has('department_id')) {
+        if (! $this->has('department_id')) {
             $this->merge([
                 'department_id' => session('current_department_id'),
             ]);

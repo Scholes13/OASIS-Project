@@ -15,10 +15,10 @@ export default function Approvals({
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="w-full">
             <Head title="Purchase Request Approvals" />
 
-            <div className="py-6 px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-6 py-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-gray-900">Approvals</h1>
@@ -57,7 +57,7 @@ export default function Approvals({
                         </div>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex items-center space-x-4">
-                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
                             <FileText className="w-6 h-6" />
                         </div>
                         <div>
@@ -74,7 +74,7 @@ export default function Approvals({
                             <button
                                 onClick={() => setActiveTab('pending')}
                                 className={`${activeTab === 'pending'
-                                    ? 'border-indigo-500 text-indigo-600'
+                                    ? 'border-primary text-primary'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
                             >
@@ -84,7 +84,7 @@ export default function Approvals({
                             <button
                                 onClick={() => setActiveTab('history')}
                                 className={`${activeTab === 'history'
-                                    ? 'border-indigo-500 text-indigo-600'
+                                    ? 'border-primary text-primary'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
                             >
@@ -125,7 +125,7 @@ export default function Approvals({
                                                                 </span>
                                                             </div>
                                                             <div className="mt-2">
-                                                                <p className="text-lg font-medium text-indigo-600 truncate">
+                                                                <p className="text-lg font-medium text-primary truncate">
                                                                     {approval.purchase_request.pr_number}
                                                                 </p>
                                                                 <p className="text-sm text-gray-900 font-medium">
@@ -182,7 +182,7 @@ export default function Approvals({
                                                         <div className="mt-2">
                                                             <Link
                                                                 href={route('purchase-requests.show', { purchaseRequest: approval.purchase_request.id })}
-                                                                className="text-base font-medium text-gray-900 hover:text-indigo-600"
+                                                                className="text-base font-medium text-gray-900 hover:text-primary"
                                                             >
                                                                 {approval.purchase_request.pr_number}
                                                             </Link>

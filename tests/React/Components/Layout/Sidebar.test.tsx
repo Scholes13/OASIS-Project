@@ -84,7 +84,7 @@ describe('Sidebar Component', () => {
     );
 
     const dashboardLink = screen.getByText('Dashboard').closest('a');
-    expect(dashboardLink).toHaveClass('bg-indigo-50');
+    expect(dashboardLink).toHaveClass('bg-primary');
   });
 
   it('renders dropdown menu items', () => {

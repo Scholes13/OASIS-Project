@@ -1,18 +1,21 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
 import {
-    ShoppingCart,
-    Package,
-    ClipboardCheck,
     Calendar,
+    Check,
+    CheckCircle2,
+    ChevronRight,
+    CircleDashed,
+    ClipboardCheck,
     ClipboardList,
-    TrendingUp,
-    Clock,
-    CheckCircle,
-    AlertCircle,
+    FileClock,
+    FilePlus2,
+    Package,
+    ShoppingCart,
+    Box,
+    Calculator,
 } from 'lucide-react';
-import { StatsCardSkeleton, CardSkeleton } from '@/components/ui/skeleton';
+import { PageProps } from '@/types';
 
 interface QuickAction {
     title: string;
@@ -43,247 +46,260 @@ interface DashboardProps {
     quickActions: QuickAction[];
 }
 
-const iconMap: Record<string, any> = {
-    'shopping-cart': ShoppingCart,
-    'package': Package,
+const quickIconMap: Record<string, any> = {
+    'shopping-cart': FilePlus2,
+    'package': Box,
     'clipboard-check': ClipboardCheck,
     'calendar': Calendar,
-    'clipboard-list': ClipboardList,
+    'clipboard-list': Calculator,
 };
 
-const colorMap: Record<string, string> = {
-    indigo: 'bg-indigo-100 text-indigo-600',
-    blue: 'bg-blue-100 text-blue-600',
-    amber: 'bg-amber-100 text-amber-600',
-    emerald: 'bg-emerald-100 text-emerald-600',
-    purple: 'bg-purple-100 text-purple-600',
+const priorityBadgeMap: Record<string, string> = {
+    in_approval: 'bg-red-100 text-red-700',
+    submitted: 'bg-amber-100 text-amber-700',
+    draft: 'bg-slate-100 text-slate-700',
+    approved: 'bg-emerald-100 text-emerald-700',
+    rejected: 'bg-red-100 text-red-700',
+    voided: 'bg-slate-100 text-slate-700',
 };
 
-const statusColorMap: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-700',
+const statusToneMap: Record<string, string> = {
+    draft: 'bg-slate-100 text-slate-700',
     submitted: 'bg-blue-100 text-blue-700',
     in_approval: 'bg-amber-100 text-amber-700',
     approved: 'bg-emerald-100 text-emerald-700',
     rejected: 'bg-red-100 text-red-700',
-    voided: 'bg-gray-100 text-gray-500',
+    voided: 'bg-slate-100 text-slate-600',
 };
 
 export default function Dashboard({ stats, recentActivities, pendingApprovalsCount, quickActions }: DashboardProps) {
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const { auth } = usePage<PageProps>().props;
 
-    // Mark initial load as complete after component mounts
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setIsInitialLoad(false);
-        }, 100);
-        return () => clearTimeout(timer);
-    }, []);
+    const firstName = auth.user?.name?.split(' ')[0] ?? 'there';
+    const currentHour = new Date().getHours();
+
+    let greetLabel = 'Good Evening';
+    if (currentHour < 12) greetLabel = 'Good Morning';
+    else if (currentHour < 17) greetLabel = 'Good Afternoon';
+
+    const overviewCards = [
+        {
+            title: 'Pending Approvals',
+            value: stats.pending_approvals,
+            helper: pendingApprovalsCount > 0 ? `${pendingApprovalsCount} waiting review` : 'No pending approval',
+            icon: FileClock,
+            iconBox: 'bg-[#dbeafe] text-[#1e40af]',
+        },
+        {
+            title: 'My Tasks',
+            value: stats.my_tasks,
+            helper: stats.my_tasks > 0 ? 'Follow up assigned items' : 'No active task',
+            icon: CheckCircle2,
+            iconBox: 'bg-[#e0f2fe] text-[#0369a1]',
+        },
+        {
+            title: 'My Purchase Requests',
+            value: stats.my_purchase_requests,
+            helper: 'Track request progress',
+            icon: ShoppingCart,
+            iconBox: 'bg-[#ecfdf5] text-[#047857]',
+        },
+        {
+            title: 'My Stock Requests',
+            value: stats.my_stock_requests,
+            helper: 'Awaiting update status',
+            icon: Package,
+            iconBox: 'bg-slate-100 text-slate-600',
+        },
+    ];
+
+    const priorityTasks = recentActivities.slice(0, 3);
+    const activityTimeline = recentActivities.slice(0, 5);
+    const quickLinks = quickActions.slice(0, 3);
 
     return (
         <>
             <Head title="Dashboard" />
-            <div className="w-full h-full bg-gray-50 p-6">
-                    {/* Header */}
-                    <div className="mb-6">
-                        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                        <p className="mt-1 text-sm text-gray-600">
-                            Welcome back! Here's what's happening today.
-                        </p>
+            <div className="w-full px-6 py-8 lg:px-8 2xl:px-10">
+                <div className="mx-auto w-full max-w-screen-2xl space-y-8">
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-700">Dashboard Overview</p>
+                        <h1 className="text-[2rem] font-bold text-foreground">{greetLabel}, {firstName}!</h1>
+                        <p className="text-sm text-muted-foreground">Here's what's happening across your modules today.</p>
                     </div>
 
-                    {isInitialLoad ? (
-                        /* Skeleton Loaders for Initial Load */
-                        <>
-                            {/* Stats Grid Skeleton */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                                {Array.from({ length: 4 }).map((_, i) => (
-                                    <StatsCardSkeleton key={i} />
-                                ))}
-                            </div>
-
-                            {/* Quick Actions Skeleton */}
-                            <div className="mb-6">
-                                <div className="h-6 w-32 bg-gray-200 rounded mb-4 animate-pulse" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {Array.from({ length: 6 }).map((_, i) => (
-                                        <CardSkeleton key={i} />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Recent Activities Skeleton */}
-                            <CardSkeleton className="h-96" />
-                        </>
-                    ) : (
-                        /* Actual Content */
-                        <>
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                        {/* My Purchase Requests */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="bg-white rounded-xl border border-gray-100 p-6"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">My PRs</p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.my_purchase_requests}</p>
-                                </div>
-                                <div className="p-3 bg-indigo-100 rounded-lg">
-                                    <ShoppingCart className="w-6 h-6 text-indigo-600" />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* My Stock Requests */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.1 }}
-                            className="bg-white rounded-xl border border-gray-100 p-6"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">My STs</p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.my_stock_requests}</p>
-                                </div>
-                                <div className="p-3 bg-blue-100 rounded-lg">
-                                    <Package className="w-6 h-6 text-blue-600" />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* Pending Approvals */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.2 }}
-                            className="bg-white rounded-xl border border-gray-100 p-6"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Pending Approvals</p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pending_approvals}</p>
-                                </div>
-                                <div className="p-3 bg-amber-100 rounded-lg">
-                                    <ClipboardCheck className="w-6 h-6 text-amber-600" />
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* My Tasks */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: 0.3 }}
-                            className="bg-white rounded-xl border border-gray-100 p-6"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">My Tasks</p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-2">{stats.my_tasks}</p>
-                                </div>
-                                <div className="p-3 bg-emerald-100 rounded-lg">
-                                    <Calendar className="w-6 h-6 text-emerald-600" />
-                                </div>
-                            </div>
-                        </motion.div>
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+                        {overviewCards.map((card, index) => {
+                            const Icon = card.icon;
+                            return (
+                                <motion.div
+                                    key={card.title}
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.25, delay: index * 0.06 }}
+                                    className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                                >
+                                    <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg text-base ${card.iconBox}`}>
+                                        <Icon className="h-5 w-5" />
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-500">{card.title}</p>
+                                    <p className="mt-1 text-4xl font-bold text-foreground">{card.value}</p>
+                                    <p className="mt-2 text-xs text-muted-foreground">{card.helper}</p>
+                                </motion.div>
+                            );
+                        })}
                     </div>
 
-                    {/* Quick Actions */}
-                    <div className="mb-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {quickActions.map((action, index) => {
-                                const Icon = iconMap[action.icon] || ShoppingCart;
-                                const colorClass = colorMap[action.color] || colorMap.indigo;
-
-                                return (
-                                    <motion.div
-                                        key={action.title}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                                    >
-                                        <Link
-                                            href={action.url}
-                                            className="block bg-white rounded-xl border border-gray-100 p-6 hover:shadow-md transition-shadow"
-                                        >
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center">
-                                                        <div className={`p-2 rounded-lg ${colorClass}`}>
-                                                            <Icon className="w-5 h-5" />
-                                                        </div>
-                                                        {action.badge && (
-                                                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                                                {action.badge}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <h3 className="mt-3 text-base font-semibold text-gray-900">
-                                                        {action.title}
-                                                    </h3>
-                                                    <p className="mt-1 text-sm text-gray-600">{action.description}</p>
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Recent Activities */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.8 }}
-                        className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                    >
-                        <div className="px-6 py-4 border-b border-gray-100">
-                            <h2 className="text-lg font-semibold text-gray-900">Recent Activities</h2>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                            {recentActivities.length === 0 ? (
-                                <div className="px-6 py-8 text-center text-gray-500">
-                                    No recent activities
-                                </div>
-                            ) : (
-                                recentActivities.map((activity, index) => (
-                                    <Link
-                                        key={index}
-                                        href={activity.url}
-                                        className="block px-6 py-4 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center">
-                                                    <span className="text-sm font-medium text-gray-900">
-                                                        {activity.title}
-                                                    </span>
-                                                    <span
-                                                        className={`ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                            statusColorMap[activity.status] || statusColorMap.draft
-                                                        }`}
-                                                    >
-                                                        {activity.status.replace('_', ' ')}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-1 text-xs text-gray-500">
-                                                    {activity.type === 'purchase_request' ? 'Purchase Request' : 'Stock Request'} • {activity.date}
-                                                </p>
-                                            </div>
-                                        </div>
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                        <div className="space-y-6 xl:col-span-2">
+                            <motion.section
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.25 }}
+                                className="rounded-2xl border border-border bg-card p-6"
+                            >
+                                <div className="mb-4 flex items-center justify-between">
+                                    <h2 className="text-xl font-semibold text-foreground">My Priority Tasks</h2>
+                                    <Link href="/activity/tasks" className="text-sm font-semibold text-primary hover:opacity-80">
+                                        View All Tasks
                                     </Link>
-                                ))
-                            )}
+                                </div>
+
+                                <div className="space-y-1">
+                                    {priorityTasks.length === 0 ? (
+                                        <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
+                                            No priority items right now.
+                                        </div>
+                                    ) : (
+                                        priorityTasks.map((task) => (
+                                            <Link
+                                                key={task.title}
+                                                href={task.url}
+                                                className="flex items-start gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-slate-50"
+                                            >
+                                                <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md border border-border text-transparent">
+                                                    <Check className="h-3.5 w-3.5" />
+                                                </span>
+                                                <span className="flex-1">
+                                                    <span className="block text-sm font-semibold text-foreground">{task.title}</span>
+                                                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${priorityBadgeMap[task.status] || 'bg-slate-100 text-slate-700'}`}>
+                                                            {task.status.replace('_', ' ')}
+                                                        </span>
+                                                        <span>{task.type === 'purchase_request' ? 'Purchase' : 'Stock'}</span>
+                                                        <span>{task.date}</span>
+                                                    </span>
+                                                </span>
+                                                <span className="mt-1 text-slate-400">...</span>
+                                            </Link>
+                                        ))
+                                    )}
+                                </div>
+                            </motion.section>
+
+                            <motion.section
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.32 }}
+                                className="rounded-2xl border border-border bg-card p-6"
+                            >
+                                <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Activity</h2>
+
+                                {activityTimeline.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
+                                        Activity feed is empty.
+                                    </div>
+                                ) : (
+                                    <div className="relative pl-3">
+                                        <div className="absolute bottom-2 left-[17px] top-2 w-px bg-border" />
+                                        <div className="space-y-5">
+                                            {activityTimeline.map((activity) => (
+                                                <Link key={`${activity.type}-${activity.title}-${activity.date}`} href={activity.url} className="relative flex gap-3">
+                                                    <span className="relative z-10 mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-[#e8f3ff] text-primary">
+                                                        {activity.status === 'approved' ? (
+                                                            <CheckCircle2 className="h-4 w-4" />
+                                                        ) : activity.status === 'in_approval' ? (
+                                                            <CircleDashed className="h-4 w-4" />
+                                                        ) : (
+                                                            <ClipboardList className="h-4 w-4" />
+                                                        )}
+                                                    </span>
+                                                    <span>
+                                                        <span className="block text-sm text-foreground">
+                                                            {activity.type === 'purchase_request' ? 'Purchase Request' : 'Stock Request'} <span className="font-semibold">{activity.title}</span>
+                                                        </span>
+                                                        <span className="mt-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <span className={`rounded-full px-2 py-0.5 ${statusToneMap[activity.status] || statusToneMap.draft}`}>
+                                                                {activity.status.replace('_', ' ')}
+                                                            </span>
+                                                            <span>{activity.date}</span>
+                                                        </span>
+                                                    </span>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </motion.section>
                         </div>
-                    </motion.div>
-                        </>
-                    )}
+
+                        <div className="space-y-6">
+                            <motion.section
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.35 }}
+                                className="rounded-2xl border border-border bg-card p-5"
+                            >
+                                <h2 className="mb-4 text-xl font-semibold text-foreground">Quick Access</h2>
+                                <div className="space-y-3">
+                                    {quickLinks.length === 0 ? (
+                                        <div className="rounded-lg border border-dashed border-border bg-slate-50 p-3 text-sm text-muted-foreground">
+                                            No quick actions available.
+                                        </div>
+                                    ) : (
+                                        quickLinks.map((action) => {
+                                            const Icon = quickIconMap[action.icon] || FilePlus2;
+                                            return (
+                                                <Link
+                                                    key={action.title}
+                                                    href={action.url}
+                                                    className="flex items-center gap-3 rounded-lg border border-transparent bg-slate-50 p-3 transition-all hover:border-[#dbeafe]"
+                                                >
+                                                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-primary">
+                                                        <Icon className="h-4 w-4" />
+                                                    </span>
+                                                    <span className="flex-1">
+                                                        <span className="block text-sm font-semibold text-foreground">{action.title}</span>
+                                                        <span className="block text-xs text-muted-foreground">{action.description}</span>
+                                                    </span>
+                                                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                                                </Link>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </motion.section>
+
+                            <motion.section
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: 0.42 }}
+                                className="rounded-2xl border border-transparent bg-primary p-5 text-primary-foreground"
+                            >
+                                <h2 className="text-xl font-semibold text-white">Need Help?</h2>
+                                <p className="mt-2 text-sm text-white/90">
+                                    Check out the documentation for the latest Purchasing workflows.
+                                </p>
+                                <Link
+                                    href="/docs-help"
+                                    className="mt-4 inline-flex items-center rounded-lg bg-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/30"
+                                >
+                                    View Documentation
+                                </Link>
+                            </motion.section>
+                        </div>
+                    </div>
+                </div>
             </div>
         </>
     );

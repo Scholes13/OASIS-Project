@@ -71,38 +71,44 @@ function handleNetworkError(): void {
 
 /**
  * Handle Inertia error events
+ * 
+ * Note: Inertia fires this event when a non-2xx response is received.
+ * For 422 validation errors, Inertia handles them internally via onError callback,
+ * so we should NOT show duplicate toasts for those.
  */
 function handleInertiaError(event: CustomEvent): void {
     const { detail } = event;
     const response = detail?.response;
 
-    // Network error (no response)
+    // If there's no response object, check if this is truly a network error
+    // or just Inertia's internal error handling (e.g., validation errors)
     if (!response) {
-        handleNetworkError();
+        // Only show network error if we're actually offline or the request truly failed
+        if (!navigator.onLine) {
+            handleNetworkError();
+        }
+        // Otherwise, silently ignore — the component's onError callback handles it
         return;
     }
 
     const status = response.status;
     const data = response.data;
 
-    // Log error to backend (except for validation errors which are expected)
-    if (status !== 422) {
-        logError(`HTTP ${status} Error`, {
-            level: status >= 500 ? 'error' : 'warning',
-            context: {
-                errorType: 'http',
-                statusCode: status,
-                responseData: data,
-                url: window.location.href,
-            },
-        });
-    }
-
-    // Handle validation errors (422)
-    if (status === 422 && data?.errors) {
-        handleValidationErrors(data.errors);
+    // Skip 422 validation errors — these are handled by component onError callbacks
+    if (status === 422) {
         return;
     }
+
+    // Log error to backend
+    logError(`HTTP ${status} Error`, {
+        level: status >= 500 ? 'error' : 'warning',
+        context: {
+            errorType: 'http',
+            statusCode: status,
+            responseData: data,
+            url: window.location.href,
+        },
+    });
 
     // Handle authentication errors (401)
     if (status === 401) {
@@ -110,7 +116,6 @@ function handleInertiaError(event: CustomEvent): void {
             'Authentication Required',
             'Please log in to continue.'
         );
-        // Redirect to login after a short delay
         setTimeout(() => {
             router.visit('/login');
         }, 2000);
@@ -121,8 +126,11 @@ function handleInertiaError(event: CustomEvent): void {
     if (status === 419) {
         showToast.error(
             'Session Expired',
-            'Your session has expired. Please refresh the page.'
+            'Your session has expired. Refreshing page...'
         );
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
         return;
     }
 
@@ -171,6 +179,9 @@ function handleInertiaError(event: CustomEvent): void {
 
 /**
  * Handle Inertia success events (for flash messages)
+ * 
+ * Uses toast IDs to prevent duplicate toasts when components
+ * already show their own success/error feedback.
  */
 function handleInertiaSuccess(event: CustomEvent): void {
     const { detail } = event;
@@ -182,19 +193,11 @@ function handleInertiaSuccess(event: CustomEvent): void {
 
     const flash = page.props.flash;
 
-    // Show success message
-    if (flash.success) {
-        toast.success('Success', {
-            description: flash.success,
-            id: 'flash-success'
-        });
-    }
-
-    // Show error message
+    // Show error flash — these are important and usually not handled by components
     if (flash.error) {
         toast.error('Error', {
             description: flash.error,
-            id: 'flash-error'
+            id: 'flash-error',
         });
     }
 
@@ -202,7 +205,7 @@ function handleInertiaSuccess(event: CustomEvent): void {
     if (flash.warning) {
         toast.warning('Warning', {
             description: flash.warning,
-            id: 'flash-warning'
+            id: 'flash-warning',
         });
     }
 
@@ -210,20 +213,37 @@ function handleInertiaSuccess(event: CustomEvent): void {
     if (flash.info) {
         toast.info('Info', {
             description: flash.info,
-            id: 'flash-info'
+            id: 'flash-info',
         });
     }
+
+    // NOTE: flash.success is intentionally NOT shown here.
+    // Components handle their own success toasts via onSuccess callbacks
+    // (e.g., KanbanBoard, ActivityDataTable, TaskDetailModal).
+    // Showing it here would cause duplicate toasts.
 }
 
 /**
- * Handle Inertia invalid events (validation errors without 422 response)
+ * Handle Inertia invalid events (non-Inertia responses)
+ * 
+ * This fires when the server returns a non-Inertia response (e.g., plain HTML).
+ * Validation errors (422) are already handled by component onError callbacks,
+ * so we skip those here.
  */
 function handleInertiaInvalid(event: CustomEvent): void {
+    // Don't show anything — validation errors are handled by components
+    // and other invalid responses are edge cases (e.g., server returning HTML)
     const { detail } = event;
     const response = detail?.response;
-
-    if (response?.data?.errors) {
-        handleValidationErrors(response.data.errors);
+    
+    if (response?.status && response.status !== 422) {
+        logWarning(`Received non-Inertia response (${response.status})`, {
+            context: {
+                errorType: 'inertia_invalid',
+                statusCode: response.status,
+                url: window.location.href,
+            },
+        });
     }
 }
 

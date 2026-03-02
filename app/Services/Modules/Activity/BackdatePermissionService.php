@@ -4,11 +4,11 @@ namespace App\Services\Modules\Activity;
 
 use App\Models\Core\User;
 use App\Models\Modules\Activity\BackdatePermission;
-use App\Notifications\Activity\BackdateRequestSubmitted;
 use App\Notifications\Activity\BackdateRequestApproved;
 use App\Notifications\Activity\BackdateRequestRejected;
-use Illuminate\Support\Facades\DB;
+use App\Notifications\Activity\BackdateRequestSubmitted;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class BackdatePermissionService
 {
@@ -26,12 +26,19 @@ class BackdatePermissionService
             throw new \Exception('You already have a pending backdate request');
         }
 
-        // System automatically records the submission date (today)
-        $requestedDate = now()->startOfDay();
+        // Use the requested_date from user input, or default to 7 days ago
+        $requestedDate = isset($data['requested_date'])
+            ? Carbon::parse($data['requested_date'])->startOfDay()
+            : now()->subDays(7)->startOfDay();
+
+        // Validate that requested_date is in the past
+        if ($requestedDate->isAfter(now()->subDay()->startOfDay())) {
+            throw new \Exception('Requested date must be at least 2 days ago (yesterday is already allowed by default)');
+        }
 
         $permission = BackdatePermission::create([
             'user_id' => $user->id,
-            'department_id' => $user->primary_department_id,
+            'department_id' => $user->getCurrentDepartmentId(),
             'business_unit_id' => session('current_business_unit_id'),
             'requested_date' => $requestedDate,
             'reason' => $data['reason'],
@@ -46,20 +53,42 @@ class BackdatePermissionService
 
     /**
      * Notify department heads about new backdate request
+     * If requester IS a department head, notify activity admins instead.
      */
     protected function notifyDepartmentHeads(BackdatePermission $permission): void
     {
-        // Get department heads from the same department
-        // Query through businessUnits (UserBusinessUnit) and check position access_level
+        $requester = User::find($permission->user_id);
+
+        // Check if requester is a HOD/team_leader level
+        $isHod = $requester?->businessUnits()
+            ->where('business_unit_id', $permission->business_unit_id)
+            ->whereHas('position', fn ($q) => $q->whereIn('access_level', ['department_head', 'team_leader']))
+            ->exists();
+
+        if ($isHod) {
+            // HOD requesting → notify activity admins in same BU
+            $activityAdmins = User::whereHas('businessUnits', function ($query) use ($permission) {
+                $query->where('business_unit_id', $permission->business_unit_id)
+                    ->where('is_activity_admin', true)
+                    ->where('is_active', true);
+            })->get();
+
+            foreach ($activityAdmins as $admin) {
+                $admin->notify(new BackdateRequestSubmitted($permission));
+            }
+
+            return;
+        }
+
+        // Regular staff → notify department heads (existing behavior)
         $departmentHeads = User::whereHas('businessUnits', function ($query) use ($permission) {
             $query->where('department_id', $permission->department_id)
                 ->where('business_unit_id', $permission->business_unit_id)
                 ->whereHas('position', function ($posQuery) {
-                    // Department head level or higher (executive, general_manager, department_head)
                     $posQuery->whereIn('access_level', ['executive', 'general_manager', 'department_head']);
                 });
         })
-        ->get();
+            ->get();
 
         foreach ($departmentHeads as $head) {
             $head->notify(new BackdateRequestSubmitted($permission));
@@ -135,25 +164,43 @@ class BackdatePermissionService
     }
 
     /**
+     * Check if backdate approval feature is enabled
+     */
+    public function isBackdateApprovalEnabled(): bool
+    {
+        return config('features.backdate_approval', false);
+    }
+
+    /**
      * Get the allowed backdate range for a user
      * Returns ['from' => Carbon, 'to' => Carbon]
      */
     public function getAllowedDateRange(User $user): array
     {
+        // When backdate approval feature is disabled, allow unrestricted date range
+        if (! $this->isBackdateApprovalEnabled()) {
+            return [
+                'from' => now()->subYears(5)->startOfDay(),
+                'to' => now()->addYear(),
+            ];
+        }
+
         $activePermission = $this->checkUserPermission($user->id);
 
         if ($activePermission && $activePermission->isActive()) {
             // User has active permission - can backdate to requested_date
+            // Future dates are allowed (1 year ahead)
             return [
                 'from' => $activePermission->requested_date,
-                'to' => now(),
+                'to' => now()->addYear(),
             ];
         }
 
         // Default: 1 day backdate (yesterday to today)
+        // Future dates are allowed (1 year ahead)
         return [
             'from' => now()->subDay()->startOfDay(),
-            'to' => now(),
+            'to' => now()->addYear(),
         ];
     }
 
@@ -162,8 +209,13 @@ class BackdatePermissionService
      */
     public function canCreateTaskWithDate(User $user, Carbon $taskDate): bool
     {
+        // When backdate approval feature is disabled, allow any date
+        if (! $this->isBackdateApprovalEnabled()) {
+            return true;
+        }
+
         $allowedRange = $this->getAllowedDateRange($user);
-        
+
         return $taskDate->greaterThanOrEqualTo($allowedRange['from'])
             && $taskDate->lessThanOrEqualTo($allowedRange['to']);
     }

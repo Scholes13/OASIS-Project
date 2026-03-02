@@ -8,10 +8,10 @@
         <title inertia>{{ config('app.name', 'Oasis') }}</title>
         <meta name="description" content="Enterprise Office Administration System">
 
-        <!-- Fonts -->
+        <!-- Fonts: Plus Jakarta Sans (primary) + Inter (fallback body) -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link rel="dns-prefetch" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700|inter:400,500,600,700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])

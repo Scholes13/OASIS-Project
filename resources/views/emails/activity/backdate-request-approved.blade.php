@@ -86,7 +86,7 @@
         <tr>
             <td align="center" style="padding: 0;">
                 <!-- Primary Action Link -->
-                <a href="{{ route('activity.index') }}" style="display: inline-block; color: #1e40af; font-size: 18px; font-weight: 600; text-decoration: underline; padding: 8px 0;">
+                <a href="{{ route('activity.task.index') }}" style="display: inline-block; color: #1e40af; font-size: 18px; font-weight: 600; text-decoration: underline; padding: 8px 0;">
                     Create Task
                 </a>
             </td>
@@ -98,7 +98,7 @@
         <tr>
             <td align="center" style="padding: 0;">
                 <p style="margin: 0; color: #6c757d; font-size: 14px;">
-                    or <a href="{{ route('activity.backdate-requests') }}" style="color: #1e40af; text-decoration: underline;">view your backdate requests</a>
+                    or <a href="{{ route('activity.backdate.requests') }}" style="color: #1e40af; text-decoration: underline;">view your backdate requests</a>
                 </p>
             </td>
         </tr>

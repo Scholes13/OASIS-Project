@@ -192,8 +192,8 @@ function NotificationSettingsIndex({ settings }: Props) {
 
           <Card className="p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-indigo-100 rounded-md p-3">
-                <Clock className="h-6 w-6 text-indigo-600" />
+              <div className="flex-shrink-0 bg-primary rounded-md p-3">
+                <Clock className="h-6 w-6 text-primary" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dt className="text-sm font-medium text-gray-500 truncate">Last Sent</dt>
@@ -314,7 +314,7 @@ function NotificationSettingsIndex({ settings }: Props) {
                   <select
                     id="smtp_encryption"
                     {...register('smtp_encryption')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="tls">TLS (Recommended - Port 587)</option>
                     <option value="ssl">SSL (Port 465)</option>
@@ -394,7 +394,7 @@ function NotificationSettingsIndex({ settings }: Props) {
                       type="checkbox"
                       id="email_enabled"
                       {...register('email_enabled')}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </div>
                   <div className="ml-3">
@@ -414,7 +414,7 @@ function NotificationSettingsIndex({ settings }: Props) {
                       type="checkbox"
                       id="fallback_to_database"
                       {...register('fallback_to_database')}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </div>
                   <div className="ml-3">

@@ -6,7 +6,6 @@ import {
     Calendar,
     User,
     Users,
-    Paperclip,
     X,
     AlertTriangle,
     Tag,
@@ -14,13 +13,22 @@ import {
     Play,
     CheckCircle2,
     ExternalLink,
-    FileText,
+    AlignLeft,
+    CheckSquare,
+    MessageSquare,
+    Clock,
+    Folder,
+    ChevronDown,
+    Plus,
+    Trash2,
+    Edit,
+    MoreHorizontal,
+    Share2
 } from "lucide-react"
 import { Dialog } from "../ui/dialog"
-import { ActivityTypeBadge, StatusBadge } from "../ui/Badge"
+import { ActivityTypeBadge, PriorityBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
-import { LazyImage } from "../ui/LazyImage"
 import type { Task } from "@/types"
 
 interface TaskDetailModalProps {
@@ -33,8 +41,12 @@ interface TaskDetailModalProps {
 export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModalProps) {
     const [isLoading, setIsLoading] = React.useState(false)
 
-    const isOverdue = task ? (new Date(task.due_date) < new Date() &&
+    const isOverdue = task ? (task.due_date && new Date(task.due_date) < new Date() &&
         !["completed", "cancelled"].includes(task.status)) : false
+
+    const formattedDueDate = task?.due_date
+        ? format(new Date(task.due_date), "EEEE, d MMMM yyyy", { locale: idLocale })
+        : "-"
 
     const handleStartTask = () => {
         if (!task) return
@@ -89,209 +101,233 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
     }
 
     return (
-        <Dialog open={open} onClose={onClose} className="max-w-xl">
+        <Dialog open={open} onClose={onClose} className="flex h-[85vh] w-[95vw] max-w-[1000px] flex-col !overflow-hidden !rounded-xl !p-0 shadow-2xl">
             {task && (
-                <>
+                <div className="flex h-full flex-col bg-background">
                     {/* Header */}
-                    <div className="flex items-start justify-between pb-4 border-b border-gray-100">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <ActivityTypeBadge
-                                name={task.activity_type?.name ?? "Activity"}
-                                color={task.activity_type?.color}
-                            />
-                            <StatusBadge status={task.status} />
-                            {isOverdue && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    Overdue
-                                </span>
-                            )}
+                    <div className="flex items-start justify-between border-b border-border bg-background px-8 py-5">
+                        <div>
+                            <div className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                                Activity Tracking / Task / #{task.id}
+                            </div>
+                            <h2 className="text-[20px] font-semibold leading-snug text-foreground">
+                                {task.task_title}
+                            </h2>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleViewDetail}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                title="View Full Details"
+                            >
+                                <ExternalLink className="h-[18px] w-[18px]" />
+                            </button>
+                            <button
+                                onClick={handleEdit}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                title="Edit Task"
+                            >
+                                <Edit className="h-[18px] w-[18px]" />
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                aria-label="Close modal"
+                            >
+                                <X className="h-[18px] w-[18px]" />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Title */}
-                    <div className="py-4">
-                        <h2 className="text-lg font-semibold text-gray-900 leading-tight">
-                            {task.task_title}
-                        </h2>
-                    </div>
-
-                    {/* Info Grid */}
-                    <div className="space-y-4 pb-4">
-                        {/* Due Date */}
-                        <div className="flex items-start gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50">
-                                <Calendar className={cn("h-4 w-4", isOverdue ? "text-rose-500" : "text-gray-400")} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-gray-500 mb-0.5">Due Date</p>
-                                <p className={cn(
-                                    "text-sm font-medium",
-                                    isOverdue ? "text-rose-600" : "text-gray-900"
-                                )}>
-                                    {format(new Date(task.due_date), "EEEE, d MMMM yyyy", { locale: idLocale })}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Department */}
-                        {task.department?.name && (
-                            <div className="flex items-start gap-3">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50">
-                                    <Building2 className="h-4 w-4 text-gray-400" />
+                    {/* Body */}
+                    <div className="flex flex-1 overflow-hidden">
+                        {/* Main Content */}
+                        <div className="flex-1 overflow-y-auto border-r border-border p-8">
+                            
+                            {/* Description Section */}
+                            <div className="mb-8">
+                                <div className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-foreground">
+                                    <AlignLeft className="h-4 w-4" />
+                                    Description
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-gray-500 mb-0.5">Department</p>
-                                    <p className="text-sm font-medium text-gray-900">{task.department.name}</p>
+                                <div className="text-[14px] leading-relaxed text-foreground">
+                                    {/* {task.description ? (
+                                        <div dangerouslySetInnerHTML={{ __html: task.description }} className="prose prose-sm max-w-none dark:prose-invert" />
+                                    ) : (
+                                        <span className="italic text-muted-foreground">No description provided.</span>
+                                    )} */}
+                                    <span className="italic text-muted-foreground">Descriptions are typically viewed on the full details page.</span>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Priority */}
-                        <div className="flex items-start gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50">
-                                <Tag className="h-4 w-4 text-gray-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-gray-500 mb-0.5">Priority</p>
-                                <span className={cn(
-                                    "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium capitalize",
-                                    task.priority === "high" && "bg-rose-100 text-rose-700",
-                                    task.priority === "medium" && "bg-amber-100 text-amber-700",
-                                    task.priority === "low" && "bg-emerald-100 text-emerald-700",
-                                    !["high", "medium", "low"].includes(task.priority) && "bg-gray-100 text-gray-700"
-                                )}>
-                                    {task.priority}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Participants */}
-                        {task.participants && task.participants.length > 0 && (
-                            <div className="flex items-start gap-3">
-                                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50">
-                                    <Users className="h-4 w-4 text-gray-400" />
+                            {/* Subtasks Placeholder (Visual Only) */}
+                            <div className="mb-8">
+                                <div className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-foreground">
+                                    <CheckSquare className="h-4 w-4" />
+                                    Subtasks
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-gray-500 mb-1.5">Participants</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {task.participants.map((p, i) => (
-                                            <span
-                                                key={i}
-                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
-                                            >
-                                                <span className="h-5 w-5 rounded-full bg-indigo-100 flex items-center justify-center text-[0.625rem] font-bold text-indigo-600">
-                                                    {p.name?.charAt(0).toUpperCase()}
-                                                </span>
-                                                {p.name}
-                                            </span>
-                                        ))}
+                                <div>
+                                    <div className="flex items-start gap-3 border-b border-dashed border-border py-2">
+                                        <input type="checkbox" className="mt-[2px] h-[18px] w-[18px] cursor-not-allowed rounded-[4px] border-2 border-muted-foreground" disabled />
+                                        <span className="text-[14px] text-muted-foreground italic">Subtasks functionality is coming soon.</span>
+                                    </div>
+                                </div>
+                                <button className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:border-primary hover:bg-background hover:text-primary">
+                                    <Plus className="h-3.5 w-3.5" /> Add Subtask
+                                </button>
+                            </div>
+
+                            {/* Activity Tabs Placeholder (Visual Only) */}
+                            <div>
+                                <div className="mb-6 flex gap-6 border-b border-border">
+                                    <div className="border-b-2 border-primary pb-3 text-[14px] font-medium text-primary">Comments</div>
+                                    <div className="border-b-2 border-transparent pb-3 text-[14px] font-medium text-muted-foreground cursor-pointer hover:text-foreground">History</div>
+                                    <div className="border-b-2 border-transparent pb-3 text-[14px] font-medium text-muted-foreground cursor-pointer hover:text-foreground">Files (0)</div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                                        You
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="overflow-hidden rounded-md border border-border bg-background">
+                                            <input
+                                                type="text"
+                                                placeholder="Write a comment... (Coming soon)"
+                                                className="w-full border-none p-3 text-[14px] outline-none bg-transparent disabled:opacity-50"
+                                                disabled
+                                            />
+                                            <div className="flex justify-end bg-muted p-2">
+                                                <button className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-white opacity-50 cursor-not-allowed">
+                                                    Post
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        )}
 
-                        {/* Creator */}
-                        <div className="flex items-start gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50">
-                                <User className="h-4 w-4 text-gray-400" />
+                        </div>
+
+                        {/* Sidebar */}
+                        <div className="flex w-[320px] shrink-0 flex-col gap-6 overflow-y-auto bg-muted p-6">
+                            
+                            {/* Action Buttons (Moved to sidebar) */}
+                            {(task.status === "planned" || task.status === "in_progress") && (
+                                <div className="flex gap-2 pb-6 border-b border-border">
+                                    {task.status === "planned" && (
+                                        <button
+                                            onClick={handleStartTask}
+                                            disabled={isLoading}
+                                            className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-[14px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                            <Play className="h-4 w-4" /> Start
+                                        </button>
+                                    )}
+                                    {["planned", "in_progress"].includes(task.status) && (
+                                        <button
+                                            onClick={handleCompleteTask}
+                                            disabled={isLoading}
+                                            className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 py-2 text-[14px] font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                                        >
+                                            <CheckCircle2 className="h-4 w-4" /> Mark Done
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Status */}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Status</div>
+                                <div className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2.5 text-[14px] transition-colors hover:border-primary cursor-default">
+                                    <div className="flex items-center gap-2">
+                                        <StatusBadge status={task.status} />
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-gray-500 mb-0.5">Created by</p>
-                                <p className="text-sm font-medium text-gray-900">{task.creator?.name ?? "Unknown"}</p>
+
+                            {/* Activity Type */}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Activity Type</div>
+                                <div className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2.5 text-[14px] transition-colors hover:border-primary cursor-default">
+                                    <div className="flex items-center gap-2">
+                                        <Folder className="h-4 w-4 text-muted-foreground" />
+                                        <span>{task.activity_type?.name ?? "General Activity"}</span>
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Priority */}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Priority</div>
+                                <div className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2.5 text-[14px] transition-colors hover:border-primary cursor-default">
+                                    <div className="flex items-center gap-2">
+                                        <PriorityBadge priority={task.priority} />
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                            </div>
+
+                            {/* Assignees */}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Assignees</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {task.participants && task.participants.length > 0 ? (
+                                        task.participants.map((participant) => (
+                                            <div key={participant.id} className="flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1.5 text-[13px] font-medium text-foreground">
+                                                <div className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#bfd6ef] text-[10px] font-bold uppercase text-[#205180]">
+                                                    {participant.name?.charAt(0) ?? "-"}
+                                                </div>
+                                                {participant.name}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <span className="text-[14px] text-muted-foreground">No assignees</span>
+                                    )}
+                                    <div className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border border-dashed border-muted-foreground bg-card text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+                                        <Plus className="h-4 w-4" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Due Date */}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Due Date</div>
+                                <div className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2.5 text-[14px] transition-colors hover:border-primary cursor-default">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className={cn("h-4 w-4", isOverdue ? "text-rose-500" : "text-muted-foreground")} />
+                                        <span className={cn("font-medium", isOverdue && "text-rose-600")}>{formattedDueDate}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Department (Extra feature not in mock but important for Oasis) */}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Department</div>
+                                <div className="flex w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2.5 text-[14px] transition-colors hover:border-primary cursor-default">
+                                    <div className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                                        <span>{task.department?.name || "-"}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1"></div>
+
+                            <button 
+                                onClick={handleViewDetail}
+                                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-card px-3 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+                            >
+                                <ExternalLink className="h-4 w-4" /> Open Full Details Page
+                            </button>
+
                         </div>
                     </div>
-
-                    {/* Description */}
-                    {task.task_description && (
-                        <div className="py-4 border-t border-gray-100">
-                            <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-4 w-4 text-gray-400" />
-                                <p className="text-xs font-medium text-gray-500">Description</p>
-                            </div>
-                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                {task.task_description}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Attachments */}
-                    {task.attachments && task.attachments.length > 0 && (
-                        <div className="py-4 border-t border-gray-100">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Paperclip className="h-4 w-4 text-gray-400" />
-                                <p className="text-xs font-medium text-gray-500">
-                                    Attachments ({task.attachments.length})
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                {task.attachments.slice(0, 4).map((attachment, i) => (
-                                    <a
-                                        key={i}
-                                        href={attachment.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="aspect-square rounded-lg bg-gray-100 overflow-hidden hover:opacity-80 transition-opacity flex items-center justify-center"
-                                    >
-                                        {attachment.mime_type?.startsWith("image/") ? (
-                                            <LazyImage
-                                                src={attachment.url || ''}
-                                                alt={attachment.original_name || attachment.filename}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <FileText className="h-6 w-6 text-gray-400" />
-                                        )}
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Footer Actions */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <button
-                            onClick={handleViewDetail}
-                            className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            View Full Details
-                        </button>
-                        <div className="flex items-center gap-2">
-                            {task.status === "planned" && (
-                                <button
-                                    onClick={handleStartTask}
-                                    disabled={isLoading}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50"
-                                >
-                                    <Play className="h-4 w-4" />
-                                    Start
-                                </button>
-                            )}
-                            {["planned", "in_progress"].includes(task.status) && (
-                                <button
-                                    onClick={handleCompleteTask}
-                                    disabled={isLoading}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
-                                >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Done
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </>
+                </div>
             )}
         </Dialog>
     )
 }
 
 export default TaskDetailModal
-

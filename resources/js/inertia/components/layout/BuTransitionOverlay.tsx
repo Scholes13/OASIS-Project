@@ -40,11 +40,11 @@ function FloatingOrb({
     initialY?: number;
 }) {
     const colorMap = {
-        indigo: 'from-indigo-400/30 to-indigo-600/20',
-        purple: 'from-purple-400/30 to-purple-600/20',
-        blue: 'from-blue-400/30 to-blue-600/20',
-        cyan: 'from-cyan-400/30 to-cyan-600/20',
-        pink: 'from-pink-400/30 to-pink-600/20',
+        indigo: 'from-[#16599c]/30 to-[#16599c]/20',
+        purple: 'from-[#3b8ed0]/30 to-[#3b8ed0]/20',
+        blue: 'from-[#0e3d6b]/30 to-[#0e3d6b]/20',
+        cyan: 'from-[#5ba3d9]/30 to-[#5ba3d9]/20',
+        pink: 'from-[#eef6ff]/50 to-[#eef6ff]/30',
     };
 
     return (
@@ -79,8 +79,8 @@ function GridLines() {
                 className="absolute inset-0"
                 style={{
                     backgroundImage: `
-                        linear-gradient(rgba(99, 102, 241, 0.5) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(99, 102, 241, 0.5) 1px, transparent 1px)
+                        linear-gradient(rgba(22, 89, 156, 0.5) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(22, 89, 156, 0.5) 1px, transparent 1px)
                     `,
                     backgroundSize: '60px 60px',
                 }}
@@ -107,7 +107,7 @@ function ParticleDots() {
             {particles.map((p) => (
                 <motion.div
                     key={p.id}
-                    className="absolute rounded-full bg-indigo-500/20"
+                    className="absolute rounded-full bg-blue-500/20"
                     style={{
                         width: p.size,
                         height: p.size,
@@ -149,11 +149,11 @@ function TransitionLogo({
     };
     
     const gradients = [
-        'from-indigo-500 via-purple-500 to-pink-500',
-        'from-emerald-500 via-teal-500 to-cyan-500',
-        'from-orange-500 via-red-500 to-pink-500',
-        'from-blue-500 via-indigo-500 to-purple-500',
-        'from-pink-500 via-rose-500 to-red-500',
+        'from-[#16599c] via-[#3b8ed0] to-[#5ba3d9]',
+        'from-[#0e3d6b] via-[#16599c] to-[#3b8ed0]',
+        'from-[#3b8ed0] via-[#5ba3d9] to-[#16599c]',
+        'from-[#124b85] via-[#16599c] to-[#3b8ed0]',
+        'from-[#0e3d6b] via-[#124b85] to-[#16599c]',
     ];
     const gradientIndex = bu.code.charCodeAt(0) % gradients.length;
     
@@ -202,7 +202,7 @@ function ConnectionLine({ isActive }: { isActive: boolean }) {
             
             {/* Animated progress */}
             <motion.div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#16599c] to-[#3b8ed0] rounded-full"
                 initial={{ width: '0%' }}
                 animate={{ width: isActive ? '100%' : '0%' }}
                 transition={{ duration: 1.5, ease: 'easeInOut' }}
@@ -211,7 +211,7 @@ function ConnectionLine({ isActive }: { isActive: boolean }) {
             {/* Glowing dot */}
             <motion.div
                 className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
-                style={{ boxShadow: '0 0 20px rgba(99, 102, 241, 0.8)' }}
+                style={{ boxShadow: '0 0 20px rgba(22, 89, 156, 0.8)' }}
                 initial={{ left: '0%', opacity: 0 }}
                 animate={{ 
                     left: isActive ? '100%' : '0%',
@@ -230,7 +230,7 @@ function PulsingRing() {
             {[0, 1, 2].map((i) => (
                 <motion.div
                     key={i}
-                    className="absolute inset-0 rounded-3xl border-2 border-indigo-500/30"
+                    className="absolute inset-0 rounded-3xl border-2 border-primary/30"
                     initial={{ scale: 1, opacity: 0.6 }}
                     animate={{ scale: 1.5 + i * 0.2, opacity: 0 }}
                     transition={{
@@ -288,12 +288,12 @@ export default function BuTransitionOverlay() {
                 >
                     {/* Animated gradient background */}
                     <motion.div 
-                        className="absolute inset-0 bg-gradient-to-br from-slate-50 via-indigo-50/50 to-purple-50/50"
+                        className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/50 to-sky-50/50"
                         animate={{
                             background: [
-                                'linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #faf5ff 100%)',
-                                'linear-gradient(135deg, #faf5ff 0%, #f8fafc 50%, #eef2ff 100%)',
-                                'linear-gradient(135deg, #eef2ff 0%, #faf5ff 50%, #f8fafc 100%)',
+                                'linear-gradient(135deg, #f8fafc 0%, #eef6ff 50%, #f0f7ff 100%)',
+                                'linear-gradient(135deg, #f0f7ff 0%, #f8fafc 50%, #eef6ff 100%)',
+                                'linear-gradient(135deg, #eef6ff 0%, #f0f7ff 50%, #f8fafc 100%)',
                             ],
                         }}
                         transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
@@ -346,7 +346,7 @@ export default function BuTransitionOverlay() {
                                 
                                 <motion.button
                                     onClick={reset}
-                                    className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full font-medium text-sm shadow-lg shadow-indigo-500/30"
+                                    className="px-6 py-2.5 bg-gradient-to-r from-[#16599c] to-[#3b8ed0] text-white rounded-full font-medium text-sm shadow-lg shadow-[#16599c]/30"
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                 >
@@ -399,7 +399,7 @@ export default function BuTransitionOverlay() {
                                 >
                                     <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                                         Switching to{' '}
-                                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                        <span className="bg-gradient-to-r from-[#0e3d6b] to-[#3b8ed0] bg-clip-text text-transparent">
                                             {toBu?.name || 'Business Unit'}
                                         </span>
                                     </h2>
@@ -409,7 +409,7 @@ export default function BuTransitionOverlay() {
                                         {[0, 1, 2].map((i) => (
                                             <motion.div
                                                 key={i}
-                                                className="w-2 h-2 rounded-full bg-indigo-500"
+                                                className="w-2 h-2 rounded-full bg-primary"
                                                 animate={{
                                                     scale: [1, 1.5, 1],
                                                     opacity: [0.3, 1, 0.3],

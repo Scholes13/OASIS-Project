@@ -149,7 +149,7 @@ export default function Form({
         <>
             <Head title={`Edit Purchase Request - ${purchaseRequest.pr_number}`} />
 
-            <div className="py-6 px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-6 py-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between">
@@ -164,7 +164,7 @@ export default function Form({
                         <div className="flex items-center space-x-3">
                             <Link
                                 href={route('purchase-requests.show', { purchaseRequest: purchaseRequest.id })}
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200"
                             >
                                 <ArrowLeft className="w-5 h-5 mr-2" />
                                 Back to Details

@@ -134,7 +134,7 @@ export function ColorPicker({ label, value, onChange, error }: ColorPickerProps)
                     setCustomColor(color);
                   }}
                   placeholder="#000000"
-                  className="flex-1 px-3 py-2 text-sm font-mono border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="flex-1 px-3 py-2 text-sm font-mono border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
                   maxLength={7}
                 />
               </div>

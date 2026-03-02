@@ -131,9 +131,9 @@ function SimpleCalendar({
             disabled={isDateDisabled(day)}
             className={cn(
               "h-8 w-8 text-sm rounded-md transition-colors",
-              "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-              isDateSelected(day) && "bg-indigo-600 text-white hover:bg-indigo-700",
-              isToday(day) && !isDateSelected(day) && "border border-indigo-300",
+              "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
+              isDateSelected(day) && "bg-primary text-white hover:bg-blue-600",
+              isToday(day) && !isDateSelected(day) && "border border-primary",
               isDateDisabled(day) && "text-gray-300 cursor-not-allowed hover:bg-transparent"
             )}
           >
@@ -224,7 +224,7 @@ export function DatePicker({
               disabled={disabled}
               className={cn(
                 "relative w-full cursor-pointer rounded-md border bg-white py-2 pl-3 pr-10 text-left text-sm shadow-sm transition-colors",
-                "focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500",
+                "focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary",
                 disabled && "cursor-not-allowed opacity-50 bg-gray-50",
                 error ? "border-red-500" : "border-gray-300"
               )}

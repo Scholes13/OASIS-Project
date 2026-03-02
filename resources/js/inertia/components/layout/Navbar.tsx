@@ -5,22 +5,25 @@ import UserMenu from './UserMenu';
 
 interface NavbarProps {
     onMenuClick: () => void;
-    sidebarMinimized: boolean;
+    sidebarMinimized?: boolean;
 }
 
-export default function Navbar({ onMenuClick, sidebarMinimized }: NavbarProps) {
+export default function Navbar({ onMenuClick }: NavbarProps) {
     // Format current date: "Wednesday, January 28, 2026"
     const today = format(new Date(), 'EEEE, MMMM d, yyyy');
 
     return (
-        <header className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-20 transition-all duration-300 ${sidebarMinimized ? 'left-16' : 'left-64'}`}
+        <header
+            className="sticky top-0 h-14 flex-shrink-0 bg-white border-b border-gray-200/80 z-20"
+            role="banner"
         >
-            <div className="h-full px-6 flex items-center justify-between">
+            <div className="h-full px-5 flex items-center justify-between">
                 {/* Left side - Mobile menu button */}
                 <div className="flex items-center">
                     <button
                         onClick={onMenuClick}
-                        className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+                        className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label="Toggle navigation menu"
                     >
                         <Menu className="w-5 h-5" />
                     </button>

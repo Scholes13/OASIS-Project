@@ -174,7 +174,7 @@ class ResubmitWorkflowTest extends TestCase
 
         $this->assertEquals('rejected', $pr->status, 'Status should remain rejected after edit');
         $this->assertEquals($originalRejectedAt->timestamp, $pr->rejected_at->timestamp, 'Rejected timestamp should not change');
-        $this->assertEquals('Updated purpose after rejection', $pr->keperluan);
+        $this->assertEquals('Updated usage description', $pr->used_for);
         // v2.0 Design: submitted_at is preserved for QR token reusability
         $this->assertNotNull($pr->submitted_at, 'submitted_at should be preserved for QR token');
     }

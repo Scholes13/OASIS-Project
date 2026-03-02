@@ -8,7 +8,8 @@ interface TaskTableProps {
     view: 'overview' | 'list';
 }
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null): string {
+    if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('id-ID', {
         day: '2-digit',
@@ -17,7 +18,8 @@ function formatDate(dateString: string): string {
     });
 }
 
-function isOverdue(dueDate: string, status: string): boolean {
+function isOverdue(dueDate: string | null, status: string): boolean {
+    if (!dueDate) return false;
     if (status === 'completed' || status === 'cancelled') return false;
     return new Date(dueDate) < new Date();
 }
@@ -35,7 +37,7 @@ export default function TaskTable({ tasks, view }: TaskTableProps) {
                     <h3 className="font-semibold text-gray-900">Recent Tasks</h3>
                     <Link
                         href={route('activity.task.index', { view: 'list' })}
-                        className="text-sm text-indigo-600 hover:text-indigo-800"
+                        className="text-sm text-primary hover:text-primary"
                     >
                         View all
                     </Link>
@@ -115,7 +117,7 @@ export default function TaskTable({ tasks, view }: TaskTableProps) {
                                                         return (
                                                             <div
                                                                 key={id}
-                                                                className="w-7 h-7 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
+                                                                className="w-7 h-7 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
                                                                 title={name}
                                                             >
                                                                 {name.charAt(0).toUpperCase()}
@@ -153,7 +155,7 @@ export default function TaskTable({ tasks, view }: TaskTableProps) {
                                 href={link.url || '#'}
                                 className={`px-3 py-1.5 text-sm rounded-md ${
                                     link.active
-                                        ? 'bg-indigo-600 text-white'
+                                        ? 'bg-primary text-white'
                                         : link.url
                                         ? 'text-gray-600 hover:bg-gray-100'
                                         : 'text-gray-300 cursor-not-allowed'

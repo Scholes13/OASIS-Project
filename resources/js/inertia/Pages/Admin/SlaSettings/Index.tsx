@@ -173,8 +173,8 @@ function BusinessUnitSlaCard({
       <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 bg-indigo-100 rounded-md p-2">
-              <Building2 className="w-5 h-5 text-indigo-600" />
+            <div className="flex-shrink-0 bg-primary rounded-md p-2">
+              <Building2 className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">{businessUnit.name}</h3>
@@ -254,7 +254,7 @@ function BusinessUnitSlaCard({
             id={`email_alerts_enabled_${businessUnit.id}`}
             checked={data.email_alerts_enabled}
             onChange={(e) => setData('email_alerts_enabled', e.target.checked)}
-            className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
           />
           <div className="flex-1">
             <Label htmlFor={`email_alerts_enabled_${businessUnit.id}`} className="font-medium">

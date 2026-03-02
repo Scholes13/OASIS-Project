@@ -11,9 +11,8 @@ inclusion: always
 | Backend | Laravel | 12.x |
 | PHP | PHP | 8.2+ |
 | Database | MySQL (prod) / SQLite (dev) | - |
-| Frontend | React/Inertia (new) + Livewire (legacy) | - |
+| Frontend | React/Inertia | - |
 | Styling | Tailwind CSS | 3.4.x |
-| Interactivity | Alpine.js | 3.14.x |
 | Build | Vite | 7.x |
 
 ## Critical Rules
@@ -24,9 +23,8 @@ inclusion: always
 - **NEVER** expose sensitive config/env values to frontend JavaScript
 - **NEVER** rewrite existing components - extend or compose instead
 
-### Frontend Stack Selection
-- **New features**: React/Inertia with TypeScript (mandatory)
-- **Legacy maintenance**: Livewire (Purchasing module only)
+### Frontend Stack
+- **All features**: React/Inertia with TypeScript
 - **Styling**: Tailwind CSS exclusively - NO custom CSS or Bootstrap
 
 ### Component Reuse & Code Organization

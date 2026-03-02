@@ -225,7 +225,7 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                             className={cn(
                                 'px-3 py-1.5 text-sm font-medium transition-colors',
                                 currentView === 'dayGridMonth'
-                                    ? 'bg-indigo-600 text-white'
+                                    ? 'bg-primary text-white'
                                     : 'bg-white text-gray-600 hover:bg-gray-50'
                             )}
                         >
@@ -236,7 +236,7 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                             className={cn(
                                 'px-3 py-1.5 text-sm font-medium transition-colors border-x border-gray-200',
                                 currentView === 'timeGridWeek'
-                                    ? 'bg-indigo-600 text-white'
+                                    ? 'bg-primary text-white'
                                     : 'bg-white text-gray-600 hover:bg-gray-50'
                             )}
                         >
@@ -247,7 +247,7 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                             className={cn(
                                 'px-3 py-1.5 text-sm font-medium transition-colors',
                                 currentView === 'timeGridDay'
-                                    ? 'bg-indigo-600 text-white'
+                                    ? 'bg-primary text-white'
                                     : 'bg-white text-gray-600 hover:bg-gray-50'
                             )}
                         >
@@ -302,14 +302,14 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                     aspectRatio={1.5}
                     eventDisplay="block"
                     moreLinkContent={(args) => (
-                        <div className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-1.5 py-0.5 bg-indigo-50 rounded cursor-pointer">
+                        <div className="text-xs font-semibold text-primary hover:text-primary px-1.5 py-0.5 bg-primary rounded cursor-pointer">
                             +{args.num} more
                         </div>
                     )}
                     dayCellClassNames={(arg) =>
                         cn(
                             'transition-colors',
-                            arg.isToday && '!bg-indigo-50/70',
+                            arg.isToday && '!bg-blue-100',
                             arg.isPast && !arg.isToday && 'bg-gray-50/30'
                         )
                     }
@@ -359,7 +359,7 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                     padding: 8px;
                 }
                 .calendar-container .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-                    background: #4f46e5;
+                    background: #2563eb;
                     color: white;
                     border-radius: 9999px;
                     width: 28px;
@@ -400,7 +400,7 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                     overflow-y: auto;
                 }
                 .calendar-container .fc-highlight {
-                    background: #e0e7ff !important;
+                    background: #dbeafe !important;
                 }
             `}</style>
         </div>

@@ -173,7 +173,7 @@ describe('Navigation Interactions', () => {
     );
 
     const dashboardLink = screen.getByText('Dashboard').closest('a');
-    expect(dashboardLink).toHaveClass('bg-indigo-50');
+    expect(dashboardLink).toHaveClass('bg-primary');
   });
 
   it('closes mobile sidebar after navigation', () => {

@@ -6,7 +6,7 @@
                 <p class="text-sm text-gray-600 mt-1">Update activity type: {{ $activityType->name }}</p>
             </div>
             <a href="{{ route('admin.activity-types.index') }}" 
-               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                 </svg>
@@ -30,7 +30,7 @@
                            name="name" 
                            id="name" 
                            value="{{ old('name', $activityType->name) }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
                            placeholder="e.g., Meeting"
                            required>
                     @error('name')
@@ -47,7 +47,7 @@
                            name="code" 
                            id="code" 
                            value="{{ old('code', $activityType->code) }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 uppercase"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary uppercase"
                            placeholder="e.g., MEETING"
                            maxlength="20"
                            required>
@@ -64,7 +64,7 @@
                     </label>
                     <select name="color" 
                             id="color" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
                             required>
                         <option value="blue" {{ old('color', $activityType->color) == 'blue' ? 'selected' : '' }}>Blue</option>
                         <option value="green" {{ old('color', $activityType->color) == 'green' ? 'selected' : '' }}>Green</option>
@@ -93,7 +93,7 @@
                            name="sort_order" 
                            id="sort_order" 
                            value="{{ old('sort_order', $activityType->sort_order) }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
                            min="0">
                     <p class="text-xs text-gray-500 mt-1">Lower numbers appear first in dropdown</p>
                     @error('sort_order')
@@ -108,7 +108,7 @@
                            id="is_active" 
                            value="1"
                            {{ old('is_active', $activityType->is_active) ? 'checked' : '' }}
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                           class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
                     <label for="is_active" class="ml-2 block text-sm text-gray-700">
                         Active (visible in task forms)
                     </label>
@@ -145,7 +145,7 @@
                         Cancel
                     </a>
                     <button type="submit" 
-                            class="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            class="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                         Update Activity Type
                     </button>
                 </div>
@@ -158,7 +158,7 @@
                 <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                     <h3 class="text-lg font-medium text-gray-900">Sub-Activities</h3>
                     <a href="{{ route('admin.sub-activities.create', ['activity_type' => $activityType->id]) }}" 
-                       class="inline-flex items-center px-3 py-1.5 text-sm text-indigo-600 hover:text-indigo-900">
+                       class="inline-flex items-center px-3 py-1.5 text-sm text-primary hover:text-primary">
                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
@@ -183,7 +183,7 @@
                                         @endif
                                     </div>
                                     <a href="{{ route('admin.sub-activities.edit', $subActivity) }}" 
-                                       class="text-sm text-indigo-600 hover:text-indigo-900">
+                                       class="text-sm text-primary hover:text-primary">
                                         Edit
                                     </a>
                                 </div>
@@ -192,7 +192,7 @@
                     @else
                         <p class="text-sm text-gray-500 text-center py-4">
                             No sub-activities yet. 
-                            <a href="{{ route('admin.sub-activities.create', ['activity_type' => $activityType->id]) }}" class="text-indigo-600 hover:text-indigo-900">Add one</a>
+                            <a href="{{ route('admin.sub-activities.create', ['activity_type' => $activityType->id]) }}" class="text-primary hover:text-primary">Add one</a>
                         </p>
                     @endif
                 </div>

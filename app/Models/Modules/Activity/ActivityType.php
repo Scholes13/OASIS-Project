@@ -2,7 +2,9 @@
 
 namespace App\Models\Modules\Activity;
 
+use App\Models\Core\Department;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ActivityType extends Model
@@ -44,6 +46,16 @@ class ActivityType extends Model
     public function autoLogRules(): HasMany
     {
         return $this->hasMany(AutoLogRule::class, 'activity_type_id');
+    }
+
+    /**
+     * Get departments that have this activity type assigned
+     */
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'department_activity_types')
+            ->withPivot(['is_default', 'sort_order'])
+            ->withTimestamps();
     }
 
     /**

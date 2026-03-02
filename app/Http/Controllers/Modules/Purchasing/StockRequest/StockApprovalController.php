@@ -9,31 +9,33 @@ use App\Services\Core\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class StockApprovalController extends Controller
 {
     /**
      * Show approval page for a specific approval
      */
-    public function show($approvalId)
+    public function show($approvalId): Response
     {
         $approval = StockApproval::with([
             'stockRequest' => function ($query) {
                 $query->select('id', 'st_number', 'user_id', 'department_id', 'business_unit_id',
-                              'purpose', 'status', 'date_of_request', 'expected_date',
-                              'created_at', 'submitted_at', 'approved_at');
+                    'purpose', 'status', 'date_of_request', 'expected_date',
+                    'created_at', 'submitted_at', 'approved_at');
             },
             'stockRequest.user:id,name,email',
             'stockRequest.department:id,name,code',
             'stockRequest.businessUnit:id,name,code,logo',
             'stockRequest.items' => function ($query) {
                 $query->select('id', 'stock_request_id', 'item_name', 'specifications',
-                              'quantity', 'unit', 'price', 'total', 'item_code');
+                    'quantity', 'unit', 'price', 'total', 'item_code');
             },
             'stockRequest.approvals' => function ($query) {
                 $query->select('id', 'stock_request_id', 'approver_id', 'step_order',
-                              'approval_type', 'task_type', 'status', 'notes', 'responded_at')
-                      ->orderBy('step_order');
+                    'approval_type', 'task_type', 'status', 'notes', 'responded_at')
+                    ->orderBy('step_order');
             },
             'stockRequest.approvals.approver:id,name,email',
             'approver:id,name,email',
@@ -48,9 +50,33 @@ class StockApprovalController extends Controller
         $currentApproval = $approval->stockRequest->currentApproval();
         $canApprove = $currentApproval && $currentApproval->id === $approval->id;
 
-        return view('purchasing.approvals.stock-request.show', compact('approval', 'canApprove'));
-    }
+        $authorization = [
+            'approve' => $canApprove,
+            'reject' => $canApprove,
+            'edit' => false,
+            'delete' => false,
+            'void' => false,
+            'resubmit' => false,
+            'downloadPdf' => true,
+            'markOfflineApproved' => false,
+        ];
 
+        return Inertia::render('Purchasing/StockRequest/Show', [
+            'stockRequest' => array_merge(
+                $approval->stockRequest->toArray(),
+                [
+                    'approval_progress' => $approval->stockRequest->getApprovalProgress(),
+                    'can' => $authorization,
+                ]
+            ),
+            'can' => $authorization,
+            'approvalContext' => [
+                'approvalId' => $approval->id,
+                'canApprove' => $canApprove,
+                'approvalStatus' => $approval->status,
+            ],
+        ]);
+    }
 
     /**
      * Process approval action
@@ -86,7 +112,7 @@ class StockApprovalController extends Controller
 
         // Check if this is the current approval step
         $currentApproval = $approval->stockRequest->currentApproval();
-        if (!$currentApproval || $currentApproval->id !== $approval->id) {
+        if (! $currentApproval || $currentApproval->id !== $approval->id) {
             return redirect()->back()->with('error', 'This approval is not currently active.');
         }
 
@@ -161,7 +187,7 @@ class StockApprovalController extends Controller
     protected function sendNextApproverNotification(StockApproval $approval): void
     {
         try {
-            if ($approval->approver && !$approval->email_sent) {
+            if ($approval->approver && ! $approval->email_sent) {
                 $approval->approver->notify(
                     new \App\Notifications\Purchasing\StockRequest\ApprovalRequested($approval)
                 );
@@ -208,7 +234,6 @@ class StockApprovalController extends Controller
         ]);
     }
 
-
     /**
      * Show public view of stock request via QR code
      */
@@ -218,7 +243,7 @@ class StockApprovalController extends Controller
         $approverId = $request->get('approver');
         $requestorId = $request->get('requestor');
 
-        if (!$token) {
+        if (! $token) {
             abort(404, 'Invalid verification link.');
         }
 
@@ -239,7 +264,7 @@ class StockApprovalController extends Controller
                 abort(404, 'Invalid requestor verification.');
             }
 
-            if (!$qrCodeService->verifyStockRequestorToken($stockRequest, $token)) {
+            if (! $qrCodeService->verifyStockRequestorToken($stockRequest, $token)) {
                 abort(403, 'Invalid verification token.');
             }
 
@@ -257,11 +282,11 @@ class StockApprovalController extends Controller
                 ->where('status', 'approved')
                 ->first();
 
-            if (!$approval) {
+            if (! $approval) {
                 abort(404, 'Approval not found or not approved.');
             }
 
-            if (!$qrCodeService->verifyStockApprovalToken($approval, $token)) {
+            if (! $qrCodeService->verifyStockApprovalToken($approval, $token)) {
                 abort(403, 'Invalid verification token.');
             }
 
@@ -284,7 +309,7 @@ class StockApprovalController extends Controller
      */
     public function index(Request $request)
     {
-        return view('purchasing.approvals.stock-request.index');
+        return redirect()->route('approvals.index');
     }
 
     /**
@@ -307,7 +332,7 @@ class StockApprovalController extends Controller
         if ($approval->status !== 'pending') {
             return view('purchasing.approvals.stock-request.public-error', [
                 'title' => 'Approval Already Processed',
-                'message' => 'This approval has already been ' . $approval->status . '.',
+                'message' => 'This approval has already been '.$approval->status.'.',
                 'icon' => 'fa-check-circle',
                 'color' => $approval->status === 'approved' ? 'green' : 'red',
             ]);
@@ -317,7 +342,7 @@ class StockApprovalController extends Controller
         if ($approval->stockRequest->status !== 'in_approval') {
             return view('purchasing.approvals.stock-request.public-error', [
                 'title' => 'Request No Longer Active',
-                'message' => 'This stock request is no longer awaiting approval (Status: ' . $approval->stockRequest->status . ').',
+                'message' => 'This stock request is no longer awaiting approval (Status: '.$approval->stockRequest->status.').',
                 'icon' => 'fa-exclamation-triangle',
                 'color' => 'yellow',
             ]);
@@ -325,7 +350,7 @@ class StockApprovalController extends Controller
 
         // Validate this is the current approval step
         $currentApproval = $approval->stockRequest->currentApproval();
-        if (!$currentApproval || $currentApproval->id !== $approval->id) {
+        if (! $currentApproval || $currentApproval->id !== $approval->id) {
             return view('purchasing.approvals.stock-request.public-error', [
                 'title' => 'Not Current Approval Step',
                 'message' => 'This approval is not currently active. Another approver may need to act first.',
@@ -362,7 +387,6 @@ class StockApprovalController extends Controller
         return $qrCodes;
     }
 
-
     /**
      * Process public approval decision (no authentication required)
      */
@@ -388,7 +412,7 @@ class StockApprovalController extends Controller
         if ($approval->status !== 'pending') {
             return view('purchasing.approvals.stock-request.public-error', [
                 'title' => 'Approval Already Processed',
-                'message' => 'This approval has already been ' . $approval->status . '.',
+                'message' => 'This approval has already been '.$approval->status.'.',
                 'icon' => 'fa-check-circle',
                 'color' => $approval->status === 'approved' ? 'green' : 'red',
             ]);
@@ -406,7 +430,7 @@ class StockApprovalController extends Controller
 
         // Re-validate current step
         $currentApproval = $approval->stockRequest->currentApproval();
-        if (!$currentApproval || $currentApproval->id !== $approval->id) {
+        if (! $currentApproval || $currentApproval->id !== $approval->id) {
             return view('purchasing.approvals.stock-request.public-error', [
                 'title' => 'Not Current Approval Step',
                 'message' => 'This approval is not currently active.',

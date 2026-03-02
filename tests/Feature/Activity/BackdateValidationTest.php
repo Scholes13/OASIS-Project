@@ -17,14 +17,20 @@ class BackdateValidationTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected BusinessUnit $businessUnit;
+
     protected Department $department;
+
     protected ActivityType $activityType;
+
     protected BackdatePermissionService $backdateService;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        config(['features.backdate_approval' => true]);
 
         // Create test data
         $this->businessUnit = BusinessUnit::factory()->create();
@@ -132,7 +138,7 @@ class BackdateValidationTest extends TestCase
         $range = $this->backdateService->getAllowedDateRange($this->user);
 
         $this->assertEquals(Carbon::yesterday()->startOfDay()->toDateString(), $range['from']->toDateString());
-        $this->assertEquals(Carbon::today()->toDateString(), $range['to']->toDateString());
+        $this->assertEquals(Carbon::today()->addYear()->toDateString(), $range['to']->toDateString());
     }
 
     /** @test */
@@ -156,6 +162,6 @@ class BackdateValidationTest extends TestCase
         $range = $this->backdateService->getAllowedDateRange($this->user);
 
         $this->assertEquals($tenDaysAgo->toDateString(), $range['from']->toDateString());
-        $this->assertEquals(Carbon::today()->toDateString(), $range['to']->toDateString());
+        $this->assertEquals(Carbon::today()->addYear()->toDateString(), $range['to']->toDateString());
     }
 }

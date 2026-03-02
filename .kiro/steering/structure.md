@@ -8,9 +8,9 @@ inclusion: always
 
 **Multi-Business Unit Architecture**: Session-based context switching via `current_business_unit_id`. All queries MUST filter by active business unit.
 
-## Frontend Stack (React/Inertia - Primary)
+## Frontend Stack (React/Inertia)
 
-New features MUST use React/Inertia. Livewire is legacy and only maintained for existing Purchasing module views.
+All features use React/Inertia with TypeScript.
 
 | Path | Purpose |
 |------|---------|
@@ -88,18 +88,6 @@ const { currentBusinessUnit, isSwitching } = useBusinessUnit(['data-key']);
 - **Super Admin**: `$user->isSuperAdmin()` bypasses all checks
 - **Gates**: `view-reports` for top management (GM, Director, CEO, Finance Manager)
 - **Permissions**: Spatie Permission package, check via `$user->can('permission-name')`
-
-## Legacy (Livewire) - Maintenance Only
-
-⚠️ DO NOT create new Livewire components. Only maintain existing:
-- Purchasing module (PR/ST create, list, approvals)
-- Dashboard widgets
-- Business unit switcher
-
-| Legacy Path | Status |
-|-------------|--------|
-| `app/Livewire/Modules/Purchasing/` | Maintenance only |
-| `resources/views/livewire/` | Maintenance only |
 
 ## Key Files Reference
 

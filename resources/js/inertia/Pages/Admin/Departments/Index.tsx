@@ -72,7 +72,7 @@ export default function Index({ departments, businessUnits, filters }: Departmen
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2"><Label htmlFor="search">Search</Label><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input id="search" type="text" placeholder="Search departments..." value={search} onChange={(e) => handleSearch(e.target.value)} className="pl-9" /></div></div>
-            <div className="space-y-2"><Label htmlFor="business-unit">Business Unit</Label><select id="business-unit" value={businessUnitId} onChange={(e) => handleBusinessUnitFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"><option value="">All Business Units</option>{businessUnits.map((bu) => <option key={bu.id} value={bu.id}>{bu.name}</option>)}</select></div>
+            <div className="space-y-2"><Label htmlFor="business-unit">Business Unit</Label><select id="business-unit" value={businessUnitId} onChange={(e) => handleBusinessUnitFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"><option value="">All Business Units</option>{businessUnits.map((bu) => <option key={bu.id} value={bu.id}>{bu.name}</option>)}</select></div>
             <div className="flex items-end">{hasActiveFilters && <Button variant="outline" onClick={handleClearFilters} className="w-full flex items-center justify-center gap-2"><X className="w-4 h-4" />Clear Filters</Button>}</div>
           </div>
         </div>

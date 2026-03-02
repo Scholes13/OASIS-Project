@@ -211,7 +211,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             <select
                                 value={data.business_unit_id}
                                 onChange={(e) => setData('business_unit_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-gray-100 cursor-not-allowed"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-gray-100 cursor-not-allowed"
                                 disabled={true}
                             >
                                 <option value="">Select Business Unit</option>
@@ -234,7 +234,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             <select
                                 value={data.department_id}
                                 onChange={(e) => setData('department_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-gray-100 cursor-not-allowed"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-gray-100 cursor-not-allowed"
                                 disabled={true}
                             >
                                 <option value="">Select Department</option>
@@ -257,7 +257,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             <select
                                 value={data.category_id}
                                 onChange={(e) => setData('category_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
                             >
                                 <option value="">Select Category</option>
                                 {categories.map((cat) => (
@@ -276,7 +276,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             <select
                                 value={data.currency}
                                 onChange={(e) => handleCurrencyChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
                             >
                                 <option value="IDR">IDR</option>
                                 <option value="USD">USD</option>
@@ -309,7 +309,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             onChange={(e) => setData('used_for', e.target.value)}
                             placeholder="Describe the purpose of this purchase request (minimum 10 characters)"
                             rows={3}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm ${errors.used_for ? 'border-red-500' : 'border-gray-300'
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm ${errors.used_for ? 'border-red-500' : 'border-gray-300'
                                 }`}
                         />
                         {errors.used_for && (
@@ -448,14 +448,14 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             className="flex items-center gap-3"
                         >
-                            <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
+                            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
                                 {index + 1}
                             </div>
                             <div className="flex-1">
                                 <select
                                     value={step.approver_id}
                                     onChange={(e) => handleUpdateApprovalStep(index, 'approver_id', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
                                 >
                                     <option value="">Select Approver</option>
                                     {availableApprovers.map((approver) => (
@@ -469,7 +469,7 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                                 <select
                                     value={step.task_type}
                                     onChange={(e) => handleUpdateApprovalStep(index, 'task_type', e.target.value as 'approval' | 'paraf')}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
                                 >
                                     <option value="approval">Approval</option>
                                     <option value="paraf">Paraf</option>

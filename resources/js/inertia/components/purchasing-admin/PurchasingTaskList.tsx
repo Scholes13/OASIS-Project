@@ -95,7 +95,7 @@ export function PurchasingTaskList({
                             className={cn(
                                 "py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors",
                                 activeTab === tab.id
-                                    ? "border-indigo-500 text-indigo-600"
+                                    ? "border-primary text-primary"
                                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                             )}
                         >
@@ -103,7 +103,7 @@ export function PurchasingTaskList({
                             <span className={cn(
                                 "ml-2 py-0.5 px-2 rounded-full text-xs",
                                 activeTab === tab.id
-                                    ? "bg-indigo-100 text-indigo-600"
+                                    ? "bg-blue-50 text-blue-700"
                                     : "bg-gray-100 text-gray-600"
                             )}>
                                 {counts[tab.countKey]}
@@ -122,7 +122,7 @@ export function PurchasingTaskList({
                             setTypeFilter(e.target.value);
                             handleFilterChange({ type: e.target.value });
                         }}
-                        className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                         {typeOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -134,7 +134,7 @@ export function PurchasingTaskList({
                             setDateFilter(e.target.value);
                             handleFilterChange({ date: e.target.value });
                         }}
-                        className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                         {dateOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -149,7 +149,7 @@ export function PurchasingTaskList({
                             placeholder="Search number..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                         />
                     </form>
                 </div>
@@ -209,7 +209,7 @@ export function PurchasingTaskList({
                                     className={cn(
                                         "px-3 py-1.5 text-sm rounded border transition-colors",
                                         link.active
-                                            ? "bg-indigo-600 text-white border-indigo-600"
+                                            ? "bg-primary text-white border-primary"
                                             : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
                                     )}
                                     preserveScroll

@@ -164,7 +164,7 @@ export function FileUpload({
             <div className="mt-2">
               <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-indigo-600 h-full transition-all duration-300 ease-out"
+                  className="bg-primary h-full transition-all duration-300 ease-out"
                   style={{ width: `${uploadProgress.progress}%` }}
                 />
               </div>
@@ -206,7 +206,7 @@ export function FileUpload({
             relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
             transition-colors
             ${dragActive 
-              ? 'border-indigo-500 bg-indigo-50' 
+              ? 'border-primary bg-primary' 
               : 'border-gray-300 hover:border-gray-400'
             }
           `}
@@ -227,7 +227,7 @@ export function FileUpload({
               <Upload className="w-12 h-12 text-gray-400" />
             )}
             <div className="text-sm text-gray-600">
-              <span className="font-medium text-indigo-600 hover:text-indigo-500">
+              <span className="font-medium text-primary hover:text-primary">
                 Click to upload
               </span>
               {' or drag and drop'}

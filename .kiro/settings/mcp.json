@@ -3,7 +3,7 @@
     "laravel-boost": {
       "command": "C:\\xampp\\php\\php.exe",
       "args": ["artisan", "boost:mcp"],
-      "cwd": "F:\\Project\\Numbering",
+      "cwd": "I:\\Project\\Numbering",
       "env": {
         "APP_ENV": "local"
       },

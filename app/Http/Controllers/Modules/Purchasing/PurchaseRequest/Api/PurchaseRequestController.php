@@ -82,7 +82,6 @@ class PurchaseRequestController extends Controller
         ]);
     }
 
-
     /**
      * Store a newly created purchase request
      */
@@ -134,9 +133,9 @@ class PurchaseRequestController extends Controller
                     'purchase_request_id' => $purchaseRequest->id,
                     'item_order' => $index + 1,
                     'item_name' => $itemData['item_name'],
-                    'brand_name' => $itemData['brand_name'],
-                    'item_description' => $itemData['item_description'],
-                    'supplier_name' => $itemData['supplier_name'],
+                    'brand_name' => $itemData['brand_name'] ?? null,
+                    'item_description' => $itemData['item_description'] ?? null,
+                    'supplier_name' => $itemData['supplier_name'] ?? null,
                     'quantity' => $itemData['quantity'],
                     'unit' => $itemData['unit'],
                     'unit_price' => $itemData['unit_price'],
@@ -244,9 +243,9 @@ class PurchaseRequestController extends Controller
                     'purchase_request_id' => $purchaseRequest->id,
                     'item_order' => $index + 1,
                     'item_name' => $itemData['item_name'],
-                    'brand_name' => $itemData['brand_name'],
-                    'item_description' => $itemData['item_description'],
-                    'supplier_name' => $itemData['supplier_name'],
+                    'brand_name' => $itemData['brand_name'] ?? null,
+                    'item_description' => $itemData['item_description'] ?? null,
+                    'supplier_name' => $itemData['supplier_name'] ?? null,
                     'quantity' => $itemData['quantity'],
                     'unit' => $itemData['unit'],
                     'unit_price' => $itemData['unit_price'],
@@ -281,7 +280,6 @@ class PurchaseRequestController extends Controller
             ], 500);
         }
     }
-
 
     /**
      * Submit purchase request for approval

@@ -43,7 +43,7 @@ export default function PrefetchTest() {
                                     <div className="p-4 border rounded-lg hover:bg-gray-50">
                                         <Link 
                                             href="/dashboard"
-                                            className="text-indigo-600 hover:text-indigo-800 font-medium"
+                                            className="text-primary hover:text-primary font-medium"
                                             onMouseEnter={onMouseEnter}
                                             onMouseLeave={onMouseLeave}
                                         >
@@ -57,7 +57,7 @@ export default function PrefetchTest() {
                                     <div className="p-4 border rounded-lg hover:bg-gray-50">
                                         <Link 
                                             href="/purchase-requests"
-                                            className="text-indigo-600 hover:text-indigo-800 font-medium"
+                                            className="text-primary hover:text-primary font-medium"
                                             onMouseEnter={onMouseEnter}
                                             onMouseLeave={onMouseLeave}
                                         >

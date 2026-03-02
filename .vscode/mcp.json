@@ -1,11 +1,13 @@
 {
     "servers": {
         "laravel-boost": {
-            "command": "php",
+            "type": "stdio",
+            "command": "C:\\xampp\\php\\php.exe",
             "args": [
                 "artisan",
                 "boost:mcp"
-            ]
+            ],
+            "cwd": "${workspaceFolder}"
         }
     }
 }

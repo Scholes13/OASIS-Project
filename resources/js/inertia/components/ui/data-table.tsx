@@ -66,6 +66,7 @@ interface DataTableProps<TData, TValue> {
     loading?: boolean
     className?: string
     rowClassName?: string
+    meta?: Record<string, any>
 }
 
 export function DataTable<TData, TValue>({
@@ -82,6 +83,7 @@ export function DataTable<TData, TValue>({
     loading = false,
     className,
     rowClassName,
+    meta,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -109,6 +111,7 @@ export function DataTable<TData, TValue>({
         initialState: {
             pagination: { pageSize },
         },
+        meta,
     })
 
     const searchValue = searchKey 
@@ -140,7 +143,7 @@ export function DataTable<TData, TValue>({
                                 placeholder={searchPlaceholder}
                                 value={searchValue}
                                 onChange={(e) => handleSearchChange(e.target.value)}
-                                className="w-full py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors placeholder:text-gray-400"
+                                className="w-full py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors placeholder:text-gray-400"
                                 style={{ paddingLeft: '34px', paddingRight: '36px' }}
                             />
                             {searchValue && (
@@ -179,7 +182,7 @@ export function DataTable<TData, TValue>({
                                                 type="checkbox"
                                                 checked={column.getIsVisible()}
                                                 onChange={(e) => column.toggleVisibility(e.target.checked)}
-                                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                             />
                                             <span className="ml-2 capitalize">{column.id.replace(/_/g, " ")}</span>
                                         </label>

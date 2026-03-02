@@ -251,7 +251,7 @@ trait HasAttributes
     protected function addDateAttributesToArray(array $attributes)
     {
         foreach ($this->getDates() as $key) {
-            if (! isset($attributes[$key])) {
+            if (is_null($key) || ! isset($attributes[$key])) {
                 continue;
             }
 
@@ -792,11 +792,13 @@ trait HasAttributes
         foreach ($casts as $attribute => $cast) {
             $casts[$attribute] = match (true) {
                 is_object($cast) => value(function () use ($cast, $attribute) {
-                    return $cast instanceof Stringable
-                        ? (string) $cast
-                        : throw new InvalidArgumentException(
-                            "The cast object for the {$attribute} attribute must implement Stringable."
-                        );
+                    if ($cast instanceof Stringable) {
+                        return (string) $cast;
+                    }
+
+                    throw new InvalidArgumentException(
+                        "The cast object for the {$attribute} attribute must implement Stringable."
+                    );
                 }),
                 is_array($cast) => value(function () use ($cast) {
                     if (count($cast) === 1) {
@@ -1312,7 +1314,7 @@ trait HasAttributes
      * @param  string  $path
      * @param  string  $key
      * @param  mixed  $value
-     * @return $this
+     * @return array
      */
     protected function getArrayAttributeWithValue($path, $key, $value)
     {
@@ -1620,7 +1622,7 @@ trait HasAttributes
     /**
      * Get the attributes that should be converted to dates.
      *
-     * @return array
+     * @return array<int, string|null>
      */
     public function getDates()
     {
@@ -1783,6 +1785,10 @@ trait HasAttributes
         $castType = $casts[$key];
 
         if (in_array($castType, static::$primitiveCastTypes)) {
+            return false;
+        }
+
+        if (is_subclass_of($castType, Castable::class)) {
             return false;
         }
 

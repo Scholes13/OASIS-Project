@@ -166,7 +166,7 @@ function DraggableTaskCard({ task, isDragging, onTaskClick }: DraggableTaskCardP
                 'group bg-white p-3 rounded-lg border border-slate-200 shadow-sm cursor-pointer transition-all duration-200',
                 'hover:shadow-md hover:border-slate-300',
                 isSortableDragging && 'opacity-50 shadow-none',
-                isDragging && 'ring-2 ring-indigo-500 ring-offset-2 z-50'
+                isDragging && 'ring-2 ring-primary ring-offset-2 z-50'
             )}
             {...attributes}
             {...listeners}
@@ -223,7 +223,7 @@ function TaskCardOverlay({ task }: { task: AdminTask }) {
     const typeColor = isPR ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700';
 
     return (
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xl ring-2 ring-indigo-500/20 transform rotate-2 cursor-grabbing w-[280px]">
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xl ring-2 ring-primary/20 transform rotate-2 cursor-grabbing w-[280px]">
             <div className="mb-2">
                 <span className={cn(
                     'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold',
@@ -269,7 +269,7 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
             'bg-slate-50/80 border border-slate-200/60',
             'border-t-4',
             column.borderColor,
-            isOver && 'ring-2 ring-indigo-400 ring-offset-2 bg-indigo-50/30'
+            isOver && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50'
         )}>
             {/* Column Header */}
             <div className={cn(
@@ -300,7 +300,7 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
                     ref={setNodeRef}
                     className={cn(
                         'flex-1 flex flex-col gap-2 p-3 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto transition-colors',
-                        isOver && 'bg-indigo-50/50'
+                        isOver && 'bg-blue-50'
                     )}
                 >
                     <AnimatePresence mode="popLayout">
@@ -310,7 +310,7 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
                                 animate={{ opacity: 1 }}
                                 className={cn(
                                     'flex flex-col items-center justify-center py-12 text-center rounded-lg border-2 border-dashed',
-                                    isOver ? 'border-indigo-300 bg-indigo-50' : 'border-transparent'
+                                    isOver ? 'border-primary bg-primary' : 'border-transparent'
                                 )}
                             >
                                 <div className="h-10 w-10 rounded-full bg-slate-200/50 flex items-center justify-center mb-3">

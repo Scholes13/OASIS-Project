@@ -23,17 +23,39 @@ class PurchaseRequestObserver
         // Check if status changed to 'approved'
         if ($purchaseRequest->isDirty('status') && $purchaseRequest->status === 'approved') {
             try {
+                $departmentId = $purchaseRequest->department_id;
+                $businessUnitId = $purchaseRequest->business_unit_id;
+
+                if (! $departmentId || ! $businessUnitId) {
+                    $fresh = PurchaseRequest::query()
+                        ->select(['id', 'department_id', 'business_unit_id'])
+                        ->find($purchaseRequest->id);
+
+                    $departmentId = $departmentId ?: $fresh?->department_id;
+                    $businessUnitId = $businessUnitId ?: $fresh?->business_unit_id;
+                }
+
+                if (! $departmentId || ! $businessUnitId) {
+                    Log::warning('Skip admin task creation due to missing PR context', [
+                        'pr_id' => $purchaseRequest->id,
+                        'department_id' => $departmentId,
+                        'business_unit_id' => $businessUnitId,
+                    ]);
+
+                    return;
+                }
+
                 // Determine if task should be auto-assigned
                 $assignedAdminId = $this->assignmentService->determineAssignment(
-                    $purchaseRequest->department_id,
-                    $purchaseRequest->business_unit_id
+                    (int) $departmentId,
+                    (int) $businessUnitId
                 );
 
                 // Create admin task
                 $this->adminTaskService->createTask(
                     $purchaseRequest,
-                    $purchaseRequest->business_unit_id,
-                    $purchaseRequest->department_id,
+                    (int) $businessUnitId,
+                    (int) $departmentId,
                     $assignedAdminId
                 );
 
@@ -42,7 +64,7 @@ class PurchaseRequestObserver
                     'pr_number' => $purchaseRequest->pr_number,
                     'assigned_admin_id' => $assignedAdminId,
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Failed to create admin task for approved PR', [
                     'pr_id' => $purchaseRequest->id,
                     'pr_number' => $purchaseRequest->pr_number,

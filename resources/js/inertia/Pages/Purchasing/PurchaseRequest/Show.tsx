@@ -15,7 +15,8 @@ import {
     Eye,
     Upload,
     AlertTriangle,
-    Loader2
+    Loader2,
+    Send
 } from 'lucide-react';
 import { PRShowProps } from '@/types/purchasing';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     const [approvalNotes, setApprovalNotes] = useState('');
     const [rejectionNotes, setRejectionNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isResendingEmail, setIsResendingEmail] = useState(false);
 
     // Status styling configuration
     const statusConfig = {
@@ -53,6 +55,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
         reject?: boolean;
         edit?: boolean;
         resubmit?: boolean;
+        resendApprovalEmail?: boolean;
         downloadPdf?: boolean;
         markOfflineApproved?: boolean;
         void?: boolean;
@@ -127,6 +130,25 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                 onError: () => {
                     toast.error('Failed to resubmit purchase request');
                 },
+            }
+        );
+    };
+
+    // Handle resend approval email
+    const handleResendApprovalEmail = () => {
+        setIsResendingEmail(true);
+
+        router.post(
+            route('purchase-requests.resend-approval-email', { purchaseRequest: purchaseRequest.id }),
+            {},
+            {
+                onSuccess: () => {
+                    toast.success('Approval email resent to current approver');
+                },
+                onError: () => {
+                    toast.error('Failed to resend approval email');
+                },
+                onFinish: () => setIsResendingEmail(false),
             }
         );
     };
@@ -211,7 +233,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
         <>
             <Head title={`PR ${purchaseRequest.pr_number}`} />
 
-            <div className="min-h-screen bg-white">
+            <div className="bg-white">
                 {/* Header */}
                 <div className="border-b border-gray-200 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -285,10 +307,27 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleResubmit}
-                                    className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50"
+                                    className="text-primary hover:text-primary hover:bg-blue-600"
                                 >
                                     <RotateCcw className="w-4 h-4 mr-1.5" />
                                     Resubmit
+                                </Button>
+                            )}
+
+                            {permissions?.resendApprovalEmail && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleResendApprovalEmail}
+                                    disabled={isResendingEmail}
+                                    className="text-sky-600 hover:text-sky-900 hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isResendingEmail ? (
+                                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                    ) : (
+                                        <Send className="w-4 h-4 mr-1.5" />
+                                    )}
+                                    Resend Email
                                 </Button>
                             )}
 

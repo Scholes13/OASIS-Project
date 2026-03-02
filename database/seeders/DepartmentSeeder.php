@@ -30,12 +30,28 @@ class DepartmentSeeder extends Seeder
 
         $wnsDepartments = [
             [
+                'code' => 'ACC',
+                'name' => 'Accounting',
+            ],
+            [
+                'code' => 'ACS',
+                'name' => 'Art & Creative Support',
+            ],
+            [
                 'code' => 'BAS',
                 'name' => 'Business & Administrative Services',
             ],
             [
-                'code' => 'CORP',
-                'name' => 'Corporate',
+                'code' => 'BID',
+                'name' => 'Business Innovation Development',
+            ],
+            [
+                'code' => 'CFC',
+                'name' => 'Corporate Finance Controller',
+            ],
+            [
+                'code' => 'CT',
+                'name' => 'Corporate Travel',
             ],
             [
                 'code' => 'GA',
@@ -46,24 +62,20 @@ class DepartmentSeeder extends Seeder
                 'name' => 'Human Resource',
             ],
             [
-                'code' => 'ACC',
-                'name' => 'Accounting',
-            ],
-            [
-                'code' => 'TEP',
-                'name' => 'Tour & Event Planning',
-            ],
-            [
-                'code' => 'ACS',
-                'name' => 'Art & Creative Support',
+                'code' => 'PD',
+                'name' => 'Product Development',
             ],
             [
                 'code' => 'SO',
                 'name' => 'Sales Operation',
             ],
             [
-                'code' => 'BID',
-                'name' => 'Business Innovation Development',
+                'code' => 'SS',
+                'name' => 'Strategic Sourcing',
+            ],
+            [
+                'code' => 'TEP',
+                'name' => 'Tour & Event Planning',
             ],
         ];
 

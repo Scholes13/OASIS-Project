@@ -19,28 +19,17 @@ window.toastManager = {
             this.createFallbackContainer();
         }
         
-        // Listen for Livewire events
-        document.addEventListener('livewire:init', () => {
-            if (typeof Livewire !== 'undefined') {
-                Livewire.on('notify', (data) => {
-                    console.log('Livewire notify received:', data);
-                    // Handle both array format and object format
-                    if (Array.isArray(data) && data.length > 0) {
-                        const eventData = data[0];
-                        this.show(eventData.message, eventData.type, eventData.duration);
-                    } else if (typeof data === 'object' && data.message) {
-                        this.show(data.message, data.type, data.duration);
-                    } else {
-                        console.error('Invalid notify data format:', data);
-                    }
-                });
-            }
-        });
-        
         // Listen for custom events
         window.addEventListener('show-toast', (e) => {
             console.log('Custom toast event:', e.detail);
             this.show(e.detail.message, e.detail.type, e.detail.duration);
+        });
+        
+        // Listen for notify custom event (used by window.notify helper)
+        window.addEventListener('notify', (e) => {
+            if (e.detail) {
+                this.show(e.detail.message, e.detail.type, e.detail.duration);
+            }
         });
     },
     
@@ -212,11 +201,6 @@ if (document.readyState === 'loading') {
 } else {
     initializeToastManager();
 }
-
-// Reinitialize after navigation with delay to ensure DOM is ready
-document.addEventListener('livewire:navigated', () => {
-    setTimeout(initializeToastManager, 150);
-});
 </script>
 
 <style>

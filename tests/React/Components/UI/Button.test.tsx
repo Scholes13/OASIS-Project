@@ -22,7 +22,7 @@ describe('Button Component', () => {
     render(<Button>Default</Button>);
 
     const button = screen.getByText('Default');
-    expect(button).toHaveClass('bg-indigo-600');
+    expect(button).toHaveClass('bg-primary');
   });
 
   it('applies destructive variant styles', () => {

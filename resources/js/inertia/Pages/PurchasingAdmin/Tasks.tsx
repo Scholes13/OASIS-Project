@@ -27,14 +27,6 @@ interface TasksProps extends PageProps {
     allTasks: AdminTask[];
     filters: TaskFilters;
     counts: TaskCounts;
-    debug?: {
-        session_bu_id: number | null;
-        user_id: number;
-        total_admin_tasks: number;
-        tasks_in_current_bu: number;
-        pending_in_current_bu: number;
-        all_bu_ids_in_tasks: number[];
-    };
 }
 
 const viewModes = [
@@ -44,7 +36,7 @@ const viewModes = [
     { id: 'timeline' as ViewMode, icon: GitBranch, label: 'Timeline' },
 ];
 
-export default function Tasks({ tasks, allTasks, filters, counts, debug }: TasksProps) {
+export default function Tasks({ tasks, allTasks, filters, counts }: TasksProps) {
     // Get view from URL or default to 'list'
     const url = new URL(window.location.href);
     const initialView = (url.searchParams.get('view') as ViewMode) || 'list';
@@ -106,21 +98,6 @@ export default function Tasks({ tasks, allTasks, filters, counts, debug }: Tasks
             <Head title="Task Management" />
             <div className="py-6">
                 <div className="w-full px-4 sm:px-6 lg:px-8">
-                    {/* Debug Info - Remove after confirmation */}
-                    {debug && (
-                        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
-                            <h3 className="font-bold text-yellow-800 mb-2">🔍 Debug Info</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-yellow-700">
-                                <div>Session BU ID: <span className="font-mono">{debug.session_bu_id ?? 'NULL'}</span></div>
-                                <div>User ID: <span className="font-mono">{debug.user_id}</span></div>
-                                <div>Total AdminTasks: <span className="font-mono">{debug.total_admin_tasks}</span></div>
-                                <div>Tasks in Current BU: <span className="font-mono">{debug.tasks_in_current_bu}</span></div>
-                                <div>Pending in Current BU: <span className="font-mono">{debug.pending_in_current_bu}</span></div>
-                                <div>All BU IDs: <span className="font-mono">[{debug.all_bu_ids_in_tasks.join(', ')}]</span></div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Header */}
                     <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
@@ -140,7 +117,7 @@ export default function Tasks({ tasks, allTasks, filters, counts, debug }: Tasks
                                         className={cn(
                                             'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all',
                                             viewMode === mode.id
-                                                ? 'bg-white text-indigo-600 shadow-sm'
+                                                ? 'bg-white text-primary shadow-sm'
                                                 : 'text-gray-600 hover:text-gray-900'
                                         )}
                                         title={mode.label}

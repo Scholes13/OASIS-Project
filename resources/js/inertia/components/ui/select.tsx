@@ -47,7 +47,7 @@ export function Select({
           <Listbox.Button
             className={cn(
               "relative w-full cursor-pointer rounded-md border bg-white py-2 pl-3 pr-10 text-left text-sm shadow-sm transition-colors",
-              "focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500",
+              "focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary",
               disabled && "cursor-not-allowed opacity-50 bg-gray-50",
               error ? "border-red-500" : "border-gray-300"
             )}
@@ -75,8 +75,8 @@ export function Select({
                   className={({ active, selected }) =>
                     cn(
                       "relative cursor-pointer select-none py-2 pl-10 pr-4",
-                      active && "bg-indigo-50 text-indigo-900",
-                      selected && "bg-indigo-100",
+                      active && "bg-blue-50 text-blue-800",
+                      selected && "bg-blue-500",
                       option.disabled && "cursor-not-allowed opacity-50"
                     )
                   }
@@ -87,7 +87,7 @@ export function Select({
                         {option.label}
                       </span>
                       {selected && (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-600">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
                           <Check className="h-4 w-4" aria-hidden="true" />
                         </span>
                       )}
@@ -147,7 +147,7 @@ export function MultiSelect({
           <Listbox.Button
             className={cn(
               "relative w-full cursor-pointer rounded-md border bg-white py-2 pl-3 pr-10 text-left text-sm shadow-sm transition-colors",
-              "focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500",
+              "focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary",
               disabled && "cursor-not-allowed opacity-50 bg-gray-50",
               error ? "border-red-500" : "border-gray-300"
             )}
@@ -177,8 +177,8 @@ export function MultiSelect({
                   className={({ active, selected }) =>
                     cn(
                       "relative cursor-pointer select-none py-2 pl-10 pr-4",
-                      active && "bg-indigo-50 text-indigo-900",
-                      selected && "bg-indigo-100",
+                      active && "bg-blue-50 text-blue-800",
+                      selected && "bg-blue-500",
                       option.disabled && "cursor-not-allowed opacity-50"
                     )
                   }
@@ -189,7 +189,7 @@ export function MultiSelect({
                         {option.label}
                       </span>
                       {selected && (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-600">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-primary">
                           <Check className="h-4 w-4" aria-hidden="true" />
                         </span>
                       )}

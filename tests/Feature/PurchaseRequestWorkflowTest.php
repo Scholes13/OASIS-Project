@@ -4,13 +4,18 @@ namespace Tests\Feature;
 
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
+use App\Models\Core\Position;
 use App\Models\Core\User;
+use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrItem;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Services\Core\EmailNotificationService;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
+use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
 use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Mockery\MockInterface;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -27,6 +32,10 @@ class PurchaseRequestWorkflowTest extends TestCase
     protected BusinessUnit $businessUnit;
 
     protected Department $department;
+
+    protected Position $staffPosition;
+
+    protected Position $headPosition;
 
     protected function setUp(): void
     {
@@ -54,13 +63,23 @@ class PurchaseRequestWorkflowTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->staffPosition = Position::where('department_id', $this->department->id)
+            ->where('code', 'STAFF_'.strtoupper($this->department->code))
+            ->firstOrFail();
+
+        $this->headPosition = Position::where('department_id', $this->department->id)
+            ->where('code', 'HOD_'.strtoupper($this->department->code))
+            ->firstOrFail();
+
         // Create users
         $this->requestor = User::create([
             'name' => 'John Requestor',
             'username' => 'john.requestor',
             'email' => 'john.requestor@test.com',
+            'phone_number' => '081200000001',
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
+            'primary_position_id' => $this->staffPosition->id,
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -70,8 +89,10 @@ class PurchaseRequestWorkflowTest extends TestCase
             'name' => 'Jane Department Head',
             'username' => 'jane.depthead',
             'email' => 'jane.depthead@test.com',
+            'phone_number' => '081200000002',
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
+            'primary_position_id' => $this->headPosition->id,
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -81,7 +102,10 @@ class PurchaseRequestWorkflowTest extends TestCase
             'name' => 'Bob Finance Manager',
             'username' => 'bob.finance',
             'email' => 'bob.finance@test.com',
+            'phone_number' => '081200000003',
             'password' => bcrypt('password'),
+            'primary_department_id' => $this->department->id,
+            'primary_position_id' => $this->staffPosition->id,
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -91,6 +115,9 @@ class PurchaseRequestWorkflowTest extends TestCase
         foreach ([$this->requestor, $this->departmentHead, $this->financeManager] as $user) {
             $user->businessUnits()->create([
                 'business_unit_id' => $this->businessUnit->id,
+                'department_id' => $this->department->id,
+                'position_id' => $user->id === $this->departmentHead->id ? $this->headPosition->id : $this->staffPosition->id,
+                'is_primary' => true,
                 'is_active' => true,
             ]);
         }
@@ -117,9 +144,18 @@ class PurchaseRequestWorkflowTest extends TestCase
         ]);
 
         $requestData = [
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
             'keperluan' => 'Office supplies for Q1 2025',
             'used_for' => 'General office operations and administrative tasks',
             'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'approval_workflow' => [
+                [
+                    'approver_id' => $this->departmentHead->id,
+                    'task_type' => 'approval',
+                ],
+            ],
             'items' => [
                 [
                     'item_name' => 'Office Chair',
@@ -155,17 +191,19 @@ class PurchaseRequestWorkflowTest extends TestCase
             'user_id' => $this->requestor->id,
             'department_id' => $this->department->id,
             'business_unit_id' => $this->businessUnit->id,
-            'keperluan' => 'Office supplies for Q1 2025',
-            'status' => 'draft',
+            'used_for' => 'General office operations and administrative tasks',
             'total_amount' => 1800000, // 2*500000 + 1*800000
         ]);
+
+        $createdPr = PurchaseRequest::where('user_id', $this->requestor->id)->latest('id')->first();
+        $this->assertContains($createdPr->status, ['submitted', 'in_approval']);
 
         // Check items were created
         $purchaseRequest = PurchaseRequest::where('user_id', $this->requestor->id)->first();
         $this->assertEquals(2, $purchaseRequest->items()->count());
 
-        // Check PR number format
-        $this->assertMatchesRegularExpression('/^PR\.'.$this->department->code.'\/\d{4}\/\d{2}\/\d{3}$/', $purchaseRequest->pr_number);
+        // Check PR number format (current format: PR.{BU_CODE}/{YYYYMM}/{SEQUENCE})
+        $this->assertMatchesRegularExpression('/^PR\.'.$this->businessUnit->code.'\/\d{6}\/\d{3}$/', $purchaseRequest->pr_number);
     }
 
     /** @test */
@@ -183,12 +221,9 @@ class PurchaseRequestWorkflowTest extends TestCase
             'current_business_unit_name' => $this->businessUnit->name,
         ]);
 
-        $response = $this->post(route('purchase-requests.submit', $purchaseRequest));
-
-        $response->assertRedirect();
+        $purchaseRequest = app(PurchaseRequestService::class)->submitPurchaseRequest($purchaseRequest);
 
         // Check status changed to submitted/in_approval
-        $purchaseRequest->refresh();
         $this->assertContains($purchaseRequest->status, ['submitted', 'in_approval']);
         $this->assertNotNull($purchaseRequest->submitted_at);
 
@@ -216,13 +251,12 @@ class PurchaseRequestWorkflowTest extends TestCase
 
         $this->assertNotNull($approval, 'Department head should have a pending approval');
 
-        $response = $this->post(route('approvals.process'), [
-            'approval_id' => $approval->id,
+        $response = $this->post(route('approvals.process', ['prApproval' => $approval->id]), [
             'action' => 'approve',
             'notes' => 'Approved for business needs',
         ]);
 
-        $response->assertJson(['success' => true]);
+        $response->assertRedirect(route('approvals.show', $approval->id));
 
         // Check approval was processed
         $approval->refresh();
@@ -245,13 +279,12 @@ class PurchaseRequestWorkflowTest extends TestCase
             ->where('status', 'pending')
             ->first();
 
-        $response = $this->post(route('approvals.process'), [
-            'approval_id' => $approval->id,
+        $response = $this->post(route('approvals.process', ['prApproval' => $approval->id]), [
             'action' => 'reject',
             'notes' => 'Insufficient business justification',
         ]);
 
-        $response->assertJson(['success' => true]);
+        $response->assertRedirect(route('approvals.show', $approval->id));
 
         // Check approval was rejected
         $approval->refresh();
@@ -273,7 +306,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $this->actingAs($this->requestor);
         session(['current_business_unit_id' => $this->businessUnit->id]);
 
-        $this->post(route('purchase-requests.submit', $purchaseRequest));
+        $purchaseRequest = app(PurchaseRequestService::class)->submitPurchaseRequest($purchaseRequest);
 
         $purchaseRequest->refresh();
 
@@ -287,8 +320,7 @@ class PurchaseRequestWorkflowTest extends TestCase
 
         if ($deptHeadApproval) {
             $this->actingAs($this->departmentHead);
-            $this->post(route('approvals.process'), [
-                'approval_id' => $deptHeadApproval->id,
+            $this->post(route('approvals.process', ['prApproval' => $deptHeadApproval->id]), [
                 'action' => 'approve',
                 'notes' => 'Department head approval',
             ]);
@@ -301,8 +333,7 @@ class PurchaseRequestWorkflowTest extends TestCase
 
         if ($financeApproval) {
             $this->actingAs($this->financeManager);
-            $this->post(route('approvals.process'), [
-                'approval_id' => $financeApproval->id,
+            $this->post(route('approvals.process', ['prApproval' => $financeApproval->id]), [
                 'action' => 'approve',
                 'notes' => 'Finance manager approval',
             ]);
@@ -372,6 +403,103 @@ class PurchaseRequestWorkflowTest extends TestCase
                     'total_amount',
                 ],
             ]);
+    }
+
+    /** @test */
+    public function owner_can_resend_approval_email_for_active_purchase_request()
+    {
+        $this->actingAs($this->requestor);
+
+        session([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_business_unit_code' => $this->businessUnit->code,
+            'current_business_unit_name' => $this->businessUnit->name,
+        ]);
+
+        $purchaseRequest = $this->createSamplePurchaseRequest();
+        $purchaseRequest->update([
+            'status' => 'in_approval',
+            'submitted_at' => now(),
+        ]);
+
+        $approval = PrApproval::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'approver_id' => $this->departmentHead->id,
+            'step_order' => 1,
+            'approval_type' => 'approval',
+            'status' => 'pending',
+            'assigned_at' => now(),
+            'due_date' => now()->addDays(2),
+        ]);
+
+        $this->mock(EmailNotificationService::class, function (MockInterface $mock) use ($approval) {
+            $mock->shouldReceive('sendApprovalRequested')
+                ->once()
+                ->withArgs(fn (PrApproval $sentApproval): bool => $sentApproval->id === $approval->id)
+                ->andReturn(true);
+        });
+
+        $response = $this->from(route('purchase-requests.show', $purchaseRequest))
+            ->post(route('purchase-requests.resend-approval-email', $purchaseRequest));
+
+        $response->assertRedirect(route('purchase-requests.show', $purchaseRequest));
+        $response->assertSessionHas('success');
+    }
+
+    /** @test */
+    public function non_owner_cannot_resend_approval_email()
+    {
+        $this->actingAs($this->departmentHead);
+
+        session([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_business_unit_code' => $this->businessUnit->code,
+            'current_business_unit_name' => $this->businessUnit->name,
+        ]);
+
+        $purchaseRequest = $this->createSamplePurchaseRequest();
+        $purchaseRequest->update([
+            'status' => 'in_approval',
+            'submitted_at' => now(),
+        ]);
+
+        PrApproval::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'approver_id' => $this->departmentHead->id,
+            'step_order' => 1,
+            'approval_type' => 'approval',
+            'status' => 'pending',
+            'assigned_at' => now(),
+            'due_date' => now()->addDays(2),
+        ]);
+
+        $response = $this->post(route('purchase-requests.resend-approval-email', $purchaseRequest));
+
+        $response->assertForbidden();
+    }
+
+    /** @test */
+    public function owner_cannot_resend_approval_email_for_non_active_workflow()
+    {
+        $this->actingAs($this->requestor);
+
+        session([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_business_unit_code' => $this->businessUnit->code,
+            'current_business_unit_name' => $this->businessUnit->name,
+        ]);
+
+        $purchaseRequest = $this->createSamplePurchaseRequest();
+        $purchaseRequest->update([
+            'status' => 'rejected',
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->from(route('purchase-requests.show', $purchaseRequest))
+            ->post(route('purchase-requests.resend-approval-email', $purchaseRequest));
+
+        $response->assertRedirect(route('purchase-requests.show', $purchaseRequest));
+        $response->assertSessionHas('error');
     }
 
     protected function createSamplePurchaseRequest(): PurchaseRequest

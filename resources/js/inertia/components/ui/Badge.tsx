@@ -101,7 +101,7 @@ interface ActivityTypeBadgeProps {
 function ActivityTypeBadge({ name, color }: ActivityTypeBadgeProps) {
     const colorMap: Record<string, string> = {
         'blue': 'bg-blue-100 text-blue-700',
-        'indigo': 'bg-indigo-100 text-indigo-700',
+        'indigo': 'bg-blue-100 text-blue-800',
         'purple': 'bg-purple-100 text-purple-700',
         'gray': 'bg-gray-100 text-gray-700',
         'yellow': 'bg-yellow-100 text-yellow-700',

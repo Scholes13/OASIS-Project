@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Link, usePage } from "@inertiajs/react"
+import { router, usePage } from "@inertiajs/react"
 import { format, isToday, isPast, isFuture, startOfDay, differenceInDays } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
@@ -28,6 +28,7 @@ type ViewMode = "my" | "department"
 interface ActivityTimelineProps {
   tasks: Task[]
   onTaskClick?: (task: Task) => void
+  onCreateTask?: () => void
   showDateHeaders?: boolean
   expandable?: boolean
 }
@@ -43,7 +44,11 @@ const statusStyles: Record<string, { dot: string; label: string }> = {
 function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
   const grouped = new Map<string, Task[]>()
   
-  const sortedTasks = [...tasks].sort((a, b) => 
+  // Separate tasks with and without due_date
+  const tasksWithDate = tasks.filter((t): t is Task & { due_date: string } => !!t.due_date)
+  const tasksWithoutDate = tasks.filter(t => !t.due_date)
+  
+  const sortedTasks = [...tasksWithDate].sort((a, b) => 
     new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
   )
 
@@ -54,6 +59,11 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
     }
     grouped.get(dateKey)!.push(task)
   })
+
+  // Group tasks without due_date under a special key
+  if (tasksWithoutDate.length > 0) {
+    grouped.set("no-date", tasksWithoutDate)
+  }
 
   return grouped
 }
@@ -77,9 +87,9 @@ function DateHeader({ date }: { date: Date }) {
         className={cn(
           "flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold",
           today
-            ? "bg-indigo-600 text-white"
+            ? "bg-primary text-white"
             : past
-            ? "bg-gray-200 text-gray-600"
+            ? "bg-slate-200 text-slate-600"
             : "bg-blue-100 text-blue-600"
         )}
       >
@@ -89,15 +99,15 @@ function DateHeader({ date }: { date: Date }) {
         <p
           className={cn(
             "text-sm font-semibold",
-            today ? "text-indigo-600" : "text-gray-900"
+            today ? "text-primary" : "text-slate-800"
           )}
         >
           {today ? "Today" : format(date, "EEEE", { locale: idLocale })}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-slate-500">
           {format(date, "MMMM yyyy", { locale: idLocale })}
           {!today && daysAgo !== 0 && (
-            <span className="ml-2 text-gray-400">
+            <span className="ml-2 text-slate-400">
               ({daysAgo > 0 ? `${daysAgo}d ago` : `in ${Math.abs(daysAgo)}d`})
             </span>
           )}
@@ -128,8 +138,8 @@ interface TimelineItemProps {
 
 function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineItemProps) {
   const [isExpanded, setIsExpanded] = React.useState(expanded)
-  const overdue = isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && 
-    task.status !== "completed" && task.status !== "cancelled"
+  const overdue = task.due_date ? (isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && 
+    task.status !== "completed" && task.status !== "cancelled") : false
 
   return (
     <div className="relative pl-8 pb-6 last:pb-0">
@@ -161,7 +171,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         className={cn(
-          "bg-white rounded-lg border p-4 shadow-sm hover:shadow-md transition-all cursor-pointer",
+          "bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:bg-slate-50/50 hover:border-slate-300 transition-all cursor-pointer",
           overdue && "border-red-200 bg-red-50/30"
         )}
         onClick={() => onTaskClick?.(task)}
@@ -198,7 +208,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            <span>{format(new Date(task.due_date), "HH:mm", { locale: idLocale }) || "All day"}</span>
+            <span>{task.due_date ? (format(new Date(task.due_date), "HH:mm", { locale: idLocale }) || "All day") : '-'}</span>
           </div>
           {(task as any).duration_minutes && (
             <div className="flex items-center gap-1">
@@ -225,7 +235,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <p className="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-600">
+              <p className="mt-3 pt-3 border-t border-slate-100 text-sm text-gray-600">
                 {(task as any).task_details}
               </p>
             </motion.div>
@@ -240,6 +250,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
 export function ActivityTimeline({
   tasks,
   onTaskClick,
+  onCreateTask,
   showDateHeaders = true,
   expandable = true,
 }: ActivityTimelineProps) {
@@ -251,22 +262,24 @@ export function ActivityTimeline({
   const { auth } = usePage<PageProps>().props
   const currentUserId = auth?.user?.id
 
-  // Filter tasks based on view mode and exclude cancelled
+  // Handle view mode change - fetch from server with correct scope
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode)
+    router.get(
+      route('activity.task.index'),
+      { scope: mode },
+      {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['stats', 'tasks', 'filters'],
+      }
+    )
+  }
+
+  // Filter tasks - exclude cancelled from timeline display
   const filteredTasks = React.useMemo(() => {
-    // First, exclude cancelled tasks
-    let filtered = tasks.filter((task) => task.status !== "cancelled")
-    
-    if (viewMode === "my") {
-      filtered = filtered.filter((task) => {
-        const isCreator = task.created_by === currentUserId
-        const isParticipant = task.participants?.some(
-          (p) => p.user_id === currentUserId || p.id === currentUserId
-        )
-        return isCreator || isParticipant
-      })
-    }
-    return filtered
-  }, [tasks, viewMode, currentUserId])
+    return tasks.filter((task) => task.status !== "cancelled")
+  }, [tasks])
 
   const groupedTasks = React.useMemo(() => groupTasksByDate(filteredTasks), [filteredTasks])
   const dateKeys = Array.from(groupedTasks.keys())
@@ -297,7 +310,7 @@ export function ActivityTimeline({
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -308,33 +321,6 @@ export function ActivityTimeline({
               </p>
             </div>
 
-            {/* My Tasks / Department Toggle */}
-            <div className="flex items-center p-1 bg-gray-100 rounded-lg">
-              <button
-                onClick={() => setViewMode("my")}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                  viewMode === "my"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                )}
-              >
-                <User className="h-4 w-4" />
-                My Tasks
-              </button>
-              <button
-                onClick={() => setViewMode("department")}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                  viewMode === "department"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                )}
-              >
-                <Users className="h-4 w-4" />
-                Department
-              </button>
-            </div>
           </div>
         </div>
 
@@ -375,19 +361,36 @@ export function ActivityTimeline({
                   : "No activities found in your department"
                 }
               </p>
-              <Link href={route("activity.task.create")}>
-                <Button variant="primary">Create Activity</Button>
-              </Link>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (onCreateTask) {
+                    onCreateTask()
+                    return
+                  }
+                  router.visit(route("activity.task.create"))
+                }}
+              >
+                Create Activity
+              </Button>
             </div>
           ) : (
             <div className="space-y-6">
               {dateKeys.map((dateKey) => {
-                const date = new Date(dateKey)
                 const dateTasks = groupedTasks.get(dateKey) || []
 
                 return (
                   <div key={dateKey}>
-                    {showDateHeaders && <DateHeader date={date} />}
+                    {showDateHeaders && dateKey !== "no-date" && <DateHeader date={new Date(dateKey)} />}
+                    {showDateHeaders && dateKey === "no-date" && (
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 text-sm font-bold">-</div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">No Deadline</p>
+                          <p className="text-xs text-gray-500">Tasks without due date</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="mt-2">
                       {dateTasks.map((task, taskIndex) => (
                         <TimelineItem
@@ -452,8 +455,8 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
   return (
     <div className="space-y-3">
       {recentTasks.map((task) => {
-        const overdue = isPast(new Date(task.due_date)) && 
-          task.status !== "completed" && task.status !== "cancelled"
+        const overdue = task.due_date ? (isPast(new Date(task.due_date)) && 
+          task.status !== "completed" && task.status !== "cancelled") : false
 
         return (
           <div
@@ -470,7 +473,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
                 "text-xs",
                 overdue ? "text-red-600" : "text-gray-500"
               )}>
-                {format(new Date(task.due_date), "dd MMM", { locale: idLocale })}
+                {task.due_date ? format(new Date(task.due_date), "dd MMM", { locale: idLocale }) : '-'}
               </p>
             </div>
           </div>
@@ -481,4 +484,3 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
 }
 
 export default ActivityTimeline
-

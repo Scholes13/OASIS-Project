@@ -12,10 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Global middleware for Livewire timeout handling and auth persistence
+        // Global middleware for Inertia
+        // EnsureBusinessUnitSelected MUST run before HandleInertiaRequests
+        // so that navigation data has access to current_business_unit_id
         $middleware->web(append: [
-            \App\Http\Middleware\SetTimeoutForLivewire::class,
-            \App\Http\Middleware\EnsureLivewireAuthPersistence::class,
+            \App\Http\Middleware\EnsureBusinessUnitSelected::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
@@ -30,10 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.access' => \App\Http\Middleware\AdminAccess::class,
             'purchasing.admin.access' => \App\Http\Middleware\PurchasingAdminAccess::class,
             'activity.reporting.access' => \App\Http\Middleware\ActivityReportingAccess::class,
+            'activity.admin.access' => \App\Http\Middleware\ActivityAdminAccess::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'livewire.timeout' => \App\Http\Middleware\SetTimeoutForLivewire::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

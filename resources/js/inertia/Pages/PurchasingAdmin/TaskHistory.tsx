@@ -167,8 +167,8 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                         {/* Total Completed */}
                         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                    <CheckCircle2 className="w-5 h-5 text-indigo-600" />
+                                <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                                    <CheckCircle2 className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-500">Total Completed</p>
@@ -281,7 +281,7 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                                         type="date"
                                         value={localFilters.date_from}
                                         onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                     />
                                 </div>
 
@@ -292,7 +292,7 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                                         type="date"
                                         value={localFilters.date_to}
                                         onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                     />
                                 </div>
 
@@ -302,7 +302,7 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                                     <select
                                         value={localFilters.status}
                                         onChange={(e) => handleFilterChange('status', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                     >
                                         <option value="all">All Statuses</option>
                                         <option value="pending_followup">Pending</option>
@@ -317,7 +317,7 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                                     <select
                                         value={localFilters.type}
                                         onChange={(e) => handleFilterChange('type', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                     >
                                         <option value="all">All Types</option>
                                         <option value="purchase_request">Purchase Request</option>
@@ -402,7 +402,7 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                                                     <td className="px-5 py-4 whitespace-nowrap text-sm text-center">
                                                         <Link
                                                             href={route('purchasing.admin.tasks.show', { taskId: task.id })}
-                                                            className="inline-flex items-center px-3 py-1.5 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors font-medium"
+                                                            className="inline-flex items-center px-3 py-1.5 text-sm text-primary hover:text-primary hover:bg-blue-600 rounded-md transition-colors font-medium"
                                                         >
                                                             <ExternalLink className="w-4 h-4 mr-1" />
                                                             Detail
@@ -443,7 +443,7 @@ export default function TaskHistory({ tasks, statistics, filters }: TaskHistoryP
                                                 className={cn(
                                                     "px-3 py-1 text-sm rounded-md",
                                                     page === tasks.current_page
-                                                        ? "bg-indigo-600 text-white"
+                                                        ? "bg-primary text-white"
                                                         : "text-gray-600 hover:bg-gray-100"
                                                 )}
                                             >

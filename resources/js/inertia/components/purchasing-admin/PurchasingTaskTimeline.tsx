@@ -71,7 +71,7 @@ function DateHeader({ date }: { date: Date }) {
                 className={cn(
                     'flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold',
                     today
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-primary text-white'
                         : past
                             ? 'bg-gray-200 text-gray-600'
                             : 'bg-blue-100 text-blue-600'
@@ -83,7 +83,7 @@ function DateHeader({ date }: { date: Date }) {
                 <p
                     className={cn(
                         'text-sm font-semibold',
-                        today ? 'text-indigo-600' : 'text-gray-900'
+                        today ? 'text-primary' : 'text-gray-900'
                     )}
                 >
                     {today ? 'Today' : format(date, 'EEEE', { locale: idLocale })}

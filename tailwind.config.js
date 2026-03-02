@@ -12,9 +12,46 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                border: "var(--border)",
+                input: "var(--input)",
+                ring: "var(--ring)",
+                background: "var(--background)",
+                foreground: "var(--foreground)",
+                primary: {
+                    DEFAULT: "var(--primary)",
+                    foreground: "var(--primary-foreground)",
+                },
+                secondary: {
+                    DEFAULT: "var(--secondary)",
+                    foreground: "var(--secondary-foreground)",
+                },
+                destructive: {
+                    DEFAULT: "var(--destructive)",
+                    foreground: "var(--destructive-foreground)",
+                },
+                muted: {
+                    DEFAULT: "var(--muted)",
+                    foreground: "var(--muted-foreground)",
+                },
+                accent: {
+                    DEFAULT: "var(--accent)",
+                    foreground: "var(--accent-foreground)",
+                },
+                card: {
+                    DEFAULT: "var(--card)",
+                    foreground: "var(--card-foreground)",
+                },
+                sidebar: {
+                    DEFAULT: "var(--sidebar)",
+                    foreground: "var(--sidebar-foreground)",
+                    primary: "var(--sidebar-primary)",
+                },
+            },
             fontFamily: {
-                sans: ['Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['"Plus Jakarta Sans"', 'Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
                 inter: ['Inter', ...defaultTheme.fontFamily.sans],
+                jakarta: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
             },
             boxShadow: {
                 '3xl': '0 35px 60px -12px rgba(0, 0, 0, 0.25)',

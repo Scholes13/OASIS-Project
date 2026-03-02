@@ -163,17 +163,7 @@ class NumberSequence extends Model
      */
     public function getNextAvailableNumber(): int
     {
-        $voidNumbers = $this->void_numbers ?? [];
-
-        // If there are void numbers, return the smallest one
-        if (! empty($voidNumbers)) {
-            $number = min($voidNumbers);
-            $this->removeVoidNumber($number);
-
-            return $number;
-        }
-
-        // Otherwise, get the next sequential number
+        // Business policy: voided numbers remain consumed and must not be reused.
         return $this->getNextNumber();
     }
 

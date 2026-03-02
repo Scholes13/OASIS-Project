@@ -7,7 +7,7 @@ export function LoadingSpinner({ size = 'md', className = '' }: { size?: 'sm' | 
 
     return (
         <svg
-            className={`animate-spin text-indigo-600 ${sizeStyles[size]} ${className}`}
+            className={`animate-spin text-primary ${sizeStyles[size]} ${className}`}
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

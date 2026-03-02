@@ -23,7 +23,7 @@ export default function Show({ businessUnit, departments, stats }: BusinessUnitS
           <div className="flex items-center gap-4">
             <Link href={route('admin.business-units.index')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><ArrowLeft className="w-5 h-5 text-gray-600" /></Link>
             <div className="flex items-center gap-3">
-              {businessUnit.logo ? <img src={businessUnit.logo} alt={businessUnit.name} className="w-12 h-12 rounded-lg object-cover" /> : <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-indigo-600" /></div>}
+              {businessUnit.logo ? <img src={businessUnit.logo} alt={businessUnit.name} className="w-12 h-12 rounded-lg object-cover" /> : <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center"><Building2 className="w-6 h-6 text-white" /></div>}
               <div><h1 className="text-2xl font-bold text-gray-900">{businessUnit.name}</h1><p className="text-sm text-gray-500">Code: {businessUnit.code}</p></div>
             </div>
           </div>
@@ -33,7 +33,7 @@ export default function Show({ businessUnit, departments, stats }: BusinessUnitS
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4"><div className="flex items-center gap-3"><div className="p-2 bg-indigo-100 rounded-lg"><Briefcase className="w-5 h-5 text-indigo-600" /></div><div><p className="text-2xl font-bold text-gray-900">{stats.total_departments}</p><p className="text-sm text-gray-500">Departments</p></div></div></div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Briefcase className="w-5 h-5 text-blue-600" /></div><div><p className="text-2xl font-bold text-gray-900">{stats.total_departments}</p><p className="text-sm text-gray-500">Departments</p></div></div></div>
           <div className="bg-white rounded-lg border border-gray-200 p-4"><div className="flex items-center gap-3"><div className="p-2 bg-emerald-100 rounded-lg"><Users className="w-5 h-5 text-emerald-600" /></div><div><p className="text-2xl font-bold text-gray-900">{stats.total_users}</p><p className="text-sm text-gray-500">Users</p></div></div></div>
           <div className="bg-white rounded-lg border border-gray-200 p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><FileText className="w-5 h-5 text-blue-600" /></div><div><p className="text-2xl font-bold text-gray-900">{stats.total_purchase_requests}</p><p className="text-sm text-gray-500">Purchase Requests</p></div></div></div>
           <div className="bg-white rounded-lg border border-gray-200 p-4"><div className="flex items-center gap-3"><div className="p-2 bg-amber-100 rounded-lg"><Hash className="w-5 h-5 text-amber-600" /></div><div><p className="text-2xl font-bold text-gray-900">{stats.active_sequences}</p><p className="text-sm text-gray-500">Active Sequences</p></div></div></div>

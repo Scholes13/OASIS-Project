@@ -5,7 +5,7 @@
                 {{ __('Email Notification Settings') }}
             </h2>
             <a href="{{ route('admin.notification-settings.statistics') }}" 
-               class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+               class="bg-primary hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
                 <i class="fas fa-chart-bar mr-2"></i>View Statistics
             </a>
         </div>
@@ -92,8 +92,8 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div class="flex items-center">
-                            <div class="flex-shrink-0 bg-indigo-100 rounded-md p-3">
-                                <i class="fas fa-clock text-indigo-600 text-xl"></i>
+                            <div class="flex-shrink-0 bg-primary rounded-md p-3">
+                                <i class="fas fa-clock text-primary text-xl"></i>
                             </div>
                             <div class="ml-5 w-0 flex-1">
                                 <dl>

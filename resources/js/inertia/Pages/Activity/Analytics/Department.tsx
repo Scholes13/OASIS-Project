@@ -40,8 +40,7 @@ export default function Department({ teamStats, members, tasksByStatus }: Depart
         <>
             <Head title="Department Analytics" />
 
-            <div className="py-6">
-                <div className="px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-6 py-6 lg:px-8">
                     {/* Back Button */}
                     <div className="mb-6">
                         <Link
@@ -69,7 +68,7 @@ export default function Department({ teamStats, members, tasksByStatus }: Depart
                         >
                             <Card>
                                 <CardBody className="text-center">
-                                    <span className="text-3xl font-bold text-indigo-600">{teamStats.totalTasks}</span>
+                                    <span className="text-3xl font-bold text-primary">{teamStats.totalTasks}</span>
                                     <p className="text-sm text-gray-500">Total Tasks</p>
                                 </CardBody>
                             </Card>
@@ -130,7 +129,7 @@ export default function Department({ teamStats, members, tasksByStatus }: Depart
                                                 transition={{ delay: index * 0.05 }}
                                             >
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-semibold text-sm">
+                                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
                                                         {member.name.charAt(0)}
                                                     </div>
                                                     <div className="flex-1">
@@ -220,10 +219,8 @@ export default function Department({ teamStats, members, tasksByStatus }: Depart
                                 </div>
                             </CardBody>
                         </Card>
-                    </div>
                 </div>
             </div>
         </>
     );
 }
-

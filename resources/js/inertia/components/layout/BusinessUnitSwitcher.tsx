@@ -35,7 +35,7 @@ const dropdownVariants: Variants = {
     }
 };
 
-// Logo component - clean, no frame
+// Logo component - rounded rectangle to prevent logo cropping
 function BuLogo({ 
     bu, 
     size = 'md',
@@ -60,11 +60,11 @@ function BuLogo({
     
     if (bu.logo) {
         return (
-            <div className={cn("flex-shrink-0 rounded-full overflow-hidden", sizeClasses[size])}>
+            <div className={cn("flex-shrink-0 rounded-xl overflow-hidden bg-gray-50 p-1", sizeClasses[size])}>
                 <img 
                     src={`/storage/${bu.logo}`} 
                     alt={bu.code} 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                 />
             </div>
         );
@@ -73,7 +73,7 @@ function BuLogo({
     return (
         <div 
             className={cn(
-                "flex items-center justify-center font-bold text-white bg-gradient-to-br rounded-full flex-shrink-0",
+                "flex items-center justify-center font-bold text-white bg-gradient-to-br rounded-xl flex-shrink-0",
                 sizeClasses[size],
                 gradients[gradientIndex]
             )}
@@ -97,7 +97,7 @@ function SmoothCheck({ isVisible }: { isVisible: boolean }) {
                         stiffness: 300,
                         damping: 20,
                     }}
-                    className="flex-shrink-0 text-indigo-600"
+                    className="flex-shrink-0 text-primary"
                 >
                     <svg 
                         className="w-6 h-6" 
@@ -121,7 +121,7 @@ function SmoothCheck({ isVisible }: { isVisible: boolean }) {
     );
 }
 
-// BU item in dropdown
+// BU item in dropdown - enterprise modern SaaS styling
 function BuMenuItem({ 
     bu, 
     isActive, 
@@ -136,10 +136,10 @@ function BuMenuItem({
             onClick={onClick}
             disabled={isActive}
             className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                "w-full flex items-center gap-3 px-4 py-3 text-left transition-all duration-150",
                 isActive 
-                    ? "bg-indigo-50 cursor-default" 
-                    : "hover:bg-gray-50 active:bg-gray-100"
+                    ? "bg-primary/[0.06] border-l-[3px] border-l-primary cursor-default" 
+                    : "hover:bg-gray-50 active:bg-gray-100 border-l-[3px] border-l-transparent"
             )}
         >
             <BuLogo bu={bu} size="md" />
@@ -147,11 +147,16 @@ function BuMenuItem({
             <div className="flex-1 min-w-0">
                 <span className={cn(
                     "font-semibold text-base block",
-                    isActive ? "text-gray-900" : "text-gray-900"
+                    isActive ? "text-primary" : "text-gray-900"
                 )}>
                     {bu.code}
                 </span>
-                <p className="text-sm text-gray-500 truncate">{bu.name}</p>
+                <p className={cn(
+                    "text-sm truncate",
+                    isActive ? "text-primary/70" : "text-gray-500"
+                )}>
+                    {bu.name}
+                </p>
             </div>
             
             <SmoothCheck isVisible={isActive} />
@@ -225,9 +230,9 @@ export function BusinessUnitSwitcher() {
                 className={cn(
                     "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
                     isOpen 
-                        ? "border-indigo-500 bg-white shadow-sm" 
+                        ? "border-primary bg-white shadow-sm" 
                         : "border-gray-200 bg-white hover:border-gray-300",
-                    "focus:outline-none focus:border-indigo-500",
+                    "focus:outline-none focus:border-primary",
                     isSwitching && "opacity-70 cursor-wait"
                 )}
             >

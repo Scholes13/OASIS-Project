@@ -77,10 +77,10 @@ class DashboardController extends Controller
 
     /**
      * Regular User Dashboard
+     * Redirects to the main Inertia dashboard
      */
     private function userDashboard()
     {
-        // Use Livewire component for dynamic dashboard
-        return view('dashboard');
+        return redirect()->route('dashboard');
     }
 }

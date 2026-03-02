@@ -140,7 +140,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
                 <select
                     value={item.unit}
                     onChange={(e) => onUpdate(index, 'unit', e.target.value)}
-                    className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                    className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white"
                 >
                     {UNIT_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>

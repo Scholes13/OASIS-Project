@@ -25,6 +25,7 @@ interface ActivityCalendarProps {
     tasks: Task[]
     onDateClick?: (date: Date) => void
     onEventClick?: (task: Task) => void
+    onCreateTask?: (options?: { date?: string }) => void
 }
 
 type ViewMode = "my" | "department"
@@ -33,7 +34,7 @@ type CalendarView = "dayGridMonth" | "timeGridWeek" | "timeGridDay"
 // Activity type color mapping - darker shades for better contrast
 const activityTypeColors: Record<string, { bg: string; text: string; border: string }> = {
     blue: { bg: "#dbeafe", text: "#1e40af", border: "#3b82f6" },
-    indigo: { bg: "#e0e7ff", text: "#3730a3", border: "#6366f1" },
+    indigo: { bg: "#dbeafe", text: "#1e40af", border: "#3b82f6" },
     purple: { bg: "#ede9fe", text: "#5b21b6", border: "#8b5cf6" },
     pink: { bg: "#fce7f3", text: "#9d174d", border: "#ec4899" },
     red: { bg: "#fee2e2", text: "#991b1b", border: "#ef4444" },
@@ -66,7 +67,7 @@ function EventContent({ event, view }: { event: any; view: string }) {
     const task = event.extendedProps.task as Task
     const colors = getActivityColors(task.activity_type)
     const isMonthView = view === "dayGridMonth"
-    const isOverdue = new Date(task.due_date) < new Date() && !["completed", "cancelled"].includes(task.status)
+    const isOverdue = task.due_date ? (new Date(task.due_date) < new Date() && !["completed", "cancelled"].includes(task.status)) : false
 
     if (isMonthView) {
         return (
@@ -130,7 +131,7 @@ function EventContent({ event, view }: { event: any; view: string }) {
     )
 }
 
-export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityCalendarProps) {
+export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTask }: ActivityCalendarProps) {
     const calendarRef = React.useRef<FullCalendar>(null)
     const [currentView, setCurrentView] = React.useState<CalendarView>("dayGridMonth")
     const [currentDate, setCurrentDate] = React.useState(new Date())
@@ -142,37 +143,45 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
     const { auth } = usePage<PageProps>().props
     const currentUserId = auth?.user?.id
 
-    // Filter tasks based on view mode and exclude cancelled
-    const filteredTasks = React.useMemo(() => {
-        // First, exclude cancelled tasks from calendar
-        let filtered = tasks.filter((task) => task.status !== "cancelled")
-        
-        if (viewMode === "my") {
-            filtered = filtered.filter((task) => {
-                const isCreator = task.created_by === currentUserId
-                const isParticipant = task.participants?.some(
-                    (p) => p.user_id === currentUserId || p.id === currentUserId
-                )
-                return isCreator || isParticipant
-            })
-        }
-        return filtered
-    }, [tasks, viewMode, currentUserId])
+    // Handle view mode change - fetch from server with correct scope
+    const handleViewModeChange = (mode: ViewMode) => {
+        setViewMode(mode)
+        router.get(
+            route('activity.task.index'),
+            { scope: mode },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['stats', 'tasks', 'filters'],
+            }
+        )
+    }
 
-    // Convert tasks to calendar events
+    // Filter tasks - exclude cancelled from calendar display
+    const filteredTasks = React.useMemo(() => {
+        return tasks.filter((task) => task.status !== "cancelled")
+    }, [tasks])
+
+    // Convert tasks to calendar events using task_date (activity date)
+    // Calendar shows "what the team is doing on each day", not deadlines
     const events = React.useMemo(() => {
-        return filteredTasks.map((task) => ({
-            id: String(task.id),
-            title: task.task_title,
-            start: task.due_date,
-            end: task.due_date,
-            allDay: true,
-            extendedProps: {
-                task,
-                status: task.status,
-                activityType: task.activity_type,
-            },
-        }))
+        return filteredTasks
+            .filter((task) => !!(task.task_date || task.due_date))
+            .map((task) => {
+            const activityDate = task.task_date || task.due_date!
+            return {
+                id: String(task.id),
+                title: task.task_title,
+                start: activityDate,
+                end: activityDate,
+                allDay: true,
+                extendedProps: {
+                    task,
+                    status: task.status,
+                    activityType: task.activity_type,
+                },
+            }
+        })
     }, [filteredTasks])
 
     // Navigation handlers
@@ -202,11 +211,15 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
 
     // Event handlers
     const handleDateClick = (info: any) => {
-        if (onDateClick) {
+        const selectedDate = format(info.date, "yyyy-MM-dd")
+
+        if (onCreateTask) {
+            onCreateTask({ date: selectedDate })
+        } else if (onDateClick) {
             onDateClick(info.date)
         } else {
             router.visit(route("activity.task.create"), {
-                data: { date: format(info.date, "yyyy-MM-dd") },
+                data: { date: selectedDate },
             })
         }
     }
@@ -275,33 +288,6 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
 
                         {/* Right: View Mode Toggle & Calendar View */}
                         <div className="flex items-center gap-3">
-                            {/* My Tasks / Department Toggle */}
-                            <div className="flex items-center p-1 bg-gray-100 rounded-lg">
-                                <button
-                                    onClick={() => setViewMode("my")}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                                        viewMode === "my"
-                                            ? "bg-white text-indigo-600 shadow-sm"
-                                            : "text-gray-600 hover:text-gray-900"
-                                    )}
-                                >
-                                    <User className="h-4 w-4" />
-                                    My Tasks
-                                </button>
-                                <button
-                                    onClick={() => setViewMode("department")}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                                        viewMode === "department"
-                                            ? "bg-white text-indigo-600 shadow-sm"
-                                            : "text-gray-600 hover:text-gray-900"
-                                    )}
-                                >
-                                    <Users className="h-4 w-4" />
-                                    Department
-                                </button>
-                            </div>
 
                             {/* Calendar View Switcher */}
                             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
@@ -310,7 +296,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                                     className={cn(
                                         "px-3 py-1.5 text-sm font-medium transition-colors",
                                         currentView === "dayGridMonth"
-                                            ? "bg-indigo-600 text-white"
+                                            ? "bg-primary text-white"
                                             : "bg-white text-gray-600 hover:bg-gray-50"
                                     )}
                                 >
@@ -321,7 +307,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                                     className={cn(
                                         "px-3 py-1.5 text-sm font-medium transition-colors border-x border-gray-200",
                                         currentView === "timeGridWeek"
-                                            ? "bg-indigo-600 text-white"
+                                            ? "bg-primary text-white"
                                             : "bg-white text-gray-600 hover:bg-gray-50"
                                     )}
                                 >
@@ -332,7 +318,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                                     className={cn(
                                         "px-3 py-1.5 text-sm font-medium transition-colors",
                                         currentView === "timeGridDay"
-                                            ? "bg-indigo-600 text-white"
+                                            ? "bg-primary text-white"
                                             : "bg-white text-gray-600 hover:bg-gray-50"
                                     )}
                                 >
@@ -344,8 +330,15 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                             <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => router.visit(route("activity.task.create"))}
-                                className="bg-indigo-600 hover:bg-indigo-700"
+                                onClick={() => {
+                                    if (onCreateTask) {
+                                        onCreateTask()
+                                        return
+                                    }
+
+                                    router.visit(route("activity.task.create"))
+                                }}
+                                className="bg-primary hover:bg-blue-600"
                             >
                                 <Plus className="h-4 w-4 mr-1" />
                                 Add
@@ -400,7 +393,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                         aspectRatio={1.5}
                         eventDisplay="block"
                         moreLinkContent={(args) => (
-                            <div className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-1.5 py-0.5 bg-indigo-50 rounded cursor-pointer">
+                            <div className="text-xs font-semibold text-blue-700 hover:text-blue-800 px-1.5 py-0.5 bg-blue-100 rounded cursor-pointer">
                                 +{args.num} lainnya
                             </div>
                         )}
@@ -408,7 +401,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                         dayCellClassNames={(arg) =>
                             cn(
                                 "transition-colors",
-                                arg.isToday && "!bg-indigo-50/70",
+                                arg.isToday && "!bg-blue-100",
                                 arg.isPast && !arg.isToday && "bg-gray-50/30"
                             )
                         }
@@ -477,7 +470,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                     padding: 8px;
                 }
                 .calendar-container .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-                    background: #4f46e5;
+                    background: #2563eb;
                     color: white;
                     border-radius: 9999px;
                     width: 28px;
@@ -524,7 +517,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
                     background: transparent !important;
                 }
                 .calendar-container .fc-highlight {
-                    background: #e0e7ff !important;
+                    background: #dbeafe !important;
                 }
             `}</style>
         </>
@@ -532,4 +525,3 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick }: ActivityC
 }
 
 export default ActivityCalendar
-

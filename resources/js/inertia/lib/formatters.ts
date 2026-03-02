@@ -5,19 +5,25 @@
 /**
  * Format currency with thousand separators
  * @param amount - The amount to format
- * @param decimals - Number of decimal places (default: 0)
+ * @param decimalsOrCurrency - Number of decimal places (default: 0) or currency code (ignored, for backward compatibility)
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number | string, decimals: number = 0): string {
+export function formatCurrency(amount: number | string, decimalsOrCurrency: number | string = 0): string {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     
     if (isNaN(num)) {
         return '0';
     }
     
+    // Handle case where currency code is passed instead of decimals
+    const decimals = typeof decimalsOrCurrency === 'number' ? decimalsOrCurrency : 0;
+    
+    // Ensure decimals is within valid range (0-20)
+    const safeDecimals = Math.max(0, Math.min(20, Math.floor(decimals)));
+    
     return num.toLocaleString('id-ID', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
+        minimumFractionDigits: safeDecimals,
+        maximumFractionDigits: safeDecimals,
     });
 }
 

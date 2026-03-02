@@ -206,7 +206,7 @@ export function DataTable<TData>({
                                 key={row.id}
                                 className={cn(
                                     'hover:bg-gray-50 transition-colors',
-                                    row.getIsSelected() && 'bg-indigo-50'
+                                    row.getIsSelected() && 'bg-primary'
                                 )}
                             >
                                 {row.getVisibleCells().map((cell) => (
@@ -262,7 +262,7 @@ export function DataTable<TData>({
                                             className={cn(
                                                 'px-3 py-1.5 text-sm rounded-md border transition-colors',
                                                 pagination.current_page === page
-                                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                                    ? 'bg-primary text-white border-primary'
                                                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                             )}
                                         >
@@ -290,8 +290,8 @@ export function DataTable<TData>({
 
             {/* Selection info */}
             {selectable && Object.keys(rowSelection).length > 0 && (
-                <div className="px-5 py-3 bg-indigo-50 border-t border-indigo-100">
-                    <p className="text-sm text-indigo-700">
+                <div className="px-5 py-3 bg-primary border-t border-primary">
+                    <p className="text-sm text-primary">
                         {Object.keys(rowSelection).length} row(s) selected
                     </p>
                 </div>

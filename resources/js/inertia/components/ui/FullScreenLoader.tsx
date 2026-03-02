@@ -101,7 +101,7 @@ function AnimatedCheck({ delay = 0 }: { delay?: number }) {
 function PulsingDot({ delay = 0 }: { delay?: number }) {
     return (
         <motion.div
-            className="w-2 h-2 rounded-full bg-indigo-500"
+            className="w-2 h-2 rounded-full bg-primary"
             animate={{
                 scale: [1, 1.3, 1],
                 opacity: [0.5, 1, 0.5],
@@ -132,7 +132,7 @@ function ModernSpinner() {
             />
             {/* Center icon */}
             <div className="absolute inset-0 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-indigo-600" />
+                <Building2 className="w-5 h-5 text-primary" />
             </div>
         </div>
     );
@@ -249,7 +249,7 @@ export function FullScreenLoader({
                                         animate={{ x: [0, 5, 0] }}
                                         transition={{ duration: 1, repeat: Infinity }}
                                     >
-                                        <ArrowRight className="w-6 h-6 text-indigo-500" strokeWidth={2.5} />
+                                        <ArrowRight className="w-6 h-6 text-primary" strokeWidth={2.5} />
                                     </motion.div>
                                 </motion.div>
                                 
@@ -323,7 +323,7 @@ export function FullScreenLoader({
                                 transition={{ delay: 0.2, ...smoothSpring }}
                                 className="mt-2 text-base text-gray-500"
                             >
-                                Loading <span className="font-semibold text-indigo-600">{toBu.name}</span>...
+                                Loading <span className="font-semibold text-primary">{toBu.name}</span>...
                             </motion.p>
                         )}
                         
@@ -352,7 +352,7 @@ export function FullScreenLoader({
                                                 transition={{ duration: 1.5, repeat: Infinity }}
                                             >
                                                 <motion.div
-                                                    className="w-2 h-2 rounded-full bg-indigo-500"
+                                                    className="w-2 h-2 rounded-full bg-primary"
                                                     animate={{ scale: [0.8, 1.2, 0.8] }}
                                                     transition={{ duration: 1, repeat: Infinity }}
                                                 />

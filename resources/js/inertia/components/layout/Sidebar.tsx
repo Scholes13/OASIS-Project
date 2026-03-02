@@ -18,11 +18,16 @@ import {
     CheckCircle,
     Tag,
     Mail,
-    Clock
+    Clock,
+    BookOpen,
+    PieChart,
+    PenSquare,
+    Settings,
+    Droplets,
 } from 'lucide-react';
 import { PageProps } from '../../types';
 import { cn } from '../../lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePrefetch } from '../../hooks/usePrefetch';
 
 interface SidebarProps {
@@ -47,11 +52,58 @@ const iconMap: Record<string, any> = {
     'tag': Tag,
     'mail': Mail,
     'clock': Clock,
+    'book-open': BookOpen,
+    'chart-pie': PieChart,
+    'pencil-square': PenSquare,
+    'cog-6-tooth': Settings,
 };
 
 export default function Sidebar({ minimized, onToggle }: SidebarProps) {
     const { navigation } = usePage<PageProps>().props;
-    const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
+    const { url } = usePage();
+    const currentPath = url.split('?')[0]; // Remove query string
+
+    // Determine active state from current URL (not from cached backend state)
+    const isItemActive = (href: string): boolean => {
+        const itemPath = new URL(href, window.location.origin).pathname;
+        if (itemPath === '/dashboard') return currentPath === '/dashboard';
+        return currentPath === itemPath || currentPath.startsWith(itemPath + '/');
+    };
+
+    const isParentActive = (item: any): boolean => {
+        if (item.children?.length > 0) {
+            return item.children.some((child: any) => isItemActive(child.href));
+        }
+        return isItemActive(item.href);
+    };
+
+    // Auto-expand menus that have an active child
+    const getDefaultExpanded = (): Record<string, boolean> => {
+        const expanded: Record<string, boolean> = {};
+        navigation.sections.forEach((section) => {
+            section.items.forEach((item) => {
+                if (item.children?.length && isParentActive(item)) {
+                    expanded[item.name] = true;
+                }
+            });
+        });
+        return expanded;
+    };
+
+    const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(getDefaultExpanded);
+
+    // Update expanded state when URL changes (Inertia navigation)
+    useEffect(() => {
+        const newExpanded = getDefaultExpanded();
+        setExpandedMenus(prev => {
+            // Merge: keep user-toggled state, but auto-expand active parents
+            const merged = { ...prev };
+            Object.keys(newExpanded).forEach(key => {
+                if (newExpanded[key]) merged[key] = true;
+            });
+            return merged;
+        });
+    }, [currentPath]);
 
     // Initialize prefetch hook for navigation links
     // Use a slightly longer delay (150ms) for sidebar to avoid excessive prefetching
@@ -69,24 +121,28 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
     return (
         <aside
             className={cn(
-                'fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-30',
-                minimized ? 'w-16' : 'w-64'
+                'fixed left-0 top-0 h-full bg-white border-r border-gray-200/80 transition-all duration-300 z-30 font-sans',
+                minimized ? 'w-16' : 'w-60'
             )}
+            aria-label="Main navigation"
         >
             {/* Logo Section */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+            <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200/80">
                 {!minimized && (
-                    <Link href="/dashboard" className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">O</span>
+                    <Link href="/dashboard" className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 bg-[#16599c] rounded-md flex items-center justify-center shadow-sm">
+                            <Droplets className="w-4 h-4 text-white" />
                         </div>
-                        <span className="font-semibold text-gray-900">Oasis</span>
+                        <div className="flex flex-col leading-none">
+                            <span className="font-bold text-[14px] text-gray-900 tracking-wide uppercase">OASIS</span>
+                            <span className="text-[10px] text-gray-400 tracking-wide">workspace</span>
+                        </div>
                     </Link>
                 )}
                 {minimized && (
                     <Link href="/dashboard" className="flex items-center justify-center w-full">
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">O</span>
+                        <div className="w-7 h-7 bg-[#16599c] rounded-md flex items-center justify-center shadow-sm">
+                            <Droplets className="w-4 h-4 text-white" />
                         </div>
                     </Link>
                 )}
@@ -95,30 +151,30 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
             {/* Toggle Button */}
             <button
                 onClick={onToggle}
-                className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors"
+                className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 shadow-sm transition-colors"
             >
                 {minimized ? (
-                    <ChevronRight className="w-3 h-3 text-gray-600" />
+                    <ChevronRight className="w-3 h-3 text-gray-400" />
                 ) : (
-                    <ChevronLeft className="w-3 h-3 text-gray-600" />
+                    <ChevronLeft className="w-3 h-3 text-gray-400" />
                 )}
             </button>
 
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto py-4">
+            <nav className="flex-1 overflow-y-auto pt-5 pb-4" aria-label="Sidebar navigation">
                 {navigation.sections.map((section, sectionIndex) => (
-                    <div key={sectionIndex} className="mb-6">
+                    <div key={sectionIndex} className="mb-5">
                         {!minimized && (
-                            <div className="px-4 mb-2">
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <div className="px-4 mb-1.5">
+                                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
                                     {section.name}
                                 </h3>
                             </div>
                         )}
-                        <div className="space-y-1 px-2">
+                        <div className="space-y-0.5 px-2.5">
                             {section.items.map((item, itemIndex) => {
                                 const Icon = iconMap[item.icon] || Home;
-                                const isActive = item.active;
+                                const isActive = isParentActive(item);
                                 const hasChildren = item.children && item.children.length > 0;
                                 const isExpanded = expandedMenus[item.name] ?? false;
 
@@ -129,38 +185,38 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
                                             <button
                                                 onClick={() => toggleMenu(item.name)}
                                                 className={cn(
-                                                    'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                                                    'w-full flex items-center px-2.5 py-[7px] rounded-md text-[13px] font-medium transition-all duration-150',
                                                     isActive
-                                                        ? 'bg-indigo-50 text-indigo-600'
-                                                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                                                        ? 'bg-primary/8 text-primary font-semibold'
+                                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                                 )}
                                             >
-                                                <Icon className="w-5 h-5 mr-3" />
-                                                <span className="flex-1 text-left">{item.name}</span>
+                                                <Icon className="w-[18px] h-[18px] mr-2.5 flex-shrink-0" />
+                                                <span className="flex-1 text-left truncate">{item.name}</span>
                                                 {isExpanded ? (
-                                                    <ChevronUp className="w-4 h-4" />
+                                                    <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
                                                 ) : (
-                                                    <ChevronDown className="w-4 h-4" />
+                                                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                                                 )}
                                             </button>
                                         ) : (
                                             <Link
                                                 href={item.href}
                                                 className={cn(
-                                                    'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                                                    'flex items-center px-2.5 py-[7px] rounded-md text-[13px] font-medium transition-all duration-150',
                                                     isActive
-                                                        ? 'bg-indigo-50 text-indigo-600'
-                                                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900',
-                                                    minimized && 'justify-center'
+                                                        ? 'bg-primary/8 text-primary font-semibold'
+                                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                                                    minimized && 'justify-center px-0'
                                                 )}
                                                 title={minimized ? item.name : undefined}
                                                 onMouseEnter={prefetchOnHover}
                                                 onMouseLeave={cancelPrefetch}
                                             >
-                                                <Icon className={cn('w-5 h-5', !minimized && 'mr-3')} />
-                                                {!minimized && <span>{item.name}</span>}
+                                                <Icon className={cn('w-[18px] h-[18px] flex-shrink-0', !minimized && 'mr-2.5')} />
+                                                {!minimized && <span className="truncate">{item.name}</span>}
                                                 {!minimized && item.badge && (
-                                                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600">
                                                         {item.badge}
                                                     </span>
                                                 )}
@@ -169,28 +225,28 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
 
                                         {/* Children Menu Items (Dropdown) */}
                                         {hasChildren && !minimized && isExpanded && (
-                                            <div className="ml-4 mt-1 space-y-1">
+                                            <div className="ml-[26px] mt-0.5 space-y-0.5 border-l border-gray-200 pl-2.5">
                                                 {item.children!.map((child, childIndex) => {
                                                     const ChildIcon = iconMap[child.icon] || FileText;
-                                                    const isChildActive = child.active;
+                                                    const isChildActive = isItemActive(child.href);
 
                                                     return (
                                                         <Link
                                                             key={childIndex}
                                                             href={child.href}
                                                             className={cn(
-                                                                'flex items-center px-3 py-2 rounded-lg text-sm transition-colors',
+                                                                'flex items-center px-2 py-[6px] rounded-md text-[13px] transition-all duration-150',
                                                                 isChildActive
-                                                                    ? 'bg-indigo-50 text-indigo-600 font-medium'
-                                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                                                    ? 'text-primary font-semibold bg-primary/5'
+                                                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                                                             )}
                                                             onMouseEnter={prefetchOnHover}
                                                             onMouseLeave={cancelPrefetch}
                                                         >
-                                                            <ChildIcon className="w-4 h-4 mr-3" />
-                                                            <span>{child.name}</span>
+                                                            <ChildIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                                                            <span className="truncate">{child.name}</span>
                                                             {child.badge && (
-                                                                <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                                <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600">
                                                                     {child.badge}
                                                                 </span>
                                                             )}

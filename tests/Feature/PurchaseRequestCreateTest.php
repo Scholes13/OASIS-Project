@@ -4,10 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
+use App\Models\Core\Position;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrCategory;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
-use App\Services\Core\NumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -19,14 +19,22 @@ class PurchaseRequestCreateTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected User $approver;
+
     protected BusinessUnit $businessUnit;
+
     protected Department $department;
+
+    protected Position $position;
+
     protected PrCategory $category;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        config(['inertia.testing.ensure_pages_exist' => false]);
 
         // Create roles
         Role::create(['name' => 'user']);
@@ -48,6 +56,14 @@ class PurchaseRequestCreateTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->position = Position::where('department_id', $this->department->id)
+            ->where('code', 'STAFF_'.strtoupper($this->department->code))
+            ->firstOrFail();
+
+        $headPosition = Position::where('department_id', $this->department->id)
+            ->where('code', 'HOD_'.strtoupper($this->department->code))
+            ->firstOrFail();
+
         // Create category
         $this->category = PrCategory::create([
             'name' => 'General',
@@ -65,6 +81,7 @@ class PurchaseRequestCreateTest extends TestCase
             'phone_number' => '081234567890',
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
+            'primary_position_id' => $this->position->id,
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -77,26 +94,30 @@ class PurchaseRequestCreateTest extends TestCase
             'phone_number' => '081234567891',
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
+            'primary_position_id' => $headPosition->id,
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
         $this->approver->assignRole('approver');
 
         // Assign users to business units
-        foreach ([$this->user, $this->approver] as $user) {
-            $user->businessUnits()->create([
-                'business_unit_id' => $this->businessUnit->id,
-                'is_active' => true,
-            ]);
-        }
+        $this->user->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'position_id' => $this->position->id,
+            'role' => 'staff',
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
 
-        // Set up numbering sequence
-        $numberingService = app(NumberingService::class);
-        $numberingService->getOrCreateSequence(
-            'PR',
-            $this->businessUnit->id,
-            $this->department->id
-        );
+        $this->approver->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'position_id' => $headPosition->id,
+            'role' => 'hod',
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
 
         // Set session data
         session([
@@ -165,7 +186,7 @@ class PurchaseRequestCreateTest extends TestCase
             'business_unit_id' => $this->businessUnit->id,
             'department_id' => $this->department->id,
             'user_id' => $this->user->id,
-            'status' => 'submitted',
+            'status' => 'in_approval',
             'currency' => 'IDR',
         ]);
 

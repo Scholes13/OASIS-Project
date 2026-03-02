@@ -63,8 +63,8 @@
                         <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center">
-                                    <div class="flex-shrink-0 bg-indigo-100 rounded-md p-2">
-                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div class="flex-shrink-0 bg-primary rounded-md p-2">
+                                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                                         </svg>
                                     </div>
@@ -107,7 +107,7 @@
                                            value="{{ old('followup_sla_hours', $settings?->followup_sla_hours ?? 24) }}"
                                            min="1"
                                            max="720"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 @error('followup_sla_hours') border-red-500 @enderror"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary @error('followup_sla_hours') border-red-500 @enderror"
                                            placeholder="24"
                                            required>
                                     <p class="mt-1 text-xs text-gray-500">Maximum time from task entry to start (1-720 hours)</p>
@@ -127,7 +127,7 @@
                                            value="{{ old('completion_sla_hours', $settings?->completion_sla_hours ?? 72) }}"
                                            min="1"
                                            max="720"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 @error('completion_sla_hours') border-red-500 @enderror"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary @error('completion_sla_hours') border-red-500 @enderror"
                                            placeholder="72"
                                            required>
                                     <p class="mt-1 text-xs text-gray-500">Maximum time from start to completion (1-720 hours)</p>
@@ -146,7 +146,7 @@
                                                id="email_alerts_enabled_{{ $businessUnit->id }}" 
                                                value="1"
                                                {{ old('email_alerts_enabled', $settings?->email_alerts_enabled ?? true) ? 'checked' : '' }}
-                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                               class="rounded border-gray-300 text-primary focus:ring-primary">
                                     </div>
                                     <div class="ml-3">
                                         <label for="email_alerts_enabled_{{ $businessUnit->id }}" class="font-medium text-gray-700">Enable Email Alerts</label>
@@ -184,7 +184,7 @@
                             <!-- Action Button -->
                             <div class="mt-6 flex justify-end">
                                 <button type="submit" 
-                                        class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                                        class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/>
                                     </svg>

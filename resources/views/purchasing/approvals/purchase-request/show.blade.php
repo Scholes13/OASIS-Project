@@ -201,7 +201,7 @@
                                             <td colspan="5" class="px-4 py-4 text-sm font-semibold text-gray-900 text-right">
                                                 Total Amount
                                             </td>
-                                            <td class="px-4 py-4 text-sm font-semibold text-indigo-600 text-right whitespace-nowrap">
+                                            <td class="px-4 py-4 text-sm font-semibold text-primary text-right whitespace-nowrap">
                                                 {{ $approval->purchaseRequest->currency ?? 'IDR' }} {{ number_format($approval->purchaseRequest->total_amount, 0, ',', '.') }}
                                             </td>
                                         </tr>
@@ -219,7 +219,7 @@
                                 <p class="text-sm text-gray-600 mb-4">View the complete purchase request document in PDF format</p>
                                 <a href="{{ route('purchase-requests.pdf', $approval->purchaseRequest) }}" 
                                    target="_blank"
-                                   class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors">
+                                   class="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-blue-600 transition-colors">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                     </svg>
@@ -233,9 +233,9 @@
                     <div class="space-y-6">
                         <!-- Your Action Required -->
                         @if($canApprove && $approval->status === 'pending')
-                        <div class="border border-indigo-200 rounded-lg overflow-hidden bg-indigo-50">
-                            <div class="px-6 py-4 bg-indigo-100 border-b border-indigo-200">
-                                <h3 class="text-base font-semibold text-indigo-900">Your Action Required</h3>
+                        <div class="border border-primary rounded-lg overflow-hidden bg-primary">
+                            <div class="px-6 py-4 bg-primary border-b border-primary">
+                                <h3 class="text-base font-semibold text-primary">Your Action Required</h3>
                             </div>
                             <form action="{{ route('approvals.process', $approval) }}" method="POST" class="px-6 py-4 space-y-4">
                                 @csrf
@@ -248,7 +248,7 @@
                                         id="notes" 
                                         name="notes" 
                                         rows="3" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                                         placeholder="Add any comments or notes..."></textarea>
                                 </div>
 

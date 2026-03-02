@@ -3,116 +3,101 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/Card';
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Save, Check, Search } from 'lucide-react';
 import type { DepartmentFormData, DepartmentWithStats, Position, User, BusinessUnit } from '@/types/admin';
 import { toast } from 'sonner';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useState, useMemo } from 'react';
 
-interface PositionInput {
-  id?: number;
-  name: string;
+interface SubActivity {
+  id: number;
   code: string;
-  access_level: 'staff' | 'supervisor' | 'manager' | 'head';
-  _destroy?: boolean;
+  name: string;
+  activity_type: {
+    id: number;
+    name: string;
+    color: string;
+  } | null;
 }
 
 interface EditProps {
-  department: DepartmentWithStats & { positions?: Position[] };
+  department: DepartmentWithStats & { positions?: Position[]; sub_activity_ids?: number[] };
   businessUnits: BusinessUnit[];
   users: User[];
+  subActivities: SubActivity[];
   errors?: Record<string, string>;
 }
 
-function Edit({ department, businessUnits, users, errors }: EditProps) {
-  const { data, setData, put, processing } = useForm<DepartmentFormData>({
+function Edit({ department, businessUnits, users, subActivities, errors }: EditProps) {
+  const { data, setData, put, processing } = useForm<
+    DepartmentFormData & { sub_activity_ids: number[] }
+  >({
     code: department.code,
     name: department.name,
-    business_unit_id: department.business_unit?.id || 0,
-    head_id: department.head?.id,
+    business_unit_id: department.business_unit_id || department.business_unit?.id || 0,
+    head_id: department.head_id || department.head?.id,
     is_active: department.is_active,
     sort_order: department.sort_order || 0,
     is_purchasing_enabled: department.is_purchasing_enabled || false,
-    purchasing_admin_id: department.purchasing_admin?.id,
+    purchasing_admin_id: department.purchasing_admin_id || department.purchasing_admin?.id,
+    sub_activity_ids: department.sub_activity_ids || [],
   });
 
-  const [positions, setPositions] = useState<PositionInput[]>(
-    department.positions && department.positions.length > 0
-      ? department.positions.map((p: Position) => ({
-          id: p.id,
-          name: p.name,
-          code: p.code,
-          access_level: p.access_level || 'staff',
-        }))
-      : [{ name: '', code: '', access_level: 'staff' }]
-  );
+  const [subActivitySearch, setSubActivitySearch] = useState('');
+
+  const groupedSubActivities = useMemo(() => {
+    const filtered = subActivities.filter(
+      (sub) =>
+        sub.name.toLowerCase().includes(subActivitySearch.toLowerCase()) ||
+        sub.activity_type?.name.toLowerCase().includes(subActivitySearch.toLowerCase())
+    );
+
+    const groups: Record<string, SubActivity[]> = {};
+    filtered.forEach((sub) => {
+      const typeName = sub.activity_type?.name || 'Other';
+      if (!groups[typeName]) {
+        groups[typeName] = [];
+      }
+      groups[typeName].push(sub);
+    });
+
+    return groups;
+  }, [subActivities, subActivitySearch]);
 
   const handleSubmit: FormEventHandler = (e) => {
     e.preventDefault();
-
-    // Validate positions (excluding marked for deletion)
-    const activePositions = positions.filter(p => !p._destroy);
-    const validPositions = activePositions.filter(p => p.name.trim() && p.code.trim());
-    
-    if (validPositions.length === 0) {
-      toast.error('Please add at least one position');
-      return;
-    }
-
-    // Update data with positions before submitting
-    setData('positions' as keyof DepartmentFormData, positions as any);
 
     put(route('admin.departments.update', { department: department.id }), {
       onSuccess: () => {
         toast.success('Department updated successfully');
       },
       onError: (errors) => {
-        const errorMessage = typeof errors === 'object' && errors !== null && 'message' in errors 
-          ? (errors as { message: string }).message 
-          : 'Failed to update department';
+        const errorMessage =
+          typeof errors === 'object' && errors !== null && 'message' in errors
+            ? (errors as { message: string }).message
+            : 'Failed to update department';
         toast.error(errorMessage);
       },
     });
   };
 
-  const addPosition = () => {
-    setPositions([...positions, { name: '', code: '', access_level: 'staff' }]);
-  };
-
-  const removePosition = (index: number) => {
-    const position = positions[index];
-    
-    if (position.id) {
-      // Mark existing position for deletion
-      const updated = [...positions];
-      updated[index] = { ...updated[index], _destroy: true };
-      setPositions(updated);
+  const toggleSubActivity = (subId: number) => {
+    const current = data.sub_activity_ids;
+    if (current.includes(subId)) {
+      setData('sub_activity_ids', current.filter((id) => id !== subId));
     } else {
-      // Remove new position immediately
-      setPositions(positions.filter((_, i) => i !== index));
+      setData('sub_activity_ids', [...current, subId]);
     }
   };
-
-  const updatePosition = (index: number, field: keyof PositionInput, value: string) => {
-    const updated = [...positions];
-    updated[index] = { ...updated[index], [field]: value };
-    setPositions(updated);
-  };
-
-  // Filter out positions marked for deletion for display
-  const activePositions = positions.filter(p => !p._destroy);
 
   return (
     <>
       <Head title={`Edit ${department.name}`} />
 
       <div className="p-6 space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Edit Department</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Update department information and positions
-            </p>
+            <p className="mt-1 text-sm text-gray-500">Update department information</p>
           </div>
           <Button
             variant="outline"
@@ -124,20 +109,15 @@ function Edit({ department, businessUnits, users, errors }: EditProps) {
           </Button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
           <Card>
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Code */}
                 <div className="space-y-2">
-                  <Label htmlFor="code" required>
-                    Department Code
-                  </Label>
+                  <Label htmlFor="code" required>Department Code</Label>
                   <Input
                     id="code"
                     type="text"
@@ -148,16 +128,11 @@ function Edit({ department, businessUnits, users, errors }: EditProps) {
                     required
                     error={errors?.code}
                   />
-                  {errors?.code && (
-                    <p className="text-sm text-red-600">{errors.code}</p>
-                  )}
+                  {errors?.code && <p className="text-sm text-red-600">{errors.code}</p>}
                 </div>
 
-                {/* Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="name" required>
-                    Department Name
-                  </Label>
+                  <Label htmlFor="name" required>Department Name</Label>
                   <Input
                     id="name"
                     type="text"
@@ -167,28 +142,21 @@ function Edit({ department, businessUnits, users, errors }: EditProps) {
                     required
                     error={errors?.name}
                   />
-                  {errors?.name && (
-                    <p className="text-sm text-red-600">{errors.name}</p>
-                  )}
+                  {errors?.name && <p className="text-sm text-red-600">{errors.name}</p>}
                 </div>
 
-                {/* Business Unit */}
                 <div className="space-y-2">
-                  <Label htmlFor="business_unit_id" required>
-                    Business Unit
-                  </Label>
+                  <Label htmlFor="business_unit_id" required>Business Unit</Label>
                   <select
                     id="business_unit_id"
                     value={data.business_unit_id}
                     onChange={(e) => setData('business_unit_id', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                     required
                   >
                     <option value="">Select Business Unit</option>
                     {businessUnits.map((bu) => (
-                      <option key={bu.id} value={bu.id}>
-                        {bu.name}
-                      </option>
+                      <option key={bu.id} value={bu.id}>{bu.name}</option>
                     ))}
                   </select>
                   {errors?.business_unit_id && (
@@ -196,154 +164,124 @@ function Edit({ department, businessUnits, users, errors }: EditProps) {
                   )}
                 </div>
 
-                {/* Department Head */}
                 <div className="space-y-2">
                   <Label htmlFor="head_id">Department Head</Label>
                   <select
                     id="head_id"
                     value={data.head_id || ''}
                     onChange={(e) => setData('head_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">No Head Assigned</option>
                     {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
+                      <option key={user.id} value={user.id}>{user.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Status */}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="is_active"
                   checked={data.is_active}
                   onChange={(e) => setData('is_active', e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
-                <Label htmlFor="is_active" className="cursor-pointer">
-                  Active
-                </Label>
+                <Label htmlFor="is_active" className="cursor-pointer">Active</Label>
               </div>
             </div>
           </Card>
 
-          {/* Positions */}
           <Card>
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Positions</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Manage positions within this department
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addPosition}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Position
-              </Button>
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Sub Activities</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Pilih sub activities yang relevan untuk department ini
+              </p>
             </div>
             <div className="p-6 space-y-4">
-              {activePositions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No positions added yet. Click "Add Position" to create one.
-                </div>
-              ) : (
-                activePositions.map((position) => {
-                  // Find the actual index in the positions array
-                  const actualIndex = positions.findIndex(p => p === position);
-                  
-                  return (
-                    <div key={actualIndex} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Position Code */}
-                        <div className="space-y-2">
-                          <Label htmlFor={`position-code-${actualIndex}`}>Code</Label>
-                          <Input
-                            id={`position-code-${actualIndex}`}
-                            type="text"
-                            value={position.code}
-                            onChange={(e) => updatePosition(actualIndex, 'code', e.target.value.toUpperCase())}
-                            placeholder="e.g., MGR, STAFF"
-                            maxLength={10}
-                          />
-                        </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search sub activities..."
+                  value={subActivitySearch}
+                  onChange={(e) => setSubActivitySearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
-                        {/* Position Name */}
-                        <div className="space-y-2">
-                          <Label htmlFor={`position-name-${actualIndex}`}>Name</Label>
-                          <Input
-                            id={`position-name-${actualIndex}`}
-                            type="text"
-                            value={position.name}
-                            onChange={(e) => updatePosition(actualIndex, 'name', e.target.value)}
-                            placeholder="e.g., Manager, Staff"
-                          />
-                        </div>
-
-                        {/* Access Level */}
-                        <div className="space-y-2">
-                          <Label htmlFor={`position-access-${actualIndex}`}>Access Level</Label>
-                          <select
-                            id={`position-access-${actualIndex}`}
-                            value={position.access_level}
-                            onChange={(e) => updatePosition(actualIndex, 'access_level', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          >
-                            <option value="staff">Staff</option>
-                            <option value="supervisor">Supervisor</option>
-                            <option value="manager">Manager</option>
-                            <option value="head">Head</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Remove Button */}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removePosition(actualIndex)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 mt-7"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  );
-                })
+              {data.sub_activity_ids.length > 0 && (
+                <p className="text-sm text-primary font-medium">
+                  {data.sub_activity_ids.length} sub activity(s) selected
+                </p>
               )}
+
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {Object.entries(groupedSubActivities).map(([typeName, subs]) => (
+                  <div key={typeName} className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700 sticky top-0 bg-white py-1">
+                      {typeName}
+                    </h4>
+                    <div className="space-y-1 pl-2">
+                      {subs.map((sub) => {
+                        const isSelected = data.sub_activity_ids.includes(sub.id);
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            onClick={() => toggleSubActivity(sub.id)}
+                            className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${
+                              isSelected
+                                ? 'bg-primary border border-primary'
+                                : 'hover:bg-gray-50 border border-transparent'
+                            }`}
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: sub.activity_type?.color || '#6B7280' }}
+                            />
+                            <span className={`text-sm flex-1 ${isSelected ? 'text-primary font-medium' : 'text-gray-700'}`}>
+                              {sub.name}
+                            </span>
+                            {isSelected && <Check className="w-4 h-4 text-primary" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {Object.keys(groupedSubActivities).length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    {subActivities.length === 0
+                      ? 'Belum ada activity types yang di-assign ke department ini. Assign activity types terlebih dahulu melalui menu Activity Types.'
+                      : 'No sub activities found matching your search'}
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
 
-          {/* Purchasing Configuration */}
           <Card>
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Purchasing Configuration</h2>
             </div>
             <div className="p-6 space-y-4">
-              {/* Enable Purchasing */}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="is_purchasing_enabled"
                   checked={data.is_purchasing_enabled}
                   onChange={(e) => setData('is_purchasing_enabled', e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
                 <Label htmlFor="is_purchasing_enabled" className="cursor-pointer">
                   Enable Purchasing for this Department
                 </Label>
               </div>
 
-              {/* Purchasing Admin */}
               {data.is_purchasing_enabled && (
                 <div className="space-y-2">
                   <Label htmlFor="purchasing_admin_id">Default Purchasing Admin</Label>
@@ -351,13 +289,11 @@ function Edit({ department, businessUnits, users, errors }: EditProps) {
                     id="purchasing_admin_id"
                     value={data.purchasing_admin_id || ''}
                     onChange={(e) => setData('purchasing_admin_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">No Admin Assigned</option>
                     {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
+                      <option key={user.id} value={user.id}>{user.name}</option>
                     ))}
                   </select>
                   <p className="text-sm text-gray-500">
@@ -368,7 +304,6 @@ function Edit({ department, businessUnits, users, errors }: EditProps) {
             </div>
           </Card>
 
-          {/* Actions */}
           <div className="flex items-center justify-end gap-4">
             <Button
               type="button"

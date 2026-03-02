@@ -93,7 +93,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div class="text-center">
                             <dt class="text-sm font-medium text-gray-500">Total Departments</dt>
-                            <dd class="mt-1 text-2xl font-semibold text-indigo-600">{{ $stats['total_departments'] ?? 0 }}</dd>
+                            <dd class="mt-1 text-2xl font-semibold text-primary">{{ $stats['total_departments'] ?? 0 }}</dd>
                         </div>
                         <div class="text-center">
                             <dt class="text-sm font-medium text-gray-500">Active Departments</dt>
@@ -124,7 +124,7 @@
                                     <dt class="text-sm font-medium text-gray-500">Parent Business Unit</dt>
                                     <dd class="mt-1">
                                         <a href="{{ route('admin.business-units.show', $businessUnit->parent) }}" 
-                                           class="text-indigo-600 hover:text-indigo-900">
+                                           class="text-primary hover:text-primary">
                                             {{ $businessUnit->parent->name }} ({{ $businessUnit->parent->code }})
                                         </a>
                                     </dd>
@@ -138,7 +138,7 @@
                                         @foreach($businessUnit->children as $child)
                                             <div>
                                                 <a href="{{ route('admin.business-units.show', $child) }}" 
-                                                   class="text-indigo-600 hover:text-indigo-900">
+                                                   class="text-primary hover:text-primary">
                                                     {{ $child->name }} ({{ $child->code }})
                                                 </a>
                                             </div>
@@ -232,8 +232,8 @@
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="flex items-center">
                                                     <div class="flex-shrink-0 h-8 w-8">
-                                                        <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                                                            <span class="text-xs font-medium text-indigo-800">
+                                                        <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                                                            <span class="text-xs font-medium text-primary">
                                                                 {{ strtoupper(substr($userAssignment->user->name, 0, 2)) }}
                                                             </span>
                                                         </div>

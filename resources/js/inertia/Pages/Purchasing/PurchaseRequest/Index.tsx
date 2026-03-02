@@ -109,8 +109,7 @@ export default function Index({
         <>
             <Head title="My Purchase Requests" />
 
-            <div className="w-full h-full bg-gray-50">
-                <div className="w-full h-full p-6">
+            <div className="w-full px-6 py-6 lg:px-8">
                     {/* Header */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                         <div className="flex items-center justify-between">
@@ -124,7 +123,7 @@ export default function Index({
                             </div>
                             <div className="flex items-center space-x-3">
                                 <Link href={route('purchase-requests.create')}>
-                                    <Button className="bg-indigo-600 hover:bg-indigo-700">
+                                    <Button className="bg-primary hover:bg-blue-600">
                                         <Plus className="w-4 h-4 mr-2" />
                                         Create New PR
                                     </Button>
@@ -148,7 +147,7 @@ export default function Index({
                                     exit={{ scale: 0.9, opacity: 0 }}
                                     className="flex flex-col items-center space-y-4"
                                 >
-                                    <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                                    <Loader2 className="w-12 h-12 text-primary animate-spin" />
                                     <div className="text-center">
                                         <h3 className="text-lg font-semibold text-gray-700 mb-1">Loading Data</h3>
                                         <p className="text-sm text-gray-400">Please wait...</p>
@@ -253,7 +252,7 @@ export default function Index({
                                                                 className={cn(
                                                                     "w-8 h-8 flex items-center justify-center text-sm rounded-md transition-colors",
                                                                     link.active
-                                                                        ? "font-medium text-indigo-600 bg-indigo-50"
+                                                                        ? "font-medium text-primary bg-primary"
                                                                         : "text-gray-500 hover:bg-gray-100"
                                                                 )}
                                                             >
@@ -306,7 +305,6 @@ export default function Index({
                             </motion.div>
                         )}
                     </div>
-                </div>
             </div>
         </>
     );

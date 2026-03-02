@@ -1,196 +1,213 @@
 {
-  "_module-activity-CI2G9zOj.js": {
-    "file": "js/module-activity-CI2G9zOj.js",
-    "name": "module-activity",
+  "_ArticleListItem-DjtR1nbA.js": {
+    "file": "js/ArticleListItem-DjtR1nbA.js",
+    "name": "ArticleListItem",
+    "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js"
     ]
   },
-  "_module-admin-JEh-cNbl.js": {
-    "file": "js/module-admin-JEh-cNbl.js",
+  "_cashflow-dashboard-IbOtkHjh.css": {
+    "file": "assets/cashflow-dashboard-IbOtkHjh.css",
+    "src": "_cashflow-dashboard-IbOtkHjh.css"
+  },
+  "_module-activity-B-zwwkDI.js": {
+    "file": "js/module-activity-B-zwwkDI.js",
+    "name": "module-activity",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
+    ]
+  },
+  "_module-admin-CltrI5WM.js": {
+    "file": "js/module-admin-CltrI5WM.js",
     "name": "module-admin",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-other-ChPyIRzg.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js"
     ],
     "dynamicImports": [
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-charts-CoyLbCtf.js"
     ]
   },
-  "_module-purchasing-Bdtr-wy4.js": {
-    "file": "js/module-purchasing-Bdtr-wy4.js",
+  "_module-purchasing-PaDdddqd.js": {
+    "file": "js/module-purchasing-PaDdddqd.js",
     "name": "module-purchasing",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
-  "_shared-error-CBSLzVTP.js": {
-    "file": "js/shared-error-CBSLzVTP.js",
+  "_shared-error-C23ivrkQ.js": {
+    "file": "js/shared-error-C23ivrkQ.js",
     "name": "shared-error",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js"
     ]
   },
-  "_shared-hooks-Bf5IKSsl.js": {
-    "file": "js/shared-hooks-Bf5IKSsl.js",
+  "_shared-hooks-YI4mHYqS.js": {
+    "file": "js/shared-hooks-YI4mHYqS.js",
     "name": "shared-hooks",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-stores-DXHtqI12.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-stores-Dz4ra2Og.js"
     ]
   },
-  "_shared-layout-CMc7SY_3.js": {
-    "file": "js/shared-layout-CMc7SY_3.js",
+  "_shared-layout-XB1KHxTH.js": {
+    "file": "js/shared-layout-XB1KHxTH.js",
     "name": "shared-layout",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
-  "_shared-lib-D7C4QG6L.js": {
-    "file": "js/shared-lib-D7C4QG6L.js",
+  "_shared-lib-DeKlUZ6o.js": {
+    "file": "js/shared-lib-DeKlUZ6o.js",
     "name": "shared-lib",
     "imports": [
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js"
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
     ]
   },
-  "_shared-stores-DXHtqI12.js": {
-    "file": "js/shared-stores-DXHtqI12.js",
+  "_shared-stores-Dz4ra2Og.js": {
+    "file": "js/shared-stores-Dz4ra2Og.js",
     "name": "shared-stores",
     "imports": [
-      "_vendor-state-CC0xW41S.js"
+      "_vendor-state-CfPbM9Nr.js"
     ]
   },
-  "_shared-ui-CTBwlmgW.js": {
-    "file": "js/shared-ui-CTBwlmgW.js",
+  "_shared-ui-vNXj_f1e.js": {
+    "file": "js/shared-ui-vNXj_f1e.js",
     "name": "shared-ui",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-other-BV1U08XX.js"
     ]
   },
-  "_vendor-calendar-BUWijvPq.js": {
-    "file": "js/vendor-calendar-BUWijvPq.js",
+  "_utils-D3SzrAwq.js": {
+    "file": "js/utils-D3SzrAwq.js",
+    "name": "utils"
+  },
+  "_vendor-calendar-DQOFjN_8.js": {
+    "file": "js/vendor-calendar-DQOFjN_8.js",
     "name": "vendor-calendar",
     "imports": [
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-react-DaY7R5mu.js"
     ]
   },
-  "_vendor-charts-aiIGPyvI.js": {
-    "file": "js/vendor-charts-aiIGPyvI.js",
+  "_vendor-charts-CoyLbCtf.js": {
+    "file": "js/vendor-charts-CoyLbCtf.js",
     "name": "vendor-charts",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-other-ChPyIRzg.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
-  "_vendor-dnd-Dw7-bntu.js": {
-    "file": "js/vendor-dnd-Dw7-bntu.js",
+  "_vendor-dnd-BQO-1NRI.js": {
+    "file": "js/vendor-dnd-BQO-1NRI.js",
     "name": "vendor-dnd",
     "imports": [
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-react-DaY7R5mu.js"
     ]
   },
-  "_vendor-inertia-DvrvNcHM.js": {
-    "file": "js/vendor-inertia-DvrvNcHM.js",
+  "_vendor-inertia-BZmL9DK3.js": {
+    "file": "js/vendor-inertia-BZmL9DK3.js",
     "name": "vendor-inertia",
     "imports": [
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-react-DaY7R5mu.js"
     ]
   },
-  "_vendor-other-ChPyIRzg.js": {
-    "file": "js/vendor-other-ChPyIRzg.js",
+  "_vendor-other-BV1U08XX.js": {
+    "file": "js/vendor-other-BV1U08XX.js",
     "name": "vendor-other",
     "imports": [
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-react-DaY7R5mu.js"
     ]
   },
-  "_vendor-react-mpB6TzPX.js": {
-    "file": "js/vendor-react-mpB6TzPX.js",
+  "_vendor-react-DaY7R5mu.js": {
+    "file": "js/vendor-react-DaY7R5mu.js",
     "name": "vendor-react",
     "imports": [
-      "_vendor-other-ChPyIRzg.js"
+      "_vendor-other-BV1U08XX.js"
     ]
   },
-  "_vendor-state-CC0xW41S.js": {
-    "file": "js/vendor-state-CC0xW41S.js",
+  "_vendor-state-CfPbM9Nr.js": {
+    "file": "js/vendor-state-CfPbM9Nr.js",
     "name": "vendor-state",
     "imports": [
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-react-DaY7R5mu.js"
     ]
   },
-  "_vendor-toast-Dc1kw7ax.js": {
-    "file": "js/vendor-toast-Dc1kw7ax.js",
+  "_vendor-toast-BrhwOYA0.js": {
+    "file": "js/vendor-toast-BrhwOYA0.js",
     "name": "vendor-toast",
     "imports": [
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-react-DaY7R5mu.js"
     ]
   },
-  "_vendor-ui-BUT9FQSZ.js": {
-    "file": "js/vendor-ui-BUT9FQSZ.js",
+  "_vendor-ui-mr00cMln.js": {
+    "file": "js/vendor-ui-mr00cMln.js",
     "name": "vendor-ui",
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-other-ChPyIRzg.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-other-BV1U08XX.js"
     ]
   },
-  "_vendor-utils-XCWjWq9_.js": {
-    "file": "js/vendor-utils-XCWjWq9_.js",
+  "_vendor-utils--oADdHdD.js": {
+    "file": "js/vendor-utils--oADdHdD.js",
     "name": "vendor-utils"
   },
   "resources/css/app.css": {
-    "file": "assets/app-Bj5DCG3b.css",
+    "file": "assets/app-BRzAl3i-.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -199,798 +216,1337 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "js/app-BOkFXKsT.js",
+    "file": "js/app-P1STsF9b.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-react-mpB6TzPX.js"
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/ActivityDashboard.tsx": {
-    "file": "js/ActivityDashboard-BL4LQvZk.js",
+    "file": "js/ActivityDashboard-Dm6fa-VD.js",
     "name": "ActivityDashboard",
     "src": "resources/js/inertia/Pages/Activity/ActivityDashboard.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Admin/BackdateApprovals.tsx": {
+    "file": "js/BackdateApprovals-CQyjPBxh.js",
+    "name": "BackdateApprovals",
+    "src": "resources/js/inertia/Pages/Activity/Admin/BackdateApprovals.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Admin/Dashboard.tsx": {
+    "file": "js/Dashboard-DpANQFPp.js",
+    "name": "Dashboard",
+    "src": "resources/js/inertia/Pages/Activity/Admin/Dashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Admin/DepartmentDetail.tsx": {
+    "file": "js/DepartmentDetail-DGHL5emS.js",
+    "name": "DepartmentDetail",
+    "src": "resources/js/inertia/Pages/Activity/Admin/DepartmentDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Admin/TaskDetail.tsx": {
+    "file": "js/TaskDetail-BF7xO9Mt.js",
+    "name": "TaskDetail",
+    "src": "resources/js/inertia/Pages/Activity/Admin/TaskDetail.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/Analytics/Department.tsx": {
-    "file": "js/Department-D1ffWjb-.js",
+    "file": "js/Department-Cc8Yvk7E.js",
     "name": "Department",
     "src": "resources/js/inertia/Pages/Activity/Analytics/Department.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/Analytics/Personal.tsx": {
-    "file": "js/Personal-C-4qOlni.js",
+    "file": "js/Personal-CxubtVbp.js",
     "name": "Personal",
     "src": "resources/js/inertia/Pages/Activity/Analytics/Personal.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Backdate/Approvals.tsx": {
+    "file": "js/Approvals-BAftiy5p.js",
+    "name": "Approvals",
+    "src": "resources/js/inertia/Pages/Activity/Backdate/Approvals.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Activity/Backdate/Requests.tsx": {
+    "file": "js/Requests-CiZzztlx.js",
+    "name": "Requests",
+    "src": "resources/js/inertia/Pages/Activity/Backdate/Requests.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/Dashboard.tsx": {
-    "file": "js/Dashboard-DK5VRGol.js",
+    "file": "js/Dashboard-BJdIvSxZ.js",
     "name": "Dashboard",
     "src": "resources/js/inertia/Pages/Activity/Dashboard.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_module-activity-CI2G9zOj.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_module-admin-CltrI5WM.js",
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_module-activity-B-zwwkDI.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js",
+      "_vendor-toast-BrhwOYA0.js"
+    ],
+    "dynamicImports": [
+      "_module-activity-B-zwwkDI.js",
+      "_module-activity-B-zwwkDI.js",
+      "_module-activity-B-zwwkDI.js",
+      "_module-activity-B-zwwkDI.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/DepartmentTasks.tsx": {
-    "file": "js/DepartmentTasks-Dy4-VlKq.js",
+    "file": "js/DepartmentTasks-DhZC3_pK.js",
     "name": "DepartmentTasks",
     "src": "resources/js/inertia/Pages/Activity/DepartmentTasks.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-activity-CI2G9zOj.js",
-      "_shared-layout-CMc7SY_3.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-activity-B-zwwkDI.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/TaskDetail.tsx": {
-    "file": "js/TaskDetail-BAGXufyP.js",
+    "file": "js/TaskDetail-DY4Gh8Sc.js",
     "name": "TaskDetail",
     "src": "resources/js/inertia/Pages/Activity/TaskDetail.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Activity/TaskForm.tsx": {
-    "file": "js/TaskForm-B4repM59.js",
+    "file": "js/TaskForm-elv3Z-Uw.js",
     "name": "TaskForm",
     "src": "resources/js/inertia/Pages/Activity/TaskForm.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Admin/ActivityAdmins/Index.tsx": {
+    "file": "js/Index-DeOkM6i-.js",
+    "name": "Index",
+    "src": "resources/js/inertia/Pages/Admin/ActivityAdmins/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/ActivityTypes/Index.tsx": {
-    "file": "js/Index-qbj1WgC8.js",
+    "file": "js/Index-H7EwdGAK.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/ActivityTypes/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-admin-JEh-cNbl.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-admin-CltrI5WM.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-charts-CoyLbCtf.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/BusinessUnits/Create.tsx": {
-    "file": "js/Create-EQEvgzTx.js",
+    "file": "js/Create-Di0o5GbA.js",
     "name": "Create",
     "src": "resources/js/inertia/Pages/Admin/BusinessUnits/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-admin-JEh-cNbl.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-ui-BUT9FQSZ.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-admin-CltrI5WM.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-charts-CoyLbCtf.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/BusinessUnits/Edit.tsx": {
-    "file": "js/Edit-DOFt568t.js",
+    "file": "js/Edit-BoaybAqm.js",
     "name": "Edit",
     "src": "resources/js/inertia/Pages/Admin/BusinessUnits/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-admin-JEh-cNbl.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-admin-CltrI5WM.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-charts-CoyLbCtf.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/BusinessUnits/Index.tsx": {
-    "file": "js/Index-C83onOZx.js",
+    "file": "js/Index-DM6CosMW.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/BusinessUnits/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-admin-JEh-cNbl.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-lib-D7C4QG6L.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-lib-DeKlUZ6o.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/BusinessUnits/Show.tsx": {
-    "file": "js/Show-Dd6D11fd.js",
+    "file": "js/Show-ZzhLPgjU.js",
     "name": "Show",
     "src": "resources/js/inertia/Pages/Admin/BusinessUnits/Show.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Dashboard.tsx": {
-    "file": "js/Dashboard-BYoAQ5ZI.js",
+    "file": "js/Dashboard-BGvHxLwZ.js",
     "name": "Dashboard",
     "src": "resources/js/inertia/Pages/Admin/Dashboard.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-admin-JEh-cNbl.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Departments/Create.tsx": {
-    "file": "js/Create-BcQDnZb6.js",
+    "file": "js/Create-DJ-2bfvm.js",
     "name": "Create",
     "src": "resources/js/inertia/Pages/Admin/Departments/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Departments/Edit.tsx": {
-    "file": "js/Edit-CbUjFlJ2.js",
+    "file": "js/Edit-BOD2K4H0.js",
     "name": "Edit",
     "src": "resources/js/inertia/Pages/Admin/Departments/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Departments/Index.tsx": {
-    "file": "js/Index-D8VUvqo7.js",
+    "file": "js/Index-h3C7vP2q.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/Departments/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-admin-JEh-cNbl.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-lib-D7C4QG6L.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-lib-DeKlUZ6o.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Departments/Show.tsx": {
-    "file": "js/Show-pnhVysl3.js",
+    "file": "js/Show-D8Ldirkk.js",
     "name": "Show",
     "src": "resources/js/inertia/Pages/Admin/Departments/Show.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/NotificationSettings/Index.tsx": {
-    "file": "js/Index-Cytfg3c3.js",
+    "file": "js/Index-nT7o8Kxn.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/NotificationSettings/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/PrCategories/Index.tsx": {
-    "file": "js/Index-DEAiIzMG.js",
+    "file": "js/Index-BA47SC0N.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/PrCategories/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-admin-JEh-cNbl.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-admin-CltrI5WM.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-charts-CoyLbCtf.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/SlaSettings/Index.tsx": {
-    "file": "js/Index-XsdK4S-F.js",
+    "file": "js/Index-CGt0j6WX.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/SlaSettings/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/SubActivities/Index.tsx": {
-    "file": "js/Index-C8DcE2Y2.js",
+    "file": "js/Index-Fe54eTj-.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/SubActivities/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Users/Create.tsx": {
-    "file": "js/Create-DLdhF86u.js",
+    "file": "js/Create-eKfQxWLs.js",
     "name": "Create",
     "src": "resources/js/inertia/Pages/Admin/Users/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Users/Edit.tsx": {
-    "file": "js/Edit-CL_oKSEx.js",
+    "file": "js/Edit-Cff7E3s9.js",
     "name": "Edit",
     "src": "resources/js/inertia/Pages/Admin/Users/Edit.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Users/Index.tsx": {
-    "file": "js/Index-hsjj5PDq.js",
+    "file": "js/Index-Cc7oP9QU.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Admin/Users/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-admin-JEh-cNbl.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-lib-D7C4QG6L.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-lib-DeKlUZ6o.js"
     ]
   },
   "resources/js/inertia/Pages/Admin/Users/Show.tsx": {
-    "file": "js/Show-Joppnykj.js",
+    "file": "js/Show-DPbkA-jZ.js",
     "name": "Show",
     "src": "resources/js/inertia/Pages/Admin/Users/Show.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Auth/Login.tsx": {
-    "file": "js/Login-LoBXOpnJ.js",
+    "file": "js/Login-CtLc6I0A.js",
     "name": "Login",
     "src": "resources/js/inertia/Pages/Auth/Login.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-state-CC0xW41S.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-state-CfPbM9Nr.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/Entries.tsx": {
+    "file": "js/Entries-3I2HH_-i.js",
+    "name": "Entries",
+    "src": "resources/js/inertia/Pages/CashflowProjection/Entries.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_utils-D3SzrAwq.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ],
+    "css": [
+      "assets/cashflow-dashboard-IbOtkHjh.css"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/Index.tsx": {
+    "file": "js/Index-D4hTc5H1.js",
+    "name": "Index",
+    "src": "resources/js/inertia/Pages/CashflowProjection/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "resources/js/inertia/Pages/CashflowProjection/components/ProjectionChartCard.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/RecentTransactionsTable.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/StatsCards.tsx",
+      "_utils-D3SzrAwq.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ],
+    "css": [
+      "assets/cashflow-dashboard-IbOtkHjh.css"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/Settings.tsx": {
+    "file": "js/Settings-BXKdK3Ke.js",
+    "name": "Settings",
+    "src": "resources/js/inertia/Pages/CashflowProjection/Settings.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_utils-D3SzrAwq.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/AddProjectionCard.tsx": {
+    "file": "js/AddProjectionCard-zACkUHaO.js",
+    "name": "AddProjectionCard",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/AddProjectionCard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/FinanceManagementCard.tsx": {
+    "file": "js/FinanceManagementCard-CmzZs4G9.js",
+    "name": "FinanceManagementCard",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/FinanceManagementCard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_utils-D3SzrAwq.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/OverviewHeader.tsx": {
+    "file": "js/OverviewHeader-CUUxKog6.js",
+    "name": "OverviewHeader",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/OverviewHeader.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/ProjectionChartCard.tsx": {
+    "file": "js/ProjectionChartCard-BJ-y98qL.js",
+    "name": "ProjectionChartCard",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/ProjectionChartCard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_utils-D3SzrAwq.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/RecentTransactionsTable.tsx": {
+    "file": "js/RecentTransactionsTable-BYaHRR36.js",
+    "name": "RecentTransactionsTable",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/RecentTransactionsTable.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_utils-D3SzrAwq.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/StatsCards.tsx": {
+    "file": "js/StatsCards-DLTpvxlx.js",
+    "name": "StatsCards",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/StatsCards.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
     ]
   },
   "resources/js/inertia/Pages/Dashboard.tsx": {
-    "file": "js/Dashboard-BNTGcnT9.js",
+    "file": "js/Dashboard-D3KDV8v4.js",
     "name": "Dashboard",
     "src": "resources/js/inertia/Pages/Dashboard.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/Index.tsx": {
+    "file": "js/Index-D_qPihrP.js",
+    "name": "Index",
+    "src": "resources/js/inertia/Pages/DocsHelp/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_ArticleListItem-DjtR1nbA.js",
+      "resources/js/inertia/Pages/DocsHelp/components/ArticleRenderer.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/TableOfContents.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/Breadcrumbs.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/SearchBar.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/SupportBanner.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/CategoryCard.tsx",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/components/ArticleRenderer.tsx": {
+    "file": "js/ArticleRenderer-B3CuSrdJ.js",
+    "name": "ArticleRenderer",
+    "src": "resources/js/inertia/Pages/DocsHelp/components/ArticleRenderer.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/components/Breadcrumbs.tsx": {
+    "file": "js/Breadcrumbs-BMB2yrOk.js",
+    "name": "Breadcrumbs",
+    "src": "resources/js/inertia/Pages/DocsHelp/components/Breadcrumbs.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/components/CategoryCard.tsx": {
+    "file": "js/CategoryCard-DRPpjts3.js",
+    "name": "CategoryCard",
+    "src": "resources/js/inertia/Pages/DocsHelp/components/CategoryCard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/components/SearchBar.tsx": {
+    "file": "js/SearchBar-C9WjWvTw.js",
+    "name": "SearchBar",
+    "src": "resources/js/inertia/Pages/DocsHelp/components/SearchBar.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/components/SupportBanner.tsx": {
+    "file": "js/SupportBanner-UHR-Y9FF.js",
+    "name": "SupportBanner",
+    "src": "resources/js/inertia/Pages/DocsHelp/components/SupportBanner.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/DocsHelp/components/TableOfContents.tsx": {
+    "file": "js/TableOfContents-_O5gMxyR.js",
+    "name": "TableOfContents",
+    "src": "resources/js/inertia/Pages/DocsHelp/components/TableOfContents.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-other-BV1U08XX.js"
     ]
   },
   "resources/js/inertia/Pages/ErrorTest.tsx": {
-    "file": "js/ErrorTest-_yLLmHSO.js",
+    "file": "js/ErrorTest-Cd8E9J-o.js",
     "name": "ErrorTest",
     "src": "resources/js/inertia/Pages/ErrorTest.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-inertia-DvrvNcHM.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-inertia-BZmL9DK3.js"
     ]
   },
   "resources/js/inertia/Pages/PrefetchTest.tsx": {
-    "file": "js/PrefetchTest-CFFC2B24.js",
+    "file": "js/PrefetchTest-BsSHvLti.js",
     "name": "PrefetchTest",
     "src": "resources/js/inertia/Pages/PrefetchTest.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js"
     ]
   },
   "resources/js/inertia/Pages/Profile/Index.tsx": {
-    "file": "js/Index-B0jUHdvG.js",
+    "file": "js/Index-CPg9-ksJ.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Profile/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Purchasing/Approvals.tsx": {
+    "file": "js/Approvals-D30EpS_Z.js",
+    "name": "Approvals",
+    "src": "resources/js/inertia/Pages/Purchasing/Approvals.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/PurchaseRequest/All.tsx": {
-    "file": "js/All-Dtj26cAg.js",
+    "file": "js/All-yWGsy1SI.js",
     "name": "All",
     "src": "resources/js/inertia/Pages/Purchasing/PurchaseRequest/All.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Approvals.tsx": {
-    "file": "js/Approvals-CB3sY6JA.js",
+    "file": "js/Approvals-D2ADPz2-.js",
     "name": "Approvals",
     "src": "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Approvals.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Create.tsx": {
-    "file": "js/Create-DBO-bjK5.js",
+    "file": "js/Create-gbIhUBK3.js",
     "name": "Create",
     "src": "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Create.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-purchasing-Bdtr-wy4.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Form.tsx": {
-    "file": "js/Form-AL_Ar46T.js",
+    "file": "js/Form-11IR9K3n.js",
     "name": "Form",
     "src": "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Form.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-purchasing-Bdtr-wy4.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Index.tsx": {
-    "file": "js/Index-Ct9r4sdh.js",
+    "file": "js/Index-B8-ia8C1.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_module-purchasing-Bdtr-wy4.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js",
+      "_vendor-utils--oADdHdD.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Show.tsx": {
-    "file": "js/Show-CRvHWM53.js",
+    "file": "js/Show-QtQ1wWRE.js",
     "name": "Show",
     "src": "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Show.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Purchasing/StockRequest/Create.tsx": {
+    "file": "js/Create-BgKvh-qq.js",
+    "name": "Create",
+    "src": "resources/js/inertia/Pages/Purchasing/StockRequest/Create.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Purchasing/StockRequest/Form.tsx": {
+    "file": "js/Form-CIP2Xrh5.js",
+    "name": "Form",
+    "src": "resources/js/inertia/Pages/Purchasing/StockRequest/Form.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
     ]
   },
   "resources/js/inertia/Pages/Purchasing/StockRequest/Index.tsx": {
-    "file": "js/Index-q_o19wt5.js",
+    "file": "js/Index-DhkQ8ocx.js",
     "name": "Index",
     "src": "resources/js/inertia/Pages/Purchasing/StockRequest/Index.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/Purchasing/StockRequest/Show.tsx": {
+    "file": "js/Show-Bjlt2ooQ.js",
+    "name": "Show",
+    "src": "resources/js/inertia/Pages/Purchasing/StockRequest/Show.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/PurchasingAdmin/AuditHistory.tsx": {
+    "file": "js/AuditHistory-BcI2EtCi.js",
+    "name": "AuditHistory",
+    "src": "resources/js/inertia/Pages/PurchasingAdmin/AuditHistory.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
+    ]
+  },
+  "resources/js/inertia/Pages/PurchasingAdmin/ConsolidatedReport.tsx": {
+    "file": "js/ConsolidatedReport-C8hGVrCK.js",
+    "name": "ConsolidatedReport",
+    "src": "resources/js/inertia/Pages/PurchasingAdmin/ConsolidatedReport.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
     ]
   },
   "resources/js/inertia/Pages/PurchasingAdmin/Dashboard.tsx": {
-    "file": "js/Dashboard-DHoAw_gU.js",
+    "file": "js/Dashboard-5VEP1pll.js",
     "name": "Dashboard",
     "src": "resources/js/inertia/Pages/PurchasingAdmin/Dashboard.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-utils-XCWjWq9_.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/PurchasingAdmin/DepartmentAuditHistory.tsx": {
+    "file": "js/DepartmentAuditHistory-CuqG-gBX.js",
+    "name": "DepartmentAuditHistory",
+    "src": "resources/js/inertia/Pages/PurchasingAdmin/DepartmentAuditHistory.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
+    ]
+  },
+  "resources/js/inertia/Pages/PurchasingAdmin/DepartmentReport.tsx": {
+    "file": "js/DepartmentReport-D5j7acO2.js",
+    "name": "DepartmentReport",
+    "src": "resources/js/inertia/Pages/PurchasingAdmin/DepartmentReport.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js"
+    ]
+  },
+  "resources/js/inertia/Pages/PurchasingAdmin/ManagementHistory.tsx": {
+    "file": "js/ManagementHistory-BJinEWiq.js",
+    "name": "ManagementHistory",
+    "src": "resources/js/inertia/Pages/PurchasingAdmin/ManagementHistory.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
+    ]
+  },
+  "resources/js/inertia/Pages/PurchasingAdmin/PersonalTaskHistory.tsx": {
+    "file": "js/PersonalTaskHistory-BJPPmu7e.js",
+    "name": "PersonalTaskHistory",
+    "src": "resources/js/inertia/Pages/PurchasingAdmin/PersonalTaskHistory.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
     ]
   },
   "resources/js/inertia/Pages/PurchasingAdmin/TaskDetail.tsx": {
-    "file": "js/TaskDetail-BmE6IHEl.js",
+    "file": "js/TaskDetail-OOTc1Pc0.js",
     "name": "TaskDetail",
     "src": "resources/js/inertia/Pages/PurchasingAdmin/TaskDetail.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-purchasing-Bdtr-wy4.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
     ]
   },
   "resources/js/inertia/Pages/PurchasingAdmin/TaskHistory.tsx": {
-    "file": "js/TaskHistory-CTaEkNsi.js",
+    "file": "js/TaskHistory-6PZ7X0DX.js",
     "name": "TaskHistory",
     "src": "resources/js/inertia/Pages/PurchasingAdmin/TaskHistory.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js"
     ]
   },
   "resources/js/inertia/Pages/PurchasingAdmin/Tasks.tsx": {
-    "file": "js/Tasks-BTfyNQ98.js",
+    "file": "js/Tasks-YrFCnKk9.js",
     "name": "Tasks",
     "src": "resources/js/inertia/Pages/PurchasingAdmin/Tasks.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_module-purchasing-Bdtr-wy4.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js",
-      "_vendor-dnd-Dw7-bntu.js",
-      "_vendor-calendar-BUWijvPq.js"
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_module-purchasing-PaDdddqd.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js",
+      "_vendor-dnd-BQO-1NRI.js",
+      "_vendor-calendar-DQOFjN_8.js"
+    ]
+  },
+  "resources/js/inertia/Pages/SalesCrm/Activities/Form.tsx": {
+    "file": "js/Form-yuWyRxE6.js",
+    "name": "Form",
+    "src": "resources/js/inertia/Pages/SalesCrm/Activities/Form.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/SalesCrm/Activities/Index.tsx": {
+    "file": "js/Index-CNyTnbCm.js",
+    "name": "Index",
+    "src": "resources/js/inertia/Pages/SalesCrm/Activities/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-lib-DeKlUZ6o.js"
+    ]
+  },
+  "resources/js/inertia/Pages/SalesCrm/Contacts/Form.tsx": {
+    "file": "js/Form-BVvWJ8eV.js",
+    "name": "Form",
+    "src": "resources/js/inertia/Pages/SalesCrm/Contacts/Form.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-utils--oADdHdD.js"
+    ]
+  },
+  "resources/js/inertia/Pages/SalesCrm/Contacts/Index.tsx": {
+    "file": "js/Index-Cf8bpY2q.js",
+    "name": "Index",
+    "src": "resources/js/inertia/Pages/SalesCrm/Contacts/Index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_module-admin-CltrI5WM.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_vendor-ui-mr00cMln.js",
+      "_vendor-other-BV1U08XX.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_shared-lib-DeKlUZ6o.js"
     ]
   },
   "resources/js/inertia/app.tsx": {
-    "file": "js/app-CUuKPaA5.js",
+    "file": "js/app-qyS8OpH6.js",
     "name": "app",
     "src": "resources/js/inertia/app.tsx",
     "isEntry": true,
     "imports": [
-      "_module-admin-JEh-cNbl.js",
-      "_vendor-react-mpB6TzPX.js",
-      "_vendor-inertia-DvrvNcHM.js",
-      "_vendor-other-ChPyIRzg.js",
-      "_shared-layout-CMc7SY_3.js",
-      "_shared-error-CBSLzVTP.js",
-      "_shared-lib-D7C4QG6L.js",
-      "_vendor-ui-BUT9FQSZ.js",
-      "_shared-ui-CTBwlmgW.js",
-      "_vendor-toast-Dc1kw7ax.js",
-      "_vendor-charts-aiIGPyvI.js",
-      "_vendor-utils-XCWjWq9_.js",
-      "_shared-hooks-Bf5IKSsl.js",
-      "_shared-stores-DXHtqI12.js",
-      "_vendor-state-CC0xW41S.js"
+      "_module-admin-CltrI5WM.js",
+      "_vendor-react-DaY7R5mu.js",
+      "_vendor-inertia-BZmL9DK3.js",
+      "_vendor-other-BV1U08XX.js",
+      "_shared-layout-XB1KHxTH.js",
+      "_shared-error-C23ivrkQ.js",
+      "_shared-lib-DeKlUZ6o.js",
+      "_vendor-charts-CoyLbCtf.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-ui-mr00cMln.js",
+      "_shared-ui-vNXj_f1e.js",
+      "_vendor-toast-BrhwOYA0.js",
+      "_shared-hooks-YI4mHYqS.js",
+      "_shared-stores-Dz4ra2Og.js",
+      "_vendor-state-CfPbM9Nr.js"
     ],
     "dynamicImports": [
       "resources/js/inertia/Pages/Activity/ActivityDashboard.tsx",
+      "resources/js/inertia/Pages/Activity/Admin/BackdateApprovals.tsx",
+      "resources/js/inertia/Pages/Activity/Admin/Dashboard.tsx",
+      "resources/js/inertia/Pages/Activity/Admin/DepartmentDetail.tsx",
+      "resources/js/inertia/Pages/Activity/Admin/TaskDetail.tsx",
       "resources/js/inertia/Pages/Activity/Analytics/Department.tsx",
       "resources/js/inertia/Pages/Activity/Analytics/Personal.tsx",
+      "resources/js/inertia/Pages/Activity/Backdate/Approvals.tsx",
+      "resources/js/inertia/Pages/Activity/Backdate/Requests.tsx",
       "resources/js/inertia/Pages/Activity/Dashboard.tsx",
       "resources/js/inertia/Pages/Activity/DepartmentTasks.tsx",
       "resources/js/inertia/Pages/Activity/TaskDetail.tsx",
       "resources/js/inertia/Pages/Activity/TaskForm.tsx",
+      "resources/js/inertia/Pages/Admin/ActivityAdmins/Index.tsx",
       "resources/js/inertia/Pages/Admin/ActivityTypes/Index.tsx",
       "resources/js/inertia/Pages/Admin/BusinessUnits/Create.tsx",
       "resources/js/inertia/Pages/Admin/BusinessUnits/Edit.tsx",
@@ -1010,21 +1566,52 @@
       "resources/js/inertia/Pages/Admin/Users/Index.tsx",
       "resources/js/inertia/Pages/Admin/Users/Show.tsx",
       "resources/js/inertia/Pages/Auth/Login.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/Entries.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/Index.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/Settings.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/AddProjectionCard.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/FinanceManagementCard.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/OverviewHeader.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/ProjectionChartCard.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/RecentTransactionsTable.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/StatsCards.tsx",
       "resources/js/inertia/Pages/Dashboard.tsx",
+      "resources/js/inertia/Pages/DocsHelp/Index.tsx",
+      "_ArticleListItem-DjtR1nbA.js",
+      "resources/js/inertia/Pages/DocsHelp/components/ArticleRenderer.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/Breadcrumbs.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/CategoryCard.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/SearchBar.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/SupportBanner.tsx",
+      "resources/js/inertia/Pages/DocsHelp/components/TableOfContents.tsx",
       "resources/js/inertia/Pages/ErrorTest.tsx",
       "resources/js/inertia/Pages/PrefetchTest.tsx",
       "resources/js/inertia/Pages/Profile/Index.tsx",
+      "resources/js/inertia/Pages/Purchasing/Approvals.tsx",
       "resources/js/inertia/Pages/Purchasing/PurchaseRequest/All.tsx",
       "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Approvals.tsx",
       "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Create.tsx",
       "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Form.tsx",
       "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Index.tsx",
       "resources/js/inertia/Pages/Purchasing/PurchaseRequest/Show.tsx",
+      "resources/js/inertia/Pages/Purchasing/StockRequest/Create.tsx",
+      "resources/js/inertia/Pages/Purchasing/StockRequest/Form.tsx",
       "resources/js/inertia/Pages/Purchasing/StockRequest/Index.tsx",
+      "resources/js/inertia/Pages/Purchasing/StockRequest/Show.tsx",
+      "resources/js/inertia/Pages/PurchasingAdmin/AuditHistory.tsx",
+      "resources/js/inertia/Pages/PurchasingAdmin/ConsolidatedReport.tsx",
       "resources/js/inertia/Pages/PurchasingAdmin/Dashboard.tsx",
+      "resources/js/inertia/Pages/PurchasingAdmin/DepartmentAuditHistory.tsx",
+      "resources/js/inertia/Pages/PurchasingAdmin/DepartmentReport.tsx",
+      "resources/js/inertia/Pages/PurchasingAdmin/ManagementHistory.tsx",
+      "resources/js/inertia/Pages/PurchasingAdmin/PersonalTaskHistory.tsx",
       "resources/js/inertia/Pages/PurchasingAdmin/TaskDetail.tsx",
       "resources/js/inertia/Pages/PurchasingAdmin/TaskHistory.tsx",
-      "resources/js/inertia/Pages/PurchasingAdmin/Tasks.tsx"
+      "resources/js/inertia/Pages/PurchasingAdmin/Tasks.tsx",
+      "resources/js/inertia/Pages/SalesCrm/Activities/Form.tsx",
+      "resources/js/inertia/Pages/SalesCrm/Activities/Index.tsx",
+      "resources/js/inertia/Pages/SalesCrm/Contacts/Form.tsx",
+      "resources/js/inertia/Pages/SalesCrm/Contacts/Index.tsx"
     ]
   }
 }

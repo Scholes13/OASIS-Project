@@ -137,7 +137,7 @@ export default function PurchaseRequestTable({
                                             {pr.pr_number}
                                         </div>
                                         <div className="text-xs text-gray-400 mt-0.5">
-                                            {pr.items?.length || 0} items
+                                            {pr.items_count ?? 0} items
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">

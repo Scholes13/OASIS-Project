@@ -15,7 +15,7 @@
     ];
     
     $colorClasses = [
-        'indigo' => 'text-indigo-600',
+        'indigo' => 'text-primary',
         'blue' => 'text-blue-600',
         'gray' => 'text-gray-600',
         'white' => 'text-white',

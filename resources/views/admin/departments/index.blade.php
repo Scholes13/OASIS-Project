@@ -5,7 +5,7 @@
                 {{ __('Department Management') }}
             </h2>
             <a href="{{ route('admin.departments.create') }}" 
-               class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 inline-flex items-center">
+               class="bg-primary hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 inline-flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -34,7 +34,7 @@
                                            id="search"
                                            value="{{ request('search') }}"
                                            placeholder="Department name, code..."
-                                           class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                           class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -46,7 +46,7 @@
                             <!-- Business Unit Filter -->
                             <div class="w-64">
                                 <label for="business_unit" class="block text-sm font-medium text-gray-700 mb-1">Business Unit</label>
-                                <select name="business_unit" id="business_unit" class="w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm" onchange="document.getElementById('filterForm').submit()">
+                                <select name="business_unit" id="business_unit" class="w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm" onchange="document.getElementById('filterForm').submit()">
                                     <option value="">All Business Units</option>
                                     @foreach($businessUnits as $bu)
                                         <option value="{{ $bu->id }}" {{ request('business_unit') == $bu->id ? 'selected' : '' }}>
@@ -81,7 +81,7 @@
                                         <div class="flex items-center gap-1">
                                             Business Unit
                                             @if($currentSort === 'business_unit')
-                                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ $currentDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}"/>
                                                 </svg>
                                             @else
@@ -95,7 +95,7 @@
                                         <div class="flex items-center gap-1">
                                             Department
                                             @if($currentSort === 'name')
-                                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ $currentDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}"/>
                                                 </svg>
                                             @else
@@ -109,7 +109,7 @@
                                         <div class="flex items-center gap-1">
                                             Code
                                             @if($currentSort === 'code')
-                                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="{{ $currentDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}"/>
                                                 </svg>
                                             @else
@@ -146,8 +146,8 @@
                                                                  class="max-h-full max-w-full object-contain">
                                                         </div>
                                                     @else
-                                                        <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                                            <span class="text-sm font-medium text-indigo-800">
+                                                        <div class="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
+                                                            <span class="text-sm font-medium text-primary">
                                                                 {{ $department->businessUnit->code }}
                                                             </span>
                                                         </div>
@@ -222,7 +222,7 @@
                                                     </svg>
                                                 </a>
                                                 <a href="{{ route('admin.departments.edit', $department) }}" 
-                                                   class="text-indigo-600 hover:text-indigo-900 transition-colors duration-200"
+                                                   class="text-primary hover:text-primary transition-colors duration-200"
                                                    title="Edit Department">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -270,7 +270,7 @@
                                                     </a>
                                                 @else
                                                     <a href="{{ route('admin.departments.create') }}" 
-                                                       class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 inline-flex items-center">
+                                                       class="bg-primary hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 inline-flex items-center">
                                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
                                                         </svg>

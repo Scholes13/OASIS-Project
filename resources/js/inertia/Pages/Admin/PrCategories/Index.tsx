@@ -35,7 +35,7 @@ const COLORS = [
   { value: 'yellow', label: 'Yellow', class: 'bg-yellow-100 text-yellow-800' },
   { value: 'red', label: 'Red', class: 'bg-red-100 text-red-800' },
   { value: 'gray', label: 'Gray', class: 'bg-gray-100 text-gray-800' },
-  { value: 'indigo', label: 'Indigo', class: 'bg-indigo-100 text-indigo-800' },
+  { value: 'indigo', label: 'Indigo', class: 'bg-blue-50 text-blue-700' },
 ];
 
 function Index({ categories }: PrCategoriesIndexProps) {
@@ -343,7 +343,7 @@ function Index({ categories }: PrCategoriesIndexProps) {
                       onChange={(e) =>
                         setFormData({ ...formData, color: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       {COLORS.map((color) => (
                         <option key={color.value} value={color.value}>
@@ -377,7 +377,7 @@ function Index({ categories }: PrCategoriesIndexProps) {
                         onChange={(e) =>
                           setFormData({ ...formData, is_active: e.target.checked })
                         }
-                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Active

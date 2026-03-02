@@ -30,11 +30,11 @@ function FloatingParticles() {
     );
 
     const colorMap: Record<string, string> = {
-        indigo: 'bg-indigo-400/40',
-        purple: 'bg-purple-400/40',
-        emerald: 'bg-emerald-400/40',
-        blue: 'bg-blue-400/40',
-        cyan: 'bg-cyan-400/40',
+        indigo: 'bg-[#16599c]/40',
+        purple: 'bg-[#3b8ed0]/40',
+        emerald: 'bg-[#5ba3d9]/40',
+        blue: 'bg-[#0e3d6b]/30',
+        cyan: 'bg-[#eef6ff]/60',
     };
 
     return (
@@ -70,53 +70,114 @@ function FloatingParticles() {
 // Animated wave at bottom
 function WaveAnimation() {
     return (
-        <div className="absolute bottom-0 left-0 right-0 h-40 overflow-hidden">
+        <div className="absolute bottom-0 left-0 right-0 h-52 overflow-hidden">
+            {/* Wave 1 - Back layer, slowest */}
             <motion.svg
                 viewBox="0 0 1440 320"
                 className="absolute bottom-0 w-full"
-                initial={{ y: 100 }}
+                preserveAspectRatio="none"
+                initial={{ y: 80 }}
                 animate={{ y: 0 }}
-                transition={{ duration: 1, ease: 'easeOut' }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
             >
                 <motion.path
-                    fill="rgba(16, 185, 129, 0.1)"
-                    d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                    fill="rgba(22, 89, 156, 0.06)"
+                    d="M0,224C120,200,240,260,360,256C480,252,600,200,720,192C840,184,960,224,1080,240C1200,256,1320,240,1380,232L1440,224L1440,320L0,320Z"
                     animate={{
                         d: [
-                            "M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z",
-                            "M0,160L48,181.3C96,203,192,245,288,261.3C384,277,480,267,576,234.7C672,203,768,149,864,154.7C960,160,1056,224,1152,229.3C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z",
+                            "M0,224C120,200,240,260,360,256C480,252,600,200,720,192C840,184,960,224,1080,240C1200,256,1320,240,1380,232L1440,224L1440,320L0,320Z",
+                            "M0,240C120,256,240,208,360,200C480,192,600,240,720,256C840,272,960,248,1080,224C1200,200,1320,216,1380,224L1440,232L1440,320L0,320Z",
+                            "M0,224C120,200,240,260,360,256C480,252,600,200,720,192C840,184,960,224,1080,240C1200,256,1320,240,1380,232L1440,224L1440,320L0,320Z",
                         ],
                     }}
                     transition={{
-                        duration: 4,
+                        duration: 8,
                         repeat: Infinity,
-                        repeatType: 'reverse',
                         ease: 'easeInOut',
                     }}
                 />
             </motion.svg>
+
+            {/* Wave 2 - Middle-back layer */}
             <motion.svg
                 viewBox="0 0 1440 320"
                 className="absolute bottom-0 w-full"
-                initial={{ y: 100 }}
+                preserveAspectRatio="none"
+                initial={{ y: 60 }}
                 animate={{ y: 0 }}
-                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.1 }}
+                transition={{ duration: 1, ease: 'easeOut', delay: 0.1 }}
             >
                 <motion.path
-                    fill="rgba(99, 102, 241, 0.08)"
-                    d="M0,256L48,240C96,224,192,192,288,181.3C384,171,480,181,576,208C672,235,768,277,864,277.3C960,277,1056,235,1152,208C1248,181,1344,171,1392,165.3L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                    fill="rgba(59, 142, 208, 0.07)"
+                    d="M0,256C180,232,260,280,420,272C580,264,660,224,840,216C1020,208,1100,248,1260,256C1340,260,1400,252,1440,248L1440,320L0,320Z"
                     animate={{
                         d: [
-                            "M0,256L48,240C96,224,192,192,288,181.3C384,171,480,181,576,208C672,235,768,277,864,277.3C960,277,1056,235,1152,208C1248,181,1344,171,1392,165.3L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z",
-                            "M0,224L48,213.3C96,203,192,181,288,192C384,203,480,245,576,261.3C672,277,768,267,864,240C960,213,1056,171,1152,165.3C1248,160,1344,192,1392,208L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z",
+                            "M0,256C180,232,260,280,420,272C580,264,660,224,840,216C1020,208,1100,248,1260,256C1340,260,1400,252,1440,248L1440,320L0,320Z",
+                            "M0,248C180,264,260,224,420,216C580,208,660,256,840,264C1020,272,1100,240,1260,232C1340,228,1400,240,1440,244L1440,320L0,320Z",
+                            "M0,256C180,232,260,280,420,272C580,264,660,224,840,216C1020,208,1100,248,1260,256C1340,260,1400,252,1440,248L1440,320L0,320Z",
+                        ],
+                    }}
+                    transition={{
+                        duration: 6,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                        delay: 0.5,
+                    }}
+                />
+            </motion.svg>
+
+            {/* Wave 3 - Middle-front layer */}
+            <motion.svg
+                viewBox="0 0 1440 320"
+                className="absolute bottom-0 w-full"
+                preserveAspectRatio="none"
+                initial={{ y: 40 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+            >
+                <motion.path
+                    fill="rgba(91, 163, 217, 0.08)"
+                    d="M0,272C160,256,320,288,480,288C640,288,720,256,880,248C1040,240,1200,264,1320,272C1380,276,1420,272,1440,270L1440,320L0,320Z"
+                    animate={{
+                        d: [
+                            "M0,272C160,256,320,288,480,288C640,288,720,256,880,248C1040,240,1200,264,1320,272C1380,276,1420,272,1440,270L1440,320L0,320Z",
+                            "M0,264C160,280,320,248,480,248C640,248,720,280,880,288C1040,296,1200,272,1320,264C1380,260,1420,264,1440,266L1440,320L0,320Z",
+                            "M0,272C160,256,320,288,480,288C640,288,720,256,880,248C1040,240,1200,264,1320,272C1380,276,1420,272,1440,270L1440,320L0,320Z",
                         ],
                     }}
                     transition={{
                         duration: 5,
                         repeat: Infinity,
-                        repeatType: 'reverse',
                         ease: 'easeInOut',
-                        delay: 0.5,
+                        delay: 1,
+                    }}
+                />
+            </motion.svg>
+
+            {/* Wave 4 - Front layer, most visible */}
+            <motion.svg
+                viewBox="0 0 1440 320"
+                className="absolute bottom-0 w-full"
+                preserveAspectRatio="none"
+                initial={{ y: 30 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.3 }}
+            >
+                <motion.path
+                    fill="rgba(22, 89, 156, 0.05)"
+                    d="M0,288C200,276,400,296,600,296C800,296,900,276,1100,272C1300,268,1400,280,1440,284L1440,320L0,320Z"
+                    animate={{
+                        d: [
+                            "M0,288C200,276,400,296,600,296C800,296,900,276,1100,272C1300,268,1400,280,1440,284L1440,320L0,320Z",
+                            "M0,284C200,296,400,276,600,276C800,276,900,296,1100,300C1300,304,1400,288,1440,284L1440,320L0,320Z",
+                            "M0,288C200,276,400,296,600,296C800,296,900,276,1100,272C1300,268,1400,280,1440,284L1440,320L0,320Z",
+                        ],
+                    }}
+                    transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                        delay: 1.5,
                     }}
                 />
             </motion.svg>
@@ -136,7 +197,7 @@ function SuccessCheckmark() {
                 damping: 15,
                 delay: 0.2,
             }}
-            className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/30 mb-8"
+            className="w-20 h-20 rounded-full bg-gradient-to-br from-[#3b8ed0] to-[#16599c] flex items-center justify-center shadow-2xl shadow-[#16599c]/30 mb-8"
         >
             <motion.svg
                 className="w-10 h-10 text-white"
@@ -168,7 +229,7 @@ function GradientSpinner() {
             transition={{ delay: 1.2, duration: 0.5 }}
         >
             <motion.div
-                className="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-500 border-r-indigo-500"
+                className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#16599c] border-r-[#3b8ed0]"
                 animate={{ rotate: 360 }}
                 transition={{
                     duration: 1,
@@ -177,7 +238,7 @@ function GradientSpinner() {
                 }}
             />
             <motion.div
-                className="absolute inset-2 rounded-full border-4 border-transparent border-b-purple-500 border-l-cyan-500"
+                className="absolute inset-2 rounded-full border-4 border-transparent border-b-[#5ba3d9] border-l-[#0e3d6b]"
                 animate={{ rotate: -360 }}
                 transition={{
                     duration: 1.5,
@@ -222,13 +283,13 @@ export default function LoginOverlay() {
                     <motion.div 
                         className="absolute inset-0"
                         initial={{ 
-                            background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0f9ff 100%)',
+                            background: 'linear-gradient(135deg, #f8fafc 0%, #eef6ff 50%, #f0f7ff 100%)',
                         }}
                         animate={{
                             background: [
-                                'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0f9ff 100%)',
-                                'linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 50%, #ecfdf5 100%)',
-                                'linear-gradient(135deg, #ecfdf5 0%, #f0f9ff 50%, #f0fdf4 100%)',
+                                'linear-gradient(135deg, #f8fafc 0%, #eef6ff 50%, #f0f7ff 100%)',
+                                'linear-gradient(135deg, #f0f7ff 0%, #f8fafc 50%, #eef6ff 100%)',
+                                'linear-gradient(135deg, #eef6ff 0%, #f0f7ff 50%, #f8fafc 100%)',
                             ],
                         }}
                         transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
@@ -263,7 +324,7 @@ export default function LoginOverlay() {
                             transition={{ delay: 0.3, duration: 0.5 }}
                             className="text-4xl md:text-5xl font-bold mb-3"
                         >
-                            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 bg-clip-text text-transparent">
+                            <span className="bg-gradient-to-r from-[#0e3d6b] via-[#16599c] to-[#3b8ed0] bg-clip-text text-transparent">
                                 {message.title}
                             </span>
                         </motion.h1>

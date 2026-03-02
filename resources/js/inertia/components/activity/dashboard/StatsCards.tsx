@@ -124,12 +124,12 @@ export function DepartmentStatsCards({ stats, bottleneck = 0, topCategory = '-' 
                 <div>
                     <p className="text-base font-semibold text-gray-500">Total Active</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.total || 0}</p>
-                    <p className="text-sm text-indigo-700 mt-1 font-medium bg-indigo-50 px-2 py-0.5 rounded-full inline-block border border-indigo-100">
+                    <p className="text-sm text-blue-700 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full inline-block border border-blue-200">
                         Department Tasks
                     </p>
                 </div>
-                <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                    <Users className="h-6 w-6 text-indigo-600" />
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <Users className="h-6 w-6 text-blue-600" />
                 </div>
             </div>
 

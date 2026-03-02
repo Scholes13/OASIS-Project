@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Modules\Purchasing\PurchaseRequest;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\BusinessUnit;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrNumberReservation;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Services\Core\EmailNotificationService;
 use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
@@ -20,7 +22,9 @@ use Spatie\Browsershot\Browsershot;
 class PurchaseRequestController extends Controller
 {
     protected PurchaseRequestService $purchaseRequestService;
+
     protected ApprovalWorkflowService $approvalWorkflowService;
+
     protected UniversalPRNumberingService $numberingService;
 
     public function __construct(
@@ -57,6 +61,10 @@ class PurchaseRequestController extends Controller
             'category:id,name,code,color',
         ])
             ->withCount('items')
+            ->withCount('approvals')
+            ->withCount(['approvals as approved_approvals_count' => function ($query) {
+                $query->where('status', 'approved');
+            }])
             ->where('business_unit_id', $businessUnitId)
             ->where('user_id', $user->id);
 
@@ -133,11 +141,20 @@ class PurchaseRequestController extends Controller
         $businessUnitId = (int) session('current_business_unit_id');
 
         // Verify user has access to this business unit
-        $userBusinessUnitIds = $user->activeBusinessUnits()->pluck('business_unit_id')->toArray();
+        $userBusinessUnitIds = $user->getAccessibleBusinessUnitIds();
 
-        if (!$businessUnitId || !in_array($businessUnitId, $userBusinessUnitIds)) {
+        if (! $businessUnitId || ! in_array($businessUnitId, $userBusinessUnitIds)) {
             return redirect()->route('purchase-requests.index')
                 ->with('error', 'You do not have access to this business unit.');
+        }
+
+        // For c_level/executive users, expand to include all descendant BUs
+        $filterBusinessUnitIds = [$businessUnitId];
+        if ($user->hasTopManagementAccess()) {
+            $bu = BusinessUnit::find($businessUnitId);
+            if ($bu) {
+                $filterBusinessUnitIds = $bu->getAccessibleBusinessUnits();
+            }
         }
 
         // Parse filters from request
@@ -156,7 +173,11 @@ class PurchaseRequestController extends Controller
             'category:id,name,code,color',
         ])
             ->withCount('items')
-            ->where('business_unit_id', $businessUnitId);
+            ->withCount('approvals')
+            ->withCount(['approvals as approved_approvals_count' => function ($query) {
+                $query->where('status', 'approved');
+            }])
+            ->whereIn('business_unit_id', $filterBusinessUnitIds);
 
         // Apply search filter - Requirements: 4.3
         if ($filters['search']) {
@@ -199,8 +220,8 @@ class PurchaseRequestController extends Controller
             return $this->transformPurchaseRequest($pr, $user);
         });
 
-        // Get departments for filter dropdown
-        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
+        // Get departments for filter dropdown (from all accessible BUs)
+        $departments = \App\Models\Core\Department::whereIn('business_unit_id', $filterBusinessUnitIds)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
@@ -243,12 +264,28 @@ class PurchaseRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers (users in the same business unit)
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
-            $query->where('business_unit_id', $businessUnitId);
+        // Get available approvers (users in the same business unit AND all ancestor business units)
+        $approverBusinessUnitIds = [$businessUnitId];
+
+        // Include all ancestor business unit users as potential approvers
+        // Traverse the full parent chain up to the root to include executives from parent groups
+        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
+        $visited = [$businessUnitId]; // Cycle detection
+        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
+            if (in_array($currentBusinessUnit->parent_id, $visited)) {
+                break; // Prevent infinite loop from circular references
+            }
+            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
+            $visited[] = $currentBusinessUnit->parent_id;
+            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
+        }
+
+        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
+            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
         })
             ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
             ->where('id', '!=', $user->id) // Exclude current user
+            ->where('global_role', '!=', 'super_admin') // Exclude system admin accounts
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
             ->map(function ($approver) {
@@ -386,7 +423,7 @@ class PurchaseRequestController extends Controller
         $user = Auth::user();
 
         // Check if PR can be edited
-        if (!$purchaseRequest->canBeEdited()) {
+        if (! $purchaseRequest->canBeEdited()) {
             return redirect()
                 ->route('purchase-requests.show', $purchaseRequest)
                 ->with('error', 'This purchase request cannot be edited.');
@@ -429,9 +466,24 @@ class PurchaseRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
-            $query->where('business_unit_id', $businessUnitId);
+        // Get available approvers (users in the same business unit AND all ancestor business units)
+        $approverBusinessUnitIds = [$businessUnitId];
+
+        // Include all ancestor business unit users as potential approvers
+        // Traverse the full parent chain up to the root to include executives from parent groups
+        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
+        $visited = [$businessUnitId]; // Cycle detection
+        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
+            if (in_array($currentBusinessUnit->parent_id, $visited)) {
+                break; // Prevent infinite loop from circular references
+            }
+            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
+            $visited[] = $currentBusinessUnit->parent_id;
+            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
+        }
+
+        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
+            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
         })
             ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
             ->where('id', '!=', $user->id)
@@ -478,7 +530,7 @@ class PurchaseRequestController extends Controller
         $user = Auth::user();
 
         // Check if PR can be edited
-        if (!$purchaseRequest->canBeEdited()) {
+        if (! $purchaseRequest->canBeEdited()) {
             return back()->with('error', 'This purchase request cannot be edited.');
         }
 
@@ -653,14 +705,14 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be approved
-        if (!$purchaseRequest->canBeApproved()) {
+        if (! $purchaseRequest->canBeApproved()) {
             return back()->with('error', 'This purchase request cannot be approved at this time.');
         }
 
         // Get current approval for this user
         $currentApproval = $purchaseRequest->currentApproval();
 
-        if (!$currentApproval || $currentApproval->approver_id !== $user->id) {
+        if (! $currentApproval || $currentApproval->approver_id !== $user->id) {
             return back()->with('error', 'You are not authorized to approve this purchase request at this step.');
         }
 
@@ -710,14 +762,14 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be approved (same check for rejection)
-        if (!$purchaseRequest->canBeApproved()) {
+        if (! $purchaseRequest->canBeApproved()) {
             return back()->with('error', 'This purchase request cannot be rejected at this time.');
         }
 
         // Get current approval for this user
         $currentApproval = $purchaseRequest->currentApproval();
 
-        if (!$currentApproval || $currentApproval->approver_id !== $user->id) {
+        if (! $currentApproval || $currentApproval->approver_id !== $user->id) {
             return back()->with('error', 'You are not authorized to reject this purchase request at this step.');
         }
 
@@ -752,7 +804,7 @@ class PurchaseRequestController extends Controller
      */
     public function edit(PurchaseRequest $purchaseRequest)
     {
-        if (!$purchaseRequest->canBeEdited()) {
+        if (! $purchaseRequest->canBeEdited()) {
             return redirect()
                 ->route('purchase-requests.show', $purchaseRequest)
                 ->with('error', 'This purchase request cannot be edited.');
@@ -814,6 +866,54 @@ class PurchaseRequestController extends Controller
     }
 
     /**
+     * Resend approval email to current pending approver.
+     */
+    public function resendApprovalEmail(PurchaseRequest $purchaseRequest)
+    {
+        $user = Auth::user();
+
+        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        if ($purchaseRequest->user_id !== $user->id) {
+            abort(403, 'Only the PR owner can resend approval email.');
+        }
+
+        if ($purchaseRequest->status !== 'in_approval') {
+            return back()->with('error', 'Approval email can only be resent when PR is in approval process.');
+        }
+
+        $currentApproval = $purchaseRequest->currentApproval();
+        if (! $currentApproval || $currentApproval->status !== 'pending') {
+            return back()->with('error', 'No active pending approver found for this purchase request.');
+        }
+
+        try {
+            $emailService = app(EmailNotificationService::class);
+            $emailSent = $emailService->sendApprovalRequested($currentApproval);
+
+            if (! $emailSent) {
+                return back()->with('error', 'Failed to resend approval email. Please check notification settings and try again.');
+            }
+
+            return back()->with('success', 'Approval email has been resent to the current approver.');
+
+        } catch (\Exception $e) {
+            Log::error('Failed to resend purchase request approval email', [
+                'pr_id' => $purchaseRequest->id,
+                'pr_number' => $purchaseRequest->pr_number,
+                'approval_id' => $currentApproval->id,
+                'requestor_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Failed to resend approval email. Please try again or contact support.');
+        }
+    }
+
+    /**
      * Void purchase request.
      */
     public function void(Request $request, PurchaseRequest $purchaseRequest)
@@ -837,7 +937,7 @@ class PurchaseRequestController extends Controller
         $canVoid = $purchaseRequest->user_id === $user->id ||
             in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
 
-        if (!$canVoid) {
+        if (! $canVoid) {
             abort(403, 'You are not authorized to void this purchase request.');
         }
 
@@ -882,7 +982,7 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be marked as offline approved
-        if (!in_array($purchaseRequest->status, ['submitted', 'in_approval'])) {
+        if (! in_array($purchaseRequest->status, ['submitted', 'in_approval'])) {
             return back()->with('error', 'This purchase request cannot be marked as offline approved. Only submitted or in-approval PRs are eligible.');
         }
 
@@ -899,7 +999,7 @@ class PurchaseRequestController extends Controller
             if ($request->hasFile('offline_approval_document')) {
                 $file = $request->file('offline_approval_document');
                 $documentName = $file->getClientOriginalName();
-                $documentPath = $file->store('offline-approvals/purchase-requests/' . $purchaseRequest->id, 'public');
+                $documentPath = $file->store('offline-approvals/purchase-requests/'.$purchaseRequest->id, 'public');
             }
 
             $this->purchaseRequestService->markAsOfflineApproved($purchaseRequest, $request->notes, $documentPath, $documentName);
@@ -933,7 +1033,7 @@ class PurchaseRequestController extends Controller
         }
 
         // Check if PR can be deleted
-        if (!$purchaseRequest->canBeEdited()) {
+        if (! $purchaseRequest->canBeEdited()) {
             return back()->with('error', 'This purchase request cannot be deleted.');
         }
 
@@ -1016,33 +1116,39 @@ class PurchaseRequestController extends Controller
 
         // Clean filename by removing invalid characters
         $cleanPrNumber = preg_replace('/[\/\\\\:*?"<>|]/', '-', $purchaseRequest->pr_number);
-        $filename = 'PR-' . $cleanPrNumber . '.pdf';
+        $filename = 'PR-'.$cleanPrNumber.'.pdf';
 
         try {
             // Generate HTML content directly to avoid URL timeout issues
             $html = view('purchasing.purchase-requests.pdf-browser', compact('purchaseRequest', 'qrCodes'))->render();
 
             // Generate PDF directly in memory (no temp file needed)
-            $pdfContent = Browsershot::html($html)
+            $browsershot = Browsershot::html($html)
                 ->format('A4')
                 ->landscape()
                 ->margins(10, 10, 10, 10)
                 ->timeout(120)
                 ->noSandbox()
                 ->disableWebSecurity()
-                ->setDelay(2000) // Wait 2 seconds for rendering
-                ->pdf();
+                ->setDelay(2000);
+
+            if ($remoteUrl = config('pdf.browsershot.remote_url')) {
+                $parsed = parse_url($remoteUrl);
+                $browsershot->setRemoteInstance($parsed['host'], $parsed['port'] ?? 9222);
+            }
+
+            $pdfContent = $browsershot->pdf();
 
             // Return PDF content directly as response
             return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
                 'Pragma' => 'no-cache',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Browsershot PDF generation failed: ' . $e->getMessage());
+            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
 
             // Fallback: redirect to PDF view with better print styles
             return redirect()->route('purchase-requests.pdf-public', $purchaseRequest)
@@ -1110,6 +1216,12 @@ class PurchaseRequestController extends Controller
         $data['current_approval_step'] = null;
         $data['total_approval_steps'] = $pr->approvals_count ?? 0;
 
+        // Add approval progress (from withCount)
+        $data['approval_progress'] = [
+            'approved' => $pr->approved_approvals_count ?? 0,
+            'total' => $pr->approvals_count ?? 0,
+        ];
+
         return $data;
     }
 
@@ -1126,12 +1238,17 @@ class PurchaseRequestController extends Controller
         $currentApproval = $pr->currentApproval();
         $canApprove = $currentApproval && $currentApproval->approver_id === $user->id;
         $canReject = $canApprove; // Same logic for reject
+        $canResendApprovalEmail = $isOwner
+            && $pr->status === 'in_approval'
+            && $currentApproval
+            && $currentApproval->status === 'pending';
 
         return [
             'edit' => $pr->canBeEdited() && $isOwner,
             'delete' => $pr->canBeEdited() && $isOwner,
             'void' => $pr->canBeVoided() && ($isOwner || $isAdmin),
             'resubmit' => $pr->status === 'rejected' && $isOwner,
+            'resendApprovalEmail' => $canResendApprovalEmail,
             'approve' => $canApprove,
             'reject' => $canReject,
             'downloadPdf' => in_array($pr->status, ['submitted', 'in_approval', 'approved']),

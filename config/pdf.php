@@ -36,6 +36,7 @@ return [
         'no_sandbox' => true,
         'disable_web_security' => true,
         'ignore_https_errors' => true,
+        'remote_url' => env('BROWSERSHOT_CHROME_URL'),
     ],
 
     /*

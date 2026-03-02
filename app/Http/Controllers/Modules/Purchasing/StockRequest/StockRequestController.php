@@ -67,7 +67,7 @@ class StockRequestController extends Controller
         // Get paginated results with sorting
         $sortColumn = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
-        
+
         $stockRequests = $query
             ->orderBy($sortColumn, $sortDirection)
             ->paginate($request->get('per_page', 10))
@@ -116,9 +116,24 @@ class StockRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers (users in the same business unit)
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
-            $query->where('business_unit_id', $businessUnitId);
+        // Get available approvers (users in the same business unit AND all ancestor business units)
+        $approverBusinessUnitIds = [$businessUnitId];
+
+        // Include all ancestor business unit users as potential approvers
+        // Traverse the full parent chain up to the root to include executives from parent groups
+        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
+        $visited = [$businessUnitId]; // Cycle detection
+        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
+            if (in_array($currentBusinessUnit->parent_id, $visited)) {
+                break; // Prevent infinite loop from circular references
+            }
+            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
+            $visited[] = $currentBusinessUnit->parent_id;
+            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
+        }
+
+        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
+            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
         })
             ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
             ->where('id', '!=', $user->id) // Exclude current user
@@ -215,7 +230,7 @@ class StockRequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             \Log::error('Failed to create stock request', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -237,7 +252,7 @@ class StockRequestController extends Controller
         $user = Auth::user();
 
         // Check if ST can be edited
-        if (!$stockRequest->isEditable()) {
+        if (! $stockRequest->isEditable()) {
             return redirect()
                 ->route('stock-requests.show', $stockRequest)
                 ->with('error', 'This stock request cannot be edited.');
@@ -274,9 +289,24 @@ class StockRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
-            $query->where('business_unit_id', $businessUnitId);
+        // Get available approvers (users in the same business unit AND all ancestor business units)
+        $approverBusinessUnitIds = [$businessUnitId];
+
+        // Include all ancestor business unit users as potential approvers
+        // Traverse the full parent chain up to the root to include executives from parent groups
+        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
+        $visited = [$businessUnitId]; // Cycle detection
+        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
+            if (in_array($currentBusinessUnit->parent_id, $visited)) {
+                break; // Prevent infinite loop from circular references
+            }
+            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
+            $visited[] = $currentBusinessUnit->parent_id;
+            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
+        }
+
+        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
+            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
         })
             ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
             ->where('id', '!=', $user->id)
@@ -322,7 +352,7 @@ class StockRequestController extends Controller
         $user = Auth::user();
 
         // Check if ST can be edited
-        if (!$stockRequest->isEditable()) {
+        if (! $stockRequest->isEditable()) {
             return back()->with('error', 'This stock request cannot be edited.');
         }
 
@@ -347,7 +377,7 @@ class StockRequestController extends Controller
                 if ($offlineDocumentPath) {
                     \Storage::disk('public')->delete($offlineDocumentPath);
                 }
-                
+
                 $file = $request->file('offline_approval_document');
                 $offlineDocumentName = $file->getClientOriginalName();
                 $offlineDocumentPath = $file->store('stock-requests/offline-approvals', 'public');
@@ -404,7 +434,7 @@ class StockRequestController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             \Log::error('Failed to update stock request', [
                 'st_id' => $stockRequest->id,
                 'user_id' => $user->id,
@@ -601,7 +631,7 @@ class StockRequestController extends Controller
             if ($request->hasFile('offline_approval_document')) {
                 $file = $request->file('offline_approval_document');
                 $documentName = $file->getClientOriginalName();
-                $documentPath = $file->store('offline-approvals/stock-requests/' . $stockRequest->id, 'public');
+                $documentPath = $file->store('offline-approvals/stock-requests/'.$stockRequest->id, 'public');
             }
 
             $stockRequest->update([
@@ -642,7 +672,6 @@ class StockRequestController extends Controller
             return back()->with('error', 'Failed to mark as offline approved. Please try again or contact support.');
         }
     }
-
 
     /**
      * Resubmit rejected stock request
@@ -722,15 +751,21 @@ class StockRequestController extends Controller
             $html = view('purchasing.stock-requests.pdf-browser', compact('stockRequest', 'qrCodes'))->render();
 
             // Generate PDF directly in memory (no temp file needed)
-            $pdfContent = Browsershot::html($html)
+            $browsershot = Browsershot::html($html)
                 ->format('A4')
                 ->landscape()
                 ->margins(10, 10, 10, 10)
                 ->timeout(120)
                 ->noSandbox()
                 ->disableWebSecurity()
-                ->setDelay(2000) // Wait 2 seconds for rendering
-                ->pdf();
+                ->setDelay(2000);
+
+            if ($remoteUrl = config('pdf.browsershot.remote_url')) {
+                $parsed = parse_url($remoteUrl);
+                $browsershot->setRemoteInstance($parsed['host'], $parsed['port'] ?? 9222);
+            }
+
+            $pdfContent = $browsershot->pdf();
 
             // Return PDF content directly as response
             return response($pdfContent, 200, [
@@ -812,10 +847,10 @@ class StockRequestController extends Controller
     private function transformStockRequest(StockRequest $st, $user): array
     {
         $data = $st->toArray();
-        
+
         $isOwner = $st->user_id === $user->id;
         $isSuperAdmin = $user->isSuperAdmin();
-        
+
         $data['can'] = [
             'view' => true, // All users in BU can view
             'edit' => $isOwner && $st->isEditable(),
@@ -834,7 +869,7 @@ class StockRequestController extends Controller
     {
         $isOwner = $st->user_id === $user->id;
         $isSuperAdmin = $user->isSuperAdmin();
-        
+
         return [
             'edit' => $isOwner && $st->isEditable(),
             'delete' => $isOwner && $st->status === 'draft',
@@ -850,16 +885,16 @@ class StockRequestController extends Controller
     private function generateSTNumber($user, int $businessUnitId, string $dateOfRequest): array
     {
         $date = \Carbon\Carbon::parse($dateOfRequest);
-        
+
         // Get business unit
         $businessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
-        if (!$businessUnit) {
+        if (! $businessUnit) {
             throw new \Exception('Business unit not found');
         }
-        
+
         // Get numbering service
         $numberingService = app(\App\Services\Core\NumberingService::class);
-        
+
         // Ensure ST numbering module exists
         $moduleCode = 'ST';
         \App\Models\Core\NumberingModule::firstOrCreate(
@@ -881,7 +916,7 @@ class StockRequestController extends Controller
                 'is_active' => true,
             ]
         );
-        
+
         // Generate sequence number
         $result = $numberingService->generateNumber(
             $businessUnit->id,
@@ -890,7 +925,7 @@ class StockRequestController extends Controller
             $date->year,
             null  // No monthly reset
         );
-        
+
         // Format the ST number
         $result['formatted_number'] = sprintf(
             'ST.%s/%d%02d/%03d',
@@ -899,7 +934,7 @@ class StockRequestController extends Controller
             $date->month,
             $result['sequence_number']
         );
-        
+
         return $result;
     }
 
@@ -930,7 +965,7 @@ class StockRequestController extends Controller
     {
         // Delete all existing approvals
         $stockRequest->approvals()->delete();
-        
+
         // Reset approval-related fields
         $stockRequest->update([
             'status' => 'submitted',

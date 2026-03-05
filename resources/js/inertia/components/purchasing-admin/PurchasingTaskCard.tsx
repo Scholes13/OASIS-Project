@@ -199,7 +199,7 @@ export function PurchasingTaskCard({
                                 e.stopPropagation();
                                 onClaim(task.id);
                             }}
-                            className="flex-1 px-3 py-1.5 text-xs font-medium text-primary bg-primary rounded hover:bg-blue-600 transition-colors"
+                            className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded hover:bg-[#124a82] transition-colors"
                         >
                             Claim Task
                         </button>

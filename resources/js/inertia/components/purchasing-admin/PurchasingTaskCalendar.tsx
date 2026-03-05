@@ -302,7 +302,7 @@ export function PurchasingTaskCalendar({ tasks, onTaskClick }: PurchasingTaskCal
                     aspectRatio={1.5}
                     eventDisplay="block"
                     moreLinkContent={(args) => (
-                        <div className="text-xs font-semibold text-primary hover:text-primary px-1.5 py-0.5 bg-primary rounded cursor-pointer">
+                        <div className="text-xs font-semibold text-white hover:text-white px-1.5 py-0.5 bg-primary rounded cursor-pointer">
                             +{args.num} more
                         </div>
                     )}

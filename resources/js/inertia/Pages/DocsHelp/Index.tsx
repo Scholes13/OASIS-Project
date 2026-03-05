@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Clock, User, FileText } from 'lucide-react';
+import { ChevronRight, Clock, User, FileText, Languages } from 'lucide-react';
 
 import { categories, articles } from './data';
 import type { CategoryKey, Article } from './data';
@@ -27,9 +27,66 @@ type View =
     | { type: 'category'; key: CategoryKey }
     | { type: 'article'; article: Article };
 
+// ── Hash-based URL routing helpers ───────────────
+
+function viewToHash(view: View): string {
+    switch (view.type) {
+        case 'category':
+            return `#category/${view.key}`;
+        case 'article':
+            return `#article/${view.article.id}`;
+        default:
+            return '';
+    }
+}
+
+function hashToView(hash: string): View {
+    const stripped = hash.replace(/^#/, '');
+
+    if (stripped.startsWith('article/')) {
+        const id = stripped.slice('article/'.length);
+        const article = articles.find((a) => a.id === id);
+        if (article) return { type: 'article', article };
+    }
+
+    if (stripped.startsWith('category/')) {
+        const key = stripped.slice('category/'.length);
+        if (categories.some((c) => c.key === key)) {
+            return { type: 'category', key: key as CategoryKey };
+        }
+    }
+
+    return { type: 'home' };
+}
+
+// ── Main component ───────────────────────────────
+
 export default function DocsHelpIndex() {
-    const [view, setView] = useState<View>({ type: 'home' });
+    const [view, setView] = useState<View>(() => hashToView(window.location.hash));
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Sync hash → state on popstate (browser back/forward)
+    useEffect(() => {
+        const onHashChange = () => {
+            setView(hashToView(window.location.hash));
+            setSearchQuery('');
+        };
+        window.addEventListener('hashchange', onHashChange);
+        return () => window.removeEventListener('hashchange', onHashChange);
+    }, []);
+
+    // Navigate helper: update state + push hash
+    const navigate = useCallback((next: View) => {
+        const hash = viewToHash(next);
+        // Use replaceState for home (clean URL), pushState for deep links
+        if (next.type === 'home') {
+            window.history.pushState(null, '', window.location.pathname);
+        } else {
+            window.history.pushState(null, '', hash);
+        }
+        setView(next);
+        setSearchQuery('');
+    }, []);
 
     const categoryCounts = useMemo(() => getCategoryCounts(articles, categories), []);
     const popularArticles = useMemo(() => getPopularArticles(articles), []);
@@ -41,27 +98,28 @@ export default function DocsHelpIndex() {
 
     const isSearching = searchQuery.trim().length >= 2;
 
-    const goHome = () => {
-        setView({ type: 'home' });
-        setSearchQuery('');
-    };
-
-    const goCategory = (key: CategoryKey) => {
-        setView({ type: 'category', key });
-        setSearchQuery('');
-    };
-
-    const goArticle = (article: Article) => {
-        setView({ type: 'article', article });
-        setSearchQuery('');
-    };
+    const goHome = () => navigate({ type: 'home' });
+    const goCategory = (key: CategoryKey) => navigate({ type: 'category', key });
+    const goArticle = (article: Article) => navigate({ type: 'article', article });
 
     const getCategoryLabel = (key: string): string =>
         categories.find((c) => c.key === key)?.label ?? key;
 
+    // Dynamic page title
+    const pageTitle = useMemo(() => {
+        switch (view.type) {
+            case 'article':
+                return `${view.article.title} — Docs & Help`;
+            case 'category':
+                return `${getCategoryLabel(view.key)} — Docs & Help`;
+            default:
+                return 'Docs & Help';
+        }
+    }, [view]);
+
     return (
         <>
-            <Head title="Docs & Help" />
+            <Head title={pageTitle} />
             <div className="w-full">
                 <AnimatePresence mode="wait">
                     {view.type === 'home' && (
@@ -295,6 +353,55 @@ interface ArticleViewProps {
 }
 
 function ArticleView({ article, onBack, onCategoryClick, getCategoryLabel }: ArticleViewProps) {
+    const tocIds = useMemo(() => article.toc.map((t) => t.id), [article.toc]);
+    const [activeId, setActiveId] = useState<string | undefined>(tocIds[0]);
+    const [lang, setLang] = useState<'id' | 'en'>('id');
+
+    useEffect(() => {
+        if (tocIds.length === 0) return;
+
+        // Track which sections are currently in viewport
+        const visibleIds = new Set<string>();
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        visibleIds.add(entry.target.id);
+                    } else {
+                        visibleIds.delete(entry.target.id);
+                    }
+                }
+
+                // Pick the first visible section in toc order
+                const firstVisible = tocIds.find((id) => visibleIds.has(id));
+                if (firstVisible) {
+                    setActiveId(firstVisible);
+                }
+            },
+            {
+                rootMargin: '-80px 0px -40% 0px',
+                threshold: 0,
+            },
+        );
+
+        // Observe all heading/paragraph elements that have toc ids
+        const elements: Element[] = [];
+        for (const id of tocIds) {
+            const el = document.getElementById(id);
+            if (el) {
+                observer.observe(el);
+                elements.push(el);
+            }
+        }
+
+        return () => {
+            for (const el of elements) {
+                observer.unobserve(el);
+            }
+        };
+    }, [tocIds]);
+
     return (
         <div className="w-full bg-white min-h-[calc(100vh-64px)] pb-12 pt-6">
             <Breadcrumbs
@@ -319,22 +426,52 @@ function ArticleView({ article, onBack, onCategoryClick, getCategoryLabel }: Art
                             <h1 className="text-[32px] font-bold text-slate-900 mb-5 leading-tight tracking-tight">
                                 {article.title}
                             </h1>
-                            <div className="flex items-center text-sm text-slate-500 gap-6">
-                                <div className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4" />
-                                    {formatArticleDate(article.updatedAt)}
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div className="flex items-center text-sm text-slate-500 gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4" />
+                                        {formatArticleDate(article.updatedAt)}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <User className="w-4 h-4" />
+                                        Written by {article.author}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <User className="w-4 h-4" />
-                                    Written by {article.author}
-                                </div>
+
+                                {article.bilingual && (
+                                    <div className="flex items-center gap-2">
+                                        <Languages className="w-4 h-4 text-slate-400" />
+                                        <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden text-xs font-medium">
+                                            <button
+                                                onClick={() => setLang('id')}
+                                                className={`px-3 py-1.5 transition-colors ${
+                                                    lang === 'id'
+                                                        ? 'bg-[#16599c] text-white'
+                                                        : 'bg-white text-slate-500 hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                ID
+                                            </button>
+                                            <button
+                                                onClick={() => setLang('en')}
+                                                className={`px-3 py-1.5 transition-colors border-l border-slate-200 ${
+                                                    lang === 'en'
+                                                        ? 'bg-[#16599c] text-white'
+                                                        : 'bg-white text-slate-500 hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                EN
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <ArticleRenderer blocks={article.content} />
+                        <ArticleRenderer blocks={article.content} lang={lang} />
                     </div>
 
-                    <TableOfContents items={article.toc} />
+                    <TableOfContents items={article.toc} activeId={activeId} />
                 </div>
             </div>
         </div>

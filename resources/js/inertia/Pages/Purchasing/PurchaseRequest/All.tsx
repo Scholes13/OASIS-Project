@@ -326,7 +326,7 @@ export default function All({
                                                                 className={cn(
                                                                     "w-8 h-8 flex items-center justify-center text-sm rounded-md transition-colors",
                                                                     link.active
-                                                                        ? "font-medium text-primary bg-primary"
+                                                                        ? "font-medium text-white bg-primary"
                                                                         : "text-gray-500 hover:bg-gray-100"
                                                                 )}
                                                             >

@@ -37,11 +37,25 @@ export const categories: Category[] = [
         color: 'purple',
     },
     {
+        key: 'cashflow-projection',
+        label: 'Cashflow Projection',
+        description: 'Perencanaan arus kas perusahaan, input finance, dan proyeksi bulanan.',
+        icon: 'TrendingUp',
+        color: 'emerald',
+    },
+    {
         key: 'dashboard',
         label: 'Dashboard',
         description: 'Understanding statistics, exports, and data filters.',
         icon: 'BarChart3',
         color: 'blue',
+    },
+    {
+        key: 'changelog',
+        label: 'Changelog',
+        description: 'Release notes, new features, improvements, and bug fixes per version.',
+        icon: 'GitCommitHorizontal',
+        color: 'slate',
     },
     {
         key: 'faq',

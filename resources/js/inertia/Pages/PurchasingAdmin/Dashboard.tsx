@@ -189,7 +189,7 @@ const Dashboard: React.FC = () => {
                                     <p className="text-3xl font-bold text-gray-900 mt-2">{formatTime(metrics.avg_followup_time)}</p>
                                     <p className="text-xs text-gray-400 mt-1">Response</p>
                                 </div>
-                                <div className="p-3 bg-primary rounded-lg">
+                                <div className="p-3 bg-primary/10 rounded-lg">
                                     <Users className="w-6 h-6 text-primary" />
                                 </div>
                             </div>

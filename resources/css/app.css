@@ -888,3 +888,21 @@
 html body .lucide {
     stroke-width: 1.5px !important;
 }
+
+/* ============================================================================
+   BILINGUAL ARTICLE TOGGLE
+   Articles with `data-lang` attribute on their container use `.lang-id` and
+   `.lang-en` spans. Only the active language is shown.
+   ============================================================================ */
+[data-lang] .lang-id,
+[data-lang] .lang-en {
+    display: none;
+}
+
+[data-lang="id"] .lang-id {
+    display: inline;
+}
+
+[data-lang="en"] .lang-en {
+    display: inline;
+}

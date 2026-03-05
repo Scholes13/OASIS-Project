@@ -109,14 +109,25 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
     const handleViewChange = useCallback((newView: ViewType) => {
         setView(newView);
         localStorage.setItem('activity-view', newView);
-        const url = new URL(window.location.href);
-        if (newView === 'list') {
-            url.searchParams.delete('view');
-        } else {
-            url.searchParams.set('view', newView);
-        }
-        window.history.pushState({}, '', url.toString());
-    }, []);
+
+        // Reload data from server - board/calendar/timeline get all tasks, list gets paginated
+        setIsFiltering(true);
+        router.get(
+            route('activity.task.index'),
+            {
+                ...Object.fromEntries(
+                    Object.entries(localFilters).filter(([_, v]) => v !== '')
+                ),
+                view: newView,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['stats', 'tasks', 'filters'],
+                onFinish: () => setIsFiltering(false),
+            }
+        );
+    }, [localFilters]);
 
     const handleTaskClick = useCallback((task: Task) => {
         router.visit(route('activity.task.show', { task: task.id }));

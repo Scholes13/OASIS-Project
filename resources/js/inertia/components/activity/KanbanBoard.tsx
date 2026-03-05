@@ -444,7 +444,7 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask }
     setViewMode(mode)
     router.get(
       route('activity.task.index'),
-      { scope: mode },
+      { scope: mode, view: 'board' },
       {
         preserveState: true,
         preserveScroll: true,

@@ -132,8 +132,9 @@ class ActivityInertiaController extends Controller
             // Calculate stats based on current scope (not cached, for accuracy)
             $stats = $this->getStatsForScope($buId, $user->id, $departmentId, $scope);
 
-            // Get paginated tasks with relationships
-            $tasks = (clone $query)
+            // Determine view mode: board/calendar/timeline need all tasks, list uses pagination
+            $view = $request->get('view', 'list');
+            $taskQuery = (clone $query)
                 ->select([
                     'id',
                     'business_unit_id',
@@ -160,9 +161,17 @@ class ActivityInertiaController extends Controller
                     'creator:id,name',
                     'department:id,name,code',
                 ])
-                ->latest('id')
-                ->paginate(20)
-                ->withQueryString();
+                ->latest('id');
+
+            if (in_array($view, ['board', 'calendar', 'timeline'])) {
+                // Board/Calendar/Timeline need all active tasks (exclude cancelled), no pagination
+                $allTasks = $taskQuery->whereNotIn('status', ['cancelled'])->limit(200)->get();
+                $tasks = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $allTasks, $allTasks->count(), $allTasks->count() ?: 1, 1
+                );
+            } else {
+                $tasks = $taskQuery->paginate(20)->withQueryString();
+            }
 
             // Optional breakdown (not needed for current My Tasks UI)
             $byActivityType = $includeBreakdown
@@ -1353,7 +1362,7 @@ class ActivityInertiaController extends Controller
     protected function getDepartmentVisuals(int $departmentId, int $buId, string $distributionPeriod = 'all'): array
     {
         try {
-            $tab = request()->input('dept_tab', 'todo');
+            $tab = request()->input('dept_tab', 'inprogress');
 
             // Department Task Roadmap (Paginated) - same as personal but for whole department
             $query = EmployeeTask::query()
@@ -1373,7 +1382,7 @@ class ActivityInertiaController extends Controller
 
             $roadmap = $query->with(['activityType', 'subActivity', 'participants.primaryPosition'])
                 ->orderBy('due_date', 'asc')
-                ->paginate(10, ['*'], 'dept_page')
+                ->paginate(20, ['*'], 'dept_page')
                 ->withQueryString();
 
             // Upcoming Deadlines (Next 7 days) for department

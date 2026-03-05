@@ -1,20 +1,30 @@
 import type { ArticleBlock } from '../data/types';
 import { Info, AlertTriangle, Lightbulb } from 'lucide-react';
 
+type Lang = 'id' | 'en';
+
 interface ArticleRendererProps {
     blocks: ArticleBlock[];
+    lang?: Lang;
 }
 
 /**
  * Renders an array of ArticleBlock objects into styled JSX.
  *
+ * When `lang` is provided, the container receives a `data-lang` attribute.
+ * Bilingual content uses `.lang-id` / `.lang-en` spans that are shown/hidden
+ * via global CSS rules targeting `[data-lang="id"]` and `[data-lang="en"]`.
+ *
  * To add a new block type:
  * 1. Define the type in `data/types.ts`
  * 2. Add a case here in the switch statement
  */
-export default function ArticleRenderer({ blocks }: ArticleRendererProps) {
+export default function ArticleRenderer({ blocks, lang }: ArticleRendererProps) {
     return (
-        <div className="prose prose-slate max-w-none text-[15px]">
+        <div
+            className="prose prose-slate max-w-none text-[15px]"
+            data-lang={lang ?? 'id'}
+        >
             {blocks.map((block, i) => (
                 <BlockRenderer key={i} block={block} />
             ))}

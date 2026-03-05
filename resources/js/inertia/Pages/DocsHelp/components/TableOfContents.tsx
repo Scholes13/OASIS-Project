@@ -10,6 +10,14 @@ export default function TableOfContents({ items, activeId }: TableOfContentsProp
         return null;
     }
 
+    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+        e.preventDefault();
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     return (
         <div className="hidden lg:block w-56 flex-shrink-0 pt-2">
             <div className="sticky top-6">
@@ -18,12 +26,13 @@ export default function TableOfContents({ items, activeId }: TableOfContentsProp
                 </h4>
                 <nav className="flex flex-col space-y-3.5 relative">
                     <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200" />
-                    {items.map((item, i) => {
-                        const isActive = activeId ? item.id === activeId : i === 0;
+                    {items.map((item) => {
+                        const isActive = activeId ? item.id === activeId : false;
                         return (
                             <a
                                 key={item.id}
                                 href={`#${item.id}`}
+                                onClick={(e) => handleClick(e, item.id)}
                                 className={`text-sm border-l-[2px] pl-4 -ml-px relative z-10 transition-colors ${
                                     isActive
                                         ? 'text-[#16599c] font-medium border-[#16599c]'

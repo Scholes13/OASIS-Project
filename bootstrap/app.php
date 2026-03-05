@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -38,5 +41,31 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            // Handle 419 Page Expired (CSRF Token Mismatch)
+            // Redirect back with flash message instead of showing ugly error modal
+            if ($response->getStatusCode() === 419) {
+                return back()->with([
+                    'error' => 'The page expired, please try again.',
+                ]);
+            }
+
+            // Handle common HTTP errors in production with proper Inertia error page
+            // In local/testing, let the default error handler show detailed debug info
+            if (! app()->environment(['local', 'testing'])
+                && in_array($response->getStatusCode(), [500, 503, 404, 403])
+            ) {
+                // Set root view explicitly since HandleInertiaRequests middleware
+                // may not have run (e.g., 404 on non-existent routes)
+                Inertia::setRootView('layouts.inertia');
+
+                return Inertia::render('ErrorPage', [
+                    'status' => $response->getStatusCode(),
+                ])
+                    ->toResponse($request)
+                    ->setStatusCode($response->getStatusCode());
+            }
+
+            return $response;
+        });
     })->create();

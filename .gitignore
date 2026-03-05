@@ -41,3 +41,23 @@ Thumbs.db
 
 # Local git worktrees
 /.worktrees/
+
+# IDE helper files (auto-generated)
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+
+# Temporary fix/debug scripts
+/fix*.cjs
+/fix*.js
+/fix*.sh
+/fix*.py
+/check_*.php
+/clear_*.php
+/update_*.php
+/build_*.js
+/make_*.cjs
+/manual-fix*
+/replace-all*
+/rewrite*
+/run-grid*

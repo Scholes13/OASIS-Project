@@ -6,6 +6,8 @@ import {
     ClipboardList,
     BarChart3,
     HelpCircle,
+    TrendingUp,
+    GitCommitHorizontal,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -17,6 +19,8 @@ const iconMap: Record<string, LucideIcon> = {
     ClipboardList,
     BarChart3,
     HelpCircle,
+    TrendingUp,
+    GitCommitHorizontal,
 };
 
 interface CategoryCardProps {

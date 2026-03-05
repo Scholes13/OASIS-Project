@@ -37,6 +37,9 @@ interface TaskBasic {
     task_description?: string;
     activity_type?: { name: string; color: string };
     duration_minutes?: number;
+    started_at?: string | null;
+    task_date?: string | null;
+    created_at?: string | null;
     participants?: Array<{ id?: number; user_id?: number; name?: string; user?: { name?: string }; primary_position?: { name?: string } }>;
 }
 
@@ -192,56 +195,54 @@ export default function ActivityDashboard({
         completed: 'Completed',
     };
 
-    const memberActivityRows = useMemo(() => {
-        const bucket = new Map<string, {
-            id: string;
-            name: string;
-            role: string;
-            activity: string;
-            status: string;
-            totalMinutes: number;
-        }>();
+    // Filter only in_progress tasks for real-time Team Activity display
+    const inProgressTasks = useMemo(() =>
+        roadmapData.filter((t) => t.status === 'in_progress'),
+    [roadmapData]);
 
-        roadmapData.forEach((task, taskIndex) => {
+    const taskActivityRows = useMemo(() => {
+        const rows: {
+            id: string;
+            memberName: string;
+            memberRole: string;
+            activity: string;
+            totalMinutes: number;
+        }[] = [];
+
+        const now = new Date();
+        inProgressTasks.forEach((task, taskIndex) => {
             const participants = Array.isArray(task.participants) && task.participants.length > 0
                 ? task.participants
                 : [{ id: `self-${task.id}`, name: 'You' }];
-            const duration = Number(task.duration_minutes || 0) || (task.status === 'completed' ? 90 : 45);
             const title = task.task_title || task.title || 'Task';
-            const verb = statusVerbMap[task.status || 'planned'] || 'Working on';
-            const activityLabel = `${verb}: ${title}`;
+            const activityLabel = `Working on: ${title}`;
 
-            participants.forEach((member: any, index) => {
-                const memberName = member.name || member.user?.name || `Member ${taskIndex + index + 1}`;
-                const memberRole = member.primary_position?.name || 'Team Member';
-                const memberId = String(member.id || member.user_id || `${task.id}-${memberName}`);
-                const existing = bucket.get(memberId);
+            // Calculate real elapsed time from started_at (when task was set to in_progress)
+            const startedAt = task.started_at || task.created_at;
+            const elapsed = startedAt ? Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 60000)) : 0;
 
-                if (!existing) {
-                    bucket.set(memberId, {
-                        id: memberId,
-                        name: memberName,
-                        role: memberRole,
-                        activity: activityLabel,
-                        status: task.status || 'planned',
-                        totalMinutes: duration,
-                    });
-                    return;
-                }
+            const memberName = participants.map((m: any) => m.name || m.user?.name || 'Member').join(', ');
+            const memberRole = (participants[0] as any)?.primary_position?.name || 'Team Member';
 
-                bucket.set(memberId, {
-                    ...existing,
-                    totalMinutes: existing.totalMinutes + duration,
-                    activity: activityLabel,
-                    status: task.status || existing.status,
-                });
+            rows.push({
+                id: `${task.id}-${taskIndex}`,
+                memberName,
+                memberRole,
+                activity: activityLabel,
+                totalMinutes: elapsed,
             });
         });
 
-        return Array.from(bucket.values())
-            .sort((a, b) => b.totalMinutes - a.totalMinutes)
-            .slice(0, 5);
-    }, [roadmapData]);
+        return rows;
+    }, [inProgressTasks]);
+
+    const TASKS_PER_PAGE = 5;
+    const [taskPage, setTaskPage] = useState(0);
+    const totalTaskPages = Math.ceil(taskActivityRows.length / TASKS_PER_PAGE);
+    const pagedTasks = taskActivityRows.slice(
+        taskPage * TASKS_PER_PAGE,
+        (taskPage + 1) * TASKS_PER_PAGE
+    );
 
     const totalDistribution = (activeVisuals?.distribution || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
     const focusItems = [...(activeVisuals?.distribution || [])]
@@ -712,55 +713,104 @@ export default function ActivityDashboard({
                                         <h3 className="text-base font-semibold text-slate-900">
                                             {viewMode === 'department' ? 'Team Activity' : 'My Activity'}
                                         </h3>
-                                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Real-time status</span>
+                                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                                            {inProgressTasks.length} in progress
+                                        </span>
                                     </div>
 
                                     <div className="flex-1 flex flex-col">
-                                        {memberActivityRows.length > 0 ? (
-                                            <div className="flex flex-col">
-                                                {memberActivityRows.map((member) => {
-                                                    const statusColor = member.status === 'completed'
-                                                        ? 'bg-emerald-500' // Green
-                                                        : member.status === 'in_progress'
-                                                            ? 'bg-amber-500' // Orange
-                                                            : 'bg-slate-300'; // Gray for planned
-                                                    const memberHours = Math.floor(member.totalMinutes / 60);
+                                        {taskActivityRows.length > 0 ? (
+                                            <>
+                                                <div className="flex flex-col divide-y divide-slate-100">
+                                                    {pagedTasks.map((row) => {
+                                                        const days = Math.floor(row.totalMinutes / 1440);
+                                                        const hours = Math.floor((row.totalMinutes % 1440) / 60);
+                                                        const mins = row.totalMinutes % 60;
+                                                        const durationText = days > 0
+                                                            ? `${days}d ${hours}h`
+                                                            : `${hours}h ${String(mins).padStart(2, '0')}m`;
 
-                                                    return (
-                                                        <div key={member.id} className="group flex flex-col gap-3 px-6 py-4 transition-colors hover:bg-slate-50/70 border-b border-slate-100 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-                                                            
-                                                            {/* User Info */}
-                                                            <div className="flex items-center gap-4 sm:w-[40%]">
+                                                        return (
+                                                            <div key={row.id} className="group grid grid-cols-[auto_1fr_auto] items-center gap-x-4 px-6 py-4 transition-colors hover:bg-slate-50/70">
+
+                                                                {/* Avatar */}
                                                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-semibold ring-2 ring-white">
-                                                                    {member.name.charAt(0).toUpperCase()}
+                                                                    {row.memberName.charAt(0).toUpperCase()}
                                                                 </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="truncate text-sm font-semibold text-slate-900">{member.name}</p>
-                                                                    <p className="text-xs text-slate-500 mt-0.5">{member.role}</p>
-                                                                </div>
-                                                            </div>
 
-                                                            {/* Activity & Duration */}
-                                                            <div className="flex flex-1 items-center justify-between sm:justify-end sm:gap-8 mt-2 sm:mt-0">
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <span className={cn('h-2 w-2 shrink-0 rounded-full', statusColor)} />
-                                                                    <span className="truncate text-sm text-slate-600 max-w-[200px] sm:max-w-[260px]">{member.activity}</span>
+                                                                {/* Name + Activity */}
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-baseline gap-2">
+                                                                        <p className="truncate text-sm font-semibold text-slate-900">{row.memberName}</p>
+                                                                        <p className="hidden sm:block truncate text-xs text-slate-400 shrink-0">{row.memberRole}</p>
+                                                                    </div>
+                                                                    <p className="mt-0.5 text-sm text-slate-600 line-clamp-1">{row.activity}</p>
                                                                 </div>
-                                                                <div className="text-sm font-semibold text-slate-900 w-16 text-right tabular-nums">
-                                                                    {memberHours}h {String(member.totalMinutes % 60).padStart(2, '0')}m
+
+                                                                {/* Duration */}
+                                                                <div className="text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap pl-2">
+                                                                    {durationText}
                                                                 </div>
                                                             </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {totalTaskPages > 1 && (
+                                                    <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
+                                                        <span className="text-xs text-slate-500">
+                                                            {taskPage * TASKS_PER_PAGE + 1}-{Math.min((taskPage + 1) * TASKS_PER_PAGE, taskActivityRows.length)} of {taskActivityRows.length} tasks
+                                                        </span>
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => setTaskPage(p => Math.max(0, p - 1))}
+                                                                disabled={taskPage === 0}
+                                                                className={cn(
+                                                                    'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                                                                    taskPage === 0
+                                                                        ? 'text-slate-300 cursor-not-allowed'
+                                                                        : 'text-[#16599c] hover:bg-blue-50'
+                                                                )}
+                                                            >
+                                                                Prev
+                                                            </button>
+                                                            {Array.from({ length: totalTaskPages }, (_, i) => (
+                                                                <button
+                                                                    key={i}
+                                                                    onClick={() => setTaskPage(i)}
+                                                                    className={cn(
+                                                                        'h-7 w-7 text-xs font-medium rounded-md transition-colors',
+                                                                        taskPage === i
+                                                                            ? 'bg-[#16599c] text-white'
+                                                                            : 'text-[#16599c] hover:bg-blue-50'
+                                                                    )}
+                                                                >
+                                                                    {i + 1}
+                                                                </button>
+                                                            ))}
+                                                            <button
+                                                                onClick={() => setTaskPage(p => Math.min(totalTaskPages - 1, p + 1))}
+                                                                disabled={taskPage === totalTaskPages - 1}
+                                                                className={cn(
+                                                                    'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                                                                    taskPage === totalTaskPages - 1
+                                                                        ? 'text-slate-300 cursor-not-allowed'
+                                                                        : 'text-[#16599c] hover:bg-blue-50'
+                                                                )}
+                                                            >
+                                                                Next
+                                                            </button>
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
+                                                    </div>
+                                                )}
+                                            </>
                                         ) : (
                                             <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
                                                 <div className="rounded-full bg-slate-50 p-4 border border-slate-100 mb-4">
                                                     <Activity className="h-6 w-6 text-slate-400" />
                                                 </div>
-                                                <h4 className="text-sm font-semibold text-slate-900">No activity recorded yet</h4>
-                                                <p className="mt-1 text-sm text-slate-500">Track tasks to see member updates here</p>
+                                                <h4 className="text-sm font-semibold text-slate-900">No tasks in progress</h4>
+                                                <p className="mt-1 text-sm text-slate-500">Tasks being worked on will appear here</p>
                                             </div>
                                         )}
                                     </div>

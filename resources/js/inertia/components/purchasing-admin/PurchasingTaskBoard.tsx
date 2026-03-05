@@ -310,7 +310,7 @@ function BoardColumn({ column, tasks, onTaskClick }: BoardColumnProps) {
                                 animate={{ opacity: 1 }}
                                 className={cn(
                                     'flex flex-col items-center justify-center py-12 text-center rounded-lg border-2 border-dashed',
-                                    isOver ? 'border-primary bg-primary' : 'border-transparent'
+                                    isOver ? 'border-primary bg-primary/10' : 'border-transparent'
                                 )}
                             >
                                 <div className="h-10 w-10 rounded-full bg-slate-200/50 flex items-center justify-center mb-3">

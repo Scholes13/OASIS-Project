@@ -18,7 +18,8 @@
       "mcp__laravel-boost__search-docs",
       "Bash(php artisan view:clear)",
       "Bash(php artisan livewire:stubs)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(npx vite build)"
     ]
   },
   "enableAllProjectMcpServers": true,

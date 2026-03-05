@@ -4,7 +4,9 @@ export type CategoryKey =
     | 'stock-request'
     | 'approvals'
     | 'activity-tracking'
+    | 'cashflow-projection'
     | 'dashboard'
+    | 'changelog'
     | 'faq';
 
 export interface Category {
@@ -30,6 +32,8 @@ export interface Article {
     toc: TocItem[];
     content: ArticleBlock[];
     popular?: boolean;
+    /** When true, article content contains bilingual ID/EN spans and a language toggle will be shown. */
+    bilingual?: boolean;
 }
 
 // ── Content block types ──────────────────────────────

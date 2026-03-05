@@ -118,7 +118,7 @@ export default function DepartmentDetail({
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {[
-                        { label: 'Total', value: stats.total, icon: ListTodo, color: 'text-primary bg-primary' },
+                        { label: 'Total', value: stats.total, icon: ListTodo, color: 'text-primary bg-primary/10' },
                         { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-emerald-600 bg-emerald-50' },
                         { label: 'In Progress', value: stats.in_progress, icon: Clock, color: 'text-blue-600 bg-blue-50' },
                         { label: 'Planned', value: stats.planned, icon: Clock, color: 'text-amber-600 bg-amber-50' },

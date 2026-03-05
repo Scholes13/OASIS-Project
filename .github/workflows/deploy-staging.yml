@@ -1,0 +1,44 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Staging (oasistest.werkudara.com)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          script_stop: true
+          script: |
+            set -e
+            APP_PATH="/home/werkuda1/oasistest.werkudara.com"
+
+            cd "$APP_PATH"
+            git fetch origin --prune
+            git checkout -B staging "origin/staging"
+
+            composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
+
+            npm ci
+            npm run build
+
+            php artisan migrate --force
+            php artisan optimize:clear
+            php artisan optimize
+            php artisan queue:restart || true
+
+            echo "Staging deploy complete: oasistest.werkudara.com"

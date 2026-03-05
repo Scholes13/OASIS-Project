@@ -182,7 +182,7 @@ export default function ManagementHistory({ tasks, statistics, adminList, filter
                         {/* Total Completed */}
                         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                     <CheckCircle2 className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>

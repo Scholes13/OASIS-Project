@@ -28,19 +28,30 @@ function extractDepartmentCode(actionCode: string, fallbackCode: string): string
     return match?.[1] ?? fallbackCode;
 }
 
-function formatCategoryLabel(actionCode: string, actionLabel: string, departmentCode: string): string {
+function formatCategoryLabel(
+    actionCode: string,
+    actionLabel: string,
+    departmentCode: string,
+    businessUnitCode?: string,
+    isLinkedBusinessUnit: boolean = false
+): string {
     const normalizedDepartmentCode = extractDepartmentCode(actionCode, departmentCode);
-    const prefixedLabelPattern = /^[A-Z0-9]+ - /;
-
-    if (prefixedLabelPattern.test(actionLabel)) {
-        return actionLabel;
-    }
-
+    const prefixedParts = actionLabel.split(' - ');
     const normalizedLabel = actionLabel.toLowerCase().startsWith('operational')
         ? `Operational Department ${normalizedDepartmentCode}`
-        : actionLabel;
+        : prefixedParts.length >= 2
+          ? prefixedParts.slice(prefixedParts.length >= 3 ? 2 : 1).join(' - ')
+          : actionLabel;
 
-    return `${normalizedDepartmentCode} - ${normalizedLabel}`;
+    const labelParts = [normalizedDepartmentCode];
+
+    if (isLinkedBusinessUnit && businessUnitCode) {
+        labelParts.push(businessUnitCode);
+    }
+
+    labelParts.push(normalizedLabel);
+
+    return labelParts.join(' - ');
 }
 
 function toIsoDate(year: number, month: number, day: number): string {
@@ -156,11 +167,17 @@ export default function CashflowProjectionEntries({
             .filter((action) => action.flow_type === flowType)
             .map((action) => ({
                 value: action.code,
-                label: formatCategoryLabel(action.code, action.label, selectedDepartment.code),
+                label: formatCategoryLabel(
+                    action.code,
+                    action.label,
+                    selectedDepartment.code,
+                    selectedDepartment.business_unit_code,
+                    Boolean(activeBusinessUnit && selectedDepartment.business_unit_id && selectedDepartment.business_unit_id !== activeBusinessUnit.id)
+                ),
                 flow_type: action.flow_type,
                 department_id: selectedDepartment.id,
             }));
-    }, [flowType, selectedDepartment]);
+    }, [activeBusinessUnit, flowType, selectedDepartment]);
 
     useEffect(() => {
         if (!businessUnitOptions.length) {
@@ -374,7 +391,9 @@ export default function CashflowProjectionEntries({
                                             const displayActionLabel = formatCategoryLabel(
                                                 item.action_code,
                                                 item.action_label,
-                                                item.department_code
+                                                item.department_code,
+                                                item.business_unit_code,
+                                                Boolean(activeBusinessUnit && item.business_unit_id && item.business_unit_id !== activeBusinessUnit.id)
                                             );
                                             const Icon = resolveIcon(displayActionLabel);
 

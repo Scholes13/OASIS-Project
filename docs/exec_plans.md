@@ -42,7 +42,8 @@
   - `npm exec tsc --noEmit --pretty false`.
 - Notes:
   - follow-up requested because mixed prefix patterns were still confusing in the category picker,
-  - all category labels now use one searchable pattern: `DEPT - Label`.
+  - current BU categories now use `DEPT - Label`,
+  - linked BU categories now use `DEPT - BU - Label` so cross-unit options stay explicit in the picker.
 
 ### 2026-03-27 - Cashflow Projection category label clarity and linked BU notice
 - Status: completed

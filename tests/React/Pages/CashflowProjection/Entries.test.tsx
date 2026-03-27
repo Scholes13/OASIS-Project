@@ -166,7 +166,7 @@ describe('Cashflow Projection Entries page', () => {
         expect(screen.getByRole('option', { name: /operations/i })).toBeInTheDocument();
         expect(screen.queryByRole('option', { name: /human resources/i })).not.toBeInTheDocument();
         expect(departmentSelect).toHaveValue('21');
-        expect(screen.getByRole('option', { name: /ops - operational department ops/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /ops - mrp - operational department ops/i })).toBeInTheDocument();
     });
 
     it('loads an existing entry into edit mode and submits a patch request', () => {
@@ -237,6 +237,7 @@ describe('Cashflow Projection Entries page', () => {
                     /this entry will be saved to linked business unit mrp - morpheus, not to the active business unit wns - werkudara nirwana sakti/i
                 )
             ).toBeInTheDocument();
+            expect(screen.getByRole('option', { name: /ops - mrp - operational department ops/i })).toBeInTheDocument();
         });
     });
 });

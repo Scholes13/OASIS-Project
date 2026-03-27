@@ -44,8 +44,7 @@
   - `npm exec tsc --noEmit --pretty false`.
 - Notes:
   - follow-up requested after user feedback on duplicated and ambiguous category labels,
-  - implemented in the frontend surface only to preserve backend ownership boundaries.
-  - backend label normalization completed in this pass; linked BU notice remains a frontend follow-up.
+  - backend label normalization and frontend linked-BU notice both completed in this pass.
 
 ### 2026-03-27 - Cashflow Projection cross-department finance entry and audit trail
 - Status: completed

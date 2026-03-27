@@ -28,13 +28,14 @@ function extractDepartmentCode(actionCode: string, fallbackCode: string): string
     return match?.[1] ?? fallbackCode;
 }
 
-function formatCategoryLabel(
-    actionCode: string,
-    actionLabel: string,
-    departmentCode: string,
-    departmentTemplateType: string
-): string {
+function formatCategoryLabel(actionCode: string, actionLabel: string, departmentCode: string, departmentTemplateType: string): string {
     const normalizedDepartmentCode = extractDepartmentCode(actionCode, departmentCode);
+    const prefixedLabelPattern = /^[A-Z0-9]+ - /;
+
+    if (prefixedLabelPattern.test(actionLabel)) {
+        return actionLabel;
+    }
+
     const normalizedLabel = actionLabel.toLowerCase().startsWith('operational')
         ? `Operational Department ${normalizedDepartmentCode}`
         : actionLabel;
@@ -81,7 +82,7 @@ export default function CashflowProjectionEntries({
     departments,
     lineItems,
 }: CashflowProjectionEntriesPageProps) {
-    const { currentBusinessUnit } = usePage<PageProps>().props;
+    const { currentBusinessUnit: activeBusinessUnit } = usePage<PageProps>().props;
     const [flowType, setFlowType] = useState<FlowType>('in');
     const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
 
@@ -125,12 +126,12 @@ export default function CashflowProjectionEntries({
     }, [businessUnitOptions, selectedBusinessUnitId]);
 
     const linkedBusinessUnitNotice = useMemo(() => {
-        if (!currentBusinessUnit || !selectedBusinessUnitOption || selectedBusinessUnitOption.id === currentBusinessUnit.id) {
+        if (!activeBusinessUnit || !selectedBusinessUnitOption || selectedBusinessUnitOption.id === activeBusinessUnit.id) {
             return null;
         }
 
-        return `This entry will be saved to linked business unit ${selectedBusinessUnitOption.code} - ${selectedBusinessUnitOption.name} instead of the active business unit ${currentBusinessUnit.code} - ${currentBusinessUnit.name}.`;
-    }, [currentBusinessUnit, selectedBusinessUnitOption]);
+        return `This entry will be saved to linked business unit ${selectedBusinessUnitOption.code} - ${selectedBusinessUnitOption.name}, not to the active business unit ${activeBusinessUnit.code} - ${activeBusinessUnit.name}.`;
+    }, [activeBusinessUnit, selectedBusinessUnitOption]);
 
     const lineItemForm = useForm<LineItemFormData>({
         year,
@@ -321,7 +322,7 @@ export default function CashflowProjectionEntries({
                                 categoryOptions={filteredCategoryOptions}
                                 isEditing={editingLineItemId !== null}
                                 selectedDepartmentName={selectedDepartment?.name}
-                                selectedBusinessUnitCode={currentBusinessUnit?.code}
+                                selectedBusinessUnitCode={selectedBusinessUnitOption?.code}
                                 businessUnitNotice={linkedBusinessUnitNotice}
                                 fieldErrors={errors}
                                 onFlowTypeChange={setFlowType}

@@ -81,11 +81,11 @@ describe('Cashflow Projection Entries page', () => {
                 actions: [
                     { code: 'IN_CFC_SUNTIKAN_MODAL', label: 'Suntikan Modal', flow_type: 'in' },
                     { code: 'OUT_ACC_PAJAK', label: 'Pajak', flow_type: 'out' },
-                    { code: 'OUT_ACC_OPS', label: 'Operational Departemen ACC', flow_type: 'out' },
+                    { code: 'OUT_ACC_OPS', label: 'Operational Department ACC', flow_type: 'out' },
                     { code: 'OUT_TEP_COST_OF_REVENUE', label: 'Cost of Revenue dari Upcoming Revenue', flow_type: 'out' },
                     { code: 'OUT_HR_GAJI_BENEFIT', label: 'Gaji & Benefit Karyawan', flow_type: 'out' },
                     { code: 'OUT_CFC_CORPORATE_EXPENSES', label: 'Corporate Expense', flow_type: 'out' },
-                    { code: 'OUT_CFC_OPS', label: 'Operational Departemen CFC', flow_type: 'out' },
+                    { code: 'OUT_CFC_OPS', label: 'Operational Department CFC', flow_type: 'out' },
                 ],
             },
             {
@@ -228,7 +228,7 @@ describe('Cashflow Projection Entries page', () => {
         await waitFor(() => {
             expect(
                 screen.getByText(
-                    /this entry will be saved to linked business unit mrp - morpheus instead of the active business unit wns - werkudara nirwana sakti/i
+                    /this entry will be saved to linked business unit mrp - morpheus, not to the active business unit wns - werkudara nirwana sakti/i
                 )
             ).toBeInTheDocument();
         });

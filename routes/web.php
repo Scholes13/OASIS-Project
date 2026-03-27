@@ -169,12 +169,12 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // List Routes - Inertia for modern SPA experience
         Route::get('/', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'index'])->name('index');
 
-        // Create Route - Loads Livewire component for creating new Stock Request
-        Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'create'])->name('create');
+        // Create Route - Inertia form for creating new Stock Request
+        Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'createInertia'])->name('create');
 
         // View/Edit Routes
-        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'show'])->name('show');
-        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'edit'])->name('edit');
+        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'showInertia'])->name('show');
+        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'editInertia'])->name('edit');
 
         // Action Routes
         Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
@@ -243,6 +243,9 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'activitiesCreate'])->name('create');
             Route::get('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesShow'])->name('show');
             Route::get('/{activity}/edit', [\App\Http\Controllers\SalesCrmController::class, 'activitiesEdit'])->name('edit');
+            Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesStore'])->name('store');
+            Route::put('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesUpdate'])->name('update');
+            Route::delete('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesDestroy'])->name('destroy');
         });
 
         // Contacts
@@ -251,6 +254,9 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'contactsCreate'])->name('create');
             Route::get('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsShow'])->name('show');
             Route::get('/{contact}/edit', [\App\Http\Controllers\SalesCrmController::class, 'contactsEdit'])->name('edit');
+            Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsStore'])->name('store');
+            Route::put('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsUpdate'])->name('update');
+            Route::delete('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsDestroy'])->name('destroy');
         });
     });
 
@@ -302,6 +308,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/requests', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateRequests'])->name('requests');
             Route::post('/request/submit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'submitBackdateRequest'])->name('request.submit');
             Route::get('/approvals', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateApprovals'])->name('approvals');
+            Route::post('/{id}/approve', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'approveBackdate'])->name('approve')->whereNumber('id');
+            Route::post('/{id}/reject', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'rejectBackdate'])->name('reject')->whereNumber('id');
         });
     });
 
@@ -314,7 +322,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/settings', [CashflowProjectionController::class, 'settings'])->name('settings');
         Route::get('/export', [CashflowProjectionController::class, 'export'])->name('export');
         Route::post('/line-items', [CashflowProjectionController::class, 'storeLineItem'])->name('line-items.store');
+        Route::patch('/line-items/{lineItem}', [CashflowProjectionController::class, 'updateLineItem'])->name('line-items.update');
         Route::post('/finance-inputs', [CashflowProjectionController::class, 'upsertFinanceInput'])->name('finance-inputs.upsert');
+        Route::post('/linked-units', [CashflowProjectionController::class, 'storeLinkedUnit'])->name('linked-units.store');
+        Route::delete('/linked-units/{linkedUnit}', [CashflowProjectionController::class, 'destroyLinkedUnit'])->name('linked-units.destroy');
     });
 
     // Reports Routes (Top Management Only - Coming Soon)
@@ -322,10 +333,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/purchase-requests', function () {
             return view('reports.purchase-requests', [
                 'message' => 'Report feature will be available soon for top management.',
-        Route::patch('/line-items/{lineItem}', [CashflowProjectionController::class, 'updateLineItem'])->name('line-items.update');
             ]);
-        Route::post('/linked-units', [CashflowProjectionController::class, 'storeLinkedUnit'])->name('linked-units.store');
-        Route::delete('/linked-units/{linkedUnit}', [CashflowProjectionController::class, 'destroyLinkedUnit'])->name('linked-units.destroy');
         })->name('purchase-requests');
         Route::get('/approvals', function () {
             return view('reports.approvals', [

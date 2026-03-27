@@ -38,6 +38,7 @@ import {
     Download,
 } from "lucide-react"
 import { DataTable, SortableHeader } from "../ui/data-table"
+import { openDownloadInSameTab } from "@/lib/download"
 import { cn } from "@/lib/utils"
 import { TaskDetailModal } from "./TaskDetailModal"
 import { showToast } from "../ui/toast"
@@ -57,6 +58,7 @@ interface ActivityDataTableProps {
     stats?: TaskStats
     filters?: TaskFilters & { scope?: string }
     onRowClick?: (task: Task) => void
+    onEditTask?: (task: Task) => void
     showActions?: boolean
     compact?: boolean
     showHeader?: boolean
@@ -706,7 +708,7 @@ function TypeBadge({ name, color }: { name: string; color?: string }) {
 // ROW ACTION MENU - Hidden by Default
 // ============================================================================
 
-function RowActions({ task, visible, isReadOnly = false }: { task: Task; visible: boolean; isReadOnly?: boolean }) {
+function RowActions({ task, visible, isReadOnly = false, onEditTask }: { task: Task; visible: boolean; isReadOnly?: boolean; onEditTask?: (task: Task) => void }) {
     // Read-only: only show View action
     if (isReadOnly) {
         return (
@@ -751,13 +753,26 @@ function RowActions({ task, visible, isReadOnly = false }: { task: Task; visible
                         <Eye className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} />
                         View
                     </Link>
-                    <Link
-                        href={route("activity.task.edit", { task: task.id })}
-                        className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    >
-                        <Edit className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} />
-                        Edit
-                    </Link>
+                    {onEditTask ? (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onEditTask(task)
+                            }}
+                            className="flex w-full items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                        >
+                            <Edit className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} />
+                            Edit
+                        </button>
+                    ) : (
+                        <Link
+                            href={route("activity.task.edit", { task: task.id })}
+                            className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                        >
+                            <Edit className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} />
+                            Edit
+                        </Link>
+                    )}
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
@@ -889,6 +904,7 @@ export function ActivityDataTable({
     stats,
     filters,
     onRowClick,
+    onEditTask,
     showActions = true,
     compact = false,
     showHeader = true,
@@ -1161,7 +1177,7 @@ export function ActivityDataTable({
                                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
                                                 onClick={(e) => e.stopPropagation()}
                                             >
-                                                <RowActions task={task} visible={true} isReadOnly={isReadOnly} />
+                                                <RowActions task={task} visible={true} isReadOnly={isReadOnly} onEditTask={onEditTask} />
                                             </div>
                                         )}
                                     </div>
@@ -1198,8 +1214,9 @@ export function ActivityDataTable({
 
                             <div className="flex items-center gap-3">
                                 {/* Export Button */}
-                                <a
-                                    href={route('activity.task.export', {
+                                <button
+                                    type="button"
+                                    onClick={() => openDownloadInSameTab(route('activity.task.export', {
                                         scope: viewMode, // 'my' or 'department'
                                         date_from: dateFilter === 'custom' && customRange.start
                                             ? format(customRange.start, 'yyyy-MM-dd')
@@ -1214,12 +1231,12 @@ export function ActivityDataTable({
                                                     : dateFilter === 'month' ? format(endOfMonth(new Date()), 'yyyy-MM-dd')
                                                         : undefined,
                                         status: statusFilter !== 'all' ? statusFilter : undefined,
-                                    })}
+                                    }))}
                                     className="inline-flex items-center gap-1.5 rounded-lg border border-[color:rgba(24,98,167,0.22)] bg-[color:rgba(24,98,167,0.1)] px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-[color:rgba(24,98,167,0.16)]"
                                 >
                                     <Download className="h-4 w-4" strokeWidth={1.5} />
                                     Export XLSX
-                                </a>
+                                </button>
 
                                 {/* Date Filter */}
                                 <DateFilter
@@ -1302,6 +1319,7 @@ export function ActivityDataTable({
                     setShowModal(false)
                     setSelectedTask(null)
                 }}
+                onEdit={onEditTask}
             />
         </>
     )

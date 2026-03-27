@@ -13,6 +13,7 @@ use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -143,7 +144,7 @@ class InertiaIntegrationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function test_inertia_dashboard_renders_correctly()
     {
         $this->actingAs($this->user);
@@ -167,7 +168,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_inertia_navigation_includes_shared_props()
     {
         $this->actingAs($this->user);
@@ -200,7 +201,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_purchase_request_index_page_renders()
     {
         $this->actingAs($this->user);
@@ -223,7 +224,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_purchase_request_create_page_renders()
     {
         $this->actingAs($this->user);
@@ -245,7 +246,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_purchase_request_show_page_renders()
     {
         $this->actingAs($this->user);
@@ -271,7 +272,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_business_unit_switching_updates_session()
     {
         $this->actingAs($this->user);
@@ -296,7 +297,7 @@ class InertiaIntegrationTest extends TestCase
         $this->assertEquals($this->secondBusinessUnit->name, session('current_business_unit_name'));
     }
 
-    /** @test */
+    #[Test]
     public function test_business_unit_switch_reloads_page_with_new_context()
     {
         $this->actingAs($this->user);
@@ -342,7 +343,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_form_submission_with_inertia()
     {
         $this->actingAs($this->user);
@@ -389,7 +390,7 @@ class InertiaIntegrationTest extends TestCase
         $response->assertSessionHasNoErrors();
     }
 
-    /** @test */
+    #[Test]
     public function test_form_validation_errors_returned_to_inertia()
     {
         $this->actingAs($this->user);
@@ -410,7 +411,7 @@ class InertiaIntegrationTest extends TestCase
         $response->assertSessionHasErrors();
     }
 
-    /** @test */
+    #[Test]
     public function test_authentication_required_for_inertia_pages()
     {
         // Try to access dashboard without authentication
@@ -424,7 +425,7 @@ class InertiaIntegrationTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    /** @test */
+    #[Test]
     public function test_business_unit_context_required_for_pr_pages()
     {
         $this->actingAs($this->user);
@@ -438,7 +439,7 @@ class InertiaIntegrationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function test_inertia_navigation_flow_between_pages()
     {
         $this->actingAs($this->user);
@@ -477,7 +478,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_flash_messages_passed_to_inertia()
     {
         $this->actingAs($this->user);
@@ -499,7 +500,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_pagination_works_with_inertia()
     {
         $this->actingAs($this->user);
@@ -535,7 +536,7 @@ class InertiaIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function test_filtering_works_with_inertia()
     {
         $this->actingAs($this->user);

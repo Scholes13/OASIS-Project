@@ -232,7 +232,7 @@ export default function Index({ activities, stats, filters }: ActivitiesIndexPro
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.visit(route('sales-crm.activities.show', row.original.id))}
+                        onClick={() => router.visit(route('sales-crm.activities.show', { activity: row.original.id }))}
                         className="text-primary hover:text-primary"
                     >
                         View
@@ -240,7 +240,7 @@ export default function Index({ activities, stats, filters }: ActivitiesIndexPro
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.visit(route('sales-crm.activities.edit', row.original.id))}
+                        onClick={() => router.visit(route('sales-crm.activities.edit', { activity: row.original.id }))}
                         className="text-gray-600 hover:text-gray-900"
                     >
                         Edit

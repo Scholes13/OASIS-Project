@@ -268,24 +268,26 @@ export function TaskFormModal({
     if (!open) return null;
 
     return (
-        <Dialog open={open} onClose={onClose} className="max-w-[720px] w-full p-0 overflow-hidden bg-white rounded-xl shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <h2 className="text-[17px] font-bold text-slate-800 tracking-tight">
-                    {isEditing ? 'Edit Task' : 'Create New Task'}
-                </h2>
-                <button 
-                    type="button"
-                    onClick={onClose}
-                    className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-            </div>
+        <Dialog open={open} onClose={onClose} className="max-w-[720px] w-full p-0 bg-white rounded-xl shadow-2xl overflow-hidden">
+            {/* Wrapper — constrains total height and enables flex layout */}
+            <div className="flex flex-col" style={{ maxHeight: 'min(92vh, 800px)' }}>
+                {/* Header — pinned top */}
+                <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 shrink-0">
+                    <h2 className="text-base font-bold text-slate-800 tracking-tight">
+                        {isEditing ? 'Edit Task' : 'Create New Task'}
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
-            {/* Body */}
-            <div className="p-6 max-h-[75vh] overflow-y-auto">
-                <form onSubmit={handleSubmit} className="flex flex-col gap-6" id="task-form">
+                {/* Body — scrollable middle section */}
+                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 overscroll-contain">
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4" id="task-form">
                     
                     {/* Top Row: Title and Status */}
                     <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
@@ -382,7 +384,7 @@ export function TaskFormModal({
                     </div>
 
                     {/* Timeline & Time Log Panel */}
-                    <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex flex-col gap-2">
                         <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Timeline & Time Log</h4>
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-5">
                             
@@ -473,7 +475,7 @@ export function TaskFormModal({
                     </div>
 
                     {/* Participants */}
-                    <div className="flex flex-col gap-1.5 mt-2">
+                    <div className="flex flex-col gap-1.5">
                         <label className="text-[12px] font-semibold text-slate-700">Participants</label>
                         <div className="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-lg min-h-[52px]">
                             {departmentUsers.map((user) => (
@@ -504,21 +506,21 @@ export function TaskFormModal({
                     </div>
 
                     {/* Description */}
-                    <div className="flex flex-col gap-1.5 mt-2">
+                    <div className="flex flex-col gap-1.5">
                         <label className="text-[12px] font-semibold text-slate-700">Description (Optional)</label>
                         <textarea
                             value={data.task_description}
                             onChange={(e) => setData('task_description', e.target.value)}
-                            rows={3}
-                            className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#16599c]/20 focus:border-[#16599c] outline-none resize-y"
+                            rows={2}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#16599c]/20 focus:border-[#16599c] outline-none resize-y min-h-[60px]"
                             placeholder="Add details..."
                         />
                     </div>
                 </form>
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-xl">
+            {/* Footer — pinned bottom */}
+            <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-200 rounded-b-xl shrink-0">
                 <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
                     {data.status === 'completed' ? (
                         <><Clock className="w-3.5 h-3.5" /> Time log required for completed task.</>
@@ -540,6 +542,7 @@ export function TaskFormModal({
                     </button>
                 </div>
             </div>
+            </div>{/* end flex wrapper */}
         </Dialog>
     );
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import Entries from '@/Pages/CashflowProjection/Entries';
@@ -79,15 +79,15 @@ describe('Cashflow Projection Entries page', () => {
                 business_unit_name: 'Werkudara Nirwana Sakti',
                 template_type: 'cfc',
                 actions: [
-                    { code: 'IN_ACC_PIUTANG_REVENUE', label: 'Piutang & Revenue', flow_type: 'in' },
-                    { code: 'IN_TEP_ESTIMASI_UPCOMING_REVENUE', label: 'Estimasi Penerimaan dari Upcoming Revenue', flow_type: 'in' },
-                    { code: 'IN_CFC_SUNTIKAN_MODAL', label: 'Suntikan Modal', flow_type: 'in' },
-                    { code: 'OUT_ACC_PAJAK', label: 'Pajak', flow_type: 'out' },
-                    { code: 'OUT_ACC_OPS', label: 'Operational Department ACC', flow_type: 'out' },
-                    { code: 'OUT_TEP_COST_OF_REVENUE', label: 'Cost of Revenue dari Upcoming Revenue', flow_type: 'out' },
-                    { code: 'OUT_HR_GAJI_BENEFIT', label: 'Gaji & Benefit Karyawan', flow_type: 'out' },
-                    { code: 'OUT_CFC_CORPORATE_EXPENSES', label: 'Corporate Expense', flow_type: 'out' },
-                    { code: 'OUT_CFC_OPS', label: 'Operational Department CFC', flow_type: 'out' },
+                    { code: 'IN_ACC_PIUTANG_REVENUE', label: 'ACC - Piutang & Revenue', flow_type: 'in' },
+                    { code: 'IN_TEP_ESTIMASI_UPCOMING_REVENUE', label: 'TEP - Estimasi Penerimaan dari Upcoming Revenue', flow_type: 'in' },
+                    { code: 'IN_CFC_SUNTIKAN_MODAL', label: 'CFC - Suntikan Modal', flow_type: 'in' },
+                    { code: 'OUT_ACC_PAJAK', label: 'ACC - Pajak', flow_type: 'out' },
+                    { code: 'OUT_ACC_OPS', label: 'ACC - Operational Department ACC', flow_type: 'out' },
+                    { code: 'OUT_TEP_COST_OF_REVENUE', label: 'TEP - Cost of Revenue dari Upcoming Revenue', flow_type: 'out' },
+                    { code: 'OUT_HR_GAJI_BENEFIT', label: 'HR - Gaji & Benefit Karyawan', flow_type: 'out' },
+                    { code: 'OUT_CFC_CORPORATE_EXPENSES', label: 'CFC - Corporate Expense', flow_type: 'out' },
+                    { code: 'OUT_CFC_OPS', label: 'CFC - Operational Department CFC', flow_type: 'out' },
                 ],
             },
             {
@@ -99,7 +99,7 @@ describe('Cashflow Projection Entries page', () => {
                 business_unit_name: 'Werkudara Nirwana Sakti',
                 template_type: 'hr',
                 actions: [
-                    { code: 'OUT_HR_GAJI_BENEFIT', label: 'Gaji & Benefit Karyawan', flow_type: 'out' },
+                    { code: 'OUT_HR_GAJI_BENEFIT', label: 'HR - Gaji & Benefit Karyawan', flow_type: 'out' },
                 ],
             },
             {
@@ -111,7 +111,7 @@ describe('Cashflow Projection Entries page', () => {
                 business_unit_name: 'Morpheus',
                 template_type: 'standard',
                 actions: [
-                    { code: 'OUT_OPS_OPS', label: 'Operational OPS', flow_type: 'out' },
+                    { code: 'OUT_OPS_OPS', label: 'OPS - Operational Department OPS', flow_type: 'out' },
                 ],
             },
         ],
@@ -126,17 +126,64 @@ describe('Cashflow Projection Entries page', () => {
                 business_unit_name: 'Werkudara Nirwana Sakti',
                 flow_type: 'out',
                 action_code: 'OUT_HR_GAJI_BENEFIT',
-                action_label: 'Gaji & Benefit Karyawan',
+                action_label: 'HR - Gaji & Benefit Karyawan',
                 transaction_date: '2026-03-18',
                 due_date: '2026-03-18',
                 amount: 1200000,
                 description: 'Payroll March',
                 notes: 'Urgent',
                 is_estimated_date: false,
+                has_edit_history: true,
                 creator_name: 'Rina',
                 creator_department_label: 'CFC',
                 updater_name: 'Budi',
                 updater_department_label: 'HR',
+            },
+            {
+                id: 100,
+                department_id: 10,
+                department_code: 'CFC',
+                department_name: 'Core Finance',
+                business_unit_id: 1,
+                business_unit_code: 'WNS',
+                business_unit_name: 'Werkudara Nirwana Sakti',
+                flow_type: 'in',
+                action_code: 'IN_ACC_PIUTANG_REVENUE',
+                action_label: 'ACC - Piutang & Revenue',
+                transaction_date: '2026-03-21',
+                due_date: '2026-03-21',
+                amount: 450000,
+                description: 'Same author entry',
+                notes: null,
+                is_estimated_date: false,
+                has_edit_history: false,
+                creator_name: 'Sari',
+                creator_department_label: 'ACC',
+                updater_name: 'Sari',
+                updater_department_label: 'ACC',
+            },
+            {
+                id: 101,
+                department_id: 10,
+                department_code: 'CFC',
+                department_name: 'Core Finance',
+                business_unit_id: 1,
+                business_unit_code: 'WNS',
+                business_unit_name: 'Werkudara Nirwana Sakti',
+                flow_type: 'out',
+                action_code: 'OUT_CFC_CORPORATE_EXPENSES',
+                action_label: 'CFC - Corporate Expense',
+                transaction_date: '2026-03-25',
+                due_date: '2026-03-25',
+                amount: 900000,
+                description: 'Same author edited entry',
+                notes: null,
+                is_estimated_date: false,
+                has_edit_history: true,
+                creator_name: 'Tono',
+                creator_department_label: 'CFC',
+                updater_name: 'Tono',
+                updater_department_label: 'CFC',
             },
         ],
     };
@@ -166,7 +213,7 @@ describe('Cashflow Projection Entries page', () => {
         expect(screen.getByRole('option', { name: /operations/i })).toBeInTheDocument();
         expect(screen.queryByRole('option', { name: /human resources/i })).not.toBeInTheDocument();
         expect(departmentSelect).toHaveValue('21');
-        expect(screen.getByRole('option', { name: /ops - mrp - operational department ops/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /ops - mrp - operational/i })).toBeInTheDocument();
     });
 
     it('loads an existing entry into edit mode and submits a patch request', () => {
@@ -189,13 +236,18 @@ describe('Cashflow Projection Entries page', () => {
         );
     });
 
-    it('renders target and attribution metadata for each row', () => {
+    it('renders business unit codes and only shows last edited for meaningful edits', () => {
         render(<Entries {...baseProps} />);
 
-        expect(screen.getByText(/wns • human resources/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/^WNS$/i)).toHaveLength(3);
+        expect(screen.queryByText(/human resources/i, { selector: 'td' })).not.toBeInTheDocument();
         expect(screen.getByText(/hr - gaji & benefit karyawan/i)).toBeInTheDocument();
         expect(screen.getByText(/created by: rina \(cfc\)/i)).toBeInTheDocument();
         expect(screen.getByText(/last edited by: budi \(hr\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/created by: sari \(acc\)/i)).toBeInTheDocument();
+        expect(screen.queryByText(/last edited by: sari \(acc\)/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/created by: tono \(cfc\)/i)).toBeInTheDocument();
+        expect(screen.getByText(/last edited by: tono \(cfc\)/i)).toBeInTheDocument();
     });
 
     it('shows a safe empty state when there are no selectable departments', () => {
@@ -221,11 +273,11 @@ describe('Cashflow Projection Entries page', () => {
         });
 
         expect(screen.getByRole('option', { name: /acc - pajak/i })).toBeInTheDocument();
-        expect(screen.getByRole('option', { name: /acc - operational department acc/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /acc - operational/i })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: /tep - cost of revenue dari upcoming revenue/i })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: /hr - gaji & benefit karyawan/i })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: /cfc - corporate expense/i })).toBeInTheDocument();
-        expect(screen.getByRole('option', { name: /cfc - operational department cfc/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /cfc - operational/i })).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText(/business unit/i), {
             target: { value: '2' },
@@ -237,7 +289,57 @@ describe('Cashflow Projection Entries page', () => {
                     /this entry will be saved to linked business unit mrp - morpheus, not to the active business unit wns - werkudara nirwana sakti/i
                 )
             ).toBeInTheDocument();
-            expect(screen.getByRole('option', { name: /ops - mrp - operational department ops/i })).toBeInTheDocument();
+            expect(screen.getByRole('option', { name: /ops - mrp - operational/i })).toBeInTheDocument();
         });
+    });
+
+    it('dedupes and groups category options by department prefix while shortening operational labels', () => {
+        render(
+            <Entries
+                {...baseProps}
+                departments={[
+                    {
+                        id: 10,
+                        code: 'CFC',
+                        name: 'Core Finance',
+                        business_unit_id: 1,
+                        business_unit_code: 'WNS',
+                        business_unit_name: 'Werkudara Nirwana Sakti',
+                        template_type: 'cfc',
+                        actions: [
+                            { code: 'OUT_CFC_OPS', label: 'CFC - Operational Department CFC', flow_type: 'out' },
+                            { code: 'OUT_ACC_PAJAK', label: 'ACC - Pajak', flow_type: 'out' },
+                            { code: 'OUT_ACC_OPS', label: 'ACC - Operational Department ACC', flow_type: 'out' },
+                            { code: 'OUT_ACC_OPS', label: 'ACC - Operational Department ACC', flow_type: 'out' },
+                            { code: 'OUT_TEP_COST_OF_REVENUE', label: 'TEP - Cost of Revenue dari Upcoming Revenue', flow_type: 'out' },
+                            { code: 'OUT_HR_GAJI_BENEFIT', label: 'HR - Gaji & Benefit Karyawan', flow_type: 'out' },
+                            { code: 'OUT_CFC_CORPORATE_EXPENSES', label: 'CFC - Corporate Expense', flow_type: 'out' },
+                            { code: 'OUT_CFC_OPS', label: 'CFC - Operational Department CFC', flow_type: 'out' },
+                        ],
+                    },
+                ]}
+            />
+        );
+
+        fireEvent.change(screen.getByLabelText(/type/i), {
+            target: { value: 'out' },
+        });
+
+        const categorySelect = screen.getByLabelText(/category/i);
+        const optionLabels = within(categorySelect)
+            .getAllByRole('option')
+            .map((option) => option.textContent?.trim())
+            .filter((label): label is string => Boolean(label));
+
+        expect(optionLabels).toEqual([
+            'ACC - Operational',
+            'ACC - Pajak',
+            'CFC - Corporate Expense',
+            'CFC - Operational',
+            'HR - Gaji & Benefit Karyawan',
+            'TEP - Cost of Revenue dari Upcoming Revenue',
+        ]);
+        expect(optionLabels.filter((label) => label === 'ACC - Operational')).toHaveLength(1);
+        expect(optionLabels.find((label) => label.includes('Operational Department ACC'))).toBeUndefined();
     });
 });

@@ -26,6 +26,7 @@ interface ActivityCalendarProps {
     onDateClick?: (date: Date) => void
     onEventClick?: (task: Task) => void
     onCreateTask?: (options?: { date?: string }) => void
+    onEditTask?: (task: Task) => void
 }
 
 type ViewMode = "my" | "department"
@@ -131,7 +132,7 @@ function EventContent({ event, view }: { event: any; view: string }) {
     )
 }
 
-export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTask }: ActivityCalendarProps) {
+export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTask, onEditTask }: ActivityCalendarProps) {
     const calendarRef = React.useRef<FullCalendar>(null)
     const [currentView, setCurrentView] = React.useState<CalendarView>("dayGridMonth")
     const [currentDate, setCurrentDate] = React.useState(new Date())
@@ -442,6 +443,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
                     setShowModal(false)
                     setSelectedTask(null)
                 }}
+                onEdit={onEditTask}
             />
 
             {/* Custom styles for FullCalendar */}

@@ -54,9 +54,11 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
     const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
     const [isFiltering, setIsFiltering] = useState(false);
     const [showTaskModal, setShowTaskModal] = useState(false);
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [initialTaskDate, setInitialTaskDate] = useState<string | null>(null);
 
     const handleCreateTaskClick = (options?: { date?: string }) => {
+        setEditingTask(null);
         setInitialTaskDate(options?.date ?? null);
 
         router.reload({
@@ -64,6 +66,16 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
             onSuccess: () => setShowTaskModal(true),
         });
     };
+
+    const handleEditTaskClick = useCallback((task: Task) => {
+        setEditingTask(task);
+        setInitialTaskDate(null);
+
+        router.reload({
+            only: ['departmentUsers', 'backdatePermission', 'allowedDateRange', 'backdateEnabled', 'prioritizedActivityTypes'],
+            onSuccess: () => setShowTaskModal(true),
+        });
+    }, []);
 
     const { currentBusinessUnit, isSwitching: isBuLoading } = useBusinessUnit([
         'stats', 'tasks', 'filters'
@@ -255,22 +267,22 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
                             <AnimatePresence mode="wait" initial={false}>
                                 {view === 'list' && (
                                     <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                                        <ActivityDataTable tasks={tasks} stats={safeStats} filters={filters} showHeader={false} compact={true} />
+                                        <ActivityDataTable tasks={tasks} stats={safeStats} filters={filters} showHeader={false} compact={true} onEditTask={handleEditTaskClick} />
                                     </motion.div>
                                 )}
                                 {view === 'board' && (
                                     <motion.div key="board" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full min-h-[500px]">
-                                        <KanbanBoard tasks={taskData} onCreateTask={() => handleCreateTaskClick()} />
+                                        <KanbanBoard tasks={taskData} onCreateTask={() => handleCreateTaskClick()} onEditTask={handleEditTaskClick} />
                                     </motion.div>
                                 )}
                                 {view === 'calendar' && (
                                     <motion.div key="calendar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
-                                        <ActivityCalendar tasks={taskData} onEventClick={handleTaskClick} onCreateTask={handleCreateTaskClick} />
+                                        <ActivityCalendar tasks={taskData} onEventClick={handleTaskClick} onCreateTask={handleCreateTaskClick} onEditTask={handleEditTaskClick} />
                                     </motion.div>
                                 )}
                                 {view === 'timeline' && (
                                     <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
-                                        <ActivityTimeline tasks={taskData} onTaskClick={handleTaskClick} onCreateTask={() => handleCreateTaskClick()} />
+                                        <ActivityTimeline tasks={taskData} onTaskClick={handleTaskClick} onCreateTask={() => handleCreateTaskClick()} onEditTask={handleEditTaskClick} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -279,14 +291,15 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
                 </div>
             </div>
 
-            {/* Create Task Modal */}
+            {/* Create/Edit Task Modal */}
             <TaskFormModal 
                 open={showTaskModal} 
                 onClose={() => {
                     setShowTaskModal(false);
+                    setEditingTask(null);
                     setInitialTaskDate(null);
                 }}
-                task={null}
+                task={editingTask}
                 activityTypes={prioritizedActivityTypes || activityTypes}
                 departmentUsers={departmentUsers}
                 backdatePermission={backdatePermission}

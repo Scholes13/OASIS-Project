@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Activity,
@@ -15,6 +15,7 @@ import {
     Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { openDownloadInSameTab } from '@/lib/download';
 import type { PageProps } from '@/types';
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'year' | 'all';
@@ -396,12 +397,14 @@ export default function ActivityDashboard({
                                 <Filter className="mr-2 h-4 w-4 text-slate-500" />
                                 Filter
                             </button>
-                            <Link href={route('activity.task.export', { scope: viewMode === 'personal' ? 'my' : 'department' })}>
-                                <button className="flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600">
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Export Report
-                                </button>
-                            </Link>
+                            <button
+                                type="button"
+                                onClick={() => openDownloadInSameTab(route('activity.task.export', { scope: viewMode === 'personal' ? 'my' : 'department' }))}
+                                className="flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600"
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Export Report
+                            </button>
                         </div>
                         )}
                     </div>

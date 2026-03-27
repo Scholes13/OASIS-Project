@@ -47,6 +47,10 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function registerObservers(): void
     {
+        \App\Models\Core\UserBusinessUnit::observe(
+            \App\Observers\UserBusinessUnitObserver::class
+        );
+
         \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::observe(
             \App\Observers\PurchaseRequestObserver::class
         );

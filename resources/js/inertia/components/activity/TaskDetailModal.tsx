@@ -101,7 +101,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
     }
 
     return (
-        <Dialog open={open} onClose={onClose} className="flex h-[85vh] w-[95vw] max-w-[1000px] flex-col !overflow-hidden !rounded-xl !p-0 shadow-2xl">
+        <Dialog open={open} onClose={onClose} className="flex max-h-[min(85vh,800px)] w-[95vw] max-w-[1000px] flex-col overflow-hidden !rounded-xl !p-0 shadow-2xl">
             {task && (
                 <div className="flex h-full flex-col bg-background">
                     {/* Header */}

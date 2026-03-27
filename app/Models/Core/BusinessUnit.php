@@ -244,6 +244,14 @@ class BusinessUnit extends Model
     }
 
     /**
+     * Get linked business units for cashflow projection (this BU as host).
+     */
+    public function cashflowLinkedUnits(): HasMany
+    {
+        return $this->hasMany(\App\Models\Modules\CashflowProjection\CashflowProjectionLinkedUnit::class, 'host_business_unit_id');
+    }
+
+    /**
      * Get number sequences for this business unit
      */
     public function numberSequences(): HasMany

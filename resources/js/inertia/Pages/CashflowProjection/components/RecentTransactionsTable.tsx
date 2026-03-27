@@ -5,6 +5,8 @@ import { formatCurrency } from '../utils';
 
 interface RecentTransactionsTableProps {
     lineItems: LineItem[];
+    title?: string;
+    caption?: string;
 }
 
 function resolveStatus(item: LineItem): 'projected' | 'confirmed' | 'pending' {
@@ -42,23 +44,32 @@ function formatDate(dateValue: string): string {
     });
 }
 
-export default function RecentTransactionsTable({ lineItems }: RecentTransactionsTableProps) {
+export default function RecentTransactionsTable({
+    lineItems,
+    title = 'Upcoming & Recent',
+    caption = 'Latest transactions for the selected period.',
+}: RecentTransactionsTableProps) {
     return (
         <motion.section
-            className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+            className="rounded-xl border border-slate-200/60 bg-white shadow-sm overflow-hidden"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut', delay: 0.16 }}
         >
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-foreground">Upcoming & Recent</h2>
-                <span className="text-xs text-muted-foreground">{lineItems.length} item</span>
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-white">
+                <div>
+                    <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{caption}</p>
+                </div>
+                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                    {lineItems.length} item
+                </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto px-6 py-2">
                 <table className="w-full text-left text-sm">
                     <thead>
-                        <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
                             <th className="py-3 pr-4">Transaction</th>
                             <th className="py-3 pr-4">Category</th>
                             <th className="py-3 pr-4">Date</th>
@@ -69,7 +80,7 @@ export default function RecentTransactionsTable({ lineItems }: RecentTransaction
                     <tbody>
                         {lineItems.length === 0 && (
                             <tr>
-                                <td colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                                <td colSpan={5} className="py-8 text-center text-sm text-slate-500">
                                     Belum ada input line item.
                                 </td>
                             </tr>
@@ -80,19 +91,19 @@ export default function RecentTransactionsTable({ lineItems }: RecentTransaction
                             const Icon = resolveIcon(item.action_label);
 
                             return (
-                                <tr key={item.id} className="border-b border-border/50 last:border-0">
+                                <tr key={item.id} className="border-b border-slate-100 last:border-0">
                                     <td className="py-3 pr-4">
                                         <div className="flex items-center gap-3">
                                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                                                 <Icon className="h-4 w-4" />
                                             </div>
-                                            <span className="font-medium text-foreground">{item.description || item.action_label}</span>
+                                            <span className="font-medium text-slate-900">{item.description || item.action_label}</span>
                                         </div>
                                     </td>
-                                    <td className="py-3 pr-4 text-muted-foreground">{item.action_label}</td>
-                                    <td className="py-3 pr-4 text-muted-foreground">{formatDate(item.transaction_date)}</td>
+                                    <td className="py-3 pr-4 text-slate-500">{item.action_label}</td>
+                                    <td className="py-3 pr-4 text-slate-500">{formatDate(item.transaction_date)}</td>
                                     <td className="py-3 pr-4">
-                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadgeMap[status] || 'bg-slate-100 text-slate-700'}`}>
+                                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadgeMap[status] || 'bg-slate-100 text-slate-700'}`}>
                                             {resolveStatusLabel(status)}
                                         </span>
                                     </td>

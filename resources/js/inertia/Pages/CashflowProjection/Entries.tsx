@@ -28,6 +28,23 @@ function extractDepartmentCode(actionCode: string, fallbackCode: string): string
     return match?.[1] ?? fallbackCode;
 }
 
+function normalizeActionLabel(actionLabel: string): string {
+    const prefixedParts = actionLabel.split(' - ');
+    const coreLabel = prefixedParts.length >= 2
+        ? prefixedParts.slice(prefixedParts.length >= 3 ? 2 : 1).join(' - ')
+        : actionLabel;
+
+    if (coreLabel.toLowerCase().startsWith('operational department')) {
+        return 'Operational';
+    }
+
+    if (prefixedParts.length >= 2) {
+        return coreLabel;
+    }
+
+    return actionLabel;
+}
+
 function formatCategoryLabel(
     actionCode: string,
     actionLabel: string,
@@ -36,12 +53,7 @@ function formatCategoryLabel(
     isLinkedBusinessUnit: boolean = false
 ): string {
     const normalizedDepartmentCode = extractDepartmentCode(actionCode, departmentCode);
-    const prefixedParts = actionLabel.split(' - ');
-    const normalizedLabel = actionLabel.toLowerCase().startsWith('operational')
-        ? `Operational Department ${normalizedDepartmentCode}`
-        : prefixedParts.length >= 2
-          ? prefixedParts.slice(prefixedParts.length >= 3 ? 2 : 1).join(' - ')
-          : actionLabel;
+    const normalizedLabel = normalizeActionLabel(actionLabel);
 
     const labelParts = [normalizedDepartmentCode];
 
@@ -75,6 +87,12 @@ function formatDate(dateValue: string): string {
         month: 'short',
         year: 'numeric',
     });
+}
+
+function hasMeaningfulEdit(item: {
+    has_edit_history?: boolean;
+}): boolean {
+    return item.has_edit_history === true;
 }
 
 const statusBadgeMap: Record<string, string> = {
@@ -163,8 +181,35 @@ export default function CashflowProjectionEntries({
             return [];
         }
 
-        return selectedDepartment.actions
+        const uniqueActions = selectedDepartment.actions.reduce<typeof selectedDepartment.actions>((actions, action) => {
+            if (actions.some((existingAction) => existingAction.code === action.code)) {
+                return actions;
+            }
+
+            return [...actions, action];
+        }, []);
+
+        return uniqueActions
             .filter((action) => action.flow_type === flowType)
+            .sort((left, right) => {
+                const leftPrefix = extractDepartmentCode(left.code, selectedDepartment.code);
+                const rightPrefix = extractDepartmentCode(right.code, selectedDepartment.code);
+                const prefixComparison = leftPrefix.localeCompare(rightPrefix);
+
+                if (prefixComparison !== 0) {
+                    return prefixComparison;
+                }
+
+                const leftLabel = normalizeActionLabel(left.label);
+                const rightLabel = normalizeActionLabel(right.label);
+                const labelComparison = leftLabel.localeCompare(rightLabel);
+
+                if (labelComparison !== 0) {
+                    return labelComparison;
+                }
+
+                return left.code.localeCompare(right.code);
+            })
             .map((action) => ({
                 value: action.code,
                 label: formatCategoryLabel(
@@ -368,7 +413,7 @@ export default function CashflowProjectionEntries({
                                         <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                             <th className="py-3 pr-4">Transaction</th>
                                             <th className="py-3 pr-4">Category</th>
-                                            <th className="py-3 pr-4">Department</th>
+                                            <th className="py-3 pr-4">Business Unit</th>
                                             <th className="py-3 pr-4">Attribution</th>
                                             <th className="py-3 pr-4">Date</th>
                                             <th className="py-3 pr-4">Status</th>
@@ -408,20 +453,13 @@ export default function CashflowProjectionEntries({
                                                         </div>
                                                     </td>
                                                     <td className="py-3 pr-4 text-muted-foreground">{displayActionLabel}</td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">
-                                                        <div className="space-y-1">
-                                                            <p>{item.business_unit_code} • {item.department_name}</p>
-                                                            {item.business_unit_name && (
-                                                                <p className="text-xs text-slate-400">{item.business_unit_name}</p>
-                                                            )}
-                                                        </div>
-                                                    </td>
+                                                    <td className="py-3 pr-4 font-medium text-muted-foreground">{item.business_unit_code ?? 'N/A'}</td>
                                                     <td className="py-3 pr-4 text-muted-foreground">
                                                         <div className="space-y-1 text-xs">
                                                             {item.creator_name && item.creator_department_label && (
                                                                 <p>Created by: {item.creator_name} ({item.creator_department_label})</p>
                                                             )}
-                                                            {item.updater_name && item.updater_department_label && (
+                                                            {hasMeaningfulEdit(item) && item.updater_name && item.updater_department_label && (
                                                                 <p>Last edited by: {item.updater_name} ({item.updater_department_label})</p>
                                                             )}
                                                         </div>

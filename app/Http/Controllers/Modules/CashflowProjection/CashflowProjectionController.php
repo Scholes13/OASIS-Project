@@ -583,7 +583,7 @@ class CashflowProjectionController extends Controller
         return back()->with('success', 'Linked business unit berhasil dihapus.');
     }
 
-    public function export(Request $request): StreamedResponse
+    public function export(CashflowProjectionDashboardFilterRequest $request): StreamedResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -591,90 +591,351 @@ class CashflowProjectionController extends Controller
 
         abort_unless($this->accessService->isFinanceUser($user, $businessUnitId), 403);
 
-        $year = (int) $request->integer('year', (int) now()->format('Y'));
-        $selectedMonth = (int) max(1, min(12, $request->integer('month', (int) now()->format('n'))));
-
+        $dashboardFilters = $this->resolveDashboardFilters($request, $businessUnitId);
+        $year = $dashboardFilters['year'];
         $cycle = $this->findOrCreateCycle($businessUnitId, $year, $user->id);
 
         $assignments = $user->activeBusinessUnits()
-            ->with(['department', 'position'])
+            ->with(['department.businessUnit', 'position'])
             ->where('business_unit_id', $businessUnitId)
             ->get();
 
-        $departmentIds = $assignments
+        $departments = $assignments
             ->pluck('department')
             ->filter(fn ($department) => $department instanceof Department && $department->is_active)
-            ->pluck('id');
+            ->unique('id')
+            ->values();
+
+        $canManageFinance = $this->userHasFinanceAssignment($user, $businessUnitId);
+        $linkedBuIds = $canManageFinance ? $this->getLinkedBusinessUnitIds($businessUnitId) : [];
+
+        if ($canManageFinance && count($linkedBuIds) > 0) {
+            $linkedDepartments = Department::query()
+                ->with('businessUnit')
+                ->whereIn('business_unit_id', $linkedBuIds)
+                ->where('is_active', true)
+                ->get();
+            $departments = $departments->merge($linkedDepartments)->unique('id')->values();
+        }
+
+        $departmentIds = $departments->pluck('id');
 
         $lineItems = CashflowProjectionLineItem::query()
-            ->with('department')
+            ->with(['department.businessUnit', 'creator', 'updater'])
             ->where('cycle_id', $cycle->id)
             ->whereIn('department_id', $departmentIds)
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get();
 
-        $financeInputs = $this->userHasFinanceAssignment($user, $businessUnitId)
+        $financeInputs = $canManageFinance
             ? CashflowProjectionFinanceInput::query()
+                ->with(['creator', 'updater'])
                 ->where('cycle_id', $cycle->id)
                 ->orderBy('month')
                 ->get()
             : collect();
 
-        $dailySummary = $this->buildDailySummary($lineItems, $selectedMonth);
-        $monthlySummary = $this->buildMonthlySummary($lineItems, $financeInputs);
+        $scope = count($linkedBuIds) > 0
+            ? (string) $request->string('scope', 'consolidated')
+            : 'own';
 
-        $filename = 'cashflow-projection-'.$year.'-m'.$selectedMonth.'.xls';
+        $allLineItems = $lineItems;
 
-        return response()->streamDownload(function () use ($year, $selectedMonth, $monthlySummary, $dailySummary) {
-            echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">';
-            echo '<head><meta charset="UTF-8"></head><body>';
+        if ($scope === 'consolidated' && count($linkedBuIds) > 0) {
+            $linkedCycles = $this->getLinkedCycles($linkedBuIds, $year, $user->id);
+            $linkedLineItems = CashflowProjectionLineItem::query()
+                ->with(['department.businessUnit', 'creator', 'updater'])
+                ->whereIn('cycle_id', $linkedCycles->pluck('id'))
+                ->orderBy('transaction_date')
+                ->orderBy('id')
+                ->get();
 
-            echo '<table border="1">';
-            echo '<tr><td colspan="8" style="font-weight:bold;font-size:14pt;">Cashflow Projection Export</td></tr>';
-            echo '<tr><td colspan="8">Year: '.$year.' | Month: '.$selectedMonth.'</td></tr>';
-            echo '<tr><td colspan="8"></td></tr>';
+            $allLineItems = $lineItems->merge($linkedLineItems)
+                ->sortBy([
+                    ['transaction_date', 'asc'],
+                    ['id', 'asc'],
+                ])
+                ->values();
 
-            echo '<tr style="background-color:#f0f0f0;font-weight:bold;">';
-            echo '<td colspan="8">Monthly Summary</td>';
-            echo '</tr>';
-            echo '<tr style="font-weight:bold;">';
-            echo '<td>Month</td><td>Plus</td><td>Minus</td><td>Finance Income</td><td>Opening Balance</td><td>Net</td><td>Closing Balance</td><td>Warning</td>';
-            echo '</tr>';
+            $linkedFinanceInputs = CashflowProjectionFinanceInput::query()
+                ->with(['creator', 'updater'])
+                ->whereIn('cycle_id', $linkedCycles->pluck('id'))
+                ->orderBy('month')
+                ->get();
 
-            foreach ($monthlySummary as $row) {
-                echo '<tr>';
-                echo '<td>'.$row['month'].'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['plus'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['minus'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['finance_income'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['opening_balance'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['net'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['closing_balance'], 0, '.', ',').'</td>';
-                echo '<td>'.($row['is_warning'] ? 'YES' : 'NO').'</td>';
-                echo '</tr>';
+            foreach ($linkedFinanceInputs as $linkedInput) {
+                $existing = $financeInputs->firstWhere('month', $linkedInput->month);
+                if ($existing) {
+                    $existing->cash_on_hand = (float) $existing->cash_on_hand + (float) $linkedInput->cash_on_hand;
+                    $existing->receivable_estimate = (float) $existing->receivable_estimate + (float) $linkedInput->receivable_estimate;
+                    $existing->upcoming_event_revenue_estimate = (float) $existing->upcoming_event_revenue_estimate + (float) $linkedInput->upcoming_event_revenue_estimate;
+                    $existing->capital_injection_estimate = (float) $existing->capital_injection_estimate + (float) $linkedInput->capital_injection_estimate;
+                    $existing->other_income = (float) $existing->other_income + (float) $linkedInput->other_income;
+                } else {
+                    $financeInputs->push($linkedInput);
+                }
             }
 
-            echo '<tr><td colspan="8"></td></tr>';
-            echo '<tr style="background-color:#f0f0f0;font-weight:bold;"><td colspan="8">Daily Summary (Month '.$selectedMonth.')</td></tr>';
-            echo '<tr style="font-weight:bold;"><td>Date</td><td>Plus</td><td>Minus</td><td>Net</td><td colspan="4"></td></tr>';
+            $financeInputs = $financeInputs->sortBy('month')->values();
+        }
 
-            foreach ($dailySummary as $row) {
-                echo '<tr>';
-                echo '<td>'.$row['date'].'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['plus'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['minus'], 0, '.', ',').'</td>';
-                echo '<td style="text-align:right;">'.number_format((float) $row['net'], 0, '.', ',').'</td>';
-                echo '<td colspan="4"></td>';
-                echo '</tr>';
-            }
+        $filteredLineItems = $this->filterLineItemsByPeriod(
+            $allLineItems,
+            $dashboardFilters['start'],
+            $dashboardFilters['end']
+        );
 
-            echo '</table>';
-            echo '</body></html>';
+        $dailySummary = $this->buildPeriodDailySummary(
+            $filteredLineItems,
+            $dashboardFilters['start'],
+            $dashboardFilters['end']
+        );
+        $monthlySummary = $this->buildMonthlySummary($allLineItems, $financeInputs);
+        $summary = $this->buildDashboardSummary(
+            $filteredLineItems,
+            $financeInputs,
+            $monthlySummary,
+            $dashboardFilters['start'],
+            $dashboardFilters['end']
+        );
+
+        $rawEntries = $this->buildLineItemPayload($allLineItems)->values();
+        $financeInputRows = $this->buildFinanceInputPayload($financeInputs)->values();
+        $periodLabel = $this->formatExportPeriodLabel($dashboardFilters);
+        $scopeLabel = $scope === 'consolidated' ? 'Consolidated' : 'BU Only';
+        $filename = $this->buildExportFilename($year, $dashboardFilters, $scope);
+
+        $summaryRows = [
+            [
+                ['type' => 'String', 'value' => 'Cashflow Projection Export', 'style' => 'section'],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Selected Period', 'style' => 'header'],
+                ['type' => 'String', 'value' => $periodLabel],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Scope', 'style' => 'header'],
+                ['type' => 'String', 'value' => $scopeLabel],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Business Unit', 'style' => 'header'],
+                ['type' => 'String', 'value' => (string) session('current_business_unit_name', '')],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Exported At', 'style' => 'header'],
+                ['type' => 'String', 'value' => now()->format('Y-m-d H:i:s')],
+            ],
+            [['type' => 'String', 'value' => '', 'style' => 'text']],
+            [
+                ['type' => 'String', 'value' => 'Balance Snapshot', 'style' => 'header'],
+                ['type' => 'Number', 'value' => $summary['total_balance'], 'style' => 'number'],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Period Inflow', 'style' => 'header'],
+                ['type' => 'Number', 'value' => $summary['inflow'], 'style' => 'number'],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Period Outflow', 'style' => 'header'],
+                ['type' => 'Number', 'value' => $summary['outflow'], 'style' => 'number'],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Finance Income', 'style' => 'header'],
+                ['type' => 'Number', 'value' => $summary['finance_income'], 'style' => 'number'],
+            ],
+            [
+                ['type' => 'String', 'value' => 'Net Cashflow', 'style' => 'header'],
+                ['type' => 'Number', 'value' => $summary['net_cashflow'], 'style' => 'number'],
+            ],
+            [['type' => 'String', 'value' => '', 'style' => 'text']],
+            [
+                ['type' => 'String', 'value' => 'Month', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Inflow', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Outflow', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Finance Income', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Opening Balance', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Net', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Closing Balance', 'style' => 'header'],
+                ['type' => 'String', 'value' => 'Warning', 'style' => 'header'],
+            ],
+        ];
+
+        foreach ($monthlySummary as $row) {
+            $summaryRows[] = [
+                ['type' => 'String', 'value' => CarbonImmutable::create($year, (int) $row['month'], 1)->format('M Y'), 'style' => 'text'],
+                ['type' => 'Number', 'value' => $row['plus'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['minus'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['finance_income'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['opening_balance'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['net'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['closing_balance'], 'style' => 'number'],
+                ['type' => 'String', 'value' => $row['is_warning'] ? 'YES' : 'NO', 'style' => 'text'],
+            ];
+        }
+
+        $dailyRows = [[
+            ['type' => 'String', 'value' => 'Date', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Inflow', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Outflow', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Net', 'style' => 'header'],
+        ]];
+
+        foreach ($dailySummary as $row) {
+            $dailyRows[] = [
+                ['type' => 'String', 'value' => $row['date'], 'style' => 'date'],
+                ['type' => 'Number', 'value' => $row['plus'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['minus'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['net'], 'style' => 'number'],
+            ];
+        }
+
+        $rawEntryRows = [[
+            ['type' => 'String', 'value' => 'Transaction Date', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Due Date', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Business Unit', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Department', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Category', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Flow Type', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Description', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Notes', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Amount', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Estimated Date', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Created By', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Created Department', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Last Edited By', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Last Edited Department', 'style' => 'header'],
+        ]];
+
+        foreach ($rawEntries as $row) {
+            $rawEntryRows[] = [
+                ['type' => 'String', 'value' => (string) $row['transaction_date'], 'style' => 'date'],
+                ['type' => 'String', 'value' => (string) ($row['due_date'] ?? ''), 'style' => 'date'],
+                ['type' => 'String', 'value' => (string) ($row['business_unit_code'] ?? ''), 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) ($row['department_name'] ?? ''), 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) $row['action_label'], 'style' => 'text'],
+                ['type' => 'String', 'value' => $row['flow_type'] === 'in' ? 'Inflow' : 'Outflow', 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) $row['description'], 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) ($row['notes'] ?? ''), 'style' => 'text'],
+                ['type' => 'Number', 'value' => $row['amount'], 'style' => 'number'],
+                ['type' => 'String', 'value' => $row['is_estimated_date'] ? 'YES' : 'NO', 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) ($row['creator_name'] ?? ''), 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) ($row['creator_department_label'] ?? ''), 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) ($row['updater_name'] ?? ''), 'style' => 'text'],
+                ['type' => 'String', 'value' => (string) ($row['updater_department_label'] ?? ''), 'style' => 'text'],
+            ];
+        }
+
+        $financeRows = [[
+            ['type' => 'String', 'value' => 'Month', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Cash on Hand', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Receivable Estimate', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Upcoming Revenue Estimate', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Capital Injection Estimate', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Other Income', 'style' => 'header'],
+            ['type' => 'String', 'value' => 'Finance Income Total', 'style' => 'header'],
+        ]];
+
+        foreach ($financeInputRows as $row) {
+            $financeRows[] = [
+                ['type' => 'String', 'value' => CarbonImmutable::create($year, (int) $row['month'], 1)->format('M Y'), 'style' => 'text'],
+                ['type' => 'Number', 'value' => $row['cash_on_hand'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['receivable_estimate'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['upcoming_event_revenue_estimate'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['capital_injection_estimate'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => $row['other_income'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => (float) $row['receivable_estimate'] + (float) $row['upcoming_event_revenue_estimate'] + (float) $row['capital_injection_estimate'] + (float) $row['other_income'], 'style' => 'number'],
+            ];
+        }
+
+        $workbook = $this->buildExportWorkbookXml([
+            'Summary' => $summaryRows,
+            'Daily Movement' => $dailyRows,
+            'Raw Entries' => $rawEntryRows,
+            'Finance Inputs' => $financeRows,
+        ]);
+
+        return response()->streamDownload(function () use ($workbook) {
+            echo $workbook;
         }, $filename, [
             'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Disposition' => 'attachment; filename='.$filename,
         ]);
+    }
+
+    private function formatExportPeriodLabel(array $dashboardFilters): string
+    {
+        if ($dashboardFilters['mode'] === 'year') {
+            return 'FY '.$dashboardFilters['year'];
+        }
+
+        if ($dashboardFilters['mode'] === 'range') {
+            return $dashboardFilters['start']->format('Y-m-d').' to '.$dashboardFilters['end']->format('Y-m-d');
+        }
+
+        return CarbonImmutable::create($dashboardFilters['year'], $dashboardFilters['month'], 1)->format('M Y');
+    }
+
+    private function buildExportFilename(int $year, array $dashboardFilters, string $scope): string
+    {
+        $scopeSegment = $scope === 'consolidated' ? 'consolidated' : 'bu-only';
+
+        if ($dashboardFilters['mode'] === 'year') {
+            return 'cashflow-projection-'.$scopeSegment.'-'.$year.'.xls';
+        }
+
+        if ($dashboardFilters['mode'] === 'range') {
+            return 'cashflow-projection-'.$scopeSegment.'-'.$dashboardFilters['start']->format('Ymd').'-to-'.$dashboardFilters['end']->format('Ymd').'.xls';
+        }
+
+        return 'cashflow-projection-'.$scopeSegment.'-'.$year.'-'.str_pad((string) $dashboardFilters['month'], 2, '0', STR_PAD_LEFT).'.xls';
+    }
+
+    /**
+     * @param  array<string, array<int, array<int, array{type: string, value: mixed, style: string}>>>  $worksheets
+     */
+    private function buildExportWorkbookXml(array $worksheets): string
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+        $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">';
+        $xml .= '<Styles>';
+        $xml .= '<Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#E8EEF7" ss:Pattern="Solid"/></Style>';
+        $xml .= '<Style ss:ID="section"><Font ss:Bold="1" ss:Size="14"/></Style>';
+        $xml .= '<Style ss:ID="text"><Alignment ss:Vertical="Center"/></Style>';
+        $xml .= '<Style ss:ID="date"><NumberFormat ss:Format="yyyy-mm-dd"/></Style>';
+        $xml .= '<Style ss:ID="number"><NumberFormat ss:Format="#,##0"/></Style>';
+        $xml .= '</Styles>';
+
+        foreach ($worksheets as $name => $rows) {
+            $xml .= '<Worksheet ss:Name="'.$this->escapeExportXml($name).'"><Table>';
+
+            foreach ($rows as $row) {
+                $xml .= '<Row>';
+
+                foreach ($row as $cell) {
+                    $styleId = (string) ($cell['style'] ?? 'text');
+                    $style = $styleId !== '' ? ' ss:StyleID="'.$this->escapeExportXml($styleId).'"' : '';
+                    $type = ($cell['type'] ?? 'String') === 'Number' ? 'Number' : 'String';
+                    $value = $type === 'Number'
+                        ? (string) ((float) ($cell['value'] ?? 0))
+                        : $this->escapeExportXml((string) ($cell['value'] ?? ''));
+
+                    $xml .= '<Cell'.$style.'><Data ss:Type="'.$type.'">'.$value.'</Data></Cell>';
+                }
+
+                $xml .= '</Row>';
+            }
+
+            $xml .= '</Table></Worksheet>';
+        }
+
+        $xml .= '</Workbook>';
+
+        return $xml;
+    }
+
+    private function escapeExportXml(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_XML1);
     }
 
     /**
@@ -1108,6 +1369,7 @@ class CashflowProjectionController extends Controller
                 'is_estimated_date' => (bool) $item->is_estimated_date,
                 'creator_name' => $auditMeta['creator_name'] ?? $item->creator?->name,
                 'creator_department_label' => $auditMeta['creator_department_label'] ?? $item->creator?->primaryDepartment?->name,
+                'has_edit_history' => (bool) ($auditMeta['has_edit_history'] ?? false),
                 'updater_name' => $auditMeta['updater_name'] ?? $item->updater?->name,
                 'updater_department_label' => $auditMeta['updater_department_label'] ?? $item->updater?->primaryDepartment?->name,
             ];
@@ -1167,6 +1429,9 @@ class CashflowProjectionController extends Controller
             $metadata[(int) $auditableId] = [
                 'creator_name' => $createdLog?->actor_user_name,
                 'creator_department_label' => $createdLog?->actor_department_label,
+                'has_edit_history' => $logs->contains(
+                    fn (CashflowProjectionAuditLog $log) => $log->action === 'updated'
+                ),
                 'updater_name' => $latestLog?->actor_user_name,
                 'updater_department_label' => $latestLog?->actor_department_label,
             ];

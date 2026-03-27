@@ -372,7 +372,7 @@ export default function ManagementHistory({ tasks, statistics, adminList, filter
                                                         {task.business_unit?.name || 'N/A'}
                                                     </td>
                                                     <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                        {task.admin?.name || 'N/A'}
+                                                        {task.assigned_admin?.name || 'N/A'}
                                                     </td>
                                                     <td className="px-5 py-4 whitespace-nowrap text-sm">
                                                         <StatusBadge status={task.status} />

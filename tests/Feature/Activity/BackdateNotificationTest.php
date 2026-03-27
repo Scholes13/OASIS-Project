@@ -14,6 +14,7 @@ use App\Notifications\Activity\BackdateRequestSubmitted;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BackdateNotificationTest extends TestCase
@@ -21,18 +22,24 @@ class BackdateNotificationTest extends TestCase
     use RefreshDatabase;
 
     protected BackdatePermissionService $service;
+
     protected User $employee;
+
     protected User $departmentHead;
+
     protected Department $department;
+
     protected BusinessUnit $businessUnit;
+
     protected Position $staffPosition;
+
     protected Position $headPosition;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new BackdatePermissionService();
+        $this->service = new BackdatePermissionService;
 
         // Create business unit and department
         $this->businessUnit = BusinessUnit::factory()->create();
@@ -96,7 +103,7 @@ class BackdateNotificationTest extends TestCase
         session(['current_business_unit_id' => $this->businessUnit->id]);
     }
 
-    /** @test */
+    #[Test]
     public function it_sends_notification_when_backdate_request_is_submitted()
     {
         Notification::fake();
@@ -111,7 +118,7 @@ class BackdateNotificationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function it_sends_notification_when_backdate_request_is_approved()
     {
         Notification::fake();
@@ -133,7 +140,7 @@ class BackdateNotificationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function it_sends_notification_when_backdate_request_is_rejected()
     {
         Notification::fake();

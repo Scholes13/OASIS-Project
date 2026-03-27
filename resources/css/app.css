@@ -755,10 +755,24 @@
 /* Modern Base Styles with Fluid Typography */
 @layer base {
 
-    /* Root font size — 100% = browser default 16px, Tailwind handles the rest */
+    /* ============================================================================
+       ROOT FONT SIZE — Fluid scaling for consistent look across devices
+       ============================================================================
+       Problem: Laptops with high-DPI (125-150% Windows scaling) render content
+       much larger than desktop monitors at 100% scaling, making the UI feel
+       "zoomed in" at default browser 100%.
+
+       Solution: Use clamp() to scale the root font-size based on viewport width.
+       - Small viewports (laptops ~1280px effective): 14px base → content feels 100%
+       - Medium viewports (desktops 1536-1920px): 15-16px base → comfortable reading
+       - Large viewports (ultrawide 2560px+): caps at 16px → no oversizing
+
+       This ensures visual consistency without users needing to manually zoom.
+       ============================================================================ */
     html {
         @apply h-full;
-        font-size: 100%;
+        /* fluid: 14px at 1280px viewport → 16px at 1920px+ viewport */
+        font-size: clamp(0.875rem, 0.75rem + 0.3125vw, 1rem);
         -webkit-text-size-adjust: 100%;
         -ms-text-size-adjust: 100%;
         scroll-behavior: smooth;
@@ -905,4 +919,46 @@ html body .lucide {
 
 [data-lang="en"] .lang-en {
     display: inline;
+}
+
+/* ============================================================================
+   HIGH-DPI / SMALL VIEWPORT COMPENSATION
+   ============================================================================
+   Laptops with Windows scaling 125-150% report smaller CSS viewport widths
+   (e.g. 1920px physical → 1280px CSS at 150% scaling).
+   These media queries ensure the UI stays compact and usable on such screens.
+   ============================================================================ */
+
+/* Laptops with effective viewport ≤ 1366px (common at 125-150% scaling) */
+@media (max-width: 1366px) {
+    html {
+        font-size: clamp(0.8125rem, 0.7rem + 0.3vw, 0.9375rem); /* 13-15px range */
+    }
+
+    /* Tighter padding on cards and containers */
+    .rounded-xl.border.bg-white.p-6 {
+        padding: 1rem;
+    }
+
+    /* Reduce dashboard metric card spacing */
+    .grid.gap-6 {
+        gap: 1rem;
+    }
+
+    /* Compact page padding */
+    .px-6.py-6 {
+        padding: 1rem 1.25rem;
+    }
+
+    .lg\:px-8 {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+/* Very small effective viewports ≤ 1280px (150% scaling on 1920px) */
+@media (max-width: 1280px) {
+    html {
+        font-size: 0.8125rem; /* 13px base — prevents "zoomed in" appearance */
+    }
 }

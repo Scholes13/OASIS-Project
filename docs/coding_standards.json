@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "review_policy": {
+    "require_self_review_before_finalization": true,
+    "require_reviewer_agent_for_multi_file_or_multi-layer_changes": true,
+    "block_completion_on_standards_violation": true
+  },
+  "knowledge_sources": {
+    "prefer_context7_for_up_to_date_library_docs": true,
+    "rules": [
+      "use context7 when framework, package, sdk, or setup guidance may have changed recently",
+      "prefer repository code and docs for local architecture truths",
+      "do not rely on model memory alone for rapidly changing external tooling"
+    ]
+  },
+  "roles": {
+    "pm_agent": {
+      "must": [
+        "update docs/exec_plans.md before or during substantial work",
+        "delegate implementation by ownership boundary when the task spans multiple layers",
+        "translate conceptual roles into the correct harness sub-agent type",
+        "send completed work through review before presenting it as final"
+      ],
+      "must_not": [
+        "claim work is complete before required verification passes",
+        "treat deprecated modules as active without explicit approval"
+      ]
+    },
+    "coder_backend": {
+      "owns": [
+        "database schema",
+        "eloquent models and relationships",
+        "form requests",
+        "controllers",
+        "services",
+        "jobs",
+        "policies",
+        "api and inertia server-side payloads",
+        "backend tests"
+      ],
+      "must_not": [
+        "rewrite frontend UI behavior except for small contract-preserving support changes"
+      ]
+    },
+    "coder_frontend": {
+      "owns": [
+        "inertia pages",
+        "react components",
+        "typescript types",
+        "forms",
+        "state and interaction logic",
+        "frontend tests"
+      ],
+      "must_not": [
+        "change backend persistence or business rules without backend ownership"
+      ]
+    },
+    "reviewer": {
+      "checks": [
+        "architecture boundary compliance",
+        "security-sensitive changes",
+        "error handling",
+        "route and payload consistency",
+        "test coverage for changed behavior",
+        "lint, format, and typecheck results"
+      ]
+    }
+  },
+  "harness_agent_mapping": {
+    "available_types": [
+      "default",
+      "explorer",
+      "worker"
+    ],
+    "role_to_type": {
+      "coder_backend": "worker",
+      "coder_frontend": "worker",
+      "reviewer_default": "explorer",
+      "reviewer_escalated": "default",
+      "researcher": "explorer"
+    },
+    "rules": [
+      "spawn workers for implementation tasks with clear file ownership",
+      "spawn explorers for repo discovery, tracing, and read-only review",
+      "use default for reviewer work only when explorer-level review is insufficient",
+      "do not assume permanent sub-agent connectivity; assign and spawn per task"
+    ]
+  },
+  "code_style": {
+    "php": {
+      "require_explicit_return_types": true,
+      "require_type_hints": true,
+      "require_curly_braces_for_control_structures": true,
+      "prefer_form_requests_over_inline_validation": true,
+      "prefer_eloquent_relationships_over_raw_db_calls": true,
+      "forbid_env_outside_config": true
+    },
+    "typescript_react": {
+      "prefer_existing_components_and_patterns": true,
+      "prefer_inertia_link_and_router_visit": true,
+      "prefer_named_route_helpers": true,
+      "require_contract_safe_types": true,
+      "avoid_untyped_any_when_reasonable": true
+    },
+    "general": {
+      "preserve_existing_directory_structure": true,
+      "forbid_dependency_changes_without_approval": true,
+      "forbid_destructive_git_commands_without_explicit_approval": true
+    }
+  },
+  "error_handling": {
+    "backend": [
+      "validate input with dedicated form requests when introducing or changing request validation",
+      "return consistent redirect, flash, validation, or JSON responses that match the existing surface",
+      "avoid exposing internal exception details to end users"
+    ],
+    "frontend": [
+      "surface validation errors from Inertia responses",
+      "handle loading, empty, and failure states when behavior changes require them",
+      "avoid silent failures in complex UI flows"
+    ]
+  },
+  "response_contracts": {
+    "api": {
+      "prefer_named_routes": true,
+      "must_keep_response_shapes_stable_when_possible": true,
+      "must_note_contract_changes_in_exec_plan": true
+    },
+    "inertia": {
+      "must_use_inertia_render_for_server_pages": true,
+      "must_preserve_shared_props_contracts": true,
+      "must_not_break_navigation_contracts_without_coordinated_frontend_change": true
+    }
+  },
+  "verification": {
+    "required_after_code_changes": [
+      "run focused tests for touched behavior",
+      "run vendor/bin/pint --dirty after php changes",
+      "run npm exec tsc --noEmit --pretty false after frontend or type changes"
+    ],
+    "required_before_completion": [
+      "review changed files against this standards document",
+      "confirm deprecated modules were not unintentionally re-enabled",
+      "summarize any remaining risk or skipped verification"
+    ]
+  },
+  "deprecated_modules": {
+    "SalesCrm": {
+      "status": "deprecated",
+      "default_action": "disabled",
+      "rule": "do not restore, extend, or route new work through this module unless explicitly requested by the Product Owner"
+    }
+  }
+}

@@ -47,6 +47,7 @@ export type LineItem = {
     is_estimated_date: boolean;
     creator_name?: string | null;
     creator_department_label?: string | null;
+    has_edit_history?: boolean;
     updater_name?: string | null;
     updater_department_label?: string | null;
 };

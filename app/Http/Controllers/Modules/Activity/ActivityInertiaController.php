@@ -232,8 +232,20 @@ class ActivityInertiaController extends Controller
             'attachments',
         ]);
 
+        $user = Auth::user();
+        $departmentId = $user->getCurrentDepartmentId();
+
         return Inertia::render('Activity/TaskDetail', [
             'task' => $task,
+            // Lazy loaded props for Edit Task Modal
+            'departmentUsers' => Inertia::lazy(fn () => User::where('primary_department_id', $departmentId)
+                ->where('id', '!=', $user->id)
+                ->select(['id', 'name', 'email'])
+                ->get()),
+            'backdatePermission' => Inertia::lazy(fn () => $this->backdateService->checkUserPermission($user->id)),
+            'allowedDateRange' => Inertia::lazy(fn () => $this->backdateService->getAllowedDateRange($user)),
+            'backdateEnabled' => Inertia::lazy(fn () => $this->backdateService->isBackdateApprovalEnabled()),
+            'prioritizedActivityTypes' => Inertia::lazy(fn () => $this->formatPrioritizedActivityTypes($this->prioritizationService->getForUser($user))),
         ]);
     }
 

@@ -4,49 +4,6 @@
    Only chart-specific rules that can't be expressed in Tailwind go here.
    ============================================================================ */
 
-/* Chart bar tooltip on hover */
-.cfp-bar {
-    position: relative;
-    border-radius: 4px 4px 0 0;
-    min-width: 14px;
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-}
-
-.cfp-bar.inflow {
-    background: var(--primary, #16599c);
-}
-
-.cfp-bar.outflow {
-    background: #ef4444;
-}
-
-.cfp-bar:hover {
-    opacity: 0.85;
-}
-
-.cfp-bar::after {
-    content: attr(data-value);
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1e293b;
-    color: #fff;
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 10;
-}
-
-.cfp-bar:hover::after {
-    opacity: 1;
-}
-
 /* Toggle switch for "Estimated Date" */
 .cfp-switch {
     position: relative;

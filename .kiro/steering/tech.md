@@ -11,13 +11,13 @@ inclusion: always
 | Backend | Laravel | 12.x |
 | PHP | PHP | 8.2+ |
 | Database | MySQL (prod) / SQLite (dev) | - |
-| Frontend | React/Inertia | - |
+| Frontend | React/Inertia | v2/v19 |
 | Styling | Tailwind CSS | 3.4.x |
 | Build | Vite | 7.x |
 
 ## Critical Rules
 
-### 🚫 FORBIDDEN Actions
+### FORBIDDEN Actions
 - **NEVER** run `migrate:fresh`, `migrate:refresh`, `db:wipe`, or any DROP database commands
 - **NEVER** hardcode ENV values in code (security risk, especially in frontend)
 - **NEVER** expose sensitive config/env values to frontend JavaScript
@@ -26,9 +26,12 @@ inclusion: always
 ### Frontend Stack
 - **All features**: React/Inertia with TypeScript
 - **Styling**: Tailwind CSS exclusively - NO custom CSS or Bootstrap
+- **Charts**: Lazy-loaded chart components via `LazyChart` wrapper
 
 ### Component Reuse & Code Organization
 - **Reuse existing components** - check `resources/js/inertia/components/` before creating new ones
+- **Check UI library** - `components/ui/` has Badge, Button, Card, Dialog, DatePicker, Select, Input, Toast, etc.
+- **Check hooks** - `hooks/` has useBusinessUnit, useFilters, useFormSubmission, useFileUpload, usePrefetch, etc.
 - **Keep files short** - if a file exceeds ~300 lines, split into smaller reusable components
 - **Compose, don't rewrite** - extend existing components rather than duplicating code
 
@@ -54,27 +57,27 @@ All queries MUST filter by `current_business_unit_id` from session. Never assume
 
 ### Component Patterns
 
-```blade
-{{-- Card --}}
-<div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
-    <div class="px-5 py-4 border-b border-gray-100">
-        <h3 class="text-base font-semibold text-gray-900">Title</h3>
+```tsx
+{/* Card */}
+<div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+    <div className="px-5 py-4 border-b border-gray-100">
+        <h3 className="text-base font-semibold text-gray-900">Title</h3>
     </div>
-    <div class="p-6">Content</div>
+    <div className="p-6">Content</div>
 </div>
 
-{{-- Primary Button --}}
-<button class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+{/* Primary Button */}
+<button className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
     Action
 </button>
 
-{{-- Status Badge --}}
-<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+{/* Status Badge */}
+<span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
     Approved
 </span>
 
-{{-- Form Input --}}
-<input class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+{/* Form Input */}
+<input className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
 ```
 
 ### Icons
@@ -91,6 +94,18 @@ All queries MUST filter by `current_business_unit_id` from session. Never assume
 | Spatie Browsershot | PDF generation |
 | SimpleSoftwareIO QR Code | QR codes |
 | Laravel Boost | MCP server for AI |
+| Ziggy | Named route generation for JS |
+| Laravel Sanctum | API authentication |
+
+## Config Files
+
+| Config | Purpose |
+|--------|---------|
+| `config/approval.php` | Approval thresholds, special categories, timeout settings |
+| `config/features.php` | Feature flags (e.g., `backdate_approval`) |
+| `config/notification.php` | Email notification settings, SMTP defaults, templates |
+| `config/permission.php` | Spatie Permission configuration |
+| `config/pdf.php` | PDF generation settings |
 
 ## Development Commands
 
@@ -132,9 +147,9 @@ mcp_laravel_boost_last_error
 ```
 
 ### Rules
-- ✅ Always verify database schema before writing migrations
-- ✅ Check routes exist before referencing them
-- ✅ Use tinker to validate code snippets
-- ❌ Never assume package versions
-- ❌ Never guess database structure
-- ❌ Never hardcode config values
+- Always verify database schema before writing migrations
+- Check routes exist before referencing them
+- Use tinker to validate code snippets
+- Never assume package versions
+- Never guess database structure
+- Never hardcode config values

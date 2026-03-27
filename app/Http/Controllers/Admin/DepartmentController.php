@@ -422,14 +422,8 @@ class DepartmentController extends Controller
      */
     public function destroy(Department $department): RedirectResponse
     {
-        // Check if department has positions or users
-        if ($department->positions()->count() > 0) {
-            return redirect()
-                ->route('admin.departments.index')
-                ->with('error', 'Cannot delete department that has positions assigned.');
-        }
-
-        if ($department->users()->count() > 0) {
+        // Check if department has assigned primary users
+        if ($department->users()->exists()) {
             return redirect()
                 ->route('admin.departments.index')
                 ->with('error', 'Cannot delete department that has users assigned.');

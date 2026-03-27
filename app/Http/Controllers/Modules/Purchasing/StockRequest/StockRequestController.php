@@ -488,52 +488,27 @@ class StockRequestController extends Controller
     }
 
     /**
-     * Show the form for creating a new stock request (Blade view - legacy)
+     * Show the form for creating a new stock request.
      */
-    public function create()
+    public function create(): Response
     {
-        return view('purchasing.stock-requests.create');
+        return $this->createInertia();
     }
 
     /**
-     * Display the specified stock request
+     * Display the specified stock request.
      */
-    public function show(StockRequest $stockRequest)
+    public function show(StockRequest $stockRequest): Response
     {
-        // Verify business unit access
-        if ($stockRequest->business_unit_id !== session('current_business_unit_id')) {
-            abort(403, 'You do not have access to this stock request.');
-        }
-
-        $stockRequest->load([
-            'businessUnit',
-            'department',
-            'user',
-            'items',
-            'approvals.approver',
-            'lastModifiedBy',
-        ]);
-
-        return view('purchasing.stock-requests.show', compact('stockRequest'));
+        return $this->showInertia($stockRequest);
     }
 
     /**
-     * Show the form for editing the specified stock request
+     * Show the form for editing the specified stock request.
      */
-    public function edit(StockRequest $stockRequest)
+    public function edit(StockRequest $stockRequest): Response
     {
-        // Verify business unit access
-        if ($stockRequest->business_unit_id !== session('current_business_unit_id')) {
-            abort(403, 'You do not have access to this stock request.');
-        }
-
-        if (! $stockRequest->isEditable()) {
-            return redirect()
-                ->route('stock-requests.show', $stockRequest)
-                ->with('error', 'This stock request cannot be edited.');
-        }
-
-        return view('purchasing.stock-requests.edit', compact('stockRequest'));
+        return $this->editInertia($stockRequest);
     }
 
     /**

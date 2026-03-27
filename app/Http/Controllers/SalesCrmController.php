@@ -18,6 +18,11 @@ class SalesCrmController extends Controller
     public function __construct(ContactService $contactService)
     {
         $this->contactService = $contactService;
+        $this->middleware(static function ($request, $next) {
+            abort_unless(config('features.sales_crm'), 404);
+
+            return $next($request);
+        });
     }
 
     // ============================================================================

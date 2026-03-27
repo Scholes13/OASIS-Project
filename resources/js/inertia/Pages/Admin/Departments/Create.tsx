@@ -14,6 +14,7 @@ export default function Create({ businessUnits, users, errors }: DepartmentFormP
     name: '',
     business_unit_id: 0,
     is_active: true,
+    sort_order: 0,
     is_purchasing_enabled: false,
     purchasing_admin_id: undefined,
   });

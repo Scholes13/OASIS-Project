@@ -4,11 +4,17 @@ import { ArrowLeft, Pencil, Trash2, Calendar, Clock, User, Users, List, Columns,
 import { StatusBadge, PriorityBadge, ActivityTypeBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/Card';
+import { TaskFormModal } from '@/components/activity/TaskFormModal';
 import type { PageProps, Task } from '@/types';
 import { useState } from 'react';
 
 interface TaskDetailProps extends PageProps {
     task: Task;
+    departmentUsers?: any[];
+    backdatePermission?: any;
+    allowedDateRange?: any;
+    backdateEnabled?: boolean;
+    prioritizedActivityTypes?: any;
 }
 
 function formatDate(dateString: string | null): string {
@@ -39,9 +45,17 @@ function isOverdue(dueDate: string | null, status: string): boolean {
     return new Date(dueDate) < new Date();
 }
 
-export default function TaskDetail({ task }: TaskDetailProps) {
+export default function TaskDetail({ task, departmentUsers = [], backdatePermission, allowedDateRange, backdateEnabled, prioritizedActivityTypes }: TaskDetailProps) {
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
     const overdue = isOverdue(task.due_date, task.status);
+
+    const handleEditClick = () => {
+        router.reload({
+            only: ['departmentUsers', 'backdatePermission', 'allowedDateRange', 'backdateEnabled', 'prioritizedActivityTypes'],
+            onSuccess: () => setShowEditModal(true),
+        });
+    };
 
     const handleDelete = () => {
         if (confirm('Are you sure you want to delete this task?')) {
@@ -84,12 +98,10 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <Link href={route('activity.task.edit', { task: task.id })}>
-                                <Button variant="secondary" size="sm" className="shadow-sm border-gray-300">
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Edit Task
-                                </Button>
-                            </Link>
+                            <Button variant="secondary" size="sm" className="shadow-sm border-gray-300" onClick={handleEditClick}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit Task
+                            </Button>
                             <Button
                                 variant="danger"
                                 size="sm"
@@ -329,6 +341,18 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                     </div>
                 </motion.div>
             </div>
+
+            {/* Edit Task Modal */}
+            <TaskFormModal
+                open={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                task={task}
+                activityTypes={prioritizedActivityTypes || []}
+                departmentUsers={departmentUsers}
+                backdatePermission={backdatePermission}
+                allowedDateRange={allowedDateRange || { from: '', to: '' }}
+                backdateEnabled={backdateEnabled}
+            />
         </div>
     );
 }

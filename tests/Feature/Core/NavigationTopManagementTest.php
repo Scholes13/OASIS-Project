@@ -6,8 +6,10 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\Position;
 use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use App\Services\Core\NavigationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class NavigationTopManagementTest extends TestCase
@@ -193,6 +195,29 @@ class NavigationTopManagementTest extends TestCase
             ->buildMenuForUser($this->cLevelUser, null);
 
         $this->assertEmpty($navigation['sections']);
+    }
+
+    public function test_new_business_unit_assignment_invalidates_cached_navigation(): void
+    {
+        $navigationService = app(NavigationService::class);
+        $cacheKey = "nav:{$this->staffUser->id}:{$this->childBU->id}";
+        /** @var UserBusinessUnit $assignment */
+        $assignment = $this->staffUser->businessUnits()->firstOrFail();
+
+        Cache::put($cacheKey, ['sections' => []], 900);
+
+        $assignment->update([
+            'is_activity_admin' => true,
+        ]);
+
+        $this->assertNull(Cache::get($cacheKey), 'Navigation cache should be cleared when assignment changes.');
+
+        $navigation = $navigationService->buildMenuForUser($this->staffUser->fresh(), $this->childBU->id);
+
+        $this->assertTrue(
+            $this->hasSection($navigation, 'Purchasing'),
+            'User should see navigation rebuilt after assignment cache invalidation.'
+        );
     }
 
     protected function createCLevelUser(): User

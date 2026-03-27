@@ -415,6 +415,10 @@ class NavigationService
      */
     protected function canAccessSalesCrm(User $user, int $businessUnitId): bool
     {
+        if (! config('features.sales_crm')) {
+            return false;
+        }
+
         // Beta: Only Super Admin can access Sales CRM for now
         return $user->isSuperAdmin();
     }

@@ -131,6 +131,7 @@ export interface TaskFilters {
     status: string;
     date_from: string;
     date_to: string;
+    scope?: 'my' | 'department';
 }
 
 // Pagination types

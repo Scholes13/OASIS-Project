@@ -16,6 +16,7 @@ use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -130,7 +131,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_purchase_request()
     {
         $this->actingAs($this->requestor);
@@ -206,7 +207,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $this->assertMatchesRegularExpression('/^PR\.'.$this->businessUnit->code.'\/\d{6}\/\d{3}$/', $purchaseRequest->pr_number);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_submit_purchase_request_for_approval()
     {
         $this->actingAs($this->requestor);
@@ -235,7 +236,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $this->assertEquals('pending', $firstApproval->status);
     }
 
-    /** @test */
+    #[Test]
     public function department_head_can_approve_purchase_request()
     {
         $this->actingAs($this->departmentHead);
@@ -265,7 +266,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $this->assertNotNull($approval->responded_at);
     }
 
-    /** @test */
+    #[Test]
     public function department_head_can_reject_purchase_request()
     {
         $this->actingAs($this->departmentHead);
@@ -296,7 +297,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $this->assertNotNull($purchaseRequest->rejected_at);
     }
 
-    /** @test */
+    #[Test]
     public function complete_approval_workflow_for_high_value_request()
     {
         // Create a high-value PR that requires multiple approvals
@@ -351,7 +352,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function api_endpoints_work_correctly()
     {
         $this->actingAs($this->requestor);
@@ -405,7 +406,7 @@ class PurchaseRequestWorkflowTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[Test]
     public function owner_can_resend_approval_email_for_active_purchase_request()
     {
         $this->actingAs($this->requestor);
@@ -446,7 +447,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function non_owner_cannot_resend_approval_email()
     {
         $this->actingAs($this->departmentHead);
@@ -478,7 +479,7 @@ class PurchaseRequestWorkflowTest extends TestCase
         $response->assertForbidden();
     }
 
-    /** @test */
+    #[Test]
     public function owner_cannot_resend_approval_email_for_non_active_workflow()
     {
         $this->actingAs($this->requestor);

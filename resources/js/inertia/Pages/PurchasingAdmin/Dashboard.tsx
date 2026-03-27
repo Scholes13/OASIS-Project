@@ -1,9 +1,10 @@
 import { Head, usePage, Link, router } from '@inertiajs/react';
+import type { PageProps } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Clock, CheckCircle, AlertCircle, Users } from 'lucide-react';
 
-interface DashboardProps {
+interface DashboardProps extends PageProps {
     stats: {
         pending: number;
         in_progress: number;
@@ -53,6 +54,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC = () => {
     const { stats, recentTasks, metrics, savingsTrend, departmentBreakdown, datePreset, userRole } = usePage<DashboardProps>().props;
+    const totalTasks = stats.pending + stats.in_progress + stats.done;
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         router.get(
@@ -253,7 +255,7 @@ const Dashboard: React.FC = () => {
                                 {/* Center Text Overlay */}
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                     <div className="text-center">
-                                        <span className="block text-2xl font-bold text-gray-900">{stats.total}</span>
+                                        <span className="block text-2xl font-bold text-gray-900">{totalTasks}</span>
                                         <span className="text-xs text-gray-500">Total</span>
                                     </div>
                                 </div>
@@ -327,7 +329,7 @@ const Dashboard: React.FC = () => {
                                             }}
                                         />
                                         <Tooltip
-                                            formatter={(value: number) => [formatCurrency(value), 'Savings']}
+                                            formatter={(value?: number) => [formatCurrency(value ?? 0), 'Savings']}
                                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                                             labelStyle={{ color: '#6b7280', fontSize: '12px', marginBottom: '8px' }}
                                         />

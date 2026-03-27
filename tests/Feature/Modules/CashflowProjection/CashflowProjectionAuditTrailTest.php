@@ -111,6 +111,7 @@ class CashflowProjectionAuditTrailTest extends TestCase
             ->component('CashflowProjection/Entries')
             ->where('lineItems.0.creator_name', 'Finance User')
             ->where('lineItems.0.creator_department_label', 'Core Finance')
+            ->where('lineItems.0.has_edit_history', false)
             ->where('lineItems.0.updater_name', 'Finance User')
             ->where('lineItems.0.updater_department_label', 'Core Finance')
         );
@@ -182,6 +183,16 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'auditable_id' => $lineItem->id,
             'action' => 'updated',
         ]);
+
+        $this->actingAsFinanceUser()->get(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 3,
+        ]))->assertInertia(fn (Assert $page) => $page
+            ->component('CashflowProjection/Entries')
+            ->where('lineItems.0.creator_name', 'Finance User')
+            ->where('lineItems.0.updater_name', 'Finance User')
+            ->where('lineItems.0.has_edit_history', true)
+        );
     }
 
     public function test_finance_input_create_and_update_write_audit_logs(): void

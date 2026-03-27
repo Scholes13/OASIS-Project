@@ -72,7 +72,7 @@ export default function Form({ activity, availableContacts }: ActivityFormProps)
         e.preventDefault();
 
         if (isEditMode && activity) {
-            put(route('sales-crm.activities.update', activity.id));
+            put(route('sales-crm.activities.update', { activity: activity.id }));
         } else {
             post(route('sales-crm.activities.store'));
         }
@@ -81,7 +81,7 @@ export default function Form({ activity, availableContacts }: ActivityFormProps)
     // Handle cancel
     const handleCancel = () => {
         if (isEditMode && activity) {
-            router.visit(route('sales-crm.activities.show', activity.id));
+            router.visit(route('sales-crm.activities.show', { activity: activity.id }));
         } else {
             router.visit(route('sales-crm.activities.index'));
         }

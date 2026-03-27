@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Modules\Purchasing\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Services\Modules\Purchasing\Admin\AdminTaskService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PurchasingAdminController extends Controller
 {
+    public function __construct(
+        protected AdminTaskService $adminTaskService
+    ) {}
+
     /**
      * Display the purchasing admin dashboard.
      */
@@ -217,7 +223,7 @@ class PurchasingAdminController extends Controller
             // Frontend sends 'purchase_request' or 'stock_request'
             $typeMap = [
                 'purchase_request' => 'App\\Models\\Modules\\Purchasing\\PurchaseRequest\\PurchaseRequest',
-                'stock_request' => 'App\\Models\\Modules\\Inventory\\StockRequest\\StockRequest', // Verify namespace if needed
+                'stock_request' => 'App\\Models\\Modules\\Purchasing\\StockRequest\\StockRequest',
             ];
 
             if (isset($typeMap[$filters['type']])) {
@@ -340,7 +346,7 @@ class PurchasingAdminController extends Controller
     /**
      * Claim a task.
      */
-    public function claimTask(Request $request, $taskId)
+    public function claimTask(Request $request, $taskId): RedirectResponse
     {
         $task = AdminTask::findOrFail($taskId);
 
@@ -354,18 +360,19 @@ class PurchasingAdminController extends Controller
             abort(403, 'You do not have access to this task.');
         }
 
-        // Assign task to current user
-        $task->update([
-            'assigned_admin_id' => auth()->id(),
-        ]);
+        try {
+            $this->adminTaskService->claimTask($task, (int) auth()->id());
 
-        return back()->with('success', 'Task claimed successfully');
+            return back()->with('success', 'Task claimed successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
      * Start a task.
      */
-    public function startTask(Request $request, $taskId)
+    public function startTask(Request $request, $taskId): RedirectResponse
     {
         $task = AdminTask::findOrFail($taskId);
 
@@ -384,17 +391,13 @@ class PurchasingAdminController extends Controller
             abort(403, 'You do not have access to this task.');
         }
 
-        // Start the task
-        $startedAt = now();
-        $followupTimeMinutes = abs($task->entered_at->diffInMinutes($startedAt));
+        try {
+            $this->adminTaskService->startTask($task);
 
-        $task->update([
-            'status' => 'in_progress',
-            'started_at' => $startedAt,
-            'followup_time_minutes' => $followupTimeMinutes,
-        ]);
-
-        return back()->with('success', 'Task started successfully');
+            return back()->with('success', 'Task started successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**
@@ -443,7 +446,7 @@ class PurchasingAdminController extends Controller
     /**
      * Complete a task with realization data.
      */
-    public function completeTask(Request $request, $taskId)
+    public function completeTask(Request $request, $taskId): RedirectResponse
     {
         $request->validate([
             'realized_total_price' => 'required|numeric|min:1',
@@ -468,35 +471,17 @@ class PurchasingAdminController extends Controller
             abort(403, 'You do not have access to this task.');
         }
 
-        $realizedPrice = $request->input('realized_total_price');
-        $vendorName = $request->input('vendor_name');
-        $estimatedPrice = $task->estimated_total_price;
-        $savingsAmount = $estimatedPrice - $realizedPrice;
-        $savingsPercentage = $estimatedPrice > 0 ? ($savingsAmount / $estimatedPrice) * 100 : 0;
+        try {
+            $this->adminTaskService->completeTask(
+                $task,
+                (float) $request->input('realized_total_price'),
+                $request->input('notes')
+            );
 
-        $completedAt = now();
-        $completionTimeMinutes = $task->started_at ? abs($task->started_at->diffInMinutes($completedAt)) : 0;
-
-        $task->update([
-            'status' => 'done',
-            'realized_total_price' => $realizedPrice,
-            'savings_amount' => $savingsAmount,
-            'savings_percentage' => $savingsPercentage,
-            'completed_at' => $completedAt,
-            'completion_time_minutes' => $completionTimeMinutes,
-            'notes' => $request->input('notes'),
-        ]);
-
-        // Update vendor/supplier on the purchase request if provided
-        if ($vendorName && $task->taskable) {
-            if (str_contains($task->taskable_type, 'PurchaseRequest')) {
-                $task->taskable->update([
-                    'supplier' => $vendorName,
-                ]);
-            }
+            return redirect()->route('purchasing.admin.tasks')->with('success', 'Task completed successfully');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        return redirect()->route('purchasing.admin.tasks')->with('success', 'Task completed successfully');
     }
 
     /**

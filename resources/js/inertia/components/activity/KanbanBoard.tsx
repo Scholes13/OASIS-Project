@@ -56,6 +56,7 @@ interface KanbanBoardProps {
   onStatusChange?: (taskId: number, newStatus: string) => void
   onTaskClick?: (task: Task) => void
   onCreateTask?: () => void
+  onEditTask?: (task: Task) => void
 }
 
 // Column configuration (no in-review lane)
@@ -414,7 +415,7 @@ function BoardColumn({ column, tasks, onTaskClick, onCreateTask, currentUserId, 
 // MAIN KANBAN BOARD COMPONENT
 // ============================================================================
 
-export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask, onEditTask }: KanbanBoardProps) {
   const { auth, filters } = usePage<PageProps>().props as PageProps & {
     filters?: { scope?: ViewMode }
   }
@@ -625,6 +626,7 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask }
           setIsModalOpen(false)
           setSelectedTask(null)
         }}
+        onEdit={onEditTask}
       />
     </DndContext>
   )

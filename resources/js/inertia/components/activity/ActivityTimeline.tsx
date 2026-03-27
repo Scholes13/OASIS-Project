@@ -29,6 +29,7 @@ interface ActivityTimelineProps {
   tasks: Task[]
   onTaskClick?: (task: Task) => void
   onCreateTask?: () => void
+  onEditTask?: (task: Task) => void
   showDateHeaders?: boolean
   expandable?: boolean
 }
@@ -251,6 +252,7 @@ export function ActivityTimeline({
   tasks,
   onTaskClick,
   onCreateTask,
+  onEditTask,
   showDateHeaders = true,
   expandable = true,
 }: ActivityTimelineProps) {
@@ -429,6 +431,7 @@ export function ActivityTimeline({
           setShowModal(false)
           setSelectedTask(null)
         }}
+        onEdit={onEditTask}
       />
     </>
   )

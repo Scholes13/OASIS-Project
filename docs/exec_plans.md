@@ -24,6 +24,89 @@
 
 ## Active Tasks
 
+### 2026-03-27 - Export download navigation bypass for Inertia pages
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - fix export buttons that only work via `open in new tab`,
+  - bypass Inertia-style navigation for download endpoints in cashflow and activity surfaces,
+  - keep exported URLs and filters unchanged while forcing normal browser download behavior.
+- Risks:
+  - export buttons must keep current query params intact after changing the click mechanism,
+  - activity has multiple export entry points and they should stay behaviorally consistent.
+- Verification:
+  - focused Vitest coverage for cashflow and activity export click behavior,
+  - `npm exec tsc --noEmit --pretty false`,
+  - `npm run build`.
+- Notes:
+  - user reported export only works when opened in a new tab,
+  - root cause investigation points to client-side navigation handling instead of standard browser download navigation,
+  - export actions now use explicit browser download navigation in the same tab for cashflow and activity surfaces.
+
+### 2026-03-27 - Cashflow Projection dashboard multi-sheet export
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - add an `Export Excel` action to the cashflow dashboard header,
+  - upgrade the export output from a single HTML table into a multi-sheet Excel workbook,
+  - keep dashboard summary sheets aligned to the active filter and scope,
+  - always include raw, unfiltered operational data so finance can process the full source rows.
+- Risks:
+  - export payload rules must distinguish filtered dashboard views from always-on raw sheets,
+  - workbook formatting must stay readable in Excel without adding new dependencies,
+  - frontend export links must preserve the current period and consolidation scope.
+- Verification:
+  - focused PHPUnit coverage for workbook content and raw-data behavior,
+  - focused Vitest coverage for dashboard export action wiring,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`,
+  - `npm run build`.
+- Notes:
+  - user approved the multi-sheet export direction,
+  - user requested that export always includes raw data without dashboard filtering by default,
+  - dashboard now exports a multi-sheet Excel workbook with filtered summary sheets plus always-on raw entries for finance processing.
+
+### 2026-03-27 - Cashflow Projection same-user edit attribution visibility
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - distinguish between never-edited entries and entries edited by the same account,
+  - expose explicit edit-history metadata from the cashflow entries payload,
+  - show `Last edited by` whenever an update exists, even if creator and updater are the same person.
+- Risks:
+  - payload shape change must stay coordinated with frontend rendering and tests,
+  - seeded/demo rows without a `created` audit log may still rely on fallback creator metadata.
+- Verification:
+  - focused PHPUnit coverage for cashflow audit payload metadata,
+  - focused Vitest coverage for entries attribution rendering,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported that editing with the same account no longer shows `Last edited by`,
+  - root cause investigation found the frontend hides edit attribution by comparing creator/updater labels instead of using explicit audit history,
+  - resolved by exposing explicit `has_edit_history` metadata from audit logs and using that flag in the entries table.
+
+### 2026-03-27 - Cashflow Projection entries table business-unit simplification
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - replace the `Department` column in Cashflow Entries with a compact `Business Unit` column,
+  - show only BU shorthand codes such as `WNS`, `UT`, and `MRP` in that table column,
+  - hide `Last edited by` attribution when the row has not been meaningfully edited yet.
+- Risks:
+  - attribution cleanup currently depends on frontend-visible creator/updater metadata rather than an explicit backend edited flag,
+  - table layout changes may affect current frontend assertions.
+- Verification:
+  - focused Vitest coverage for entries table rendering,
+  - `npm exec tsc --noEmit --pretty false`,
+  - `npm run build`.
+- Notes:
+  - user requested a cleaner `All Entries` table with BU abbreviations only and less noisy attribution output,
+  - frontend table now shows only business unit codes in that column and suppresses `Last edited by` when creator/updater metadata are identical.
+
 ### 2026-03-27 - Cashflow Projection global category label harmonization
 - Status: completed
 - Owner: PM Agent

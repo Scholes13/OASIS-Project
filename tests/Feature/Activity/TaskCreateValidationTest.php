@@ -10,6 +10,7 @@ use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Activity\SubActivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TaskCreateValidationTest extends TestCase
@@ -105,7 +106,7 @@ class TaskCreateValidationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_planned_task_successfully()
     {
         $response = $this->actingAs($this->user)
@@ -126,7 +127,7 @@ class TaskCreateValidationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_redirects_back_to_origin_page_after_successful_create()
     {
         $response = $this->actingAs($this->user)
@@ -138,7 +139,7 @@ class TaskCreateValidationTest extends TestCase
         $response->assertRedirect(route('activity.dashboard'));
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_in_progress_task_and_sets_started_at()
     {
         $response = $this->actingAs($this->user)
@@ -156,7 +157,7 @@ class TaskCreateValidationTest extends TestCase
         $this->assertNotNull($task->started_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_completed_task_with_duration()
     {
         $response = $this->actingAs($this->user)
@@ -181,7 +182,7 @@ class TaskCreateValidationTest extends TestCase
         $this->assertSame(90, $task->duration_minutes);
     }
 
-    /** @test */
+    #[Test]
     public function it_rejects_due_date_before_task_date()
     {
         $taskDate = now()->addDays(2)->format('Y-m-d');
@@ -196,7 +197,7 @@ class TaskCreateValidationTest extends TestCase
         $response->assertSessionHasErrors(['due_date']);
     }
 
-    /** @test */
+    #[Test]
     public function it_requires_start_time_for_backdate_in_progress_task()
     {
         $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([
@@ -208,7 +209,7 @@ class TaskCreateValidationTest extends TestCase
         $response->assertSessionHasErrors(['start_time']);
     }
 
-    /** @test */
+    #[Test]
     public function it_rejects_completed_task_with_end_time_before_start_time()
     {
         $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([

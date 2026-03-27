@@ -12,7 +12,31 @@ class CashflowProjectionTemplateServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_cfc_department_action_options_do_not_duplicate_operational_action(): void
+    public function test_standard_department_operational_label_uses_department_prefix(): void
+    {
+        $businessUnit = BusinessUnit::create([
+            'code' => 'WNS',
+            'name' => 'Werkudara Nirwana Sakti',
+            'is_active' => true,
+        ]);
+
+        $department = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'BAS',
+            'name' => 'Business Analysis Support',
+            'is_active' => true,
+        ]);
+
+        $service = app(CashflowProjectionTemplateService::class);
+
+        $actionCodes = array_column($service->actionOptionsForDepartment($department), 'code');
+        $actionLabels = array_column($service->actionOptionsForDepartment($department), 'label');
+
+        $this->assertSame(['OUT_BAS_OPS'], $actionCodes);
+        $this->assertSame(['Operational Department BAS'], $actionLabels);
+    }
+
+    public function test_cfc_department_action_options_prefix_labels_by_department_code(): void
     {
         $businessUnit = BusinessUnit::create([
             'code' => 'WNS',
@@ -29,9 +53,13 @@ class CashflowProjectionTemplateServiceTest extends TestCase
 
         $service = app(CashflowProjectionTemplateService::class);
 
-        $actionCodes = array_column($service->actionOptionsForDepartment($department), 'code');
+        $options = $service->actionOptionsForDepartment($department);
+        $actionLabels = array_column($options, 'label');
 
-        $this->assertSame($actionCodes, array_values(array_unique($actionCodes)));
-        $this->assertSame(1, count(array_filter($actionCodes, fn (string $code) => $code === 'OUT_CFC_OPS')));
+        $this->assertContains('ACC - Pajak', $actionLabels);
+        $this->assertContains('TEP - Cost of Revenue dari Upcoming Revenue', $actionLabels);
+        $this->assertContains('HR - Gaji & Benefit Karyawan', $actionLabels);
+        $this->assertContains('CFC - Corporate Expense', $actionLabels);
+        $this->assertContains('CFC - Operational Department CFC', $actionLabels);
     }
 }

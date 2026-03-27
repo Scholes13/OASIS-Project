@@ -24,6 +24,28 @@
 
 ## Active Tasks
 
+### 2026-03-27 - Cashflow Projection category label clarity and linked BU notice
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - normalize operational category labels to a single `Operational Department <CODE>` pattern,
+  - make CFC cross-department categories explicit with department-prefixed labels,
+  - add an entries-form notice when the selected target BU is a linked BU instead of the active BU,
+  - cover the behavior with focused backend and frontend tests.
+- Risks:
+  - changing labels may affect existing assertions or user recognition of historical entries,
+  - CFC labels must stay readable while still mapping to existing action codes,
+  - linked-BU notice must not appear for the active BU or empty states.
+- Verification:
+  - focused PHPUnit coverage for template label generation and cashflow feature flows,
+  - focused Vitest coverage for entries-form notice behavior,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - follow-up requested after user feedback on duplicated and ambiguous category labels.
+  - backend label normalization completed in this pass; linked BU notice remains a frontend follow-up.
+
 ### 2026-03-27 - Cashflow Projection cross-department finance entry and audit trail
 - Status: completed
 - Owner: PM Agent

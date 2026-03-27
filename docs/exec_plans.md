@@ -24,6 +24,26 @@
 
 ## Active Tasks
 
+### 2026-03-27 - Cashflow Projection global category label harmonization
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - standardize all category labels in Cashflow Projection to one searchable pattern: `DEPT - Label`,
+  - apply the same concept to operational labels such as `GA - Operational Department GA`,
+  - remove mixed prefixed and unprefixed labels from the entries flow.
+- Risks:
+  - changing labels again may break recent assertions if not updated end-to-end,
+  - label formatting must stay stable between dropdown options and rendered line items.
+- Verification:
+  - focused PHPUnit coverage for template label generation and feature flows,
+  - focused Vitest coverage for entries category rendering,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - follow-up requested because mixed prefix patterns were still confusing in the category picker,
+  - all category labels now use one searchable pattern: `DEPT - Label`.
+
 ### 2026-03-27 - Cashflow Projection category label clarity and linked BU notice
 - Status: completed
 - Owner: PM Agent

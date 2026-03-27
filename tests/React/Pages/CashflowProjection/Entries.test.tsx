@@ -79,6 +79,8 @@ describe('Cashflow Projection Entries page', () => {
                 business_unit_name: 'Werkudara Nirwana Sakti',
                 template_type: 'cfc',
                 actions: [
+                    { code: 'IN_ACC_PIUTANG_REVENUE', label: 'Piutang & Revenue', flow_type: 'in' },
+                    { code: 'IN_TEP_ESTIMASI_UPCOMING_REVENUE', label: 'Estimasi Penerimaan dari Upcoming Revenue', flow_type: 'in' },
                     { code: 'IN_CFC_SUNTIKAN_MODAL', label: 'Suntikan Modal', flow_type: 'in' },
                     { code: 'OUT_ACC_PAJAK', label: 'Pajak', flow_type: 'out' },
                     { code: 'OUT_ACC_OPS', label: 'Operational Department ACC', flow_type: 'out' },
@@ -164,7 +166,7 @@ describe('Cashflow Projection Entries page', () => {
         expect(screen.getByRole('option', { name: /operations/i })).toBeInTheDocument();
         expect(screen.queryByRole('option', { name: /human resources/i })).not.toBeInTheDocument();
         expect(departmentSelect).toHaveValue('21');
-        expect(screen.getByRole('option', { name: /operational department ops/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /ops - operational department ops/i })).toBeInTheDocument();
     });
 
     it('loads an existing entry into edit mode and submits a patch request', () => {
@@ -191,6 +193,7 @@ describe('Cashflow Projection Entries page', () => {
         render(<Entries {...baseProps} />);
 
         expect(screen.getByText(/wns • human resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/hr - gaji & benefit karyawan/i)).toBeInTheDocument();
         expect(screen.getByText(/created by: rina \(cfc\)/i)).toBeInTheDocument();
         expect(screen.getByText(/last edited by: budi \(hr\)/i)).toBeInTheDocument();
     });
@@ -209,6 +212,9 @@ describe('Cashflow Projection Entries page', () => {
 
     it('normalizes category labels for CFC entries and shows the linked BU notice', async () => {
         render(<Entries {...baseProps} />);
+
+        expect(screen.getByRole('option', { name: /acc - piutang & revenue/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /cfc - suntikan modal/i })).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText(/type/i), {
             target: { value: 'out' },

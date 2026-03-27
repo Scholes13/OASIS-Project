@@ -68,7 +68,6 @@ class CashflowProjectionTemplateService
     public function actionOptionsForDepartment(Department $department): array
     {
         $options = [];
-        $isCfcTemplate = $this->templateTypeForDepartment($department) === 'cfc';
 
         foreach ($this->allowedActionCodesForDepartment($department) as $code) {
             $meta = $this->metaForActionCode($code, $department);
@@ -79,9 +78,7 @@ class CashflowProjectionTemplateService
 
             $options[] = [
                 'code' => $code,
-                'label' => $isCfcTemplate
-                    ? $this->prefixedLabelForCfcTemplate($code, $meta['label'])
-                    : $meta['label'],
+                'label' => $this->displayLabelForAction($code, $department) ?? $meta['label'],
                 'flow_type' => $meta['flow_type'],
             ];
         }
@@ -113,6 +110,19 @@ class CashflowProjectionTemplateService
         return null;
     }
 
+    public function displayLabelForAction(string $actionCode, ?Department $department = null): ?string
+    {
+        $meta = $this->metaForActionCode($actionCode, $department);
+
+        if (! $meta) {
+            return null;
+        }
+
+        $prefix = $this->actionPrefixFromCode($actionCode, $department);
+
+        return $prefix ? $prefix.' - '.$meta['label'] : $meta['label'];
+    }
+
     public function templateTypeForDepartment(Department $department): string
     {
         $code = strtoupper($department->code);
@@ -131,18 +141,11 @@ class CashflowProjectionTemplateService
         return 'OUT_'.$this->normalizeCode($department->code).'_OPS';
     }
 
-    private function prefixedLabelForCfcTemplate(string $actionCode, string $label): string
-    {
-        $prefix = $this->actionPrefixFromCode($actionCode);
-
-        return $prefix ? $prefix.' - '.$label : $label;
-    }
-
-    private function actionPrefixFromCode(string $actionCode): ?string
+    private function actionPrefixFromCode(string $actionCode, ?Department $department = null): ?string
     {
         $segments = explode('_', $actionCode, 4);
 
-        return $segments[1] ?? null;
+        return $segments[1] ?? $department?->code;
     }
 
     private function normalizeCode(string $value): string

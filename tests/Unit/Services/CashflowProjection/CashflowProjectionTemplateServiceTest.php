@@ -56,7 +56,7 @@ class CashflowProjectionTemplateServiceTest extends TestCase
         $actionLabels = array_column($service->actionOptionsForDepartment($department), 'label');
 
         $this->assertSame(['OUT_BAS_OPS'], $actionCodes);
-        $this->assertSame(['Operational Department BAS'], $actionLabels);
+        $this->assertSame(['BAS - Operational Department BAS'], $actionLabels);
     }
 
     public function test_cfc_department_action_options_prefix_labels_by_department_code(): void
@@ -79,9 +79,11 @@ class CashflowProjectionTemplateServiceTest extends TestCase
         $options = $service->actionOptionsForDepartment($department);
         $actionLabels = array_column($options, 'label');
 
+        $this->assertContains('ACC - Piutang & Revenue', $actionLabels);
         $this->assertContains('ACC - Pajak', $actionLabels);
         $this->assertContains('TEP - Cost of Revenue dari Upcoming Revenue', $actionLabels);
         $this->assertContains('HR - Gaji & Benefit Karyawan', $actionLabels);
+        $this->assertContains('CFC - Suntikan Modal', $actionLabels);
         $this->assertContains('CFC - Corporate Expense', $actionLabels);
         $this->assertContains('CFC - Operational Department CFC', $actionLabels);
     }

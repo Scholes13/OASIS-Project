@@ -28,7 +28,7 @@ function extractDepartmentCode(actionCode: string, fallbackCode: string): string
     return match?.[1] ?? fallbackCode;
 }
 
-function formatCategoryLabel(actionCode: string, actionLabel: string, departmentCode: string, departmentTemplateType: string): string {
+function formatCategoryLabel(actionCode: string, actionLabel: string, departmentCode: string): string {
     const normalizedDepartmentCode = extractDepartmentCode(actionCode, departmentCode);
     const prefixedLabelPattern = /^[A-Z0-9]+ - /;
 
@@ -40,11 +40,7 @@ function formatCategoryLabel(actionCode: string, actionLabel: string, department
         ? `Operational Department ${normalizedDepartmentCode}`
         : actionLabel;
 
-    if (departmentTemplateType === 'cfc') {
-        return `${normalizedDepartmentCode} - ${normalizedLabel}`;
-    }
-
-    return normalizedLabel;
+    return `${normalizedDepartmentCode} - ${normalizedLabel}`;
 }
 
 function toIsoDate(year: number, month: number, day: number): string {
@@ -160,7 +156,7 @@ export default function CashflowProjectionEntries({
             .filter((action) => action.flow_type === flowType)
             .map((action) => ({
                 value: action.code,
-                label: formatCategoryLabel(action.code, action.label, selectedDepartment.code, selectedDepartment.template_type),
+                label: formatCategoryLabel(action.code, action.label, selectedDepartment.code),
                 flow_type: action.flow_type,
                 department_id: selectedDepartment.id,
             }));
@@ -375,12 +371,10 @@ export default function CashflowProjectionEntries({
                                         {lineItems.map((item) => {
                                             const status = item.is_estimated_date ? 'pending' : item.flow_type === 'in' ? 'confirmed' : 'projected';
                                             const statusLabel = status === 'confirmed' ? 'Confirmed' : status === 'pending' ? 'Pending' : 'Projected';
-                                            const itemDepartmentTemplateType = departments.find((department) => department.id === item.department_id)?.template_type ?? 'standard';
                                             const displayActionLabel = formatCategoryLabel(
                                                 item.action_code,
                                                 item.action_label,
-                                                item.department_code,
-                                                itemDepartmentTemplateType
+                                                item.department_code
                                             );
                                             const Icon = resolveIcon(displayActionLabel);
 

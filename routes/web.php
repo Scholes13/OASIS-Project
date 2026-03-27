@@ -322,7 +322,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/purchase-requests', function () {
             return view('reports.purchase-requests', [
                 'message' => 'Report feature will be available soon for top management.',
+        Route::patch('/line-items/{lineItem}', [CashflowProjectionController::class, 'updateLineItem'])->name('line-items.update');
             ]);
+        Route::post('/linked-units', [CashflowProjectionController::class, 'storeLinkedUnit'])->name('linked-units.store');
+        Route::delete('/linked-units/{linkedUnit}', [CashflowProjectionController::class, 'destroyLinkedUnit'])->name('linked-units.destroy');
         })->name('purchase-requests');
         Route::get('/approvals', function () {
             return view('reports.approvals', [

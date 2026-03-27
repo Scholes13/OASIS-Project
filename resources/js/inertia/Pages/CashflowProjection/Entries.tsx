@@ -1,8 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Server, ShoppingBag, Users, ChevronDown, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Pencil, Server, ShoppingBag, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import './cashflow-dashboard.css';
+import AddProjectionCard from './components/AddProjectionCard';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
 
@@ -15,8 +16,11 @@ type CategoryOption = {
     department_id: number;
 };
 
-const inputClasses =
-    'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+type BusinessUnitOption = {
+    id: number;
+    code: string;
+    name: string;
+};
 
 function toIsoDate(year: number, month: number, day: number): string {
     const safeMonth = String(Math.max(1, Math.min(12, month))).padStart(2, '0');
@@ -54,6 +58,7 @@ export default function CashflowProjectionEntries({
     lineItems,
 }: CashflowProjectionEntriesPageProps) {
     const [flowType, setFlowType] = useState<FlowType>('in');
+    const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
 
     const defaultTransactionDate = useMemo(() => {
         const now = new Date();
@@ -63,25 +68,38 @@ export default function CashflowProjectionEntries({
         return toIsoDate(year, selectedMonth, 1);
     }, [year, selectedMonth]);
 
-    const allCategoryOptions = useMemo<CategoryOption[]>(() => {
-        return departments.flatMap((department) =>
-            department.actions.map((action) => ({
-                value: action.code,
-                label: action.label,
-                flow_type: action.flow_type,
-                department_id: department.id,
-            }))
-        );
+    const businessUnitOptions = useMemo<BusinessUnitOption[]>(() => {
+        return departments.reduce<BusinessUnitOption[]>((options, department) => {
+            if (!department.business_unit_id || !department.business_unit_code) {
+                return options;
+            }
+
+            if (options.some((option) => option.id === department.business_unit_id)) {
+                return options;
+            }
+
+            return [
+                ...options,
+                {
+                    id: department.business_unit_id,
+                    code: department.business_unit_code,
+                    name: department.business_unit_name ?? department.business_unit_code,
+                },
+            ];
+        }, []);
     }, [departments]);
 
-    const filteredCategoryOptions = useMemo(() => {
-        return allCategoryOptions.filter((option) => option.flow_type === flowType);
-    }, [allCategoryOptions, flowType]);
+    const [selectedBusinessUnitId, setSelectedBusinessUnitId] = useState<number>(() => businessUnitOptions[0]?.id ?? 0);
+
+    const departmentsForSelectedBusinessUnit = useMemo(() => {
+        return departments.filter((department) => department.business_unit_id === selectedBusinessUnitId);
+    }, [departments, selectedBusinessUnitId]);
 
     const lineItemForm = useForm<LineItemFormData>({
         year,
-        department_id: filteredCategoryOptions[0]?.department_id ?? departments[0]?.id ?? 0,
-        action_code: filteredCategoryOptions[0]?.value ?? '',
+        business_unit_id: selectedBusinessUnitId,
+        department_id: departmentsForSelectedBusinessUnit[0]?.id ?? 0,
+        action_code: '',
         transaction_date: defaultTransactionDate,
         due_date: '',
         is_estimated_date: false,
@@ -89,37 +107,147 @@ export default function CashflowProjectionEntries({
         description: '',
         notes: '',
     });
+    const { data, setData, post, patch, processing, errors } = lineItemForm;
+
+    const selectedDepartment = useMemo(() => {
+        return departments.find((department) => department.id === data.department_id) ?? null;
+    }, [data.department_id, departments]);
+
+    const filteredCategoryOptions = useMemo<CategoryOption[]>(() => {
+        if (!selectedDepartment) {
+            return [];
+        }
+
+        return selectedDepartment.actions
+            .filter((action) => action.flow_type === flowType)
+            .map((action) => ({
+                value: action.code,
+                label: action.label,
+                flow_type: action.flow_type,
+                department_id: selectedDepartment.id,
+            }));
+    }, [flowType, selectedDepartment]);
+
+    const currentBusinessUnit = useMemo(() => {
+        return businessUnitOptions.find((option) => option.id === selectedBusinessUnitId);
+    }, [businessUnitOptions, selectedBusinessUnitId]);
+
+    useEffect(() => {
+        if (!businessUnitOptions.length) {
+            return;
+        }
+
+        if (businessUnitOptions.some((option) => option.id === selectedBusinessUnitId)) {
+            return;
+        }
+
+        const fallbackBusinessUnitId = businessUnitOptions[0].id;
+        setSelectedBusinessUnitId(fallbackBusinessUnitId);
+        setData('business_unit_id', fallbackBusinessUnitId);
+    }, [businessUnitOptions, selectedBusinessUnitId, setData]);
+
+    useEffect(() => {
+        setData('business_unit_id', selectedBusinessUnitId);
+
+        if (!departmentsForSelectedBusinessUnit.length) {
+            setData('department_id', 0);
+            setData('action_code', '');
+            return;
+        }
+
+        if (departmentsForSelectedBusinessUnit.some((department) => department.id === data.department_id)) {
+            return;
+        }
+
+        setData('department_id', departmentsForSelectedBusinessUnit[0].id);
+    }, [data.department_id, departmentsForSelectedBusinessUnit, selectedBusinessUnitId, setData]);
 
     useEffect(() => {
         if (!filteredCategoryOptions.length) {
-            lineItemForm.setData('action_code', '');
+            setData('action_code', '');
             return;
         }
-        const selectedCategory = filteredCategoryOptions.find((option) => option.value === lineItemForm.data.action_code);
-        if (!selectedCategory) {
-            const fallback = filteredCategoryOptions[0];
-            lineItemForm.setData('action_code', fallback.value);
-            lineItemForm.setData('department_id', fallback.department_id);
+
+        if (filteredCategoryOptions.some((option) => option.value === data.action_code)) {
             return;
         }
-        lineItemForm.setData('department_id', selectedCategory.department_id);
-    }, [flowType, filteredCategoryOptions]);
+
+        setData('action_code', filteredCategoryOptions[0].value);
+    }, [data.action_code, filteredCategoryOptions, setData]);
 
     useEffect(() => {
-        lineItemForm.setData('year', year);
-        lineItemForm.setData('transaction_date', defaultTransactionDate);
-    }, [year, selectedMonth, defaultTransactionDate]);
+        setData('year', year);
+        setData('transaction_date', defaultTransactionDate);
+    }, [defaultTransactionDate, selectedMonth, setData, year]);
 
     const handleLineItemSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        lineItemForm.post(route('cashflow-projection.line-items.store'), { preserveScroll: true });
+
+        if (editingLineItemId !== null) {
+            patch(route('cashflow-projection.line-items.update', { lineItem: editingLineItemId }), {
+                preserveScroll: true,
+            });
+
+            return;
+        }
+
+        post(route('cashflow-projection.line-items.store'), { preserveScroll: true });
     };
 
     const handleCategoryChange = (categoryCode: string) => {
-        const category = allCategoryOptions.find((option) => option.value === categoryCode);
+        const category = filteredCategoryOptions.find((option) => option.value === categoryCode);
         if (!category) return;
-        lineItemForm.setData('action_code', category.value);
-        lineItemForm.setData('department_id', category.department_id);
+        setData('action_code', category.value);
+        setData('department_id', category.department_id);
+    };
+
+    const handleBusinessUnitChange = (businessUnitId: number) => {
+        setSelectedBusinessUnitId(businessUnitId);
+    };
+
+    const handleDepartmentChange = (departmentId: number) => {
+        setData('department_id', departmentId);
+    };
+
+    const resetForm = () => {
+        setEditingLineItemId(null);
+        setFlowType('in');
+        setSelectedBusinessUnitId(businessUnitOptions[0]?.id ?? 0);
+        setData({
+            year,
+            business_unit_id: businessUnitOptions[0]?.id ?? 0,
+            department_id: departments.filter((department) => department.business_unit_id === (businessUnitOptions[0]?.id ?? 0))[0]?.id ?? 0,
+            action_code: '',
+            transaction_date: defaultTransactionDate,
+            due_date: '',
+            is_estimated_date: false,
+            amount: 0,
+            description: '',
+            notes: '',
+        });
+    };
+
+    const beginEdit = (lineItemId: number) => {
+        const lineItem = lineItems.find((item) => item.id === lineItemId);
+        if (!lineItem) {
+            return;
+        }
+
+        setEditingLineItemId(lineItemId);
+        setFlowType(lineItem.flow_type);
+        setSelectedBusinessUnitId(lineItem.business_unit_id ?? 0);
+        setData({
+            year,
+            business_unit_id: lineItem.business_unit_id ?? 0,
+            department_id: lineItem.department_id,
+            action_code: lineItem.action_code,
+            transaction_date: lineItem.transaction_date,
+            due_date: lineItem.due_date ?? '',
+            is_estimated_date: lineItem.is_estimated_date,
+            amount: lineItem.amount,
+            description: lineItem.description,
+            notes: lineItem.notes ?? '',
+        });
     };
 
     return (
@@ -148,128 +276,28 @@ export default function CashflowProjectionEntries({
                     <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                         {/* Left column — Add Projection Form */}
                         <div className="space-y-6">
-                            <motion.section
-                                className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.25 }}
-                            >
-                                <div className="mb-5">
-                                    <h2 className="text-xl font-semibold text-foreground">Add Projection</h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">Simulate future cashflows</p>
-                                </div>
-
-                                <form onSubmit={handleLineItemSubmit} className="space-y-4">
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Entry Name</label>
-                                        <input
-                                            type="text"
-                                            className={inputClasses}
-                                            placeholder="e.g. Q4 Server Costs"
-                                            value={lineItemForm.data.description}
-                                            onChange={(e) => lineItemForm.setData('description', e.target.value)}
-                                        />
-                                        {lineItemForm.errors.description && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.description}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Amount</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            className={inputClasses}
-                                            placeholder="0"
-                                            value={lineItemForm.data.amount}
-                                            onChange={(e) => lineItemForm.setData('amount', Number(e.target.value))}
-                                        />
-                                        {lineItemForm.errors.amount && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.amount}</p>}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Date</label>
-                                            <input
-                                                type="date"
-                                                className={inputClasses}
-                                                value={lineItemForm.data.transaction_date}
-                                                onChange={(e) => lineItemForm.setData('transaction_date', e.target.value)}
-                                            />
-                                            {lineItemForm.errors.transaction_date && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.transaction_date}</p>}
-                                        </div>
-                                        <div>
-                                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Type</label>
-                                            <div className="relative">
-                                                <select
-                                                    className={`${inputClasses} appearance-none pr-8`}
-                                                    value={flowType}
-                                                    onChange={(e) => setFlowType(e.target.value as FlowType)}
-                                                >
-                                                    <option value="in">Inflow</option>
-                                                    <option value="out">Outflow</option>
-                                                </select>
-                                                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Category</label>
-                                        <div className="relative">
-                                            <select
-                                                className={`${inputClasses} appearance-none pr-8`}
-                                                value={lineItemForm.data.action_code}
-                                                disabled={filteredCategoryOptions.length === 0}
-                                                onChange={(e) => handleCategoryChange(e.target.value)}
-                                            >
-                                                {filteredCategoryOptions.length === 0 && <option value="">No category available</option>}
-                                                {filteredCategoryOptions.map((option) => (
-                                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                        </div>
-                                        {lineItemForm.errors.action_code && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.action_code}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Due Date (Optional)</label>
-                                        <input
-                                            type="date"
-                                            className={inputClasses}
-                                            value={lineItemForm.data.due_date}
-                                            onChange={(e) => lineItemForm.setData('due_date', e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Notes (Optional)</label>
-                                        <textarea
-                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                                            rows={2}
-                                            value={lineItemForm.data.notes}
-                                            onChange={(e) => lineItemForm.setData('notes', e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-slate-700">Estimated Date</span>
-                                        <button
-                                            type="button"
-                                            className={`cfp-switch ${lineItemForm.data.is_estimated_date ? 'active' : ''}`}
-                                            onClick={() => lineItemForm.setData('is_estimated_date', !lineItemForm.data.is_estimated_date)}
-                                        />
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        disabled={lineItemForm.processing}
-                                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#16599c] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#124a82] disabled:opacity-50"
-                                    >
-                                        <PlusCircle className="h-4 w-4" />
-                                        {lineItemForm.processing ? 'Saving...' : 'Add to Projection'}
-                                    </button>
-                                </form>
-                            </motion.section>
+                            <AddProjectionCard
+                                lineItemData={data}
+                                lineItemProcessing={processing}
+                                flowType={flowType}
+                                businessUnitOptions={businessUnitOptions}
+                                departmentOptions={departmentsForSelectedBusinessUnit.map((department) => ({
+                                    id: department.id,
+                                    name: department.name,
+                                }))}
+                                categoryOptions={filteredCategoryOptions}
+                                isEditing={editingLineItemId !== null}
+                                selectedDepartmentName={selectedDepartment?.name}
+                                selectedBusinessUnitCode={currentBusinessUnit?.code}
+                                fieldErrors={errors}
+                                onFlowTypeChange={setFlowType}
+                                onBusinessUnitChange={handleBusinessUnitChange}
+                                onDepartmentChange={handleDepartmentChange}
+                                onCategoryChange={handleCategoryChange}
+                                onCancelEdit={resetForm}
+                                onFieldChange={setData}
+                                onSubmit={handleLineItemSubmit}
+                            />
                         </div>
 
                         {/* Right column — Full transactions table */}
@@ -293,15 +321,17 @@ export default function CashflowProjectionEntries({
                                             <th className="py-3 pr-4">Transaction</th>
                                             <th className="py-3 pr-4">Category</th>
                                             <th className="py-3 pr-4">Department</th>
+                                            <th className="py-3 pr-4">Attribution</th>
                                             <th className="py-3 pr-4">Date</th>
                                             <th className="py-3 pr-4">Status</th>
+                                            <th className="py-3 pr-4 text-right">Action</th>
                                             <th className="py-3 text-right">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {lineItems.length === 0 && (
                                             <tr>
-                                                <td colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                                                <td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
                                                     No entries yet. Use the form to add your first projection.
                                                 </td>
                                             </tr>
@@ -323,12 +353,40 @@ export default function CashflowProjectionEntries({
                                                         </div>
                                                     </td>
                                                     <td className="py-3 pr-4 text-muted-foreground">{item.action_label}</td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{item.department_name}</td>
+                                                    <td className="py-3 pr-4 text-muted-foreground">
+                                                        <div className="space-y-1">
+                                                            <p>{item.business_unit_code} • {item.department_name}</p>
+                                                            {item.business_unit_name && (
+                                                                <p className="text-xs text-slate-400">{item.business_unit_name}</p>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 pr-4 text-muted-foreground">
+                                                        <div className="space-y-1 text-xs">
+                                                            {item.creator_name && item.creator_department_label && (
+                                                                <p>Created by: {item.creator_name} ({item.creator_department_label})</p>
+                                                            )}
+                                                            {item.updater_name && item.updater_department_label && (
+                                                                <p>Last edited by: {item.updater_name} ({item.updater_department_label})</p>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className="py-3 pr-4 text-muted-foreground">{formatDate(item.transaction_date)}</td>
                                                     <td className="py-3 pr-4">
                                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadgeMap[status] || 'bg-slate-100 text-slate-700'}`}>
                                                             {statusLabel}
                                                         </span>
+                                                    </td>
+                                                    <td className="py-3 pr-4 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => beginEdit(item.id)}
+                                                            aria-label={`Edit ${item.description || item.action_label}`}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                            Edit
+                                                        </button>
                                                     </td>
                                                     <td className={`py-3 text-right font-semibold ${item.flow_type === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
                                                         {item.flow_type === 'in' ? '+' : '-'}{formatCurrency(item.amount)}

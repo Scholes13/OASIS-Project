@@ -1,6 +1,6 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { type FormEvent, useEffect, useMemo } from 'react';
-import { ArrowLeft, Banknote, ChevronDown, Save, CheckCircle2 } from 'lucide-react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Banknote, Save, CheckCircle2, LinkIcon, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { monthOptions } from './constants';
 import type { CashflowProjectionSettingsPageProps, FinanceFormData } from './types';
@@ -21,7 +21,10 @@ export default function CashflowProjectionSettings({
     year,
     selectedMonth,
     financeInputs,
+    linkedUnits,
+    availableBusinessUnits,
 }: CashflowProjectionSettingsPageProps) {
+    const [selectedLinkBuId, setSelectedLinkBuId] = useState<string>('');
     const selectedFinanceInput = useMemo(() => {
         return financeInputs.find((input) => input.month === selectedMonth) ?? null;
     }, [financeInputs, selectedMonth]);
@@ -102,18 +105,15 @@ export default function CashflowProjectionSettings({
                             <form onSubmit={handleFinanceSubmit} className="space-y-5">
                                 <div>
                                     <label className="mb-1.5 block text-sm font-medium text-slate-700">Bulan</label>
-                                    <div className="relative">
-                                        <select
-                                            className={`${inputClasses} appearance-none pr-8`}
-                                            value={financeForm.data.month}
-                                            onChange={(e) => financeForm.setData('month', Number(e.target.value))}
-                                        >
-                                            {monthOptions.map((month) => (
-                                                <option key={month.value} value={month.value}>{month.label}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                    </div>
+                                    <select
+                                        className={inputClasses}
+                                        value={financeForm.data.month}
+                                        onChange={(e) => financeForm.setData('month', Number(e.target.value))}
+                                    >
+                                        {monthOptions.map((month) => (
+                                            <option key={month.value} value={month.value}>{month.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="space-y-4">
@@ -211,9 +211,21 @@ export default function CashflowProjectionSettings({
                                                         <td className="py-3 pr-4">
                                                             <div className="flex items-center gap-2">
                                                                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                                                <span className="font-medium text-foreground">
-                                                                    {formatMonthLabel(input.month)}
-                                                                </span>
+                                                                <div className="space-y-1">
+                                                                    <span className="font-medium text-foreground">
+                                                                        {formatMonthLabel(input.month)}
+                                                                    </span>
+                                                                    {(input.creator_name || input.updater_name) && (
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            {input.creator_name && input.creator_department_label && (
+                                                                                <p>Created by: {input.creator_name} ({input.creator_department_label})</p>
+                                                                            )}
+                                                                            {input.updater_name && input.updater_department_label && (
+                                                                                <p>Last edited by: {input.updater_name} ({input.updater_department_label})</p>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </td>
                                                         <td className="py-3 pr-4 text-right font-medium text-foreground">
@@ -253,6 +265,104 @@ export default function CashflowProjectionSettings({
                             )}
                         </motion.section>
                     </div>
+
+                    {/* Linked Business Units Section */}
+                    <motion.section
+                        className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: 0.12 }}
+                    >
+                        <div className="mb-5 flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                                <LinkIcon className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-foreground">Linked Business Units</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Link BU lain agar data cashflow mereka tampil di dashboard consolidated.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Add linked unit */}
+                        {availableBusinessUnits && availableBusinessUnits.length > 0 && (
+                            <div className="mb-5 flex items-end gap-3">
+                                <div className="flex-1">
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">Tambah Business Unit</label>
+                                    <select
+                                        className={inputClasses}
+                                        value={selectedLinkBuId}
+                                        onChange={(e) => setSelectedLinkBuId(e.target.value)}
+                                    >
+                                        <option value="">Pilih business unit...</option>
+                                        {availableBusinessUnits.map((bu) => (
+                                            <option key={bu.id} value={bu.id}>
+                                                {bu.code} — {bu.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={!selectedLinkBuId}
+                                    onClick={() => {
+                                        if (!selectedLinkBuId) return;
+                                        router.post(route('cashflow-projection.linked-units.store'), {
+                                            linked_business_unit_id: Number(selectedLinkBuId),
+                                        }, {
+                                            preserveScroll: true,
+                                            onSuccess: () => setSelectedLinkBuId(''),
+                                        });
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Link
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Linked units list */}
+                        {linkedUnits && linkedUnits.length > 0 ? (
+                            <div className="space-y-2">
+                                {linkedUnits.map((unit) => (
+                                    <div
+                                        key={unit.id}
+                                        className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                                                {unit.code}
+                                            </span>
+                                            <span className="text-sm font-medium text-foreground">{unit.name}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (confirm(`Hapus link ke ${unit.code}?`)) {
+                                                    router.delete(route('cashflow-projection.linked-units.destroy', { linkedUnit: unit.id }), {
+                                                        preserveScroll: true,
+                                                    });
+                                                }
+                                            }}
+                                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Hapus
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/40 py-8 text-center">
+                                <LinkIcon className="mx-auto h-8 w-8 text-slate-300" />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Belum ada linked business unit. Data dashboard hanya menampilkan BU saat ini.
+                                </p>
+                            </div>
+                        )}
+                    </motion.section>
                 </div>
             </div>
         </>

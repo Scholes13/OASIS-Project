@@ -30,6 +30,7 @@ interface AddProjectionCardProps {
     isEditing: boolean;
     selectedDepartmentName?: string;
     selectedBusinessUnitCode?: string;
+    businessUnitNotice?: string | null;
     fieldErrors: Partial<Record<keyof LineItemFormData, string>>;
     onFlowTypeChange: (flowType: FlowType) => void;
     onBusinessUnitChange: (businessUnitId: number) => void;
@@ -72,6 +73,7 @@ export default function AddProjectionCard({
     isEditing,
     selectedDepartmentName,
     selectedBusinessUnitCode,
+    businessUnitNotice,
     fieldErrors,
     onFlowTypeChange,
     onBusinessUnitChange,
@@ -159,6 +161,11 @@ export default function AddProjectionCard({
                             </option>
                         ))}
                     </select>
+                    {businessUnitNotice && (
+                        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                            {businessUnitNotice}
+                        </p>
+                    )}
                 </div>
 
                 <div>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import Entries from '@/Pages/CashflowProjection/Entries';
@@ -6,6 +6,13 @@ import type { CashflowProjectionEntriesPageProps, LineItemFormData } from '@/Pag
 
 const postMock = vi.fn();
 const patchMock = vi.fn();
+
+const currentBusinessUnit = {
+    id: 1,
+    code: 'WNS',
+    name: 'Werkudara Nirwana Sakti',
+    logo: null,
+};
 
 vi.mock('@inertiajs/react', async () => {
     const React = await vi.importActual<typeof import('react')>('react');
@@ -50,6 +57,11 @@ vi.mock('@inertiajs/react', async () => {
                 {children}
             </a>
         ),
+        usePage: () => ({
+            props: {
+                currentBusinessUnit,
+            },
+        }),
     };
 });
 
@@ -68,7 +80,12 @@ describe('Cashflow Projection Entries page', () => {
                 template_type: 'cfc',
                 actions: [
                     { code: 'IN_CFC_SUNTIKAN_MODAL', label: 'Suntikan Modal', flow_type: 'in' },
+                    { code: 'OUT_ACC_PAJAK', label: 'Pajak', flow_type: 'out' },
+                    { code: 'OUT_ACC_OPS', label: 'Operational Departemen ACC', flow_type: 'out' },
+                    { code: 'OUT_TEP_COST_OF_REVENUE', label: 'Cost of Revenue dari Upcoming Revenue', flow_type: 'out' },
+                    { code: 'OUT_HR_GAJI_BENEFIT', label: 'Gaji & Benefit Karyawan', flow_type: 'out' },
                     { code: 'OUT_CFC_CORPORATE_EXPENSES', label: 'Corporate Expense', flow_type: 'out' },
+                    { code: 'OUT_CFC_OPS', label: 'Operational Departemen CFC', flow_type: 'out' },
                 ],
             },
             {
@@ -147,7 +164,7 @@ describe('Cashflow Projection Entries page', () => {
         expect(screen.getByRole('option', { name: /operations/i })).toBeInTheDocument();
         expect(screen.queryByRole('option', { name: /human resources/i })).not.toBeInTheDocument();
         expect(departmentSelect).toHaveValue('21');
-        expect(screen.getByRole('option', { name: /operational ops/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /operational department ops/i })).toBeInTheDocument();
     });
 
     it('loads an existing entry into edit mode and submits a patch request', () => {
@@ -188,5 +205,32 @@ describe('Cashflow Projection Entries page', () => {
 
         expect(screen.getByRole('option', { name: /no business unit available/i })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: /no category available/i })).toBeInTheDocument();
+    });
+
+    it('normalizes category labels for CFC entries and shows the linked BU notice', async () => {
+        render(<Entries {...baseProps} />);
+
+        fireEvent.change(screen.getByLabelText(/type/i), {
+            target: { value: 'out' },
+        });
+
+        expect(screen.getByRole('option', { name: /acc - pajak/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /acc - operational department acc/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /tep - cost of revenue dari upcoming revenue/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /hr - gaji & benefit karyawan/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /cfc - corporate expense/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /cfc - operational department cfc/i })).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/business unit/i), {
+            target: { value: '2' },
+        });
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    /this entry will be saved to linked business unit mrp - morpheus instead of the active business unit wns - werkudara nirwana sakti/i
+                )
+            ).toBeInTheDocument();
+        });
     });
 });

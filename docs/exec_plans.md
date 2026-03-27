@@ -25,7 +25,7 @@
 ## Active Tasks
 
 ### 2026-03-27 - Cashflow Projection category label clarity and linked BU notice
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
 - Scope:
@@ -43,7 +43,8 @@
   - `vendor/bin/pint --dirty`,
   - `npm exec tsc --noEmit --pretty false`.
 - Notes:
-  - follow-up requested after user feedback on duplicated and ambiguous category labels.
+  - follow-up requested after user feedback on duplicated and ambiguous category labels,
+  - implemented in the frontend surface only to preserve backend ownership boundaries.
   - backend label normalization completed in this pass; linked BU notice remains a frontend follow-up.
 
 ### 2026-03-27 - Cashflow Projection cross-department finance entry and audit trail

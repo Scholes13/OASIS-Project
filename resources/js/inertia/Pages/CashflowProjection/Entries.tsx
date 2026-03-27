@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Pencil, Server, ShoppingBag, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -6,6 +6,7 @@ import './cashflow-dashboard.css';
 import AddProjectionCard from './components/AddProjectionCard';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
+import type { PageProps } from '@/types';
 
 type FlowType = 'in' | 'out';
 
@@ -21,6 +22,29 @@ type BusinessUnitOption = {
     code: string;
     name: string;
 };
+
+function extractDepartmentCode(actionCode: string, fallbackCode: string): string {
+    const match = actionCode.match(/^[A-Z]+_([A-Z0-9]+)_/);
+    return match?.[1] ?? fallbackCode;
+}
+
+function formatCategoryLabel(
+    actionCode: string,
+    actionLabel: string,
+    departmentCode: string,
+    departmentTemplateType: string
+): string {
+    const normalizedDepartmentCode = extractDepartmentCode(actionCode, departmentCode);
+    const normalizedLabel = actionLabel.toLowerCase().startsWith('operational')
+        ? `Operational Department ${normalizedDepartmentCode}`
+        : actionLabel;
+
+    if (departmentTemplateType === 'cfc') {
+        return `${normalizedDepartmentCode} - ${normalizedLabel}`;
+    }
+
+    return normalizedLabel;
+}
 
 function toIsoDate(year: number, month: number, day: number): string {
     const safeMonth = String(Math.max(1, Math.min(12, month))).padStart(2, '0');
@@ -57,6 +81,7 @@ export default function CashflowProjectionEntries({
     departments,
     lineItems,
 }: CashflowProjectionEntriesPageProps) {
+    const { currentBusinessUnit } = usePage<PageProps>().props;
     const [flowType, setFlowType] = useState<FlowType>('in');
     const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
 
@@ -95,6 +120,18 @@ export default function CashflowProjectionEntries({
         return departments.filter((department) => department.business_unit_id === selectedBusinessUnitId);
     }, [departments, selectedBusinessUnitId]);
 
+    const selectedBusinessUnitOption = useMemo(() => {
+        return businessUnitOptions.find((option) => option.id === selectedBusinessUnitId) ?? null;
+    }, [businessUnitOptions, selectedBusinessUnitId]);
+
+    const linkedBusinessUnitNotice = useMemo(() => {
+        if (!currentBusinessUnit || !selectedBusinessUnitOption || selectedBusinessUnitOption.id === currentBusinessUnit.id) {
+            return null;
+        }
+
+        return `This entry will be saved to linked business unit ${selectedBusinessUnitOption.code} - ${selectedBusinessUnitOption.name} instead of the active business unit ${currentBusinessUnit.code} - ${currentBusinessUnit.name}.`;
+    }, [currentBusinessUnit, selectedBusinessUnitOption]);
+
     const lineItemForm = useForm<LineItemFormData>({
         year,
         business_unit_id: selectedBusinessUnitId,
@@ -122,15 +159,11 @@ export default function CashflowProjectionEntries({
             .filter((action) => action.flow_type === flowType)
             .map((action) => ({
                 value: action.code,
-                label: action.label,
+                label: formatCategoryLabel(action.code, action.label, selectedDepartment.code, selectedDepartment.template_type),
                 flow_type: action.flow_type,
                 department_id: selectedDepartment.id,
             }));
     }, [flowType, selectedDepartment]);
-
-    const currentBusinessUnit = useMemo(() => {
-        return businessUnitOptions.find((option) => option.id === selectedBusinessUnitId);
-    }, [businessUnitOptions, selectedBusinessUnitId]);
 
     useEffect(() => {
         if (!businessUnitOptions.length) {
@@ -289,6 +322,7 @@ export default function CashflowProjectionEntries({
                                 isEditing={editingLineItemId !== null}
                                 selectedDepartmentName={selectedDepartment?.name}
                                 selectedBusinessUnitCode={currentBusinessUnit?.code}
+                                businessUnitNotice={linkedBusinessUnitNotice}
                                 fieldErrors={errors}
                                 onFlowTypeChange={setFlowType}
                                 onBusinessUnitChange={handleBusinessUnitChange}
@@ -340,7 +374,14 @@ export default function CashflowProjectionEntries({
                                         {lineItems.map((item) => {
                                             const status = item.is_estimated_date ? 'pending' : item.flow_type === 'in' ? 'confirmed' : 'projected';
                                             const statusLabel = status === 'confirmed' ? 'Confirmed' : status === 'pending' ? 'Pending' : 'Projected';
-                                            const Icon = resolveIcon(item.action_label);
+                                            const itemDepartmentTemplateType = departments.find((department) => department.id === item.department_id)?.template_type ?? 'standard';
+                                            const displayActionLabel = formatCategoryLabel(
+                                                item.action_code,
+                                                item.action_label,
+                                                item.department_code,
+                                                itemDepartmentTemplateType
+                                            );
+                                            const Icon = resolveIcon(displayActionLabel);
 
                                             return (
                                                 <tr key={item.id} className="border-b border-border/50 last:border-0">
@@ -349,10 +390,10 @@ export default function CashflowProjectionEntries({
                                                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                                                                 <Icon className="h-4 w-4" />
                                                             </div>
-                                                            <span className="font-medium text-foreground">{item.description || item.action_label}</span>
+                                                            <span className="font-medium text-foreground">{item.description || displayActionLabel}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{item.action_label}</td>
+                                                    <td className="py-3 pr-4 text-muted-foreground">{displayActionLabel}</td>
                                                     <td className="py-3 pr-4 text-muted-foreground">
                                                         <div className="space-y-1">
                                                             <p>{item.business_unit_code} • {item.department_name}</p>

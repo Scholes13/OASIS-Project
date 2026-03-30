@@ -533,7 +533,10 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask, 
     const originalStatus = originalStatusRef.current
     originalStatusRef.current = null
 
-    if (!over) return
+    if (!over) {
+      setLocalTasks([...tasks])
+      return
+    }
 
     const activeId = active.id as number
     

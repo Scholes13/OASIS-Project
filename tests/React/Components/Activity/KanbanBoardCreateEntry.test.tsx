@@ -1,12 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { KanbanBoard } from '@/components/activity/KanbanBoard';
 import type { Task } from '@/types';
 
+let latestDndHandlers: {
+    onDragStart?: (event: { active: { id: number } }) => void;
+    onDragOver?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+    onDragEnd?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+} = {};
+
 vi.mock('@dnd-kit/core', () => ({
-    DndContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    DndContext: ({
+        children,
+        onDragStart,
+        onDragOver,
+        onDragEnd,
+    }: {
+        children: ReactNode;
+        onDragStart?: (event: { active: { id: number } }) => void;
+        onDragOver?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+        onDragEnd?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+    }) => {
+        latestDndHandlers = { onDragStart, onDragOver, onDragEnd };
+
+        return <div>{children}</div>;
+    },
     DragOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     closestCorners: vi.fn(),
     KeyboardSensor: class KeyboardSensor {},
@@ -87,6 +107,7 @@ describe('KanbanBoard create entry', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        latestDndHandlers = {};
     });
 
     it('uses modal callback when onCreateTask is provided', () => {
@@ -106,5 +127,27 @@ describe('KanbanBoard create entry', () => {
         fireEvent.click(screen.getAllByRole('button', { name: /add task/i })[0]);
 
         expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.index?modal=create');
+    });
+
+    it('restores the original board state when a drag is cancelled', () => {
+        render(<KanbanBoard tasks={[baseTask]} />);
+
+        expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
+        expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
+
+        act(() => {
+            latestDndHandlers.onDragStart?.({ active: { id: 1 } });
+            latestDndHandlers.onDragOver?.({ active: { id: 1 }, over: { id: 'in_progress' } });
+        });
+
+        expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
+        expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
+
+        act(() => {
+            latestDndHandlers.onDragEnd?.({ active: { id: 1 }, over: null });
+        });
+
+        expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
+        expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
     });
 });

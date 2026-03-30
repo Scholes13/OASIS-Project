@@ -24,6 +24,27 @@
 
 ## Active Tasks
 
+### 2026-03-30 - Activity board stale task recovery
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate and fix the Activity My Tasks board issue where tasks can disappear until refresh or view remount,
+  - remove or constrain board-local state drift so kanban stays aligned with Inertia task payloads,
+  - add focused React regression coverage for the stale-board recovery scenario.
+- Risks:
+  - kanban drag interactions must keep current status-update behavior without introducing jumpy cards,
+  - the fix must not regress modal-first task detail and edit flows introduced earlier today,
+  - calendar and timeline views should remain contract-compatible with the shared dashboard task payload.
+- Verification:
+  - `npm exec vitest run tests/React/Components/Activity/KanbanBoardCreateEntry.test.tsx --runInBand`,
+  - `npm exec vitest run tests/React/Pages/Activity/Dashboard.test.tsx --runInBand`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported that activities sometimes disappear in My Tasks board until refresh or switching views such as kanban -> calendar -> kanban,
+  - root cause investigation found `KanbanBoard` can leave its local shadow state diverged from server props when a drag is cancelled,
+  - board drag cancellation now restores local task state from the current server payload, and focused React coverage protects the regression.
+
 ### 2026-03-30 - Activity calendar click should stay in modal flow
 - Status: completed
 - Owner: PM Agent

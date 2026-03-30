@@ -63,6 +63,124 @@ function getActivityColors(type: { color?: string } | undefined) {
     return activityTypeColors[type.color] || activityTypeColors.gray
 }
 
+type CalendarParticipant = Task["participants"][number] & {
+    avatar_url?: string
+}
+
+type CalendarOwner = {
+    name: string
+    avatar_url?: string
+    participantCount: number
+}
+
+function getCalendarOwner(task: Task): CalendarOwner {
+    const participants = (task.participants || []) as CalendarParticipant[]
+    const participant = participants[0]
+    const participantUser = participant?.user
+
+    return {
+        name:
+            participant?.name ||
+            participantUser?.name ||
+            task.creator?.name ||
+            "Owner",
+        avatar_url:
+            participant?.avatar_url ||
+            participantUser?.avatar_url ||
+            task.creator?.avatar_url,
+        participantCount: participants.length,
+    }
+}
+
+function getParticipantOwnerInitial(name: string) {
+    return name.trim().charAt(0).toUpperCase() || "?"
+}
+
+function OwnerBadge({
+    owner,
+    compact = false,
+}: {
+    owner: CalendarOwner
+    compact?: boolean
+}) {
+    const ownerInitial = getParticipantOwnerInitial(owner.name)
+
+    return (
+        <div
+            className={cn(
+                "flex shrink-0 items-center gap-1",
+                compact && "ml-auto"
+            )}
+        >
+            {owner.avatar_url ? (
+                <img
+                    src={owner.avatar_url}
+                    alt={owner.name}
+                    className={cn(
+                        "rounded-full object-cover ring-1 ring-white shadow-sm",
+                        compact ? "h-5 w-5" : "h-6 w-6"
+                    )}
+                />
+            ) : (
+                <div
+                    className={cn(
+                        "flex items-center justify-center rounded-full bg-white/70 font-semibold text-slate-700 ring-1 ring-white shadow-sm",
+                        compact ? "h-5 w-5 text-[10px]" : "h-6 w-6 text-[11px]"
+                    )}
+                    aria-label={owner.name}
+                >
+                    {ownerInitial}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function MonthOwnerBadge({ task }: { task: Task }) {
+    const owner = getCalendarOwner(task)
+    const remainingParticipants = Math.max(owner.participantCount - 1, 0)
+
+    return (
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+            {remainingParticipants > 0 && (
+                <span className="inline-flex h-5 items-center justify-center rounded-full bg-white/70 px-1 text-[10px] font-semibold text-slate-600 ring-1 ring-white">
+                    +{remainingParticipants}
+                </span>
+            )}
+            <OwnerBadge owner={owner} compact />
+        </div>
+    )
+}
+
+function RichOwnerDetails({ task }: { task: Task }) {
+    const owner = getCalendarOwner(task)
+    const participantCount = owner.participantCount
+
+    return (
+        <div className="mt-1 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+                <OwnerBadge owner={owner} />
+                <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold text-gray-700">
+                        {owner.name}
+                    </p>
+                    <p className="truncate text-[10px] text-gray-500">
+                        {participantCount > 1
+                            ? `${participantCount} participants`
+                            : "Owner"}
+                    </p>
+                </div>
+            </div>
+            {participantCount > 0 && (
+                <div className="flex items-center gap-1 text-[10px] font-medium text-gray-600">
+                    <Users className="h-3 w-3 text-gray-500" />
+                    <span>{participantCount}</span>
+                </div>
+            )}
+        </div>
+    )
+}
+
 // Custom Event Content with better contrast
 function EventContent({ event, view }: { event: any; view: string }) {
     const task = event.extendedProps.task as Task
@@ -74,7 +192,7 @@ function EventContent({ event, view }: { event: any; view: string }) {
         return (
             <div
                 className={cn(
-                    "flex items-center gap-1 px-1.5 py-0.5 text-[11px] rounded cursor-pointer transition-all hover:shadow-sm",
+                    "flex items-center gap-1.5 px-1.5 py-0.5 text-[11px] rounded cursor-pointer transition-all hover:shadow-sm",
                     "border-l-[3px]"
                 )}
                 style={{
@@ -89,14 +207,15 @@ function EventContent({ event, view }: { event: any; view: string }) {
                     )}
                 />
                 <span
-                    className="font-semibold truncate"
+                    className="min-w-0 flex-1 font-semibold truncate"
                     style={{ color: colors.text }}
                 >
                     {event.title}
                 </span>
                 {isOverdue && (
-                    <span className="text-[9px] text-rose-600 font-bold ml-auto flex-shrink-0">!</span>
+                    <span className="text-[9px] text-rose-600 font-bold flex-shrink-0">!</span>
                 )}
+                <MonthOwnerBadge task={task} />
             </div>
         )
     }
@@ -120,14 +239,7 @@ function EventContent({ event, view }: { event: any; view: string }) {
                     {task.activity_type.name}
                 </p>
             )}
-            {task.participants && task.participants.length > 0 && (
-                <div className="flex items-center gap-1 mt-1">
-                    <Users className="h-3 w-3 text-gray-500" />
-                    <span className="text-[10px] text-gray-600 font-medium">
-                        {task.participants.length}
-                    </span>
-                </div>
-            )}
+            <RichOwnerDetails task={task} />
         </div>
     )
 }

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -103,6 +104,11 @@ class ActivityInertiaController extends Controller
         $includeBreakdown = $request->boolean('with_breakdown', false);
 
         try {
+            $userColumns = ['id', 'name'];
+            if (Schema::hasColumn('users', 'avatar_url')) {
+                $userColumns[] = 'avatar_url';
+            }
+
             // Build base query based on scope
             $query = EmployeeTask::query()
                 ->where('business_unit_id', $buId);
@@ -157,8 +163,8 @@ class ActivityInertiaController extends Controller
                 ->with([
                     'activityType:id,name,color',
                     'subActivity:id,name,activity_type_id',
-                    'participants:id,name',
-                    'creator:id,name',
+                    'participants:'.implode(',', $userColumns),
+                    'creator:'.implode(',', $userColumns),
                     'department:id,name,code',
                 ])
                 ->latest('id');
@@ -166,11 +172,13 @@ class ActivityInertiaController extends Controller
             if (in_array($view, ['board', 'calendar', 'timeline'])) {
                 // Board/Calendar/Timeline need all active tasks (exclude cancelled), no pagination
                 $allTasks = $taskQuery->whereNotIn('status', ['cancelled'])->limit(200)->get();
+                $allTasks->each(fn (EmployeeTask $task) => $this->hydrateTaskAvatars($task));
                 $tasks = new \Illuminate\Pagination\LengthAwarePaginator(
                     $allTasks, $allTasks->count(), $allTasks->count() ?: 1, 1
                 );
             } else {
                 $tasks = $taskQuery->paginate(20)->withQueryString();
+                $tasks->getCollection()->each(fn (EmployeeTask $task) => $this->hydrateTaskAvatars($task));
             }
 
             // Optional breakdown (not needed for current My Tasks UI)
@@ -182,6 +190,9 @@ class ActivityInertiaController extends Controller
             // Ordered by department's configured sort_order (Requirements 5.1, 5.3)
             $activityTypes = $this->getDepartmentActivityTypes($departmentId);
             $selectedTask = $this->getSelectedTaskForModal($request);
+            if ($selectedTask) {
+                $this->hydrateTaskAvatars($selectedTask);
+            }
             $selectedTaskModal = $selectedTask ? $this->getSelectedTaskModal($request) : null;
 
             return Inertia::render('Activity/Dashboard', [
@@ -1628,6 +1639,24 @@ class ActivityInertiaController extends Controller
         $modal = $request->string('modal')->toString();
 
         return in_array($modal, ['detail', 'edit'], true) ? $modal : null;
+    }
+
+    /**
+     * Ensure task owner/participant user payloads always expose an avatar_url key.
+     */
+    protected function hydrateTaskAvatars(EmployeeTask $task): void
+    {
+        if ($task->relationLoaded('creator') && $task->creator) {
+            $task->creator->setAttribute('avatar_url', $task->creator->getAttribute('avatar_url'));
+        }
+
+        if (! $task->relationLoaded('participants')) {
+            return;
+        }
+
+        $task->participants->each(function ($participant): void {
+            $participant->setAttribute('avatar_url', $participant->getAttribute('avatar_url'));
+        });
     }
 
     /**

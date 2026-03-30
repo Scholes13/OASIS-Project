@@ -24,6 +24,30 @@
 
 ## Active Tasks
 
+### 2026-03-30 - Activity calendar owner visibility upgrade
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - make activity calendar entries clearly show who owns or is assigned to each task,
+  - preserve the current compact month layout while improving owner scanability to an enterprise-ready level,
+  - keep week/day views richer than month view without breaking existing modal-first calendar behavior.
+- Risks:
+  - month cells can become visually noisy if avatar treatment is too large or competes with status/type signals,
+  - owner identity must degrade gracefully when users have no uploaded avatar and when tasks have multiple participants,
+  - calendar event rendering changes must not regress create/detail/edit interaction wiring.
+- Verification:
+  - focused Vitest coverage for calendar event owner rendering in month and expanded views,
+  - focused Vitest coverage for existing calendar create behavior,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported that the calendar is still difficult to map to the responsible person because entries do not show photo or initials,
+  - recommended direction is status dot on the left, title in the center, and compact owner avatar or initials on the right,
+  - multiple participants should collapse into one visible owner avatar plus a `+n` badge to stay compact,
+  - review uncovered a payload gap: the dashboard task query was not yet selecting `avatar_url`, so the implementation expanded to include the backend contract fix and regression coverage for flat participant payloads,
+  - month view now shows the owner marker while week/day surfaces richer owner details,
+  - focused verification passed for backend task payload contract, calendar owner rendering, dashboard modal flow, targeted Pint checks, and TypeScript compilation.
+
 ### 2026-03-30 - Activity board stale task recovery
 - Status: completed
 - Owner: PM Agent

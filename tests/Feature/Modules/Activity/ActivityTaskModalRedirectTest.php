@@ -270,11 +270,35 @@ class ActivityTaskModalRedirectTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Activity/Dashboard')
-            ->has('selectedTask')
-            ->where('selectedTask.id', $this->task->id)
-            ->where('selectedTask.task_title', 'Prepare board pack')
-            ->where('selectedTaskModal', 'detail')
         );
+
+        $selectedTask = $response->inertiaProps('selectedTask');
+
+        $this->assertIsArray($selectedTask);
+        $this->assertSame($this->task->id, $selectedTask['id']);
+        $this->assertSame('Prepare board pack', $selectedTask['task_title']);
+        $this->assertSame('detail', $response->inertiaProps('selectedTaskModal'));
+    }
+
+    public function test_task_index_includes_avatar_fields_for_calendar_owner_badges(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->get(route('activity.task.index', [
+                'view' => 'calendar',
+            ]));
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Activity/Dashboard')
+        );
+
+        $task = $response->inertiaProps('tasks.data.0');
+
+        $this->assertIsArray($task);
+        $this->assertArrayHasKey('creator', $task);
+        $this->assertArrayHasKey('avatar_url', $task['creator']);
+        $this->assertArrayHasKey('participants', $task);
+        $this->assertArrayHasKey(0, $task['participants']);
+        $this->assertArrayHasKey('avatar_url', $task['participants'][0]);
     }
 
     public function test_task_index_does_not_hydrate_edit_modal_for_same_department_user_without_edit_access(): void

@@ -37,7 +37,7 @@ export default function TaskCard({ task, index = 0 }: TaskCardProps) {
             transition={{ duration: 0.2, delay: index * 0.03 }}
         >
             <Link
-                href={route('activity.task.show', { task: task.id })}
+                href={route('activity.task.index', { task: task.id, modal: 'detail' })}
                 className="block bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all p-4"
             >
                 {/* Header: Activity Type + Department Badge (if multi-dept) + Overdue Badge */}
@@ -101,4 +101,3 @@ export default function TaskCard({ task, index = 0 }: TaskCardProps) {
         </motion.div>
     );
 }
-

@@ -33,6 +33,6 @@ describe('ActivityCalendar create entry', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /add/i }));
 
-        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.create');
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.index?modal=create');
     });
 });

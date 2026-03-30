@@ -77,14 +77,14 @@ export default function TaskTable({ tasks, view }: TaskTableProps) {
                             displayedTasks.map((task, index) => {
                                 const overdue = isOverdue(task.due_date, task.status);
                                 return (
-                                    <motion.tr
-                                        key={task.id}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.2, delay: index * 0.02 }}
-                                        className="hover:bg-gray-50 cursor-pointer"
-                                        onClick={() => window.location.href = route('activity.task.show', { task: task.id })}
-                                    >
+                                        <motion.tr
+                                            key={task.id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.2, delay: index * 0.02 }}
+                                            className="hover:bg-gray-50 cursor-pointer"
+                                        onClick={() => window.location.href = route('activity.task.index', { task: task.id, modal: 'detail' })}
+                                        >
                                         <td className="px-4 py-4">
                                             <div className="flex flex-col">
                                                 <span className="font-medium text-gray-900 line-clamp-1">
@@ -170,4 +170,3 @@ export default function TaskTable({ tasks, view }: TaskTableProps) {
         </div>
     );
 }
-

@@ -91,7 +91,7 @@ export function TaskRoadmap({
                                 return (
                                     <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-3.5">
-                                            <Link href={route('activity.task.show', { task: task.id })} className="block">
+                                            <Link href={route('activity.task.index', { task: task.id, modal: 'detail' })} className="block">
                                                 <span className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                                                     {task.task_title || task.title}
                                                 </span>
@@ -132,7 +132,7 @@ export function TaskRoadmap({
                                             )}
                                         </td>
                                         <td className="px-6 py-3.5 text-right">
-                                            <Link href={route('activity.task.show', { task: task.id })}>
+                                            <Link href={route('activity.task.index', { task: task.id, modal: 'detail' })}>
                                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700">
                                                     <ArrowRight className="h-4 w-4" />
                                                 </Button>
@@ -154,7 +154,7 @@ export function TaskRoadmap({
                             onCreateTask ? (
                                 <Button variant="outline" size="sm" className="mt-4" onClick={onCreateTask}>Create Task</Button>
                             ) : (
-                                <Link href={route('activity.task.create')} className="mt-4">
+                                <Link href={route('activity.task.index', { modal: 'create' })} className="mt-4">
                                     <Button variant="outline" size="sm">Create Task</Button>
                                 </Link>
                             )

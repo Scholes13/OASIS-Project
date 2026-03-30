@@ -713,7 +713,7 @@ function RowActions({ task, visible, isReadOnly = false, onEditTask }: { task: T
     if (isReadOnly) {
         return (
             <Link
-                href={route("activity.task.show", { task: task.id })}
+                href={route("activity.task.index", { task: task.id, modal: "detail" })}
                 className={cn(
                     "p-1.5 rounded-md hover:bg-gray-100 transition-all",
                     visible ? "opacity-100" : "opacity-0"
@@ -747,7 +747,7 @@ function RowActions({ task, visible, isReadOnly = false, onEditTask }: { task: T
             >
                 <Popover.Panel className="absolute right-0 z-50 mt-1 w-32 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 py-1">
                     <Link
-                        href={route("activity.task.show", { task: task.id })}
+                        href={route("activity.task.index", { task: task.id, modal: "detail" })}
                         className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                     >
                         <Eye className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} />
@@ -766,7 +766,7 @@ function RowActions({ task, visible, isReadOnly = false, onEditTask }: { task: T
                         </button>
                     ) : (
                         <Link
-                            href={route("activity.task.edit", { task: task.id })}
+                            href={route("activity.task.index", { task: task.id, modal: "edit" })}
                             className="flex items-center px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                         >
                             <Edit className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} />

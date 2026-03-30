@@ -398,7 +398,7 @@ function BoardColumn({ column, tasks, onTaskClick, onCreateTask, currentUserId, 
                 onCreateTask()
                 return
               }
-              router.visit(route("activity.task.create"))
+              router.visit(route("activity.task.index", { modal: "create" }))
             }}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-[color:rgba(24,98,167,0.35)] hover:text-primary"
           >

@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Pencil, Trash2, Calendar, Clock, User, Users, List, Columns, Layout } from 'lucide-react';
 import { StatusBadge, PriorityBadge, ActivityTypeBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody } from '@/components/ui/Card';
-import { TaskFormModal } from '@/components/activity/TaskFormModal';
 import type { PageProps, Task } from '@/types';
 import { useState } from 'react';
 
@@ -47,14 +45,10 @@ function isOverdue(dueDate: string | null, status: string): boolean {
 
 export default function TaskDetail({ task, departmentUsers = [], backdatePermission, allowedDateRange, backdateEnabled, prioritizedActivityTypes }: TaskDetailProps) {
     const [isDeleting, setIsDeleting] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
     const overdue = isOverdue(task.due_date, task.status);
 
     const handleEditClick = () => {
-        router.reload({
-            only: ['departmentUsers', 'backdatePermission', 'allowedDateRange', 'backdateEnabled', 'prioritizedActivityTypes'],
-            onSuccess: () => setShowEditModal(true),
-        });
+        router.visit(route('activity.task.index', { task: task.id, modal: 'edit' }));
     };
 
     const handleDelete = () => {
@@ -342,18 +336,6 @@ export default function TaskDetail({ task, departmentUsers = [], backdatePermiss
                 </motion.div>
             </div>
 
-            {/* Edit Task Modal */}
-            <TaskFormModal
-                open={showEditModal}
-                onClose={() => setShowEditModal(false)}
-                task={task}
-                activityTypes={prioritizedActivityTypes || []}
-                departmentUsers={departmentUsers}
-                backdatePermission={backdatePermission}
-                allowedDateRange={allowedDateRange || { from: '', to: '' }}
-                backdateEnabled={backdateEnabled}
-            />
         </div>
     );
 }
-

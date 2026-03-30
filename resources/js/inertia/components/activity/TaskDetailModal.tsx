@@ -1,7 +1,7 @@
 import * as React from "react"
 import { format } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
-import { router } from "@inertiajs/react"
+import { router, usePage } from "@inertiajs/react"
 import {
     Calendar,
     User,
@@ -29,7 +29,7 @@ import { Dialog } from "../ui/dialog"
 import { ActivityTypeBadge, PriorityBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
-import type { Task } from "@/types"
+import type { PageProps, Task } from "@/types"
 
 interface TaskDetailModalProps {
     task: Task | null
@@ -38,8 +38,21 @@ interface TaskDetailModalProps {
     onEdit?: (task: Task) => void
 }
 
+function canEditTask(task: Task, currentUserId: number | undefined): boolean {
+    if (!currentUserId) return false
+
+    const isParticipant = task.participants?.some((participant) =>
+        participant.user_id === currentUserId || participant.id === currentUserId
+    )
+
+    return isParticipant || task.created_by === currentUserId
+}
+
 export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModalProps) {
     const [isLoading, setIsLoading] = React.useState(false)
+    const { auth } = usePage<PageProps>().props
+    const currentUserId = auth?.user?.id
+    const editable = task ? canEditTask(task, currentUserId) : false
 
     const isOverdue = task ? (task.due_date && new Date(task.due_date) < new Date() &&
         !["completed", "cancelled"].includes(task.status)) : false
@@ -89,14 +102,14 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
         if (onEdit) {
             onEdit(task)
         } else {
-            router.visit(route("activity.task.edit", { task: task.id }))
+            router.visit(route("activity.task.index", { task: task.id, modal: "edit" }))
         }
         onClose()
     }
 
     const handleViewDetail = () => {
         if (!task) return
-        router.visit(route("activity.task.show", { task: task.id }))
+        router.visit(route("activity.task.index", { task: task.id, modal: "detail" }))
         onClose()
     }
 
@@ -118,17 +131,19 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                             <button
                                 onClick={handleViewDetail}
                                 className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                                title="View Full Details"
+                                title="Open in Dashboard"
                             >
                                 <ExternalLink className="h-[18px] w-[18px]" />
                             </button>
-                            <button
-                                onClick={handleEdit}
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                                title="Edit Task"
-                            >
-                                <Edit className="h-[18px] w-[18px]" />
-                            </button>
+                            {editable && (
+                                <button
+                                    onClick={handleEdit}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                    title="Edit Task"
+                                >
+                                    <Edit className="h-[18px] w-[18px]" />
+                                </button>
+                            )}
                             <button
                                 onClick={onClose}
                                 className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
@@ -213,7 +228,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                         <div className="flex w-[320px] shrink-0 flex-col gap-6 overflow-y-auto bg-muted p-6">
                             
                             {/* Action Buttons (Moved to sidebar) */}
-                            {(task.status === "planned" || task.status === "in_progress") && (
+                            {editable && (task.status === "planned" || task.status === "in_progress") && (
                                 <div className="flex gap-2 pb-6 border-b border-border">
                                     {task.status === "planned" && (
                                         <button
@@ -319,7 +334,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                                 onClick={handleViewDetail}
                                 className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-card px-3 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
                             >
-                                <ExternalLink className="h-4 w-4" /> Open Full Details Page
+                                <ExternalLink className="h-4 w-4" /> Open in Dashboard
                             </button>
 
                         </div>

@@ -24,6 +24,76 @@
 
 ## Active Tasks
 
+### 2026-03-30 - Activity calendar click should stay in modal flow
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why clicking an activity in calendar view navigates to the legacy task page,
+  - align calendar click behavior with the modal-first task flow used by kanban,
+  - add focused React coverage for the dashboard-level calendar interaction.
+- Risks:
+  - changing dashboard click wiring must not regress timeline or list navigation behavior unless intentionally coordinated,
+  - calendar event clicks still need access to edit flow through the existing modal contract.
+- Verification:
+  - focused Vitest coverage for activity dashboard calendar click behavior,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported calendar item clicks open the legacy page instead of staying in the modal workflow seen in kanban.
+  - root cause investigation found the activity dashboard was overriding calendar event clicks with `router.visit(route('activity.task.show', ...))`, bypassing the calendar component's built-in modal flow.
+  - dashboard calendar events now use the component's default detail modal while preserving the modal edit handoff through `onEditTask`.
+  - focused React verification passed for the dashboard calendar click path, existing calendar create behavior, and the related activity dashboard page test.
+
+### 2026-03-30 - Activity task modal-first consistency and legacy page deprecation
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - audit and replace remaining activity task entry points that still navigate to legacy full pages,
+  - make activity task detail and edit flows open through dashboard-hosted modals,
+  - convert deprecated task `show/edit` routes into compatibility redirects that preserve the selected task context.
+- Risks:
+  - redirect compatibility must preserve direct links and bookmarks without dropping users onto an unscoped task list,
+  - dashboard modal hydration must still work when the selected task is outside the current paginated task payload,
+  - activity analytics widgets and shared task components may need contract-safe callback wiring to avoid regressions.
+- Verification:
+  - focused Vitest coverage for modal-first navigation and legacy route compatibility,
+  - focused Laravel feature coverage for deprecated task route redirects,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - product direction is to standardize on modal detail and modal edit flows instead of separate task pages,
+  - `Activity/TaskDetail` and `Activity/TaskForm` are now considered deprecated implementation surfaces.
+  - frontend modal-first routing now prefers `activity.task.index?task=...&modal=detail|edit` and `activity.task.index?modal=create` for cross-page entry points,
+  - deprecated GET routes for task `show`, `edit`, and `create` now redirect back into the dashboard modal flow,
+  - the dashboard now hydrates detail/edit/create modals from query state and can use backend-provided `selectedTask` and `selectedTaskModal` props when the selected task is outside the current payload,
+  - reviewer feedback exposed two follow-up risks during implementation: unauthorized deep-linked edits and loss of dashboard context after modal edit submission,
+  - both follow-ups were resolved in this pass by restricting edit hydration/update access to creator or participants, preserving dashboard query context on edit submit, and synchronizing modal open state back into the URL for refresh/share consistency.
+
+### 2026-03-27 - Purchasing offline approval document access hardening
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - replace raw `/storage/...` offline approval document links with authenticated application routes,
+  - add backend authorization-aware document streaming for purchase request and stock request offline approvals,
+  - return a clear missing-file response instead of falling through to framework storage 403s.
+- Risks:
+  - purchasing admin access must keep current business-unit scoping and not open cross-BU document access,
+  - existing records with missing files will still fail after the code fix and need explicit 404 handling,
+  - task card links cover both PR and ST flows and should stay behaviorally consistent.
+- Verification:
+  - focused PHPUnit coverage for authorized and unauthorized offline approval document access,
+  - focused PHPUnit coverage for missing offline approval files,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported 403 when purchasing admin opens offline approval evidence from the admin task view,
+  - root cause investigation found the UI links directly to `/storage/...`, which can hit Laravel's `storage.local` file-serving route instead of an app-level authorization path,
+  - authenticated PR/ST offline approval document routes now stream files from the `public` disk with business-unit authorization and explicit 404 handling,
+  - purchasing admin and stock request offline document links now target the new named routes instead of raw `/storage/...` URLs,
+  - PR 102 still points to a missing offline approval file locally, so the application now returns 404 until that file is restored.
+
 ### 2026-03-27 - Export download navigation bypass for Inertia pages
 - Status: completed
 - Owner: PM Agent

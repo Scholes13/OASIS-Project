@@ -181,10 +181,14 @@ class ActivityInertiaController extends Controller
             // Get activity types assigned to user's department for filter dropdown
             // Ordered by department's configured sort_order (Requirements 5.1, 5.3)
             $activityTypes = $this->getDepartmentActivityTypes($departmentId);
+            $selectedTask = $this->getSelectedTaskForModal($request);
+            $selectedTaskModal = $selectedTask ? $this->getSelectedTaskModal($request) : null;
 
             return Inertia::render('Activity/Dashboard', [
                 'stats' => $stats,
                 'tasks' => $tasks,
+                'selectedTask' => $selectedTask,
+                'selectedTaskModal' => $selectedTaskModal,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
                 'byActivityType' => $byActivityType,
@@ -211,6 +215,8 @@ class ActivityInertiaController extends Controller
                     'overdue' => 0,
                 ],
                 'tasks' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20),
+                'selectedTask' => null,
+                'selectedTaskModal' => null,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
                 'byActivityType' => [],
@@ -221,72 +227,21 @@ class ActivityInertiaController extends Controller
     /**
      * Display a task detail
      */
-    public function show(EmployeeTask $task): Response
+    public function show(EmployeeTask $task): RedirectResponse
     {
-        $task->load([
-            'activityType',
-            'subActivity',
-            'participants',
-            'creator',
-            'department',
-            'attachments',
-        ]);
+        abort_unless($this->canViewTask($task, Auth::user(), session('current_business_unit_id')), 404);
 
-        $user = Auth::user();
-        $departmentId = $user->getCurrentDepartmentId();
-
-        return Inertia::render('Activity/TaskDetail', [
-            'task' => $task,
-            // Lazy loaded props for Edit Task Modal
-            'departmentUsers' => Inertia::lazy(fn () => User::where('primary_department_id', $departmentId)
-                ->where('id', '!=', $user->id)
-                ->select(['id', 'name', 'email'])
-                ->get()),
-            'backdatePermission' => Inertia::lazy(fn () => $this->backdateService->checkUserPermission($user->id)),
-            'allowedDateRange' => Inertia::lazy(fn () => $this->backdateService->getAllowedDateRange($user)),
-            'backdateEnabled' => Inertia::lazy(fn () => $this->backdateService->isBackdateApprovalEnabled()),
-            'prioritizedActivityTypes' => Inertia::lazy(fn () => $this->formatPrioritizedActivityTypes($this->prioritizationService->getForUser($user))),
-        ]);
+        return $this->redirectToTaskIndex($task, 'detail');
     }
 
     /**
      * Show create task form
      */
-    public function create(): Response
+    public function create(Request $request): RedirectResponse
     {
-        $user = Auth::user();
-        $departmentUsers = User::where('primary_department_id', $user->getCurrentDepartmentId())
-            ->where('id', '!=', $user->id)
-            ->select(['id', 'name', 'email'])
-            ->get();
-
-        // Get backdate permission info
-        $backdatePermission = $this->backdateService->checkUserPermission($user->id);
-        $allowedDateRange = $this->backdateService->getAllowedDateRange($user);
-
-        // Get prioritized activity types for this user
-        $prioritizedTypes = $this->prioritizationService->getForUser($user);
-        $activityTypes = $this->formatPrioritizedActivityTypes($prioritizedTypes);
-
-        $backdateEnabled = $this->backdateService->isBackdateApprovalEnabled();
-
-        return Inertia::render('Activity/TaskForm', [
-            'task' => null,
-            'activityTypes' => $activityTypes,
-            'departmentUsers' => $departmentUsers,
-            'backdateEnabled' => $backdateEnabled,
-            'backdatePermission' => $backdateEnabled && $backdatePermission ? [
-                'id' => $backdatePermission->id,
-                'status' => $backdatePermission->status,
-                'requested_date' => $backdatePermission->requested_date->format('Y-m-d'),
-                'granted_until' => $backdatePermission->granted_until?->format('Y-m-d H:i:s'),
-                'is_active' => $backdatePermission->isActive(),
-            ] : null,
-            'allowedDateRange' => [
-                'from' => $allowedDateRange['from']->format('Y-m-d'),
-                'to' => $allowedDateRange['to']->format('Y-m-d'),
-            ],
-        ]);
+        return redirect()->route('activity.task.index', array_merge($request->query(), [
+            'modal' => 'create',
+        ]));
     }
 
     /**
@@ -446,43 +401,11 @@ class ActivityInertiaController extends Controller
     /**
      * Show edit task form
      */
-    public function edit(EmployeeTask $task): Response
+    public function edit(EmployeeTask $task): RedirectResponse
     {
-        $task->load(['activityType', 'subActivity', 'participants']);
+        abort_unless($this->canEditTask($task, Auth::user(), session('current_business_unit_id')), 404);
 
-        $user = Auth::user();
-        $departmentUsers = User::where('primary_department_id', $user->getCurrentDepartmentId())
-            ->where('id', '!=', $user->id)
-            ->select(['id', 'name', 'email'])
-            ->get();
-
-        // Get backdate permission info
-        $backdatePermission = $this->backdateService->checkUserPermission($user->id);
-        $allowedDateRange = $this->backdateService->getAllowedDateRange($user);
-
-        // Get prioritized activity types for this user
-        $prioritizedTypes = $this->prioritizationService->getForUser($user);
-        $activityTypes = $this->formatPrioritizedActivityTypes($prioritizedTypes);
-
-        $backdateEnabled = $this->backdateService->isBackdateApprovalEnabled();
-
-        return Inertia::render('Activity/TaskForm', [
-            'task' => $task,
-            'activityTypes' => $activityTypes,
-            'departmentUsers' => $departmentUsers,
-            'backdateEnabled' => $backdateEnabled,
-            'backdatePermission' => $backdateEnabled && $backdatePermission ? [
-                'id' => $backdatePermission->id,
-                'status' => $backdatePermission->status,
-                'requested_date' => $backdatePermission->requested_date->format('Y-m-d'),
-                'granted_until' => $backdatePermission->granted_until?->format('Y-m-d H:i:s'),
-                'is_active' => $backdatePermission->isActive(),
-            ] : null,
-            'allowedDateRange' => [
-                'from' => $allowedDateRange['from']->format('Y-m-d'),
-                'to' => $allowedDateRange['to']->format('Y-m-d'),
-            ],
-        ]);
+        return $this->redirectToTaskIndex($task, 'edit');
     }
 
     /**
@@ -490,6 +413,11 @@ class ActivityInertiaController extends Controller
      */
     public function update(Request $request, EmployeeTask $task)
     {
+        $user = Auth::user();
+        $buId = session('current_business_unit_id');
+
+        abort_unless($this->canEditTask($task, $user, $buId), 403);
+
         // Check if this is a partial update (e.g., drag & drop for due_date or status change)
         $isPartialUpdate = $request->has('due_date') && ! $request->has('task_title');
         $isStatusUpdate = $request->has('status') && ! $request->has('task_title');
@@ -500,9 +428,6 @@ class ActivityInertiaController extends Controller
                 'due_date' => 'sometimes|date',
                 'status' => 'sometimes|in:planned,in_progress,completed,cancelled',
             ]);
-
-            $user = Auth::user();
-            $buId = session('current_business_unit_id');
 
             $updateData = [];
 
@@ -541,8 +466,6 @@ class ActivityInertiaController extends Controller
         }
 
         // Full update - validate all fields
-        $user = Auth::user();
-        $buId = session('current_business_unit_id');
         $departmentId = $task->department_id ?? $user->getCurrentDepartmentId();
 
         // Get valid activity type IDs for this department
@@ -686,8 +609,7 @@ class ActivityInertiaController extends Controller
 
             DB::commit();
 
-            return redirect()
-                ->route('activity.task.show', $task)
+            return $this->redirectToTaskIndex($task, 'detail')
                 ->with('success', 'Task updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1642,6 +1564,106 @@ class ActivityInertiaController extends Controller
     protected function clearCache(int $buId, int $userId): void
     {
         Cache::forget("activity_stats_{$buId}_{$userId}");
+    }
+
+    /**
+     * Redirect deprecated task detail/edit routes back to the task index.
+     */
+    protected function redirectToTaskIndex(EmployeeTask $task, string $modal): RedirectResponse
+    {
+        return redirect()->route('activity.task.index', array_merge(request()->query(), [
+            'task' => $task->id,
+            'modal' => $modal,
+        ]));
+    }
+
+    /**
+     * Load the selected task when the task index is opened with modal intent.
+     */
+    protected function getSelectedTaskForModal(Request $request): ?EmployeeTask
+    {
+        $taskId = $request->integer('task');
+        $modal = $this->getSelectedTaskModal($request);
+        $user = Auth::user();
+        $buId = session('current_business_unit_id');
+        $departmentId = $user?->getCurrentDepartmentId();
+
+        if (! $taskId || ! in_array($modal, ['detail', 'edit'], true) || ! $user || ! $buId) {
+            return null;
+        }
+
+        $query = EmployeeTask::query()
+            ->where('business_unit_id', $buId)
+            ->where(function ($query) use ($user, $departmentId) {
+                $query->where('created_by', $user->id)
+                    ->orWhereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $user->id));
+
+                if ($departmentId) {
+                    $query->orWhere('department_id', $departmentId);
+                }
+            })
+            ->when($modal === 'edit', function ($query) use ($user) {
+                $query->where(function ($editableQuery) use ($user) {
+                    $editableQuery->where('created_by', $user->id)
+                        ->orWhereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $user->id));
+                });
+            })
+            ->with([
+                'activityType',
+                'subActivity',
+                'participants',
+                'creator',
+                'department',
+                'attachments',
+            ]);
+
+        return $query->find($taskId);
+    }
+
+    /**
+     * Get the selected task modal intent from the request.
+     */
+    protected function getSelectedTaskModal(Request $request): ?string
+    {
+        $modal = $request->string('modal')->toString();
+
+        return in_array($modal, ['detail', 'edit'], true) ? $modal : null;
+    }
+
+    /**
+     * Determine whether the authenticated user can edit the given task.
+     */
+    protected function canEditTask(EmployeeTask $task, $user, mixed $businessUnitId): bool
+    {
+        if (! $user || ! $businessUnitId || (int) $task->business_unit_id !== (int) $businessUnitId) {
+            return false;
+        }
+
+        if ((int) $task->created_by === (int) $user->id) {
+            return true;
+        }
+
+        return $task->participants()
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    /**
+     * Determine whether the authenticated user can view the given task.
+     */
+    protected function canViewTask(EmployeeTask $task, $user, mixed $businessUnitId): bool
+    {
+        if (! $user || ! $businessUnitId || (int) $task->business_unit_id !== (int) $businessUnitId) {
+            return false;
+        }
+
+        if ($this->canEditTask($task, $user, $businessUnitId)) {
+            return true;
+        }
+
+        $departmentId = $user->getCurrentDepartmentId();
+
+        return $departmentId !== null && (int) $task->department_id === (int) $departmentId;
     }
 
     /**

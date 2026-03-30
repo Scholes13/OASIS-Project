@@ -236,7 +236,12 @@ export function TaskFormModal({
             return;
         }
 
-        const url = isEditing ? `/activity/task/${task!.id}` : '/activity/task';
+        const currentQuery = typeof window === 'undefined'
+            ? {}
+            : Object.fromEntries(new URLSearchParams(window.location.search).entries());
+        const url = isEditing
+            ? route('activity.task.update', { task: task!.id, ...currentQuery })
+            : route('activity.task.store');
         const method = isEditing ? put : post;
 
         method(url, {

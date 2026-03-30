@@ -219,9 +219,10 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
         } else if (onDateClick) {
             onDateClick(info.date)
         } else {
-            router.visit(route("activity.task.create"), {
-                data: { date: selectedDate },
-            })
+            router.visit(route("activity.task.index", {
+                modal: "create",
+                date: selectedDate,
+            }))
         }
     }
 
@@ -337,7 +338,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
                                         return
                                     }
 
-                                    router.visit(route("activity.task.create"))
+                                    router.visit(route("activity.task.index", { modal: "create" }))
                                 }}
                                 className="bg-primary hover:bg-blue-600"
                             >

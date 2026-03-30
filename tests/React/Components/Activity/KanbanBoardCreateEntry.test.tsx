@@ -105,6 +105,6 @@ describe('KanbanBoard create entry', () => {
 
         fireEvent.click(screen.getAllByRole('button', { name: /add task/i })[0]);
 
-        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.create');
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.index?modal=create');
     });
 });

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ import { LoadingOverlay } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { TaskFormModal } from '@/components/activity/TaskFormModal';
+import { TaskDetailModal } from '@/components/activity/TaskDetailModal';
 import type { PageProps, Task, TaskStats, TaskFilters, ActivityType, PaginatedData } from '@/types';
 
 const ActivityDataTable = lazy(() => import('@/components/activity/ActivityDataTable'));
@@ -33,6 +34,9 @@ interface DashboardProps extends PageProps {
     tasks: PaginatedData<Task>;
     activityTypes: any;
     filters: TaskFilters;
+    selectedTask?: Task | null;
+    selectedTaskModal?: 'detail' | 'edit' | null;
+    modalTask?: Task | null;
     departmentUsers?: any[];
     backdatePermission?: any;
     allowedDateRange?: any;
@@ -49,33 +53,106 @@ const viewConfig: { id: ViewType; icon: React.ReactNode; tooltip: string }[] = [
     { id: 'timeline', icon: <Clock className="h-4 w-4" strokeWidth={1.5} />, tooltip: 'Timeline' },
 ];
 
-export default function Dashboard({ stats, tasks, activityTypes, filters, departmentUsers = [], backdatePermission, allowedDateRange, backdateEnabled, prioritizedActivityTypes }: DashboardProps) {
+export default function Dashboard({
+    stats,
+    tasks,
+    activityTypes,
+    filters,
+    selectedTask: hydratedSelectedTask = null,
+    selectedTaskModal = null,
+    modalTask = null,
+    departmentUsers = [],
+    backdatePermission,
+    allowedDateRange,
+    backdateEnabled,
+    prioritizedActivityTypes,
+}: DashboardProps) {
     const [view, setView] = useState<ViewType>('list');
     const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
     const [isFiltering, setIsFiltering] = useState(false);
     const [showTaskModal, setShowTaskModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [detailTask, setDetailTask] = useState<Task | null>(null);
     const [initialTaskDate, setInitialTaskDate] = useState<string | null>(null);
+    const handledModalQueryRef = useRef<string | null>(null);
 
-    const handleCreateTaskClick = (options?: { date?: string }) => {
+    const syncModalQueryState = useCallback((params: { modal: 'create' | 'detail' | 'edit'; task?: number; date?: string | null }) => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete('task');
+        nextUrl.searchParams.delete('modal');
+        nextUrl.searchParams.delete('date');
+
+        nextUrl.searchParams.set('modal', params.modal);
+
+        if (params.task) {
+            nextUrl.searchParams.set('task', String(params.task));
+        }
+
+        if (params.date) {
+            nextUrl.searchParams.set('date', params.date);
+        }
+
+        const nextSearch = nextUrl.searchParams.toString();
+        window.history.replaceState({}, '', `${nextUrl.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+    }, []);
+
+    const clearModalQueryState = useCallback(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete('task');
+        nextUrl.searchParams.delete('modal');
+        nextUrl.searchParams.delete('date');
+
+        const nextSearch = nextUrl.searchParams.toString();
+        window.history.replaceState({}, '', `${nextUrl.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+        handledModalQueryRef.current = null;
+    }, []);
+
+    const handleCreateTaskClick = useCallback((options?: { date?: string }, config?: { syncUrl?: boolean }) => {
+        setShowDetailModal(false);
+        setDetailTask(null);
         setEditingTask(null);
         setInitialTaskDate(options?.date ?? null);
 
+        if (config?.syncUrl !== false) {
+            syncModalQueryState({
+                modal: 'create',
+                date: options?.date ?? null,
+            });
+        }
+
         router.reload({
             only: ['departmentUsers', 'backdatePermission', 'allowedDateRange', 'backdateEnabled', 'prioritizedActivityTypes'],
             onSuccess: () => setShowTaskModal(true),
         });
-    };
+    }, [syncModalQueryState]);
 
-    const handleEditTaskClick = useCallback((task: Task) => {
+    const handleEditTaskClick = useCallback((task: Task, config?: { syncUrl?: boolean }) => {
+        setShowDetailModal(false);
+        setDetailTask(null);
         setEditingTask(task);
         setInitialTaskDate(null);
 
+        if (config?.syncUrl !== false) {
+            syncModalQueryState({
+                modal: 'edit',
+                task: task.id,
+            });
+        }
+
         router.reload({
             only: ['departmentUsers', 'backdatePermission', 'allowedDateRange', 'backdateEnabled', 'prioritizedActivityTypes'],
             onSuccess: () => setShowTaskModal(true),
         });
-    }, []);
+    }, [syncModalQueryState]);
 
     const { currentBusinessUnit, isSwitching: isBuLoading } = useBusinessUnit([
         'stats', 'tasks', 'filters'
@@ -141,12 +218,98 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
         );
     }, [localFilters]);
 
-    const handleTaskClick = useCallback((task: Task) => {
-        router.visit(route('activity.task.show', { task: task.id }));
-    }, []);
+    const openTaskDetail = useCallback((task: Task, config?: { syncUrl?: boolean }) => {
+        setEditingTask(null);
+        setInitialTaskDate(null);
+        setDetailTask(task);
+        setShowTaskModal(false);
+        setShowDetailModal(true);
+
+        if (config?.syncUrl !== false) {
+            syncModalQueryState({
+                modal: 'detail',
+                task: task.id,
+            });
+        }
+    }, [syncModalQueryState]);
+
+    const closeDetailModal = useCallback(() => {
+        setShowDetailModal(false);
+        setDetailTask(null);
+        clearModalQueryState();
+    }, [clearModalQueryState]);
+
+    const closeTaskModal = useCallback(() => {
+        setShowTaskModal(false);
+        setEditingTask(null);
+        setInitialTaskDate(null);
+        clearModalQueryState();
+    }, [clearModalQueryState]);
+
+    const taskData = tasks?.data ?? [];
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const rawModalType = searchParams.get('modal');
+        const modalType =
+            rawModalType === null
+                ? selectedTaskModal
+                : ['create', 'detail', 'edit'].includes(rawModalType)
+                    ? rawModalType as 'create' | 'detail' | 'edit'
+                    : null;
+        const hydratedTask = hydratedSelectedTask ?? modalTask;
+        const taskId = searchParams.get('task') ?? (hydratedTask ? String(hydratedTask.id) : null);
+        const taskDate = searchParams.get('date');
+
+        if (modalType === 'create') {
+            const querySignature = `create:${taskDate ?? ''}`;
+            if (handledModalQueryRef.current === querySignature) {
+                return;
+            }
+
+            handledModalQueryRef.current = querySignature;
+            handleCreateTaskClick(taskDate ? { date: taskDate } : undefined);
+
+            return;
+        }
+
+        if (!taskId) {
+            handledModalQueryRef.current = null;
+            return;
+        }
+
+        if (!taskId || !modalType) {
+            handledModalQueryRef.current = null;
+            return;
+        }
+
+        const querySignature = `${taskId}:${modalType}`;
+        if (handledModalQueryRef.current === querySignature) {
+            return;
+        }
+
+        const modalTaskId = String(hydratedTask?.id ?? '');
+        const matchedTask =
+            (hydratedTask && modalTaskId === taskId ? hydratedTask : null) ??
+            taskData.find((task) => String(task.id) === taskId) ??
+            tasks.data.find((task) => String(task.id) === taskId) ??
+            null;
+
+        if (!matchedTask) {
+            return;
+        }
+
+        handledModalQueryRef.current = querySignature;
+
+        if (modalType === 'edit') {
+            handleEditTaskClick(matchedTask, { syncUrl: false });
+            return;
+        }
+
+        openTaskDetail(matchedTask, { syncUrl: false });
+    }, [handleCreateTaskClick, handleEditTaskClick, hydratedSelectedTask, modalTask, selectedTaskModal, taskData, tasks.data]);
 
     const isLoading = isBuLoading || isFiltering;
-    const taskData = tasks?.data ?? [];
     const safeStats = stats ?? { total: 0, planned: 0, in_progress: 0, completed: 0, overdue: 0 };
 
     // Calculate completion rate
@@ -277,12 +440,12 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
                                 )}
                                 {view === 'calendar' && (
                                     <motion.div key="calendar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
-                                        <ActivityCalendar tasks={taskData} onEventClick={handleTaskClick} onCreateTask={handleCreateTaskClick} onEditTask={handleEditTaskClick} />
+                                        <ActivityCalendar tasks={taskData} onEventClick={openTaskDetail} onCreateTask={handleCreateTaskClick} onEditTask={handleEditTaskClick} />
                                     </motion.div>
                                 )}
                                 {view === 'timeline' && (
                                     <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
-                                        <ActivityTimeline tasks={taskData} onTaskClick={handleTaskClick} onCreateTask={() => handleCreateTaskClick()} onEditTask={handleEditTaskClick} />
+                                        <ActivityTimeline tasks={taskData} onTaskClick={openTaskDetail} onCreateTask={() => handleCreateTaskClick()} onEditTask={handleEditTaskClick} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -292,13 +455,16 @@ export default function Dashboard({ stats, tasks, activityTypes, filters, depart
             </div>
 
             {/* Create/Edit Task Modal */}
+            <TaskDetailModal
+                open={showDetailModal}
+                onClose={closeDetailModal}
+                task={detailTask}
+                onEdit={handleEditTaskClick}
+            />
+
             <TaskFormModal 
                 open={showTaskModal} 
-                onClose={() => {
-                    setShowTaskModal(false);
-                    setEditingTask(null);
-                    setInitialTaskDate(null);
-                }}
+                onClose={closeTaskModal}
                 task={editingTask}
                 activityTypes={prioritizedActivityTypes || activityTypes}
                 departmentUsers={departmentUsers}

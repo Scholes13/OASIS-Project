@@ -50,6 +50,21 @@ function makeTask(status: TaskStatus = 'in_progress'): Task {
 describe('TaskDetailModal', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        global.route = vi.fn((name: string, params?: Record<string, string | number>) => {
+            const base = `/${name}`
+
+            if (!params || Object.keys(params).length === 0) {
+                return base
+            }
+
+            return `${base}?${new URLSearchParams(
+                Object.entries(params).reduce<Record<string, string>>((carry, [key, value]) => {
+                    carry[key] = String(value)
+
+                    return carry
+                }, {})
+            ).toString()}`
+        })
     })
 
     it('renders refreshed modal details and due date format', () => {
@@ -66,9 +81,9 @@ describe('TaskDetailModal', () => {
         expect(screen.getByText('Review Q3 Financial Report Analysis')).toBeInTheDocument()
         expect(screen.getByText(/Februari 2026/)).toBeInTheDocument()
         expect(screen.getByText('Business & Administrative Services')).toBeInTheDocument()
-        expect(screen.getAllByText('Pramuji Arif Yulianto')).toHaveLength(2)
+        expect(screen.getByText('Pramuji Arif Yulianto')).toBeInTheDocument()
         expect(screen.getByRole('button', { name: /done/i })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /view full details/i })).toBeInTheDocument()
+        expect(screen.getAllByRole('button', { name: /open in dashboard/i })[0]).toBeInTheDocument()
     })
 
     it('runs start action for planned task', () => {
@@ -88,7 +103,7 @@ describe('TaskDetailModal', () => {
         )
     })
 
-    it('runs complete action and detail navigation', () => {
+    it('runs complete action and modal-first navigation', () => {
         const onClose = vi.fn()
 
         render(
@@ -106,8 +121,15 @@ describe('TaskDetailModal', () => {
             expect.objectContaining({ preserveScroll: true })
         )
 
-        fireEvent.click(screen.getByRole('button', { name: /view full details/i }))
-        expect(vi.mocked(router.visit)).toHaveBeenCalledWith(expect.stringContaining('/activity.task.show'))
+        fireEvent.click(screen.getAllByRole('button', { name: /open in dashboard/i })[0])
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith(
+            expect.stringContaining('/activity.task.index?task=99&modal=detail'),
+        )
         expect(onClose).toHaveBeenCalledTimes(1)
+
+        fireEvent.click(screen.getByRole('button', { name: /edit task/i }))
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith(
+            expect.stringContaining('/activity.task.index?task=99&modal=edit'),
+        )
     })
 })

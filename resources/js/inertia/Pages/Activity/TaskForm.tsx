@@ -285,7 +285,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
 
     const handleViewTask = () => {
         if (createdTaskId) {
-            router.visit(route('activity.task.show', { task: createdTaskId }));
+            router.visit(route('activity.task.index', { task: createdTaskId, modal: 'detail' }));
         }
     };
 
@@ -320,7 +320,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
         }
     };
 
-    const backRoute = isEditing ? route('activity.task.show', { task: task!.id }) : route('activity.task.index');
+    const backRoute = isEditing ? route('activity.task.index', { task: task!.id, modal: 'detail' }) : route('activity.task.index');
 
     return (
         <div className="w-full pb-12">

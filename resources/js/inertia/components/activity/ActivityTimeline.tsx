@@ -370,7 +370,7 @@ export function ActivityTimeline({
                     onCreateTask()
                     return
                   }
-                  router.visit(route("activity.task.create"))
+                  router.visit(route("activity.task.index", { modal: "create" }))
                 }}
               >
                 Create Activity

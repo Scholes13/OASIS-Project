@@ -24,6 +24,28 @@
 
 ## Active Tasks
 
+### 2026-03-31 - Activity dashboard and export report detail uplift
+- Status: planned
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - enrich the activity dashboard report insight while preserving `Team Total Hours` as a workload and overwork signal,
+  - upgrade activity export workbook with `Description`, generated `Summary`, category plus subcategory breakdown, counts, percentages, and a pivot-friendly raw sheet,
+  - keep dashboard and workbook summary metrics aligned so users do not see conflicting report stories.
+- Risks:
+  - report improvements must not remove the existing time-management journey centered on total tracked hours,
+  - workbook formatting can become presentation-heavy and hurt pivotability if the raw sheet is not kept flat,
+  - dashboard and export metrics may drift if summary aggregation is duplicated across surfaces.
+- Verification:
+  - focused PHPUnit coverage for workbook detail, summary, and category/subcategory breakdown behavior,
+  - focused Vitest coverage if dashboard report rendering contracts change,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user feedback asks for more detailed report output on `http://localhost:8000/activity/dashboard`,
+  - approved design direction is Hybrid A: preserve hours/time-management cards, deepen report detail mainly in the focus/insight area, and align that view with a richer export workbook,
+  - export requirements include category + subcategory, counts + percentages, `Description`, more detailed `Summary`, and data that remains easy to pivot for further processing.
+
 ### 2026-03-31 - Purchase request supporting document access for creator and approvers
 - Status: completed
 - Owner: PM Agent

@@ -24,8 +24,30 @@
 
 ## Active Tasks
 
+### 2026-03-31 - Docs help changelog v3.0.2 article update
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - add a new `docs-help` changelog article for `v3.0.2`,
+  - summarize user-facing updates shipped on 2026-03-30 and 2026-03-31 in help-center language instead of raw commit language,
+  - preserve the existing bilingual EN/ID article pattern and deep-link behavior used by other changelog pages.
+- Risks:
+  - changelog copy can drift from the actual shipped behavior if recent commits are summarized too loosely,
+  - bilingual markup must follow the existing `lang-id` and `lang-en` span pattern or the article language toggle will show mixed content,
+  - article ordering should keep the newest changelog discoverable without breaking existing docs-help hashes.
+- Verification:
+  - reviewer validation against `docs/coding_standards.json`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user requested a new article matching `http://localhost:8000/docs-help#article/changelog-v3-0-1` but for version `3.0.2`,
+  - source material is the user-facing commits shipped on 2026-03-30 and 2026-03-31,
+  - docs-help now includes `#article/changelog-v3-0-2` with bilingual EN/ID content grouped into workflow, access, navigation, and reporting updates,
+  - focused verification passed with `npm exec tsc --noEmit --pretty false`,
+  - reviewer validation found no standards issues, and self-review found no docs-help rendering or hash-routing regressions in the touched data entry.
+
 ### 2026-03-31 - Activity dashboard and export report detail uplift
-- Status: planned
+- Status: implemented
 - Owner: PM Agent
 - Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
 - Scope:
@@ -38,6 +60,15 @@
   - dashboard and export metrics may drift if summary aggregation is duplicated across surfaces.
 - Verification:
   - focused PHPUnit coverage for workbook detail, summary, and category/subcategory breakdown behavior,
+  - focused Vitest coverage for Hybrid A focus rendering and export CTA behavior,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`,
+  - `npm run build`.
+- Outcome notes:
+  - dashboard now keeps the hours-first KPI scan while the right panel shows top category, top subcategory, count, percent, visual distribution, and a reusable focus breakdown list,
+  - export now ships `Detail`, `Ringkasan`, `Breakdown Kategori`, and `Data Mentah` sheets with description, generated activity summary, category plus subcategory metrics, and a flat raw sheet for pivot workflows,
+  - backend aggregation for dashboard and export is shared through `ActivityReportAggregationService` so the two surfaces do not drift,
+  - TS casing drift on the shared button component was normalized by renaming `Button.tsx` to `button.tsx` so full-project type checking can pass in this workspace.
   - focused Vitest coverage if dashboard report rendering contracts change,
   - `vendor/bin/pint --dirty`,
   - `npm exec tsc --noEmit --pretty false`.
@@ -430,3 +461,4 @@ Use this shape for future updates:
 - Risks:
 - Verification:
 - Notes:
+

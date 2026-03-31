@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
+use App\Services\Modules\Activity\ActivityReportAggregationService;
 use App\Services\Modules\Activity\ActivityTypePrioritizationService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use App\Services\Modules\Activity\TaskService;
@@ -25,7 +26,8 @@ class ActivityInertiaController extends Controller
     public function __construct(
         protected TaskService $taskService,
         protected BackdatePermissionService $backdateService,
-        protected ActivityTypePrioritizationService $prioritizationService
+        protected ActivityTypePrioritizationService $prioritizationService,
+        protected ActivityReportAggregationService $reportAggregationService
     ) {}
 
     /**
@@ -1257,23 +1259,25 @@ class ActivityInertiaController extends Controller
             // Apply period filter
             $distributionQuery = $this->applyPeriodFilter($distributionQuery, $distributionPeriod);
 
-            $distribution = $distributionQuery
-                ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
-                ->select('employee_activity_types.name', 'employee_activity_types.color', DB::raw('count(*) as value'))
-                ->groupBy('employee_activity_types.id', 'employee_activity_types.name', 'employee_activity_types.color')
-                ->get()
-                ->toArray();
+            $distributionTasks = $distributionQuery
+                ->with(['activityType', 'subActivity'])
+                ->get();
+
+            $distribution = $this->reportAggregationService->buildDistribution($distributionTasks);
+            $focusBreakdown = $this->reportAggregationService->buildFocusBreakdown($distributionTasks);
 
             return [
                 'roadmap' => $roadmap,
                 'upcoming' => $upcoming,
                 'distribution' => $distribution,
+                'focus_breakdown' => $focusBreakdown,
             ];
         } catch (\Exception $e) {
             return [
                 'roadmap' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 6),
                 'upcoming' => [],
                 'distribution' => [],
+                'focus_breakdown' => $this->reportAggregationService->buildFocusBreakdown(collect()),
             ];
         }
     }
@@ -1355,12 +1359,12 @@ class ActivityInertiaController extends Controller
             // Apply period filter
             $distributionQuery = $this->applyPeriodFilter($distributionQuery, $distributionPeriod);
 
-            $distribution = $distributionQuery
-                ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
-                ->select('employee_activity_types.name', 'employee_activity_types.color', DB::raw('count(*) as value'))
-                ->groupBy('employee_activity_types.id', 'employee_activity_types.name', 'employee_activity_types.color')
-                ->get()
-                ->toArray();
+            $distributionTasks = $distributionQuery
+                ->with(['activityType', 'subActivity'])
+                ->get();
+
+            $distribution = $this->reportAggregationService->buildDistribution($distributionTasks);
+            $focusBreakdown = $this->reportAggregationService->buildFocusBreakdown($distributionTasks);
 
             // Bottleneck (Overdue Tasks)
             $bottleneck = EmployeeTask::query()
@@ -1384,6 +1388,7 @@ class ActivityInertiaController extends Controller
                 'roadmap' => $roadmap,
                 'upcoming' => $upcoming,
                 'distribution' => $distribution,
+                'focus_breakdown' => $focusBreakdown,
                 'bottleneck' => $bottleneck,
                 'top_category' => $topCategory ? $topCategory->name : '-',
             ];
@@ -1392,6 +1397,7 @@ class ActivityInertiaController extends Controller
                 'roadmap' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
                 'upcoming' => [],
                 'distribution' => [],
+                'focus_breakdown' => $this->reportAggregationService->buildFocusBreakdown(collect()),
                 'bottleneck' => 0,
                 'top_category' => '-',
             ];
@@ -1768,21 +1774,27 @@ class ActivityInertiaController extends Controller
         $buId = session('current_business_unit_id');
         $scope = $request->get('scope', 'my'); // 'my' or 'department'
 
-        $exportService = app(\App\Services\Modules\Activity\ActivityExportService::class);
+        try {
+            $exportService = app(\App\Services\Modules\Activity\ActivityExportService::class);
 
-        // If scope is 'my', filter by current user; if 'department', get all department tasks
-        $userId = $scope === 'my' ? $user->id : null;
-        $departmentId = $user->getCurrentDepartmentId();
+            // If scope is 'my', filter by current user; if 'department', get all department tasks
+            $userId = $scope === 'my' ? $user->id : null;
+            $departmentId = $user->getCurrentDepartmentId();
 
-        return $exportService->exportToXlsx(
-            businessUnitId: $buId,
-            departmentId: $departmentId,
-            userId: $userId,
-            dateFrom: $request->get('date_from'),
-            dateTo: $request->get('date_to'),
-            status: $request->get('status'),
-            activityTypeId: $request->get('activity_type_id')
-        );
+            return $exportService->exportToXlsx(
+                businessUnitId: $buId,
+                departmentId: $departmentId,
+                userId: $userId,
+                dateFrom: $request->get('date_from'),
+                dateTo: $request->get('date_to'),
+                status: $request->get('status'),
+                activityTypeId: $request->get('activity_type_id')
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return response('Failed to export activity report.', 500);
+        }
     }
 
     /**

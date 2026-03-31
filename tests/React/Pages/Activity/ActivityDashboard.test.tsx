@@ -78,4 +78,90 @@ describe('ActivityDashboard export', () => {
 
         openSpy.mockRestore();
     });
+
+    it('shows more in-progress work items on the first page to reduce empty space', () => {
+        const inProgressTasks = Array.from({ length: 9 }, (_, index) => ({
+            id: index + 1,
+            task_title: `Task ${index + 1}`,
+            status: 'in_progress',
+            started_at: '2026-03-31T08:00:00Z',
+            participants: [
+                {
+                    id: index + 1,
+                    name: `Member ${index + 1}`,
+                    primary_position: { name: 'Staff' },
+                },
+            ],
+        }));
+
+        render(
+            <ActivityDashboard
+                personalStats={{
+                    total: 0,
+                    completed: 0,
+                    in_progress: 0,
+                    overdue: 0,
+                    planned: 0,
+                    completed_this_month: 0,
+                }}
+                personalVisuals={{
+                    roadmap: {
+                        data: [],
+                        current_page: 1,
+                        last_page: 1,
+                        per_page: 10,
+                        total: 0,
+                        links: [],
+                        prev_page_url: null,
+                        next_page_url: null,
+                    },
+                    upcoming: [],
+                    distribution: [],
+                    focus_breakdown: {
+                        total_activities: 0,
+                        top_category: { name: 'Tanpa Kategori', count: 0, percentage_of_report: 0 },
+                        top_subcategory: { name: 'Tanpa Sub Kategori', count: 0, percentage_of_report: 0 },
+                        items: [],
+                    },
+                }}
+                departmentStats={{
+                    total: 9,
+                    completed: 0,
+                    in_progress: 9,
+                    overdue: 0,
+                    planned: 0,
+                    completed_this_month: 0,
+                }}
+                departmentVisuals={{
+                    roadmap: {
+                        data: inProgressTasks,
+                        current_page: 1,
+                        last_page: 1,
+                        per_page: 20,
+                        total: 9,
+                        links: [],
+                        prev_page_url: null,
+                        next_page_url: null,
+                    },
+                    upcoming: [],
+                    distribution: [],
+                    focus_breakdown: {
+                        total_activities: 0,
+                        top_category: { name: 'Tanpa Kategori', count: 0, percentage_of_report: 0 },
+                        top_subcategory: { name: 'Tanpa Sub Kategori', count: 0, percentage_of_report: 0 },
+                        items: [],
+                    },
+                    bottleneck: 0,
+                    top_category: '-',
+                }}
+                canViewReports={false}
+                executiveStats={null}
+                queryParams={{}}
+            />
+        );
+
+        expect(screen.getByText('Working on: Task 8')).toBeInTheDocument();
+        expect(screen.getByText('Working on: Task 9')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '2' })).not.toBeInTheDocument();
+    });
 });

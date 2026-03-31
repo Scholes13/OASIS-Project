@@ -14,6 +14,7 @@ import {
     Download,
     Filter,
 } from 'lucide-react';
+import { FocusBreakdownPanel } from '@/components/activity/dashboard';
 import { cn } from '@/lib/utils';
 import { openDownloadInSameTab } from '@/lib/download';
 import type { PageProps } from '@/types';
@@ -64,16 +65,41 @@ interface PaginatedData<T> {
     next_page_url: string | null;
 }
 
+interface FocusBreakdownItem {
+    category: string;
+    subcategory: string;
+    count: number;
+    percentage_of_report: number;
+    color?: string;
+}
+
+interface FocusBreakdown {
+    total_activities: number;
+    top_category: {
+        name: string;
+        count: number;
+        percentage_of_report: number;
+    };
+    top_subcategory: {
+        name: string;
+        count: number;
+        percentage_of_report: number;
+    };
+    items: FocusBreakdownItem[];
+}
+
 interface PersonalVisuals {
     roadmap: PaginatedData<TaskBasic>;
     upcoming: TaskBasic[];
     distribution: { name: string; color: string; value: number }[];
+    focus_breakdown: FocusBreakdown;
 }
 
 interface DepartmentVisuals {
     roadmap: PaginatedData<TaskBasic>;
     upcoming: TaskBasic[];
     distribution: { name: string; color: string; value: number }[];
+    focus_breakdown: FocusBreakdown;
     bottleneck: number;
     top_category: string;
 }
@@ -122,7 +148,6 @@ interface DashboardProps extends PageProps {
 }
 
 const smoothTransition = { duration: 0.35, ease: "easeInOut" as const };
-const FOCUS_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981'];
 
 export default function ActivityDashboard({
     personalStats,
@@ -189,6 +214,7 @@ export default function ActivityDashboard({
     const totalHours = Math.floor(totalDurationMinutes / 60);
     const totalMinutes = totalDurationMinutes % 60;
     const activeProjects = activeVisuals?.distribution?.length || 0;
+    const activeFocusBreakdown = activeVisuals?.focus_breakdown;
 
     const statusVerbMap: Record<string, string> = {
         in_progress: 'Working on',
@@ -237,7 +263,7 @@ export default function ActivityDashboard({
         return rows;
     }, [inProgressTasks]);
 
-    const TASKS_PER_PAGE = 5;
+    const TASKS_PER_PAGE = 10;
     const [taskPage, setTaskPage] = useState(0);
     const totalTaskPages = Math.ceil(taskActivityRows.length / TASKS_PER_PAGE);
     const pagedTasks = taskActivityRows.slice(
@@ -245,27 +271,18 @@ export default function ActivityDashboard({
         (taskPage + 1) * TASKS_PER_PAGE
     );
 
-    const totalDistribution = (activeVisuals?.distribution || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
-    const focusItems = [...(activeVisuals?.distribution || [])]
-        .sort((a, b) => Number(b.value || 0) - Number(a.value || 0))
-        .slice(0, 4)
-        .map((item, index) => ({
-            ...item,
-            color: item.color || FOCUS_COLORS[index % FOCUS_COLORS.length],
-            percentage: totalDistribution > 0 ? Math.round((Number(item.value || 0) / totalDistribution) * 100) : 0,
-        }));
-
-    const leadFocus = focusItems[0];
-
-    const generateInsight = (focus: typeof leadFocus, viewMode: 'personal' | 'department' | 'executive') => {
-        if (!focus || focus.percentage === 0) {
+    const generateInsight = (
+        focus: FocusBreakdown['top_category'] | undefined,
+        currentViewMode: 'personal' | 'department' | 'executive'
+    ) => {
+        if (!focus || Number(focus.percentage_of_report || 0) === 0) {
             return 'No insight available yet. Complete more tasks to build recommendations.';
         }
 
         const name = focus.name;
-        const p = focus.percentage;
+        const p = Number(focus.percentage_of_report || 0);
 
-        if (viewMode === 'department') {
+        if (currentViewMode === 'department') {
             if (p > 60) return `Warning: Department workload is heavily concentrated on ${name} (${p}%). High risk of bottleneck, consider reassigning tasks to balance capacity.`;
             if (p > 40) return `${name} is currently dominating the department's focus (${p}%). Ensure other strategic priorities are not being neglected.`;
             if (p > 25) return `Department focus is relatively balanced, with ${name} leading slightly at ${p}%. This indicates healthy task distribution.`;
@@ -277,6 +294,9 @@ export default function ActivityDashboard({
             return `You are juggling multiple priorities. ${name} is your top focus but only takes ${p}%, indicating highly fragmented attention.`;
         }
     };
+
+    const focusInsight = generateInsight(activeFocusBreakdown?.top_category, viewMode);
+    const isFocusLoading = viewMode === 'personal' ? isDistributionLoading : isDeptDistributionLoading;
 
     // Handlers for period changes
     const handleDistributionPeriodChange = (period: PeriodFilter) => {
@@ -819,58 +839,13 @@ export default function ActivityDashboard({
                                     </div>
                                 </div>
 
-                                {/* Department Focus - Takes up 1 column */}
-                                <div className="flex flex-col gap-6">
-                                    <div className="rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm">
-                                        <div className="mb-6 flex items-center justify-between">
-                                            <h3 className="text-base font-semibold text-slate-900">
-                                            {viewMode === 'department' ? 'Department Focus' : 'Personal Focus'}
-                                        </h3>
-                                            <span className="text-xs font-medium text-slate-500">Workload allocation</span>
-                                        </div>
-
-                                        <div className={cn('space-y-6', isDistributionLoading && 'opacity-50 transition-opacity')}>
-                                            {focusItems.length > 0 ? focusItems.map((item, index) => (
-                                                <div key={`${item.name}-${index}`}>
-                                                    <div className="mb-2.5 flex items-center justify-between">
-                                                        <span className="text-sm font-medium text-slate-700">{item.name}</span>
-                                                        <span className="text-sm font-semibold text-slate-900">{item.percentage}%</span>
-                                                    </div>
-                                                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${item.percentage}%` }}
-                                                            transition={{ duration: 0.8, ease: "easeOut" }}
-                                                            className="h-full rounded-full"
-                                                            style={{
-                                                                backgroundColor: item.color || FOCUS_COLORS[index % FOCUS_COLORS.length],
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )) : (
-                                                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center">
-                                                    <p className="text-sm text-slate-500">No distribution data available</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Productivity Insight */}
-                                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-5">
-                                        <div className="flex items-start gap-3">
-                                            <div className="mt-0.5 text-blue-600 bg-blue-100 p-1.5 rounded-md">
-                                                <TrendingUp className="h-4 w-4" strokeWidth={2.5} />
-                                            </div>
-                                            <div>
-                                                <h4 className="text-sm font-semibold text-blue-900">Productivity Insight</h4>
-                                                <p className="mt-1.5 text-sm leading-relaxed text-blue-700">
-                                                    {generateInsight(leadFocus, viewMode)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <FocusBreakdownPanel
+                                    title={viewMode === 'department' ? 'Department Focus' : 'My Focus'}
+                                    distribution={activeVisuals?.distribution || []}
+                                    focusBreakdown={activeFocusBreakdown}
+                                    insight={focusInsight}
+                                    isLoading={isFocusLoading}
+                                />
                             </div>
                             </>
                         )}
@@ -881,3 +856,4 @@ export default function ActivityDashboard({
         </>
     );
 }
+

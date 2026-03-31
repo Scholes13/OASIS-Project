@@ -24,6 +24,48 @@
 
 ## Active Tasks
 
+### 2026-03-31 - Department switch API route restoration
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@reviewer`
+- Scope:
+  - investigate the 404 shown when switching departments for multi-department users,
+  - restore the missing backend route wiring for the existing department switch controller,
+  - add focused Laravel regression coverage for the Inertia department switch flow.
+- Risks:
+  - route middleware must match the existing same-origin Inertia pattern so authenticated session switching keeps working,
+  - the fix must not open department switching outside the current business unit assignment rules already enforced by the controller.
+- Verification:
+  - focused PHPUnit coverage for department switching,
+  - `vendor/bin/pint --dirty`.
+- Notes:
+  - user reproduced the bug on `adiel@werkudara.com` when switching from `Product Development` to `Tour & Event Planning`,
+  - root cause investigation found the frontend posts to `/api/department/switch`, but no Laravel route is registered for that endpoint even though `App\\Http\\Controllers\\Api\\DepartmentController` already exists,
+  - backend wiring now registers the missing same-origin session route as `api.department.switch`,
+  - focused PHPUnit coverage, `vendor/bin/pint --dirty`, and route-list verification all passed,
+  - reviewer found no standards issues; remaining risk is limited to untested negative route cases already enforced by the controller guards.
+
+### 2026-03-31 - Navbar department switcher wiring for multi-department users
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why users with multiple department assignments do not see the department switcher in the shared navbar,
+  - restore the navbar wiring so multi-department users can switch context from the global header,
+  - add focused React regression coverage for the shared layout.
+- Risks:
+  - navbar layout spacing must stay stable on desktop and mobile after adding another shared header control,
+  - the fix should not surface a department switcher for single-department users because rendering still depends on shared Inertia props.
+- Verification:
+  - focused Vitest coverage for navbar shared controls,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user report confirmed the bug on `adiel@werkudara.com`, which has two active department assignments in `WNS`,
+  - root cause investigation found the `DepartmentSwitcher` component exists but is not mounted in the shared navbar,
+  - shared navbar wiring now mounts the existing department switcher next to the business unit switcher,
+  - focused Vitest coverage and `npm exec tsc --noEmit --pretty false` both passed,
+  - reviewer found no standards or architecture issues; remaining risk is limited to shared Inertia department props, which this navbar regression test does not exercise directly.
+
 ### 2026-03-31 - Cashflow Projection entries action dropdown and delete flow
 - Status: completed
 - Owner: PM Agent

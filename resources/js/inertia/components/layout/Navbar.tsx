@@ -1,6 +1,7 @@
 import { Menu } from 'lucide-react';
 import { format } from 'date-fns';
 import BusinessUnitSwitcher from './BusinessUnitSwitcher';
+import DepartmentSwitcher from './DepartmentSwitcher';
 import UserMenu from './UserMenu';
 
 interface NavbarProps {
@@ -36,6 +37,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                         {today}
                     </span>
                     <BusinessUnitSwitcher />
+                    <DepartmentSwitcher />
                     <UserMenu />
                 </div>
             </div>

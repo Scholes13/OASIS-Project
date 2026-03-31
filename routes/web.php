@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Api\DepartmentController as ApiDepartmentController;
 use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
@@ -22,6 +23,9 @@ Route::prefix('api')->middleware(['auth'])->group(function () {
     Route::post('/business-unit/switch', [\App\Http\Controllers\Api\BusinessUnitController::class, 'switch'])
         ->name('api.business-unit.switch');
 
+    // Department Switch API for users with multiple departments in the active BU
+    Route::post('/department/switch', [ApiDepartmentController::class, 'switch'])
+        ->name('api.department.switch');
     // Error Logging API (Requirement 15.5: Log frontend errors to server)
     Route::post('/error-logs', [\App\Http\Controllers\ErrorLogController::class, 'store'])
         ->name('api.error-logs.store');

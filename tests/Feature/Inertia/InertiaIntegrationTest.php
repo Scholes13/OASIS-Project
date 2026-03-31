@@ -298,6 +298,50 @@ class InertiaIntegrationTest extends TestCase
     }
 
     #[Test]
+    public function test_department_switching_updates_session_within_current_business_unit()
+    {
+        $this->actingAs($this->user);
+
+        $switchDepartment = Department::create([
+            'name' => 'Tour & Event Planning',
+            'code' => 'TEP',
+            'business_unit_id' => $this->businessUnit->id,
+            'is_active' => true,
+        ]);
+
+        $switchPosition = Position::where('department_id', $switchDepartment->id)
+            ->where('code', 'STAFF_'.strtoupper($switchDepartment->code))
+            ->firstOrFail();
+
+        $this->user->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $switchDepartment->id,
+            'position_id' => $switchPosition->id,
+            'is_active' => true,
+        ]);
+
+        session([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_business_unit_code' => $this->businessUnit->code,
+            'current_business_unit_name' => $this->businessUnit->name,
+            'current_department_id' => $this->department->id,
+            'current_department_name' => $this->department->name,
+            'current_department_code' => $this->department->code,
+        ]);
+
+        $response = $this->post(route('api.department.switch'), [
+            'department_id' => $switchDepartment->id,
+        ]);
+
+        $response->assertRedirect();
+
+        $this->assertEquals($switchDepartment->id, session('current_department_id'));
+        $this->assertEquals($switchDepartment->name, session('current_department_name'));
+        $this->assertEquals($switchDepartment->code, session('current_department_code'));
+        $this->assertEquals($this->businessUnit->id, session('current_business_unit_id'));
+    }
+
+    #[Test]
     public function test_business_unit_switch_reloads_page_with_new_context()
     {
         $this->actingAs($this->user);

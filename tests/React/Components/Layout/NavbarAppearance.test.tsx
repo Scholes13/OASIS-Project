@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Navbar from '../../../../resources/js/inertia/components/layout/Navbar';
 
 vi.mock('../../../../resources/js/inertia/components/layout/BusinessUnitSwitcher', () => ({
@@ -22,5 +22,12 @@ describe('Navbar appearance', () => {
 
         expect(header).toBeInTheDocument();
         expect(header).toHaveClass('bg-white');
+    });
+
+    it('renders the business unit and department switchers in the top navbar', () => {
+        render(<Navbar onMenuClick={vi.fn()} sidebarMinimized={false} />);
+
+        expect(screen.getByTestId('business-unit-switcher')).toBeInTheDocument();
+        expect(screen.getByTestId('department-switcher')).toBeInTheDocument();
     });
 });

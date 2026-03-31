@@ -15,9 +15,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Browsershot\Browsershot;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PurchaseRequestController extends Controller
 {
@@ -1165,6 +1167,39 @@ class PurchaseRequestController extends Controller
         return $this->downloadPdfPublic($purchaseRequest);
     }
 
+    /**
+     * Stream the supporting document for a purchase request.
+     */
+    public function supportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    {
+        return $this->serveSupportingDocument($purchaseRequest, false);
+    }
+
+    /**
+     * Download the supporting document for a purchase request.
+     */
+    public function downloadSupportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    {
+        return $this->serveSupportingDocument($purchaseRequest, true);
+    }
+
+    /**
+     * Stream the offline approval document for an approved PR.
+     */
+    public function offlineApprovalDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    {
+        if ($purchaseRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        $documentPath = $purchaseRequest->offline_approval_document_path;
+        if (! $documentPath || ! Storage::disk('public')->exists($documentPath)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('public')->path($documentPath));
+    }
+
     // ============================================
     // Private Helper Methods
     // ============================================
@@ -1233,6 +1268,7 @@ class PurchaseRequestController extends Controller
     {
         $isOwner = $pr->user_id === $user->id;
         $isAdmin = in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
 
         // Check if user can approve this PR
         $currentApproval = $pr->currentApproval();
@@ -1253,7 +1289,55 @@ class PurchaseRequestController extends Controller
             'reject' => $canReject,
             'downloadPdf' => in_array($pr->status, ['submitted', 'in_approval', 'approved']),
             'markOfflineApproved' => in_array($pr->status, ['submitted', 'in_approval']) && $isOwner,
+            'supportingDocument' => $pr->supporting_document_path !== null
+                && $this->canAccessSupportingDocument($pr, $user, $currentBusinessUnitId),
         ];
+    }
+
+    /**
+     * Serve a supporting document using inline or attachment disposition.
+     */
+    private function serveSupportingDocument(PurchaseRequest $purchaseRequest, bool $download): BinaryFileResponse
+    {
+        $user = Auth::user();
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
+
+        if (! $this->canAccessSupportingDocument($purchaseRequest, $user, $currentBusinessUnitId)) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
+
+        $documentPath = $purchaseRequest->supporting_document_path;
+        if (! $documentPath || ! Storage::disk('public')->exists($documentPath)) {
+            abort(404);
+        }
+
+        $documentName = $purchaseRequest->supporting_document_name ?? basename($documentPath);
+        $fullPath = Storage::disk('public')->path($documentPath);
+
+        if ($download) {
+            return response()->download($fullPath, $documentName);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Disposition' => 'inline; filename="'.$documentName.'"',
+        ]);
+    }
+
+    /**
+     * Check whether the authenticated user may access the supporting document.
+     */
+    private function canAccessSupportingDocument(PurchaseRequest $purchaseRequest, \App\Models\Core\User $user, int $currentBusinessUnitId): bool
+    {
+        $isAssignedApprover = $purchaseRequest->approvals()
+            ->where('approver_id', $user->id)
+            ->exists();
+
+        if ($isAssignedApprover) {
+            return true;
+        }
+
+        return $purchaseRequest->business_unit_id === $currentBusinessUnitId
+            && $purchaseRequest->user_id === $user->id;
     }
 
     /**

@@ -234,6 +234,7 @@ export interface PRShowProps {
             reject: boolean;
             downloadPdf: boolean;
             markOfflineApproved: boolean;
+            supportingDocument?: boolean;
         };
     };
     can?: {
@@ -246,6 +247,7 @@ export interface PRShowProps {
         reject: boolean;
         downloadPdf: boolean;
         markOfflineApproved: boolean;
+        supportingDocument?: boolean;
     };
 }
 

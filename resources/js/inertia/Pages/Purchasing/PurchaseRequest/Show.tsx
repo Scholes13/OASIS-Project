@@ -35,6 +35,8 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     const [rejectionNotes, setRejectionNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResendingEmail, setIsResendingEmail] = useState(false);
+    const supportingDocumentRouteName = 'purchase-requests.supporting-document';
+    const supportingDocumentDownloadRouteName = 'purchase-requests.supporting-document.download';
 
     // Status styling configuration
     const statusConfig = {
@@ -59,6 +61,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
         downloadPdf?: boolean;
         markOfflineApproved?: boolean;
         void?: boolean;
+        supportingDocument?: boolean;
     };
 
 
@@ -226,6 +229,29 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
             hour: '2-digit',
             minute: '2-digit',
         });
+    };
+
+    const getSupportingDocumentUrl = (download: boolean = false) => {
+        const ziggy = route as unknown as {
+            (...args: any[]): any;
+        };
+        const routeName = download ? supportingDocumentDownloadRouteName : supportingDocumentRouteName;
+        const fallbackPath = download
+            ? `/purchase-requests/${purchaseRequest.id}/supporting-document/download`
+            : `/purchase-requests/${purchaseRequest.id}/supporting-document`;
+
+        try {
+            const routeList = ziggy();
+            if (routeList?.has?.(routeName)) {
+                return ziggy(routeName, {
+                    purchaseRequest: purchaseRequest.id,
+                });
+            }
+        } catch {
+            // Fall back to the authenticated application path if Ziggy route metadata is unavailable.
+        }
+
+        return fallbackPath;
     };
 
 
@@ -445,7 +471,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
 
 
                             {/* Supporting Document Card */}
-                            {purchaseRequest.supporting_document_path && (
+                            {purchaseRequest.supporting_document_path && permissions?.supportingDocument && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -470,7 +496,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <a
-                                                    href={`/storage/${purchaseRequest.supporting_document_path}`}
+                                                    href={getSupportingDocumentUrl()}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="inline-flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
@@ -480,7 +506,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                                     View
                                                 </a>
                                                 <a
-                                                    href={`/storage/${purchaseRequest.supporting_document_path}`}
+                                                    href={getSupportingDocumentUrl(true)}
                                                     download={purchaseRequest.supporting_document_name}
                                                     className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
                                                     title="Download document"

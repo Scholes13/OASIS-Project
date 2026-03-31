@@ -136,6 +136,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
+        Route::get('/{purchaseRequest}/supporting-document', [PurchaseRequestController::class, 'supportingDocument'])->name('supporting-document');
+        Route::get('/{purchaseRequest}/supporting-document/download', [PurchaseRequestController::class, 'downloadSupportingDocument'])->name('supporting-document.download');
         Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestController::class, 'downloadPdf'])->name('download-pdf');
 
         // List all PRs (for admin/manager view) - Livewire for now

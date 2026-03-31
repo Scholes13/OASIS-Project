@@ -24,6 +24,30 @@
 
 ## Active Tasks
 
+### 2026-03-31 - Purchase request supporting document access for creator and approvers
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why supporting documents uploaded on purchase requests return 403 for the request creator,
+  - replace raw `/storage/...` supporting document links with an authenticated application route,
+  - authorize supporting document access for the PR creator and assigned approvers, and add focused regression coverage.
+- Risks:
+  - document access must not leak to unrelated users in the same business unit even though the PR detail page is broadly visible,
+  - route changes must preserve inline view and download behavior for supported files.
+- Verification:
+  - focused PHPUnit coverage for purchase request supporting document access,
+  - focused frontend coverage if link wiring changes require it,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported `403 Forbidden` while opening a supporting document on PR `PR.WNS/202603/024`,
+  - initial tracing shows the PR show page still links directly to `/storage/{path}` instead of an authenticated controller route.
+  - supporting document access now uses authenticated PR routes for inline view and download instead of raw `/storage/...` links,
+  - backend authorization now allows the PR creator and assigned approvers, including approvers acting from an ancestor business unit session,
+  - PR show props now expose supporting document capability so unrelated same-BU viewers no longer see document actions they cannot open,
+  - focused PHPUnit coverage, focused React coverage, `vendor/bin/pint --dirty`, and `npm exec tsc --noEmit --pretty false` all passed after reviewer feedback was addressed.
+
 ### 2026-03-31 - Department switch API route restoration
 - Status: completed
 - Owner: PM Agent

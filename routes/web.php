@@ -325,6 +325,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::patch('/line-items/{lineItem}', [CashflowProjectionController::class, 'updateLineItem'])->name('line-items.update');
         Route::post('/finance-inputs', [CashflowProjectionController::class, 'upsertFinanceInput'])->name('finance-inputs.upsert');
         Route::post('/linked-units', [CashflowProjectionController::class, 'storeLinkedUnit'])->name('linked-units.store');
+        Route::delete('/line-items/{lineItem}', [CashflowProjectionController::class, 'destroyLineItem'])->name('line-items.destroy');
         Route::delete('/linked-units/{linkedUnit}', [CashflowProjectionController::class, 'destroyLinkedUnit'])->name('linked-units.destroy');
     });
 

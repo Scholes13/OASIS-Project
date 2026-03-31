@@ -25,7 +25,11 @@ class CashflowProjectionAuditTrailTest extends TestCase
 
     private Position $financePosition;
 
+    private Position $hrHeadPosition;
+
     private User $financeUser;
+
+    private User $hrHeadUser;
 
     protected function setUp(): void
     {
@@ -58,6 +62,14 @@ class CashflowProjectionAuditTrailTest extends TestCase
             ->where('code', 'STAFF_'.strtoupper($this->financeDepartment->code))
             ->firstOrFail();
 
+        $this->hrHeadPosition = Position::query()
+            ->where('department_id', $this->hrDepartment->id)
+            ->where(function ($query) {
+                $query->where('level', 'hod')
+                    ->orWhere('access_level', 'department_head');
+            })
+            ->firstOrFail();
+
         $this->financeUser = User::create([
             'name' => 'Finance User',
             'email' => 'finance.audit@example.com',
@@ -74,6 +86,26 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'business_unit_id' => $this->businessUnit->id,
             'department_id' => $this->financeDepartment->id,
             'position_id' => $this->financePosition->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $this->hrHeadUser = User::create([
+            'name' => 'HR Head',
+            'email' => 'hr.head.audit@example.com',
+            'password' => bcrypt('password'),
+            'phone_number' => '084444444444',
+            'primary_department_id' => $this->hrDepartment->id,
+            'primary_position_id' => $this->hrHeadPosition->id,
+            'global_role' => 'user',
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->hrHeadUser->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->hrDepartment->id,
+            'position_id' => $this->hrHeadPosition->id,
             'is_primary' => true,
             'is_active' => true,
         ]);
@@ -195,6 +227,248 @@ class CashflowProjectionAuditTrailTest extends TestCase
         );
     }
 
+    public function test_deleting_visible_line_item_writes_deleted_audit_log_and_redirects_to_entries_context(): void
+    {
+        $cycle = CashflowProjectionCycle::create([
+            'business_unit_id' => $this->businessUnit->id,
+            'year' => 2026,
+            'status' => 'draft',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        $lineItem = CashflowProjectionLineItem::create([
+            'cycle_id' => $cycle->id,
+            'department_id' => $this->hrDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_HR_OPS',
+            'transaction_date' => '2026-03-12',
+            'due_date' => '2026-03-12',
+            'is_estimated_date' => false,
+            'amount' => 1250000,
+            'description' => 'Delete me',
+            'notes' => 'Delete audit test',
+            'source_type' => 'manual',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        CashflowProjectionAuditLog::query()->create([
+            'auditable_type' => 'line_item',
+            'auditable_id' => $lineItem->id,
+            'action' => 'created',
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->hrDepartment->id,
+            'actor_user_id' => $this->financeUser->id,
+            'actor_user_name' => $this->financeUser->name,
+            'actor_department_id' => $this->financeDepartment->id,
+            'actor_department_label' => $this->financeDepartment->name,
+            'summary' => 'CREATED line item HR OUT_HR_OPS',
+            'old_values' => null,
+            'new_values' => [
+                'department_id' => $this->hrDepartment->id,
+                'action_code' => 'OUT_HR_OPS',
+                'amount' => 1250000,
+            ],
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAsFinanceUser()
+            ->from(route('cashflow-projection.entries', [
+                'year' => 2026,
+                'month' => 3,
+            ]))
+            ->delete(route('cashflow-projection.line-items.destroy', [
+                'lineItem' => $lineItem->id,
+            ]), [
+                'year' => 2026,
+                'month' => 3,
+            ])
+            ->assertRedirect(route('cashflow-projection.entries', [
+                'year' => 2026,
+                'month' => 3,
+            ]));
+
+        $this->assertDatabaseMissing('cashflow_projection_line_items', [
+            'id' => $lineItem->id,
+        ]);
+
+        $this->assertSame(2, CashflowProjectionAuditLog::query()->count());
+        $this->assertDatabaseHas('cashflow_projection_audit_logs', [
+            'auditable_type' => 'line_item',
+            'auditable_id' => $lineItem->id,
+            'action' => 'deleted',
+            'actor_user_id' => $this->financeUser->id,
+            'actor_department_id' => $this->financeDepartment->id,
+            'department_id' => $this->hrDepartment->id,
+        ]);
+    }
+
+    public function test_deleting_line_item_outside_visible_scope_is_forbidden(): void
+    {
+        $otherBusinessUnit = BusinessUnit::create([
+            'code' => 'EXT',
+            'name' => 'External Unit',
+            'is_active' => true,
+        ]);
+
+        $otherDepartment = Department::create([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'code' => 'EXTFIN',
+            'name' => 'External Finance',
+            'is_active' => true,
+        ]);
+
+        $otherPosition = Position::query()
+            ->where('department_id', $otherDepartment->id)
+            ->where('code', 'STAFF_'.strtoupper($otherDepartment->code))
+            ->firstOrFail();
+
+        $otherUser = User::create([
+            'name' => 'Other User',
+            'email' => 'other.audit@example.com',
+            'password' => bcrypt('password'),
+            'phone_number' => '083333333334',
+            'primary_department_id' => $otherDepartment->id,
+            'primary_position_id' => $otherPosition->id,
+            'global_role' => 'user',
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $otherUser->businessUnits()->create([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'department_id' => $otherDepartment->id,
+            'position_id' => $otherPosition->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $cycle = CashflowProjectionCycle::create([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'year' => 2026,
+            'status' => 'draft',
+            'created_by' => $otherUser->id,
+            'updated_by' => $otherUser->id,
+        ]);
+
+        $lineItem = CashflowProjectionLineItem::create([
+            'cycle_id' => $cycle->id,
+            'department_id' => $otherDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_EXT_OPS',
+            'transaction_date' => '2026-03-12',
+            'due_date' => '2026-03-12',
+            'is_estimated_date' => false,
+            'amount' => 500000,
+            'description' => 'Hidden line item',
+            'notes' => null,
+            'source_type' => 'manual',
+            'created_by' => $otherUser->id,
+            'updated_by' => $otherUser->id,
+        ]);
+
+        $this->actingAsFinanceUser()
+            ->delete(route('cashflow-projection.line-items.destroy', [
+                'lineItem' => $lineItem->id,
+            ]), [
+                'year' => 2026,
+                'month' => 3,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_department_head_can_delete_visible_entry_from_own_department(): void
+    {
+        $cycle = CashflowProjectionCycle::create([
+            'business_unit_id' => $this->businessUnit->id,
+            'year' => 2026,
+            'status' => 'draft',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        $lineItem = CashflowProjectionLineItem::create([
+            'cycle_id' => $cycle->id,
+            'department_id' => $this->hrDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_HR_OPS',
+            'transaction_date' => '2026-03-20',
+            'due_date' => '2026-03-20',
+            'is_estimated_date' => false,
+            'amount' => 880000,
+            'description' => 'HR visible line item',
+            'notes' => null,
+            'source_type' => 'manual',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        $this->actingAsDepartmentHead()
+            ->delete(route('cashflow-projection.line-items.destroy', [
+                'lineItem' => $lineItem->id,
+            ]), [
+                'year' => 2026,
+                'month' => 3,
+            ])
+            ->assertRedirect(route('cashflow-projection.entries', [
+                'year' => 2026,
+                'month' => 3,
+            ]));
+
+        $this->assertDatabaseMissing('cashflow_projection_line_items', [
+            'id' => $lineItem->id,
+        ]);
+
+        $this->assertDatabaseHas('cashflow_projection_audit_logs', [
+            'auditable_type' => 'line_item',
+            'auditable_id' => $lineItem->id,
+            'action' => 'deleted',
+            'actor_user_id' => $this->hrHeadUser->id,
+            'actor_department_id' => $this->hrDepartment->id,
+        ]);
+    }
+
+    public function test_department_head_cannot_delete_entry_from_other_department_in_same_business_unit(): void
+    {
+        $cycle = CashflowProjectionCycle::create([
+            'business_unit_id' => $this->businessUnit->id,
+            'year' => 2026,
+            'status' => 'draft',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        $lineItem = CashflowProjectionLineItem::create([
+            'cycle_id' => $cycle->id,
+            'department_id' => $this->financeDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_CFC_OPS',
+            'transaction_date' => '2026-03-20',
+            'due_date' => '2026-03-20',
+            'is_estimated_date' => false,
+            'amount' => 990000,
+            'description' => 'Finance only line item',
+            'notes' => null,
+            'source_type' => 'manual',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        $this->actingAsDepartmentHead()
+            ->delete(route('cashflow-projection.line-items.destroy', [
+                'lineItem' => $lineItem->id,
+            ]), [
+                'year' => 2026,
+                'month' => 3,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('cashflow_projection_line_items', [
+            'id' => $lineItem->id,
+        ]);
+    }
+
     public function test_finance_input_create_and_update_write_audit_logs(): void
     {
         $this->actingAsFinanceUser()->post(route('cashflow-projection.finance-inputs.upsert'), [
@@ -267,6 +541,16 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'current_business_unit_code' => $this->businessUnit->code,
             'current_business_unit_name' => $this->businessUnit->name,
             'current_department_id' => $this->financeDepartment->id,
+        ]);
+    }
+
+    private function actingAsDepartmentHead(): self
+    {
+        return $this->actingAs($this->hrHeadUser)->withSession([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_business_unit_code' => $this->businessUnit->code,
+            'current_business_unit_name' => $this->businessUnit->name,
+            'current_department_id' => $this->hrDepartment->id,
         ]);
     }
 }

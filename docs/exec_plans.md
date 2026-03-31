@@ -24,6 +24,30 @@
 
 ## Active Tasks
 
+### 2026-03-31 - Cashflow Projection entries action dropdown and delete flow
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - add a delete action for cashflow projection line items on the entries page,
+  - simplify row actions into a single dropdown trigger while keeping the UI compact and enterprise-friendly,
+  - confirm destructive deletes through a classic modal and preserve the existing edit flow.
+- Risks:
+  - delete authorization must align with entries visibility scope so linked BU and non-finance department access do not drift,
+  - adding a dropdown inside a dense table must not regress row readability or edit discoverability,
+  - delete requests should preserve month/year context and append audit logs before removal.
+- Verification:
+  - focused PHPUnit coverage for line item delete authorization and audit logging,
+  - focused Vitest coverage for entries dropdown and delete confirmation behavior,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user approved the compact three-dot dropdown direction after reviewing side-by-side visual options,
+  - delete is intentionally available to all users who can access the entries page, within the rows already visible to their scope,
+  - reviewer feedback identified two follow-up gaps during implementation: missing non-finance delete coverage and missing double-click protection for destructive requests,
+  - both follow-ups were resolved in this pass by adding HoD authorization coverage and disabling repeat delete submits while the dialog is processing,
+  - focused PHPUnit, focused Vitest, `vendor/bin/pint --dirty`, and `npm exec tsc --noEmit --pretty false` all passed after the final patch set.
+
 ### 2026-03-30 - Activity calendar owner visibility upgrade
 - Status: completed
 - Owner: PM Agent

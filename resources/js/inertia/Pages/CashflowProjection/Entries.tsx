@@ -1,11 +1,14 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Pencil, Server, ShoppingBag, Users } from 'lucide-react';
+import { Popover, Transition } from '@headlessui/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { type FormEvent, Fragment, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, MoreHorizontal, Pencil, Server, ShoppingBag, Trash2, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import './cashflow-dashboard.css';
 import AddProjectionCard from './components/AddProjectionCard';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { showToast } from '@/components/ui/toast';
 import type { PageProps } from '@/types';
 
 type FlowType = 'in' | 'out';
@@ -110,6 +113,16 @@ export default function CashflowProjectionEntries({
     const { currentBusinessUnit: activeBusinessUnit } = usePage<PageProps>().props;
     const [flowType, setFlowType] = useState<FlowType>('in');
     const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteDialogState, setDeleteDialogState] = useState<{
+        isOpen: boolean;
+        lineItemId: number | null;
+        label: string;
+    }>({
+        isOpen: false,
+        lineItemId: null,
+        label: '',
+    });
 
     const defaultTransactionDate = useMemo(() => {
         const now = new Date();
@@ -342,6 +355,40 @@ export default function CashflowProjectionEntries({
         });
     };
 
+    const openDeleteDialog = (lineItemId: number, label: string) => {
+        setDeleteDialogState({
+            isOpen: true,
+            lineItemId,
+            label,
+        });
+    };
+
+    const closeDeleteDialog = () => {
+        setIsDeleting(false);
+        setDeleteDialogState({
+            isOpen: false,
+            lineItemId: null,
+            label: '',
+        });
+    };
+
+    const confirmDelete = () => {
+        if (!deleteDialogState.lineItemId || isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+        router.delete(route('cashflow-projection.line-items.destroy', { lineItem: deleteDialogState.lineItemId }), {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                closeDeleteDialog();
+                const pageProps = page.props as unknown as PageProps;
+                showToast.success(pageProps.flash?.success ?? 'Line item cashflow berhasil dihapus.');
+            },
+            onFinish: () => setIsDeleting(false),
+        });
+    };
+
     return (
         <>
             <Head title="Cashflow Entries" />
@@ -471,15 +518,53 @@ export default function CashflowProjectionEntries({
                                                         </span>
                                                     </td>
                                                     <td className="py-3 pr-4 text-right">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => beginEdit(item.id)}
-                                                            aria-label={`Edit ${item.description || item.action_label}`}
-                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-                                                        >
-                                                            <Pencil className="h-3.5 w-3.5" />
-                                                            Edit
-                                                        </button>
+                                                        <Popover className="relative inline-flex justify-end">
+                                                            {({ close }) => (
+                                                                <>
+                                                                    <Popover.Button
+                                                                        type="button"
+                                                                        aria-label={`More actions for ${item.description || item.action_label}`}
+                                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                                    >
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Popover.Button>
+                                                                    <Transition
+                                                                        as={Fragment}
+                                                                        enter="transition ease-out duration-150"
+                                                                        enterFrom="opacity-0 translate-y-1"
+                                                                        enterTo="opacity-100 translate-y-0"
+                                                                        leave="transition ease-in duration-100"
+                                                                        leaveFrom="opacity-100 translate-y-0"
+                                                                        leaveTo="opacity-0 translate-y-1"
+                                                                    >
+                                                                        <Popover.Panel className="absolute right-0 top-full z-20 mt-2 w-40 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    beginEdit(item.id);
+                                                                                    close();
+                                                                                }}
+                                                                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                                            >
+                                                                                <Pencil className="h-4 w-4" />
+                                                                                Edit entry
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    openDeleteDialog(item.id, item.description || item.action_label);
+                                                                                    close();
+                                                                                }}
+                                                                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                                Delete entry
+                                                                            </button>
+                                                                        </Popover.Panel>
+                                                                    </Transition>
+                                                                </>
+                                                            )}
+                                                        </Popover>
                                                     </td>
                                                     <td className={`py-3 text-right font-semibold ${item.flow_type === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
                                                         {item.flow_type === 'in' ? '+' : '-'}{formatCurrency(item.amount)}
@@ -494,6 +579,17 @@ export default function CashflowProjectionEntries({
                     </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={deleteDialogState.isOpen}
+                onClose={closeDeleteDialog}
+                onConfirm={confirmDelete}
+                title="Delete Entry"
+                message={deleteDialogState.label ? `Delete this entry "${deleteDialogState.label}"? This action cannot be undone.` : 'Delete this entry? This action cannot be undone.'}
+                confirmText="Delete"
+                variant="danger"
+                isLoading={isDeleting}
+            />
         </>
     );
 }

@@ -41,6 +41,18 @@ class CashflowProjectionAuditService
 
     /**
      * @param  array<string, mixed>|null  $oldValues
+     */
+    public function logDeletedLineItemAction(
+        CashflowProjectionLineItem $lineItem,
+        User $actor,
+        ?Department $actorDepartment,
+        ?array $oldValues
+    ): void {
+        $this->logLineItemAction('deleted', $lineItem, $actor, $actorDepartment, $oldValues, null);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $oldValues
      * @param  array<string, mixed>|null  $newValues
      */
     public function logFinanceInputAction(

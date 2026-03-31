@@ -4,8 +4,12 @@ import type { ComponentProps } from 'react';
 import Entries from '@/Pages/CashflowProjection/Entries';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from '@/Pages/CashflowProjection/types';
 
-const postMock = vi.fn();
-const patchMock = vi.fn();
+const { postMock, patchMock, deleteMock, showToastSuccessMock } = vi.hoisted(() => ({
+    postMock: vi.fn(),
+    patchMock: vi.fn(),
+    deleteMock: vi.fn(),
+    showToastSuccessMock: vi.fn(),
+}));
 
 const currentBusinessUnit = {
     id: 1,
@@ -20,6 +24,10 @@ vi.mock('@inertiajs/react', async () => {
 
     return {
         ...actual,
+        router: {
+            ...actual.router,
+            delete: deleteMock,
+        },
         useForm: <T extends Record<string, unknown>>(initialValues: T) => {
             const [data, setDataState] = React.useState<T>(initialValues);
             const setData = React.useCallback(<K extends keyof T>(
@@ -64,6 +72,12 @@ vi.mock('@inertiajs/react', async () => {
         }),
     };
 });
+
+vi.mock('@/components/ui/toast', () => ({
+    showToast: {
+        success: showToastSuccessMock,
+    },
+}));
 
 describe('Cashflow Projection Entries page', () => {
     const baseProps: CashflowProjectionEntriesPageProps = {
@@ -195,6 +209,10 @@ describe('Cashflow Projection Entries page', () => {
                 return `/cashflow-projection.line-items.update/${params.lineItem}`;
             }
 
+            if (name === 'cashflow-projection.line-items.destroy' && params?.lineItem) {
+                return `/cashflow-projection.line-items.destroy/${params.lineItem}`;
+            }
+
             return `/${name}`;
         });
     });
@@ -216,10 +234,15 @@ describe('Cashflow Projection Entries page', () => {
         expect(screen.getByRole('option', { name: /ops - mrp - operational/i })).toBeInTheDocument();
     });
 
-    it('loads an existing entry into edit mode and submits a patch request', () => {
+    it('opens row actions and keeps the edit flow intact from the dropdown', () => {
         render(<Entries {...baseProps} />);
 
-        fireEvent.click(screen.getByRole('button', { name: /edit payroll march/i }));
+        fireEvent.click(screen.getByRole('button', { name: /more actions for payroll march/i }));
+
+        expect(screen.getByRole('button', { name: /edit entry/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete entry/i })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /edit entry/i }));
 
         const descriptionInput = screen.getByLabelText(/entry name/i);
         expect(descriptionInput).toHaveValue('Payroll March');
@@ -234,6 +257,54 @@ describe('Cashflow Projection Entries page', () => {
             '/cashflow-projection.line-items.update/99',
             expect.objectContaining({ preserveScroll: true })
         );
+    });
+
+    it('confirms deletion from the row actions menu and preserves scroll on delete', async () => {
+        deleteMock.mockImplementation((_url, options?: { onSuccess?: (page?: unknown) => void; onFinish?: () => void }) => {
+            options?.onSuccess?.({
+                props: {
+                    flash: {
+                        success: 'Line item cashflow berhasil dihapus.',
+                    },
+                },
+            });
+            options?.onFinish?.();
+        });
+
+        render(<Entries {...baseProps} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /more actions for payroll march/i }));
+        fireEvent.click(screen.getByRole('button', { name: /delete entry/i }));
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText(/delete this entry/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+
+        await waitFor(() => {
+            expect(deleteMock).toHaveBeenCalledWith(
+                '/cashflow-projection.line-items.destroy/99',
+                expect.objectContaining({ preserveScroll: true })
+            );
+        });
+
+        expect(showToastSuccessMock).toHaveBeenCalledWith('Line item cashflow berhasil dihapus.');
+    });
+
+    it('prevents duplicate delete requests while the confirmation action is loading', async () => {
+        render(<Entries {...baseProps} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /more actions for payroll march/i }));
+        fireEvent.click(screen.getByRole('button', { name: /delete entry/i }));
+
+        const confirmButton = within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i });
+
+        fireEvent.click(confirmButton);
+        fireEvent.click(confirmButton);
+
+        await waitFor(() => {
+            expect(deleteMock).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('renders business unit codes and only shows last edited for meaningful edits', () => {

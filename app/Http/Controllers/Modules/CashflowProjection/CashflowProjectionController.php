@@ -487,6 +487,41 @@ class CashflowProjectionController extends Controller
             ->with('success', 'Line item cashflow berhasil diperbarui.');
     }
 
+    public function destroyLineItem(Request $request, CashflowProjectionLineItem $lineItem): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        abort_unless($this->accessService->canAccess($user, $businessUnitId), 403);
+
+        $lineItem->loadMissing('department', 'cycle');
+        $department = $lineItem->department;
+        $cycle = $lineItem->cycle;
+
+        abort_unless($department instanceof Department, 404);
+        abort_unless($cycle instanceof CashflowProjectionCycle, 404);
+
+        $allowedBusinessUnitIds = $this->scopeService->allowedBusinessUnitIds($user, $businessUnitId);
+        $allowedDepartments = $this->scopeService->allowedDepartments($user, $businessUnitId);
+
+        abort_unless(in_array((int) $cycle->business_unit_id, $allowedBusinessUnitIds, true), 403);
+        abort_unless($allowedDepartments->contains('id', $department->id), 403);
+
+        $this->auditService->logDeletedLineItemAction(
+            $lineItem,
+            $user,
+            $this->scopeService->currentActorDepartment($user, $businessUnitId),
+            $this->lineItemAuditValues($lineItem)
+        );
+
+        $lineItem->delete();
+
+        return redirect()
+            ->route('cashflow-projection.entries', $this->resolveEntriesRedirectParams($request, $lineItem))
+            ->with('success', 'Line item cashflow berhasil dihapus.');
+    }
+
     public function upsertFinanceInput(UpsertCashflowProjectionFinanceInputRequest $request): RedirectResponse
     {
         /** @var User $user */
@@ -1223,6 +1258,25 @@ class CashflowProjectionController extends Controller
         }
 
         return array_values(array_unique($months));
+    }
+
+    /**
+     * @return array{year: int, month?: int}
+     */
+    private function resolveEntriesRedirectParams(Request $request, ?CashflowProjectionLineItem $lineItem = null): array
+    {
+        $year = (int) $request->integer('year', $lineItem?->cycle?->year ?? (int) now()->format('Y'));
+        $month = (int) $request->integer('month', $lineItem?->transaction_date?->format('n') ?? (int) now()->format('n'));
+
+        $redirectParams = [
+            'year' => $year,
+        ];
+
+        if ($month >= 1 && $month <= 12) {
+            $redirectParams['month'] = $month;
+        }
+
+        return $redirectParams;
     }
 
     private function findOrCreateCycle(int $businessUnitId, int $year, int $userId): CashflowProjectionCycle

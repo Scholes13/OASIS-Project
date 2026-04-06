@@ -164,6 +164,10 @@ export default function Dashboard({
         setIsFiltering(false);
     }, [departmentStats, buSummary]);
 
+    useEffect(() => {
+        setDepartmentId(filters.department_id?.toString() || '');
+    }, [filters.department_id]);
+
     // Detect active preset from current date filters
     useEffect(() => {
         const match = periodPresets.find(p => {

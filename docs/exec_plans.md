@@ -24,6 +24,83 @@
 
 ## Active Tasks
 
+### 2026-04-06 - Activity Admin total hours float precision cleanup
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@reviewer`
+- Scope:
+  - investigate why `Total Jam` on `Activity Admin` can render long floating-point tails such as `33512.299999999996`,
+  - round the aggregated summary hours after department-level totals are summed so Inertia props stay presentation-safe,
+  - add focused regression coverage for classic `0.1 + 0.2` style hour aggregation.
+- Risks:
+  - the fix must preserve the existing one-decimal dashboard contract for hours instead of truncating useful precision,
+  - summary rounding should happen after aggregation so department cards and summary cards stay mathematically aligned.
+- Verification:
+  - `php artisan test tests/Feature/Activity/ActivityAdminParentBusinessUnitScopeTest.php --filter=parent_business_unit_dashboard_rounds_total_hours_summary_after_aggregating_departments`,
+  - `php artisan test tests/Feature/Activity/ActivityAdminParentBusinessUnitScopeTest.php tests/Feature/Activity/ActivityAdminAccessTest.php tests/Feature/Core/NavigationTopManagementTest.php tests/Feature/Core/SuperAdminBusinessUnitSwitchTest.php`,
+  - `vendor/bin/pint --dirty`.
+- Notes:
+  - root cause investigation found `ActivityAdminController` already rounded each department's `total_hours`, but `buSummary.total_hours` used a raw `array_sum`, which let PHP float precision leak into the UI,
+  - the summary now rounds the post-sum value to one decimal place so values like `0.1 + 0.2` are emitted as `0.3` instead of `0.30000000000000004`.
+
+### 2026-04-06 - Activity Admin stale department filter after BU switch
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why switching from a parent BU view to a child BU like `WNS` can leave `Activity Admin` empty even though the child BU has data,
+  - ignore stale `department_id` query params that no longer belong to the newly selected BU scope,
+  - keep the department dropdown state synchronized with sanitized backend filters after a BU switch.
+- Risks:
+  - filter sanitation must not discard valid department selections inside the active BU,
+  - backend and frontend filter state must stay aligned so the page does not show data for one scope while the select still displays another.
+- Verification:
+  - `php artisan test tests/Feature/Activity/ActivityAdminParentBusinessUnitScopeTest.php`,
+  - `npm exec tsc --noEmit --pretty false`,
+  - `vendor/bin/pint --dirty`.
+- Notes:
+  - root cause investigation found the BU switch preserved the previous page URL, including `department_id` from the old BU scope, and `ActivityAdminController` treated that stale department as an active filter,
+  - the dashboard and export endpoints now validate `department_id` against the departments available in the current BU scope and fall back to `null` when it no longer matches,
+  - the Activity Admin dashboard page now re-syncs its local department filter state from the sanitized Inertia props so the dropdown does not drift after a switch.
+
+### 2026-04-06 - Activity Admin parent business unit roll-up scope
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@reviewer`
+- Scope:
+  - investigate why `Activity Admin` shows empty data when the active BU is the parent holding `WG`,
+  - make parent or holding BU scope include descendant business units across dashboard, department detail, task detail, and export,
+  - add focused regression coverage for parent-BU roll-up behavior.
+- Risks:
+  - parent-BU roll-up must not break existing child-BU views that should stay scoped to the selected BU only,
+  - detail pages and export must stay aligned with dashboard scope so users do not see clickable items that later 403 or empty exports.
+- Verification:
+  - `php artisan test tests/Feature/Activity/ActivityAdminParentBusinessUnitScopeTest.php`,
+  - `php artisan test tests/Feature/Activity/ActivityAdminAccessTest.php tests/Feature/Core/NavigationTopManagementTest.php`,
+  - `vendor/bin/pint --dirty`.
+- Notes:
+  - root cause investigation found `ActivityAdminController` queried only `session('current_business_unit_id')`, so selecting `WG` ignored child BU activity stored under `WNS`, `MRP`, `TEE`, and other descendants,
+  - `ActivityAdminController` now resolves a BU scope from the selected BU plus descendants and reuses it for dashboard, detail pages, backdate queues, and export,
+  - new regression coverage proves parent-BU users can see child-BU totals and open child department and task detail pages from the aggregated dashboard.
+
+### 2026-04-06 - Super admin business unit switch fallback to WG
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@reviewer`
+- Scope:
+  - investigate why the business unit switcher shows success for `TEE` but the next page render returns `super@werkudara.com` to `WG`,
+  - fix the session guard so super admins can stay in business units whose `logo` value is intentionally `null`,
+  - add focused regression coverage for the switch-followed-by-next-request flow.
+- Risks:
+  - the guard must still bootstrap missing BU session context on login or expired sessions,
+  - `null` logos must be treated as valid state without hiding genuinely missing session keys.
+- Verification:
+  - focused PHPUnit coverage for super admin BU switching with a logo-less target BU,
+  - `vendor/bin/pint --dirty`.
+- Notes:
+  - root cause investigation found `EnsureBusinessUnitSelected` used a truthy logo check for super admins, so switching to a BU like `TEE` with `logo = null` looked like an invalid session and reinitialized the context from the primary BU `WG`,
+  - the guard now checks whether the session key exists instead of whether the logo value is truthy, preserving intentional `null` logos and the selected BU context across the next request.
+
 ### 2026-03-31 - Docs help changelog v3.0.2 article update
 - Status: completed
 - Owner: PM Agent

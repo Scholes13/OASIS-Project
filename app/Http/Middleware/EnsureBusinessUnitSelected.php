@@ -24,8 +24,10 @@ class EnsureBusinessUnitSelected
         // Super admins can bypass business unit requirement
         if ($user->global_role === 'super_admin') {
             // Ensure super admin session context exists (check both code AND id)
-            // Also check if logo is missing and add it
-            $needsLogoUpdate = session('current_business_unit_id') && ! session('current_business_unit_logo');
+            // Also check if the logo session key is missing and add it.
+            // A selected BU may legitimately have a null logo, so use key existence
+            // instead of a truthy check to avoid resetting context to the primary BU.
+            $needsLogoUpdate = session('current_business_unit_id') && ! $request->session()->exists('current_business_unit_logo');
 
             if (! session('current_business_unit_code') || ! session('current_business_unit_id') || $needsLogoUpdate) {
                 // For super admins, use their primary business unit (usually WG)
@@ -79,7 +81,7 @@ class EnsureBusinessUnitSelected
 
         // Check if user has current business unit context from login
         $currentBusinessUnitId = session('current_business_unit_id');
-        $needsLogoUpdate = $currentBusinessUnitId && ! session('current_business_unit_logo');
+        $needsLogoUpdate = $currentBusinessUnitId && ! $request->session()->exists('current_business_unit_logo');
 
         // If only logo is missing, add it without resetting session
         if ($needsLogoUpdate) {

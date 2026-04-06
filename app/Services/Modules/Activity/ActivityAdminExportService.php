@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ActivityAdminExportService
 {
     public function exportToXlsx(
-        int $businessUnitId,
+        array $businessUnitIds,
         ?int $departmentId = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
@@ -22,7 +22,7 @@ class ActivityAdminExportService
         ?int $activityTypeId = null,
     ): StreamedResponse {
         $tasks = EmployeeTask::query()
-            ->where('business_unit_id', $businessUnitId)
+            ->whereIn('business_unit_id', $businessUnitIds)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->when($dateFrom, fn ($q) => $q->whereDate('task_date', '>=', $dateFrom))
             ->when($dateTo, fn ($q) => $q->whereDate('task_date', '<=', $dateTo))

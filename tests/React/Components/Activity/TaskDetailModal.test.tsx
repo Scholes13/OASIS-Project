@@ -179,6 +179,38 @@ describe('TaskDetailModal', () => {
 
         expect(onEdit).toHaveBeenCalledWith(task)
     })
+
+    it('keeps detail modal panes shrinkable so short viewports can scroll internally', async () => {
+        await act(async () => {
+            render(
+                <TaskDetailModal
+                    open={true}
+                    task={makeTask()}
+                    onClose={() => {}}
+                />
+            )
+        })
+
+        const panel = document.querySelector('[id^="headlessui-dialog-panel"]') as HTMLElement | null
+        const shell = document.querySelector('.flex.h-full.flex-col.bg-background') as HTMLElement | null
+        const contentSplit = document.querySelector('.flex.flex-1.overflow-hidden') as HTMLElement | null
+        const mainPane = document.querySelector('.flex-1.overflow-y-auto.border-r.border-border.p-8') as HTMLElement | null
+        const sidePane = [...document.querySelectorAll('div')].find((element) =>
+            element.className.includes('w-[320px]') && element.className.includes('overflow-y-auto')
+        ) as HTMLElement | undefined
+
+        expect(panel).not.toBeNull()
+        expect(shell).not.toBeNull()
+        expect(contentSplit).not.toBeNull()
+        expect(mainPane).not.toBeNull()
+        expect(sidePane).toBeDefined()
+
+        expect(panel!.className).toContain('min-h-0')
+        expect(shell!.className).toContain('min-h-0')
+        expect(contentSplit!.className).toContain('min-h-0')
+        expect(mainPane!.className).toContain('min-h-0')
+        expect(sidePane!.className).toContain('min-h-0')
+    })
 })
 
 

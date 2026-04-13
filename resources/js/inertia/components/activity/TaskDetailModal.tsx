@@ -145,9 +145,9 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
     }
 
     return (
-        <Dialog open={open} onClose={onClose} className="flex max-h-[min(85vh,800px)] w-[95vw] max-w-[1000px] flex-col overflow-hidden !rounded-xl !p-0 shadow-2xl">
+        <Dialog open={open} onClose={onClose} className="flex min-h-0 max-h-[min(85vh,800px)] w-[95vw] max-w-[1000px] flex-col overflow-hidden !rounded-xl !p-0 shadow-2xl">
             {task && (
-                <div className="flex h-full flex-col bg-background">
+                <div className="flex h-full min-h-0 flex-col bg-background">
                     {/* Header */}
                     <div className="flex items-start justify-between border-b border-border bg-background px-8 py-5">
                         <div>
@@ -186,9 +186,9 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                     </div>
 
                     {/* Body */}
-                    <div className="flex flex-1 overflow-hidden">
+                    <div className="flex min-h-0 flex-1 overflow-hidden">
                         {/* Main Content */}
-                        <div className="flex-1 overflow-y-auto border-r border-border p-8">
+                        <div className="flex-1 min-h-0 overflow-y-auto border-r border-border p-8">
                             
                             {/* Description Section */}
                             <div className="mb-8">
@@ -256,7 +256,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                         </div>
 
                         {/* Sidebar */}
-                        <div className="flex w-[320px] shrink-0 flex-col gap-6 overflow-y-auto bg-muted p-6">
+                        <div className="flex w-[320px] shrink-0 min-h-0 flex-col gap-6 overflow-y-auto bg-muted p-6">
                             
                             {/* Action Buttons (Moved to sidebar) */}
                             {editable && (task.status === "planned" || task.status === "in_progress") && (

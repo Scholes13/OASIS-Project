@@ -24,6 +24,28 @@
 
 ## Active Tasks
 
+### 2026-04-13 - Activity task modal overflow hardening for short viewports
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate reports that activity task modals are cut off or cannot scroll on shorter laptop-style viewports,
+  - reproduce the issue across task views and identify whether the problem is in shared dialog chrome or activity-specific modal layout,
+  - harden the modal layout so create/detail/edit flows remain reachable on shorter screens without changing existing modal-first behavior.
+- Risks:
+  - layout fixes must preserve the current desktop modal composition and should not regress task action placement or wide-screen spacing,
+  - overflow fixes need to keep internal panes scrollable without re-enabling background page scroll behind the modal,
+  - task views share modal entry points, so a detail-modal fix must stay compatible with list, board, calendar, and timeline launch paths.
+- Verification:
+  - focused Vitest coverage for activity task modal layout constraints,
+  - browser reproduction on `activity/task` with short-height viewport checks for create/detail modals,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - browser automation reproduced the detail modal issue at `1280x600`: the modal panel respects `max-height`, but the left/right internal panes still measure taller than the visible panel and do not gain scroll,
+  - root cause was missing `min-h-0` constraints in the nested flex layout of `TaskDetailModal`, which prevented the overflow regions from shrinking inside the capped dialog,
+  - `TaskDetailModal` now constrains the panel shell, split body, and both scroll panes so shorter screens can scroll the sidebar instead of clipping the lower sections,
+  - focused Vitest coverage passed for the modal layout guard, `npm exec tsc --noEmit --pretty false` passed, and browser automation confirmed `Create Task` stays visible across list/board/calendar/timeline while the detail modal sidebar becomes scrollable on `1280x600`.
+
 ### 2026-04-13 - Activity member focus filter for dashboard and team task views
 - Status: implemented
 - Owner: PM Agent

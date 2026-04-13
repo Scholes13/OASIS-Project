@@ -24,6 +24,36 @@
 
 ## Active Tasks
 
+### 2026-04-13 - Activity member focus filter for dashboard and team task views
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - add a `member_user_id` filter so team-oriented Activity surfaces can focus on one member at a time,
+  - apply the filter across `Activity Dashboard` department analytics and `Task Management` team scope instead of only filtering visible rows,
+  - keep dashboard cards, lists, board/calendar/timeline data, focus insight, and export aligned to the same filtered dataset,
+  - support the requested matching logic where a task counts if the selected member is the creator/owner, a participant, or both.
+- Risks:
+  - invalid member selections can leave stale filters behind after BU, department, or scope changes unless the backend sanitizes them,
+  - task-management scope rules must stay intact so the member filter does not widen visibility outside the current department context,
+  - dashboard and export can drift if they do not share the same member-filter contract.
+- Verification:
+  - `php artisan test tests/Feature/Modules/Activity/ActivityMemberFocusFilterTest.php`,
+  - `npm exec vitest run tests/React/Pages/Activity/Dashboard.test.tsx tests/React/Pages/Activity/ActivityDashboard.test.tsx tests/React/Components/Activity/ActivityDataTableExport.test.tsx --runInBand`,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user clarified the original ask is not a cashflow-style period filter; the real need is filtering team views by one specific member so supervisors can isolate one person's work,
+  - approved behavior is to filter all data, not only the visible list,
+  - user approved direct implementation after sub-agent spec review without another manual spec review step,
+  - task management now exposes a team-member filter only in `scope=department`, sanitizes invalid member ids from active `user_business_units` assignments, and applies the focused member as an additive predicate on top of the existing team-scope visibility rule,
+  - activity dashboard now exposes a department-member filter that only affects department datasets, keeps personal and executive data unchanged, and forwards the active member filter through the dashboard export action,
+  - task-management export now forwards the focused member for `scope=department` while preserving the existing `scope=my` export semantics,
+  - follow-up hardening closed the reviewer gaps by ignoring malformed `member_user_id` payloads, excluding inactive users from member options, reusing the shared member-focus helper in export, and returning an empty member list when BU or department context is missing,
+  - dashboard mode switching now clears focused-member state by refreshing the cached department dataset, so returning to `Department` no longer reuses stale filtered cards or exports,
+  - focused backend coverage, focused frontend coverage, `vendor/bin/pint --dirty`, and `npm exec tsc --noEmit --pretty false` all passed in this workspace,
+  - residual non-blocking risk: Headless UI still emits a test-environment warning about `Element.prototype.getAnimations`, but the relevant React tests pass and the warning predates the feature logic itself.
+
 ### 2026-04-06 - Activity Admin total hours float precision cleanup
 - Status: implemented
 - Owner: PM Agent
@@ -538,4 +568,3 @@ Use this shape for future updates:
 - Risks:
 - Verification:
 - Notes:
-

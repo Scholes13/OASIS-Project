@@ -34,6 +34,7 @@ interface DashboardProps extends PageProps {
     tasks: PaginatedData<Task>;
     activityTypes: any;
     filters: TaskFilters;
+    teamMembers?: Array<{ id: number; name: string }>;
     selectedTask?: Task | null;
     selectedTaskModal?: 'detail' | 'edit' | null;
     modalTask?: Task | null;
@@ -61,6 +62,7 @@ export default function Dashboard({
     selectedTask: hydratedSelectedTask = null,
     selectedTaskModal = null,
     modalTask = null,
+    teamMembers = [],
     departmentUsers = [],
     backdatePermission,
     allowedDateRange,
@@ -157,6 +159,10 @@ export default function Dashboard({
     const { currentBusinessUnit, isSwitching: isBuLoading } = useBusinessUnit([
         'stats', 'tasks', 'filters'
     ]);
+
+    useEffect(() => {
+        setLocalFilters(filters);
+    }, [filters]);
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -378,7 +384,7 @@ export default function Dashboard({
                             {/* Scope Toggle (My Tasks vs Team) */}
                             <div className="flex items-center bg-slate-50/80 p-1 rounded-lg border border-slate-100">
                                 <button 
-                                    onClick={() => setLocalFilters(prev => ({ ...prev, scope: 'my' }))}
+                                    onClick={() => setLocalFilters(prev => ({ ...prev, scope: 'my', member_user_id: '' }))}
                                     className={cn("px-4 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200", (!localFilters.scope || localFilters.scope === 'my') ? "bg-white text-[#16599c] shadow-sm font-semibold ring-1 ring-slate-200/50" : "text-slate-500 hover:text-slate-800")}
                                 >
                                     My Tasks
@@ -399,6 +405,7 @@ export default function Dashboard({
                                     filters={localFilters}
                                     onChange={setLocalFilters}
                                     activityTypes={activityTypes}
+                                    teamMembers={teamMembers}
                                     isFiltering={isFiltering}
                                 />
                             </div>

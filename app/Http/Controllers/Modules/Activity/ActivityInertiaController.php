@@ -8,11 +8,13 @@ use App\Http\Requests\Modules\Activity\UpdateActivityTaskRequest;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
+use App\Services\Modules\Activity\ActivityMemberFocusService;
 use App\Services\Modules\Activity\ActivityReportAggregationService;
 use App\Services\Modules\Activity\ActivityTypePrioritizationService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use App\Services\Modules\Activity\TaskService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +32,7 @@ class ActivityInertiaController extends Controller
         protected TaskService $taskService,
         protected BackdatePermissionService $backdateService,
         protected ActivityTypePrioritizationService $prioritizationService,
+        protected ActivityMemberFocusService $memberFocusService,
         protected ActivityReportAggregationService $reportAggregationService
     ) {}
 
@@ -60,10 +63,17 @@ class ActivityInertiaController extends Controller
         // Department stats & visuals (if user has permission)
         $departmentStats = null;
         $departmentVisuals = null;
+        $departmentMembers = [];
+        $sanitizedMemberUserId = null;
         if ($user->can('view-department-analytics')) {
+            $departmentMembers = $this->memberFocusService->resolveDepartmentMembers($buId, $departmentId);
+            $sanitizedMemberUserId = $this->memberFocusService->sanitizeRequestedMember(
+                request()->query('member_user_id'),
+                $departmentMembers
+            );
             $deptDistributionPeriod = request()->input('dept_distribution_period', 'all');
-            $departmentStats = $this->getDepartmentStats($departmentId, $buId, $deptDistributionPeriod);
-            $departmentVisuals = $this->getDepartmentVisuals($departmentId, $buId, $deptDistributionPeriod);
+            $departmentStats = $this->getDepartmentStats($departmentId, $buId, $deptDistributionPeriod, $sanitizedMemberUserId);
+            $departmentVisuals = $this->getDepartmentVisuals($departmentId, $buId, $deptDistributionPeriod, $sanitizedMemberUserId);
         }
 
         // Executive overview for top management (cross-BU aggregation)
@@ -75,14 +85,18 @@ class ActivityInertiaController extends Controller
             $executiveStats = $this->getExecutiveOverview($user);
         }
 
+        $queryParams = request()->query();
+        $queryParams['member_user_id'] = $sanitizedMemberUserId ? (string) $sanitizedMemberUserId : null;
+
         return Inertia::render('Activity/ActivityDashboard', [
             'personalStats' => $personalStats,
             'personalVisuals' => $personalVisuals,
             'departmentStats' => $departmentStats,
             'departmentVisuals' => $departmentVisuals,
+            'departmentMembers' => $departmentMembers,
             'executiveStats' => $executiveStats,
             'canViewReports' => $canViewReports,
-            'queryParams' => request()->query(),
+            'queryParams' => $queryParams,
         ]);
     }
 
@@ -105,6 +119,7 @@ class ActivityInertiaController extends Controller
             'date_from' => $request->get('date_from', ''),
             'date_to' => $request->get('date_to', ''),
             'scope' => $scope,
+            'member_user_id' => '',
         ];
         $includeBreakdown = $request->boolean('with_breakdown', false);
 
@@ -114,24 +129,16 @@ class ActivityInertiaController extends Controller
                 $userColumns[] = 'avatar_url';
             }
 
-            // Build base query based on scope
-            $query = EmployeeTask::query()
-                ->where('business_unit_id', $buId);
+            $teamMembers = $this->memberFocusService->resolveDepartmentMembers($buId, $departmentId);
+            $sanitizedMemberUserId = $scope === 'department'
+                ? $this->memberFocusService->sanitizeRequestedMember($request->query('member_user_id'), $teamMembers)
+                : null;
 
-            // Apply scope filter (server-side for correct pagination)
-            if ($scope === 'my') {
-                // My Tasks: only tasks where user is participant or creator
-                $query->where(function ($q) use ($user) {
-                    $q->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-                        ->orWhere('created_by', $user->id);
-                });
-            } else {
-                // Department: all tasks in user's department OR user is participant
-                $query->where(function ($q) use ($user, $departmentId) {
-                    $q->where('department_id', $departmentId)
-                        ->orWhereHas('participants', fn ($q) => $q->where('user_id', $user->id));
-                });
-            }
+            $filters['member_user_id'] = $sanitizedMemberUserId ? (string) $sanitizedMemberUserId : '';
+
+            // Build base query based on scope
+            $query = $this->buildTaskScopeQuery($buId, $user->id, $departmentId, $scope);
+            $query = $this->memberFocusService->applyMemberFocus($query, $sanitizedMemberUserId);
 
             // Apply additional filters
             $query->when($filters['activity_type_id'], fn ($q, $v) => $q->where('activity_type_id', $v))
@@ -141,7 +148,7 @@ class ActivityInertiaController extends Controller
                 ->when($filters['date_to'], fn ($q, $v) => $q->whereDate('created_at', '<=', $v));
 
             // Calculate stats based on current scope (not cached, for accuracy)
-            $stats = $this->getStatsForScope($buId, $user->id, $departmentId, $scope);
+            $stats = $this->getStatsForScope($buId, $user->id, $departmentId, $scope, $sanitizedMemberUserId);
 
             // Determine view mode: board/calendar/timeline need all tasks, list uses pagination
             $view = $request->get('view', 'list');
@@ -207,6 +214,7 @@ class ActivityInertiaController extends Controller
                 'selectedTaskModal' => $selectedTaskModal,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
+                'teamMembers' => $teamMembers,
                 'byActivityType' => $byActivityType,
                 // Lazy loaded props for Create Task Modal
                 'departmentUsers' => \Inertia\Inertia::lazy(fn () => \App\Models\Core\User::where('primary_department_id', $departmentId)
@@ -235,6 +243,7 @@ class ActivityInertiaController extends Controller
                 'selectedTaskModal' => null,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
+                'teamMembers' => [],
                 'byActivityType' => [],
             ]);
         }
@@ -711,25 +720,11 @@ class ActivityInertiaController extends Controller
     /**
      * Get stats for a specific scope (my tasks vs department)
      */
-    protected function getStatsForScope(int $buId, int $userId, ?int $departmentId, string $scope): array
+    protected function getStatsForScope(int $buId, int $userId, ?int $departmentId, string $scope, ?int $memberUserId = null): array
     {
         try {
-            $baseQuery = EmployeeTask::query()
-                ->where('business_unit_id', $buId);
-
-            if ($scope === 'my') {
-                // My Tasks: only tasks where user is participant or creator
-                $baseQuery->where(function ($q) use ($userId) {
-                    $q->whereHas('participants', fn ($q) => $q->where('user_id', $userId))
-                        ->orWhere('created_by', $userId);
-                });
-            } else {
-                // Department: all tasks in user's department OR user is participant
-                $baseQuery->where(function ($q) use ($userId, $departmentId) {
-                    $q->where('department_id', $departmentId)
-                        ->orWhereHas('participants', fn ($q) => $q->where('user_id', $userId));
-                });
-            }
+            $baseQuery = $this->buildTaskScopeQuery($buId, $userId, $departmentId, $scope);
+            $baseQuery = $this->memberFocusService->applyMemberFocus($baseQuery, $memberUserId);
 
             $today = now()->toDateString();
 
@@ -828,12 +823,14 @@ class ActivityInertiaController extends Controller
     /**
      * Get department stats for analytics
      */
-    protected function getDepartmentStats(int $departmentId, int $buId, string $distributionPeriod = 'all'): array
+    protected function getDepartmentStats(int $departmentId, int $buId, string $distributionPeriod = 'all', ?int $memberUserId = null): array
     {
         try {
             $baseQuery = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
                 ->where('department_id', $departmentId);
+
+            $baseQuery = $this->memberFocusService->applyMemberFocus($baseQuery, $memberUserId);
 
             // Apply period filter to match distribution chart
             $baseQuery = $this->applyPeriodFilter($baseQuery, $distributionPeriod);
@@ -1185,7 +1182,7 @@ class ActivityInertiaController extends Controller
     /**
      * Get visuals for department dashboard
      */
-    protected function getDepartmentVisuals(int $departmentId, int $buId, string $distributionPeriod = 'all'): array
+    protected function getDepartmentVisuals(int $departmentId, int $buId, string $distributionPeriod = 'all', ?int $memberUserId = null): array
     {
         try {
             $tab = request()->input('dept_tab', 'inprogress');
@@ -1194,6 +1191,7 @@ class ActivityInertiaController extends Controller
             $query = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
                 ->where('department_id', $departmentId);
+            $query = $this->memberFocusService->applyMemberFocus($query, $memberUserId);
 
             // Tab logic
             if ($tab === 'todo') {
@@ -1219,6 +1217,7 @@ class ActivityInertiaController extends Controller
                 ->whereBetween('due_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
                 ->orderBy('due_date', 'asc')
                 ->take(5)
+                ->tap(fn ($query) => $this->memberFocusService->applyMemberFocus($query, $memberUserId))
                 ->get()
                 ->map(fn ($t) => [
                     'id' => $t->id,
@@ -1232,6 +1231,7 @@ class ActivityInertiaController extends Controller
             $distributionQuery = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
                 ->where('department_id', $departmentId);
+            $distributionQuery = $this->memberFocusService->applyMemberFocus($distributionQuery, $memberUserId);
 
             // Apply period filter
             $distributionQuery = $this->applyPeriodFilter($distributionQuery, $distributionPeriod);
@@ -1249,12 +1249,14 @@ class ActivityInertiaController extends Controller
                 ->where('department_id', $departmentId)
                 ->where('due_date', '<', now()->toDateString())
                 ->whereNotIn('status', ['completed', 'cancelled'])
+                ->tap(fn ($query) => $this->memberFocusService->applyMemberFocus($query, $memberUserId))
                 ->count();
 
             // Top Category
             $topCategory = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
                 ->where('department_id', $departmentId)
+                ->tap(fn ($query) => $this->memberFocusService->applyMemberFocus($query, $memberUserId))
                 ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
                 ->select('employee_activity_types.name', DB::raw('count(*) as count'))
                 ->groupBy('employee_activity_types.id', 'employee_activity_types.name')
@@ -1695,11 +1697,16 @@ class ActivityInertiaController extends Controller
             // If scope is 'my', filter by current user; if 'department', get all department tasks
             $userId = $scope === 'my' ? $user->id : null;
             $departmentId = $user->getCurrentDepartmentId();
+            $teamMembers = $this->memberFocusService->resolveDepartmentMembers($buId, $departmentId);
+            $focusedMemberUserId = $scope === 'department'
+                ? $this->memberFocusService->sanitizeRequestedMember($request->query('member_user_id'), $teamMembers)
+                : null;
 
             return $exportService->exportToXlsx(
                 businessUnitId: $buId,
                 departmentId: $departmentId,
                 userId: $userId,
+                focusedMemberUserId: $focusedMemberUserId,
                 dateFrom: $request->get('date_from'),
                 dateTo: $request->get('date_to'),
                 status: $request->get('status'),
@@ -1742,5 +1749,23 @@ class ActivityInertiaController extends Controller
             'department' => $format($prioritized['department'], 'department')->values()->toArray(),
             'others' => $format($prioritized['others'], 'other')->values()->toArray(),
         ];
+    }
+
+    protected function buildTaskScopeQuery(int $buId, int $userId, ?int $departmentId, string $scope): Builder
+    {
+        $query = EmployeeTask::query()
+            ->where('business_unit_id', $buId);
+
+        if ($scope === 'my') {
+            return $query->where(function ($taskQuery) use ($userId) {
+                $taskQuery->whereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $userId))
+                    ->orWhere('created_by', $userId);
+            });
+        }
+
+        return $query->where(function ($taskQuery) use ($userId, $departmentId) {
+            $taskQuery->where('department_id', $departmentId)
+                ->orWhereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $userId));
+        });
     }
 }

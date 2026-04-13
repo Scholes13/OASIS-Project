@@ -1,17 +1,22 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Popover, Transition } from '@headlessui/react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import type { TaskFilters, ActivityType } from '@/types';
 
 interface FilterDropdownProps {
     filters: TaskFilters;
     onChange: (filters: TaskFilters) => void;
     activityTypes: ActivityType[];
+    teamMembers?: Array<{ id: number; name: string }>;
     isFiltering?: boolean;
 }
 
-export default function FilterDropdown({ filters, onChange, activityTypes, isFiltering }: FilterDropdownProps) {
+export default function FilterDropdown({ filters, onChange, activityTypes, teamMembers = [], isFiltering }: FilterDropdownProps) {
     const [localFilters, setLocalFilters] = useState(filters);
+
+    useEffect(() => {
+        setLocalFilters(filters);
+    }, [filters]);
 
     const handleChange = (key: keyof TaskFilters, value: string) => {
         const newFilters = { ...localFilters, [key]: value };
@@ -29,12 +34,14 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
             status: '',
             date_from: threeMonthsAgo.toISOString().split('T')[0],
             date_to: new Date().toISOString().split('T')[0],
+            member_user_id: '',
+            scope: localFilters.scope,
         };
         setLocalFilters(resetFilters);
         onChange(resetFilters);
     };
 
-    const hasActiveFilters = filters.activity_type_id || filters.status || filters.search;
+    const hasActiveFilters = filters.activity_type_id || filters.status || filters.search || filters.member_user_id;
 
     return (
         <div className="flex items-center gap-2">
@@ -60,7 +67,28 @@ export default function FilterDropdown({ filters, onChange, activityTypes, isFil
                             leaveTo="opacity-0 translate-y-1"
                         >
                             <Popover.Panel className="absolute right-0 z-10 mt-2 w-72 bg-white rounded-xl shadow-lg border border-gray-100 p-4">
-                                <div className="space-y-3">
+                                    <div className="space-y-3">
+                                    {localFilters.scope === 'department' && (
+                                        <div>
+                                            <label htmlFor="activity-task-member-filter" className="block text-xs font-medium text-gray-500 mb-1.5">
+                                                Member
+                                            </label>
+                                            <select
+                                                id="activity-task-member-filter"
+                                                value={localFilters.member_user_id}
+                                                onChange={(e) => handleChange('member_user_id', e.target.value)}
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                                            >
+                                                <option value="">All Team Members</option>
+                                                {teamMembers.map((member) => (
+                                                    <option key={member.id} value={String(member.id)}>
+                                                        {member.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
                                     {/* Activity Type */}
                                     <div>
                                         <label className="block text-xs font-medium text-gray-500 mb-1.5">

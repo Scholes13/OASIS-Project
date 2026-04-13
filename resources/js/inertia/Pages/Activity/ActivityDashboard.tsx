@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { Popover, Transition } from '@headlessui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Activity,
@@ -135,6 +136,7 @@ interface DashboardProps extends PageProps {
     personalVisuals: PersonalVisuals;
     departmentStats: Stats | null;
     departmentVisuals: DepartmentVisuals | null;
+    departmentMembers?: Array<{ id: number; name: string }>;
     canViewReports?: boolean;
     executiveStats?: ExecutiveStats | null;
     queryParams?: {
@@ -144,6 +146,7 @@ interface DashboardProps extends PageProps {
         dept_page?: string;
         distribution_period?: PeriodFilter;
         dept_distribution_period?: PeriodFilter;
+        member_user_id?: string | null;
     };
 }
 
@@ -154,6 +157,7 @@ export default function ActivityDashboard({
     personalVisuals,
     departmentStats,
     departmentVisuals,
+    departmentMembers = [],
     canViewReports,
     executiveStats,
     queryParams
@@ -168,8 +172,13 @@ export default function ActivityDashboard({
     const [deptDistributionPeriod, setDeptDistributionPeriod] = useState<PeriodFilter>(
         (queryParams?.dept_distribution_period as PeriodFilter) || 'all'
     );
+    const [selectedDepartmentMember, setSelectedDepartmentMember] = useState<string>(queryParams?.member_user_id ?? '');
     const [isDistributionLoading, setIsDistributionLoading] = useState(false);
     const [isDeptDistributionLoading, setIsDeptDistributionLoading] = useState(false);
+
+    useEffect(() => {
+        setSelectedDepartmentMember(queryParams?.member_user_id ?? '');
+    }, [queryParams?.member_user_id]);
 
     /** Navigate to admin dashboard for a specific BU, switching context first */
     const navigateToAdminDashboard = (businessUnitId: number, departmentId?: number) => {
@@ -319,15 +328,62 @@ export default function ActivityDashboard({
         setIsDeptDistributionLoading(true);
         router.get(
             route('activity.dashboard'),
-            { dept_distribution_period: period },
+            {
+                dept_distribution_period: period,
+                ...(selectedDepartmentMember ? { member_user_id: selectedDepartmentMember } : {}),
+            },
             {
                 preserveState: true,
                 preserveScroll: true,
-                only: ['departmentVisuals', 'departmentStats', 'queryParams'],
+                only: ['departmentVisuals', 'departmentStats', 'queryParams', 'departmentMembers'],
                 onFinish: () => setIsDeptDistributionLoading(false)
             }
         );
     };
+
+    const handleDepartmentMemberChange = (memberUserId: string) => {
+        setSelectedDepartmentMember(memberUserId);
+        setIsDeptDistributionLoading(true);
+        router.get(
+            route('activity.dashboard'),
+            {
+                dept_distribution_period: deptDistributionPeriod,
+                ...(memberUserId ? { member_user_id: memberUserId } : {}),
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['departmentVisuals', 'departmentStats', 'queryParams', 'departmentMembers'],
+                onFinish: () => setIsDeptDistributionLoading(false),
+            }
+        );
+    };
+
+    const handleViewModeChange = (nextViewMode: 'personal' | 'department' | 'executive') => {
+        setViewMode(nextViewMode);
+
+        if (nextViewMode === 'department' || !selectedDepartmentMember) {
+            return;
+        }
+
+        setSelectedDepartmentMember('');
+        setIsDeptDistributionLoading(true);
+        router.get(
+            route('activity.dashboard'),
+            {
+                distribution_period: distributionPeriod,
+                dept_distribution_period: deptDistributionPeriod,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['departmentVisuals', 'departmentStats', 'queryParams', 'departmentMembers'],
+                onFinish: () => setIsDeptDistributionLoading(false),
+            }
+        );
+    };
+
+    const focusedDepartmentMember = departmentMembers.find((member) => String(member.id) === selectedDepartmentMember) ?? null;
 
     return (
         <>
@@ -342,7 +398,7 @@ export default function ActivityDashboard({
                             <div className="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200/50">
                                 {hasExecutive && (
                                     <button
-                                        onClick={() => setViewMode('executive')}
+                                        onClick={() => handleViewModeChange('executive')}
                                         className={cn(
                                             'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
                                             viewMode === 'executive'
@@ -357,7 +413,7 @@ export default function ActivityDashboard({
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => setViewMode('personal')}
+                                    onClick={() => handleViewModeChange('personal')}
                                     className={cn(
                                         'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
                                         viewMode === 'personal'
@@ -369,7 +425,7 @@ export default function ActivityDashboard({
                                 </button>
                                 {departmentStats && (
                                     <button
-                                        onClick={() => setViewMode('department')}
+                                        onClick={() => handleViewModeChange('department')}
                                         className={cn(
                                             'rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-200',
                                             viewMode === 'department'
@@ -413,13 +469,55 @@ export default function ActivityDashboard({
 
                         {viewMode !== 'executive' && (
                         <div className="flex items-center gap-3">
-                            <button className="flex items-center justify-center rounded-lg bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-                                <Filter className="mr-2 h-4 w-4 text-slate-500" />
-                                Filter
-                            </button>
+                            {viewMode === 'department' ? (
+                                <Popover className="relative">
+                                    <Popover.Button className="flex items-center justify-center rounded-lg bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                        <Filter className="mr-2 h-4 w-4 text-slate-500" />
+                                        Filter
+                                        {selectedDepartmentMember ? (
+                                            <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                                        ) : null}
+                                    </Popover.Button>
+                                    <Transition
+                                        as={Fragment}
+                                        enter="transition ease-out duration-200"
+                                        enterFrom="opacity-0 translate-y-1"
+                                        enterTo="opacity-100 translate-y-0"
+                                        leave="transition ease-in duration-150"
+                                        leaveFrom="opacity-100 translate-y-0"
+                                        leaveTo="opacity-0 translate-y-1"
+                                    >
+                                        <Popover.Panel className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label htmlFor="activity-dashboard-member-filter" className="mb-1.5 block text-xs font-medium text-slate-500">
+                                                        Member
+                                                    </label>
+                                                    <select
+                                                        id="activity-dashboard-member-filter"
+                                                        value={selectedDepartmentMember}
+                                                        onChange={(event) => handleDepartmentMemberChange(event.target.value)}
+                                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-[#16599c] focus:ring-2 focus:ring-[#16599c]/20"
+                                                    >
+                                                        <option value="">All Department Members</option>
+                                                        {departmentMembers.map((member) => (
+                                                            <option key={member.id} value={String(member.id)}>
+                                                                {member.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </Popover.Panel>
+                                    </Transition>
+                                </Popover>
+                            ) : null}
                             <button
                                 type="button"
-                                onClick={() => openDownloadInSameTab(route('activity.task.export', { scope: viewMode === 'personal' ? 'my' : 'department' }))}
+                                onClick={() => openDownloadInSameTab(route('activity.task.export', {
+                                    scope: viewMode === 'personal' ? 'my' : 'department',
+                                    ...(viewMode === 'department' && selectedDepartmentMember ? { member_user_id: selectedDepartmentMember } : {}),
+                                }))}
                                 className="flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600"
                             >
                                 <Download className="mr-2 h-4 w-4" />
@@ -833,7 +931,11 @@ export default function ActivityDashboard({
                                                     <Activity className="h-6 w-6 text-slate-400" />
                                                 </div>
                                                 <h4 className="text-sm font-semibold text-slate-900">No tasks in progress</h4>
-                                                <p className="mt-1 text-sm text-slate-500">Tasks being worked on will appear here</p>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    {viewMode === 'department' && focusedDepartmentMember
+                                                        ? `Tidak ada aktivitas untuk ${focusedDepartmentMember.name} pada filter yang aktif.`
+                                                        : 'Tasks being worked on will appear here'}
+                                                </p>
                                             </div>
                                         )}
                                     </div>

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { router } from '@inertiajs/react';
 import ActivityDashboard from '@/Pages/Activity/ActivityDashboard';
 
 vi.mock('@inertiajs/react', async () => {
@@ -77,6 +78,186 @@ describe('ActivityDashboard export', () => {
         expect(openSpy).toHaveBeenCalledWith('/activity.task.export?scope=my', '_self');
 
         openSpy.mockRestore();
+    });
+
+    it('includes member_user_id in department export and preserves department period filters', () => {
+        const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+        const getSpy = vi.spyOn(router, 'get');
+
+        render(
+            <ActivityDashboard
+                personalStats={{
+                    total: 0,
+                    completed: 0,
+                    in_progress: 0,
+                    overdue: 0,
+                    planned: 0,
+                    completed_this_month: 0,
+                }}
+                personalVisuals={{
+                    roadmap: {
+                        data: [],
+                        current_page: 1,
+                        last_page: 1,
+                        per_page: 10,
+                        total: 0,
+                        links: [],
+                        prev_page_url: null,
+                        next_page_url: null,
+                    },
+                    upcoming: [],
+                    distribution: [],
+                    focus_breakdown: {
+                        total_activities: 0,
+                        top_category: { name: 'Tanpa Kategori', count: 0, percentage_of_report: 0 },
+                        top_subcategory: { name: 'Tanpa Sub Kategori', count: 0, percentage_of_report: 0 },
+                        items: [],
+                    },
+                }}
+                departmentStats={{
+                    total: 1,
+                    completed: 0,
+                    in_progress: 1,
+                    overdue: 0,
+                    planned: 0,
+                    completed_this_month: 0,
+                }}
+                departmentVisuals={{
+                    roadmap: {
+                        data: [],
+                        current_page: 1,
+                        last_page: 1,
+                        per_page: 20,
+                        total: 0,
+                        links: [],
+                        prev_page_url: null,
+                        next_page_url: null,
+                    },
+                    upcoming: [],
+                    distribution: [],
+                    focus_breakdown: {
+                        total_activities: 0,
+                        top_category: { name: 'Tanpa Kategori', count: 0, percentage_of_report: 0 },
+                        top_subcategory: { name: 'Tanpa Sub Kategori', count: 0, percentage_of_report: 0 },
+                        items: [],
+                    },
+                    bottleneck: 0,
+                    top_category: '-',
+                }}
+                departmentMembers={[
+                    { id: 9, name: 'Pram' },
+                    { id: 10, name: 'Hanung' },
+                ]}
+                canViewReports={false}
+                executiveStats={null}
+                queryParams={{ member_user_id: '9', dept_distribution_period: 'month' }}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /filter/i }));
+        fireEvent.change(screen.getByLabelText('Member'), { target: { value: '10' } });
+
+        expect(getSpy).toHaveBeenCalledWith(
+            '/activity.dashboard',
+            expect.objectContaining({
+                dept_distribution_period: 'month',
+                member_user_id: '10',
+            }),
+            expect.any(Object)
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /export report/i }));
+
+        expect(openSpy).toHaveBeenCalledWith('/activity.task.export?scope=department&member_user_id=10', '_self');
+
+        getSpy.mockRestore();
+        openSpy.mockRestore();
+    });
+
+    it('clears department member focus from the dataset when switching away from department mode', () => {
+        const getSpy = vi.spyOn(router, 'get');
+
+        render(
+            <ActivityDashboard
+                personalStats={{
+                    total: 2,
+                    completed: 1,
+                    in_progress: 1,
+                    overdue: 0,
+                    planned: 0,
+                    completed_this_month: 1,
+                }}
+                personalVisuals={{
+                    roadmap: {
+                        data: [],
+                        current_page: 1,
+                        last_page: 1,
+                        per_page: 10,
+                        total: 0,
+                        links: [],
+                        prev_page_url: null,
+                        next_page_url: null,
+                    },
+                    upcoming: [],
+                    distribution: [],
+                    focus_breakdown: {
+                        total_activities: 0,
+                        top_category: { name: 'Tanpa Kategori', count: 0, percentage_of_report: 0 },
+                        top_subcategory: { name: 'Tanpa Sub Kategori', count: 0, percentage_of_report: 0 },
+                        items: [],
+                    },
+                }}
+                departmentStats={{
+                    total: 1,
+                    completed: 0,
+                    in_progress: 1,
+                    overdue: 0,
+                    planned: 0,
+                    completed_this_month: 0,
+                }}
+                departmentVisuals={{
+                    roadmap: {
+                        data: [],
+                        current_page: 1,
+                        last_page: 1,
+                        per_page: 20,
+                        total: 0,
+                        links: [],
+                        prev_page_url: null,
+                        next_page_url: null,
+                    },
+                    upcoming: [],
+                    distribution: [],
+                    focus_breakdown: {
+                        total_activities: 0,
+                        top_category: { name: 'Tanpa Kategori', count: 0, percentage_of_report: 0 },
+                        top_subcategory: { name: 'Tanpa Sub Kategori', count: 0, percentage_of_report: 0 },
+                        items: [],
+                    },
+                    bottleneck: 0,
+                    top_category: '-',
+                }}
+                departmentMembers={[{ id: 9, name: 'Pram' }]}
+                canViewReports={false}
+                executiveStats={null}
+                queryParams={{ member_user_id: '9', dept_distribution_period: 'month', distribution_period: 'week' }}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Personal' }));
+
+        expect(getSpy).toHaveBeenCalledWith(
+            '/activity.dashboard',
+            expect.objectContaining({
+                distribution_period: 'week',
+                dept_distribution_period: 'month',
+            }),
+            expect.any(Object)
+        );
+
+        expect(getSpy.mock.calls.at(-1)?.[1]).not.toHaveProperty('member_user_id');
+
+        getSpy.mockRestore();
     });
 
     it('shows more in-progress work items on the first page to reduce empty space', () => {

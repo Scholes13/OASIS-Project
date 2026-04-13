@@ -1218,6 +1218,9 @@ export function ActivityDataTable({
                                     type="button"
                                     onClick={() => openDownloadInSameTab(route('activity.task.export', {
                                         scope: viewMode, // 'my' or 'department'
+                                        member_user_id: viewMode === 'department' && filters?.member_user_id
+                                            ? filters.member_user_id
+                                            : undefined,
                                         date_from: dateFilter === 'custom' && customRange.start
                                             ? format(customRange.start, 'yyyy-MM-dd')
                                             : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')

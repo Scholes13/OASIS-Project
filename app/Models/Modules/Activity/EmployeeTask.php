@@ -6,6 +6,7 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Services\Modules\Activity\BackdatePermissionService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,6 +16,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class EmployeeTask extends Model
 {
+    use HasFactory;
     use LogsActivity;
 
     protected $table = 'employee_tasks';

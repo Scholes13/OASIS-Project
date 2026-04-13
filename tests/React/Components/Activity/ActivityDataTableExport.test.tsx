@@ -102,14 +102,15 @@ describe('ActivityDataTable export', () => {
                     status: '',
                     date_from: '',
                     date_to: '',
-                    scope: 'my',
+                    member_user_id: '9',
+                    scope: 'department',
                 }}
             />
         );
 
         fireEvent.click(screen.getByRole('button', { name: /export xlsx/i }));
 
-        expect(openSpy).toHaveBeenCalledWith('/activity.task.export?scope=my', '_self');
+        expect(openSpy).toHaveBeenCalledWith('/activity.task.export?scope=department&member_user_id=9', '_self');
 
         openSpy.mockRestore();
     });

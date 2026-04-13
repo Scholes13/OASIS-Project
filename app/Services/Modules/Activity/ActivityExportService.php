@@ -15,7 +15,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ActivityExportService
 {
     public function __construct(
-        protected ActivityReportAggregationService $aggregationService
+        protected ActivityReportAggregationService $aggregationService,
+        protected ActivityMemberFocusService $memberFocusService
     ) {}
 
     /**
@@ -25,6 +26,7 @@ class ActivityExportService
         int $businessUnitId,
         ?int $departmentId = null,
         ?int $userId = null,
+        ?int $focusedMemberUserId = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
         ?string $status = null,
@@ -34,6 +36,7 @@ class ActivityExportService
             $businessUnitId,
             $departmentId,
             $userId,
+            $focusedMemberUserId,
             $dateFrom,
             $dateTo,
             $status,
@@ -63,12 +66,13 @@ class ActivityExportService
         int $businessUnitId,
         ?int $departmentId,
         ?int $userId,
+        ?int $focusedMemberUserId,
         ?string $dateFrom,
         ?string $dateTo,
         ?string $status,
         ?int $activityTypeId
     ): Collection {
-        return EmployeeTask::query()
+        $query = EmployeeTask::query()
             ->where('business_unit_id', $businessUnitId)
             ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
             ->when($userId, fn ($query) => $query->whereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $userId)))
@@ -78,8 +82,11 @@ class ActivityExportService
             ->when($activityTypeId, fn ($query) => $query->where('activity_type_id', $activityTypeId))
             ->with(['activityType', 'subActivity', 'creator', 'department'])
             ->orderBy('task_date', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
+
+        $this->memberFocusService->applyMemberFocus($query, $focusedMemberUserId);
+
+        return $query->get();
     }
 
     protected function buildDetailSheet(Spreadsheet $spreadsheet, Collection $tasks): void
@@ -318,4 +325,3 @@ class ActivityExportService
         return number_format($value, 1).'%';
     }
 }
-

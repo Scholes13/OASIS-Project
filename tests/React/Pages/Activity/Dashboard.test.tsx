@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { router } from '@inertiajs/react';
 import Dashboard from '@/Pages/Activity/Dashboard';
 import type { PaginatedData, Task, TaskFilters, TaskStats } from '@/types';
@@ -181,6 +181,7 @@ describe('Activity Dashboard calendar click behavior', () => {
         status: '',
         date_from: '',
         date_to: '',
+        member_user_id: '',
         scope: 'my',
     };
 
@@ -188,6 +189,21 @@ describe('Activity Dashboard calendar click behavior', () => {
         vi.clearAllMocks();
         window.localStorage.clear();
         window.history.pushState({}, '', '/activity/task?view=calendar');
+        global.route = vi.fn((name: string, params?: Record<string, string | number>) => {
+            const base = `/${name}`;
+
+            if (!params || Object.keys(params).length === 0) {
+                return base;
+            }
+
+            return `${base}?${new URLSearchParams(
+                Object.entries(params).reduce<Record<string, string>>((carry, [key, value]) => {
+                    carry[key] = String(value);
+
+                    return carry;
+                }, {})
+            ).toString()}`;
+        });
     });
 
     it('opens the modal flow from calendar events instead of navigating to the legacy page', async () => {
@@ -349,5 +365,53 @@ describe('Activity Dashboard calendar click behavior', () => {
             expect(screen.queryByTestId('task-detail-modal')).not.toBeInTheDocument();
             expect(screen.queryByTestId('task-form-modal')).not.toBeInTheDocument();
         });
+    });
+
+    it('shows member filtering only in team scope and clears it when returning to my tasks', async () => {
+        window.history.pushState({}, '', '/activity/task?view=list&page=3');
+        const getSpy = vi.spyOn(router, 'get').mockImplementation(() => undefined);
+
+        render(
+            <Dashboard
+                stats={stats}
+                tasks={makeTasks(makeTask())}
+                activityTypes={[]}
+                filters={{ ...filters, scope: 'department' }}
+                teamMembers={[
+                    { id: 2, name: 'Member A' },
+                    { id: 3, name: 'Member B' },
+                ]}
+                departmentUsers={[]}
+                backdatePermission={null}
+                allowedDateRange={{ from: '', to: '' }}
+                backdateEnabled={false}
+                prioritizedActivityTypes={[]}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /filter/i }));
+        fireEvent.change(screen.getByLabelText('Member'), { target: { value: '2' } });
+
+        await waitFor(() => {
+            expect(getSpy).toHaveBeenCalledWith(
+                '/activity.task.index',
+                expect.objectContaining({
+                    member_user_id: '2',
+                    scope: 'department',
+                    view: 'list',
+                }),
+                expect.any(Object)
+            );
+        });
+
+        expect(getSpy.mock.calls.at(-1)?.[1]).not.toHaveProperty('page');
+
+        fireEvent.click(screen.getByRole('button', { name: /my tasks/i }));
+
+        await waitFor(() => {
+            expect(getSpy.mock.calls.at(-1)?.[1]).not.toHaveProperty('member_user_id');
+        });
+
+        getSpy.mockRestore();
     });
 });

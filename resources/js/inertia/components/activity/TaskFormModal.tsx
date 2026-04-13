@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { ArrowLeft, Star, Building2, Plus, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/ui/toast';
-import type { PageProps, Task, ActivityType, User, TaskStatus, TaskPriority } from '@/types';
+import type { PageProps, Task, ActivityType, User, TaskStatus, TaskPriority, TaskParticipantUser } from '@/types';
 
 const getTodayLocalDate = () => {
     const now = new Date();
@@ -15,6 +15,52 @@ const getTodayLocalDate = () => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+};
+
+const getDatePart = (value?: string | null): string => {
+    if (!value) return '';
+    return value.includes('T') ? value.split('T')[0] : value;
+};
+
+const getTimePart = (value?: string | null): string => {
+    if (!value || !value.includes('T')) return '';
+    return value.split('T')[1]?.substring(0, 5) || '';
+};
+
+const getTaskFormSeed = (task: Task | null, fallbackTaskDate: string) => {
+    if (!task) {
+        return {
+            task_title: '',
+            task_description: '',
+            activity_type_id: '',
+            sub_activity_id: '',
+            status: 'planned' as TaskStatus,
+            priority: 'medium' as TaskPriority,
+            task_date: fallbackTaskDate,
+            due_date: '',
+            participant_ids: [] as number[],
+            start_time: '',
+            end_time: '',
+            completed_date: fallbackTaskDate,
+            confirm_reset_execution: false,
+        };
+    }
+
+    return {
+        task_title: task.task_title || '',
+        task_description: task.task_description || '',
+        activity_type_id: task.activity_type_id?.toString() || '',
+        sub_activity_id: task.sub_activity_id?.toString() || '',
+        status: (task.status as TaskStatus) || 'planned',
+        priority: (task.priority as TaskPriority) || 'medium',
+        task_date: getDatePart(task.task_date) || fallbackTaskDate,
+        due_date: getDatePart(task.due_date) || '',
+        participant_ids: task.participants?.map((participant: TaskParticipantUser) => participant.id) || [],
+        start_time: getTimePart(task.started_at) || task.start_time || '',
+        end_time: getTimePart(task.completed_at) || task.end_time || '',
+        completed_date: getDatePart(task.completed_at) || getDatePart(task.completed_date) || getDatePart(task.task_date) || fallbackTaskDate,
+        confirm_reset_execution: false,
+    };
 };
 
 interface PrioritizedActivityType extends ActivityType {
@@ -58,6 +104,7 @@ interface TaskFormData {
     start_time: string;
     end_time: string;
     completed_date: string;
+    confirm_reset_execution?: boolean;
 }
 
 interface BackdateRequestData {
@@ -157,59 +204,79 @@ export function TaskFormModal({
     const [showBackdateModal, setShowBackdateModal] = useState(false);
     const todayLocal = getTodayLocalDate();
     const defaultTaskDate = initialTaskDate || todayLocal;
+    const originalStartedDate = getDatePart(task?.started_at);
+    const originalCompletedDate = getDatePart(task?.completed_at);
 
     const { data, setData, post, put, processing, errors, reset } = useForm<TaskFormData>({
-        task_title: task?.task_title || '',
-        task_description: task?.task_description || '',
-        activity_type_id: task?.activity_type_id?.toString() || '',
-        sub_activity_id: task?.sub_activity_id?.toString() || '',
-        status: (task?.status as TaskStatus) || 'planned',
-        priority: (task?.priority as TaskPriority) || 'medium',
-        task_date: task?.task_date || defaultTaskDate,
-        due_date: task?.due_date || '',
-        participant_ids: task?.participants?.map((p: any) => p.id) || [],
-        start_time: task?.start_time || '',
-        end_time: task?.end_time || '',
-        completed_date: task?.completed_date || defaultTaskDate,
+        ...getTaskFormSeed(task, defaultTaskDate),
     });
 
     useEffect(() => {
         if (open) {
-            if (task) {
-                setData({
-                    task_title: task.task_title || '',
-                    task_description: task.task_description || '',
-                    activity_type_id: task.activity_type_id?.toString() || '',
-                    sub_activity_id: task.sub_activity_id?.toString() || '',
-                    status: (task.status as TaskStatus) || 'planned',
-                    priority: (task.priority as TaskPriority) || 'medium',
-                    task_date: task.task_date || getTodayLocalDate(),
-                    due_date: task.due_date || '',
-                    participant_ids: task.participants?.map((p: any) => p.id) || [],
-                    start_time: task.start_time || '',
-                    end_time: task.end_time || '',
-                    completed_date: task.completed_date || '',
-                });
-            } else {
-                const createTaskDate = initialTaskDate || getTodayLocalDate();
-
-                setData({
-                    task_title: '',
-                    task_description: '',
-                    activity_type_id: '',
-                    sub_activity_id: '',
-                    status: 'planned',
-                    priority: 'medium',
-                    task_date: createTaskDate,
-                    due_date: '',
-                    participant_ids: [],
-                    start_time: '',
-                    end_time: '',
-                    completed_date: createTaskDate,
-                });
-            }
+            const createTaskDate = initialTaskDate || getTodayLocalDate();
+            setData(getTaskFormSeed(task, createTaskDate));
         }
     }, [open, task, initialTaskDate, reset, setData]);
+
+    const isEditingStartedTask = isEditing && !!task?.started_at;
+    const isEditingCompletedTask = isEditing && !!task?.completed_at;
+    const needsStartCorrection = useMemo(() => {
+        if (data.status === 'completed') {
+            if (!isEditing) {
+                return true;
+            }
+
+            if (!task?.started_at) {
+                return true;
+            }
+
+            return data.task_date !== originalStartedDate;
+        }
+
+        if (data.status !== 'in_progress') {
+            return false;
+        }
+
+        if (!isEditing) {
+            return data.task_date !== todayLocal;
+        }
+
+        if (!task?.started_at) {
+            return data.task_date !== todayLocal;
+        }
+
+        return false;
+    }, [data.status, data.task_date, isEditing, originalStartedDate, task?.started_at, todayLocal]);
+
+    const needsCompletionCorrection = useMemo(() => {
+        if (data.status !== 'completed') {
+            return false;
+        }
+
+        if (!isEditing || !task?.completed_at) {
+            return true;
+        }
+
+        return data.completed_date !== originalCompletedDate;
+    }, [data.status, data.completed_date, isEditing, originalCompletedDate, task?.completed_at]);
+
+    const showReadOnlyStartSummary = isEditingStartedTask && !needsStartCorrection;
+    const showReadOnlyCompletionSummary = isEditingCompletedTask && !needsStartCorrection && !needsCompletionCorrection;
+    const showStartTimeInput = data.status === 'completed'
+        ? (!isEditing || !task?.started_at || needsStartCorrection)
+        : data.status === 'in_progress' && needsStartCorrection;
+    const showCompletionInputs = data.status === 'completed'
+        && (!isEditing || !task?.completed_at || needsCompletionCorrection);
+    const startedAtDisplayValue = useMemo(() => {
+        if (!task?.started_at) {
+            return '-';
+        }
+
+        const startedTime = getTimePart(task.started_at);
+        const startedDate = data.status === 'in_progress' && isEditing ? data.task_date : getDatePart(task.started_at);
+
+        return `${startedDate} ${startedTime}`.trim();
+    }, [data.status, data.task_date, isEditing, task?.started_at]);
 
     const flatActivityTypes = useMemo(() => {
         if (Array.isArray(activityTypes)) {
@@ -315,10 +382,22 @@ export function TaskFormModal({
                                     value={data.status}
                                     onChange={(e) => {
                                         const newStatus = e.target.value as TaskStatus;
-                                        setData('status', newStatus);
-                                        if (newStatus === 'completed') {
-                                            setData(prev => ({ ...prev, status: newStatus, due_date: '' }));
+                                        if (newStatus === 'planned' && isEditing && (task?.started_at || task?.completed_at)) {
+                                            const confirmed = window.confirm('Reset execution history and move this task back to planned?');
+                                            if (!confirmed) {
+                                                return;
+                                            }
                                         }
+
+                                        setData((prev) => ({
+                                            ...prev,
+                                            status: newStatus,
+                                            due_date: newStatus === 'completed' ? '' : prev.due_date,
+                                            completed_date: newStatus === 'completed'
+                                                ? (prev.completed_date || prev.task_date)
+                                                : prev.completed_date,
+                                            confirm_reset_execution: newStatus === 'planned' && isEditing && Boolean(task?.started_at || task?.completed_at),
+                                        }));
                                     }}
                                     className="w-full h-10 pl-8 pr-3 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none focus:border-[#16599c] bg-white cursor-pointer appearance-none"
                                 >
@@ -434,45 +513,96 @@ export function TaskFormModal({
                                 </div>
                             </div>
 
-                            {/* Time Log conditionally rendered */}
-                            {((data.status === 'completed') || (data.status === 'in_progress' && data.task_date && data.task_date < todayLocal)) && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5 border-t border-slate-200/60">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[12px] font-medium text-slate-600">Start Time <span className="text-rose-500">*</span></label>
-                                        <div className="relative">
-                                            <input
-                                                type="time"
-                                                value={data.start_time}
-                                                onChange={(e) => setData('start_time', e.target.value)}
-                                                className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.start_time ? "border-rose-300" : "border-slate-200")}
-                                            />
-                                            <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                            {(showReadOnlyStartSummary || showReadOnlyCompletionSummary || showStartTimeInput || showCompletionInputs) && (
+                                <div className="flex flex-col gap-4 pt-5 border-t border-slate-200/60">
+                                    {(needsStartCorrection || needsCompletionCorrection) && isEditing && (
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+                                            Task date changed. Please confirm the actual execution time for this task.
                                         </div>
-                                        {errors.start_time && <p className="text-[10px] text-rose-500">{errors.start_time}</p>}
-                                    </div>
+                                    )}
 
-                                    {data.status === 'completed' && (
-                                        <>
-                                            <div className="flex flex-col gap-1.5">
-                                                <label className="text-[12px] font-medium text-slate-600">End Time <span className="text-rose-500">*</span></label>
-                                                <div className="relative">
-                                                    <input
-                                                        type="time"
-                                                        value={data.end_time}
-                                                        onChange={(e) => setData('end_time', e.target.value)}
-                                                        className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.end_time ? "border-rose-300" : "border-slate-200")}
-                                                    />
-                                                    <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                                    {(showReadOnlyStartSummary || showReadOnlyCompletionSummary) && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {showReadOnlyStartSummary && (
+                                                <div className="flex flex-col gap-1.5">
+                                                    <label className="text-[12px] font-medium text-slate-600">Started At</label>
+                                                    <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-700 flex items-center">
+                                                        {startedAtDisplayValue}
+                                                    </div>
                                                 </div>
-                                                {errors.end_time && <p className="text-[10px] text-rose-500">{errors.end_time}</p>}
-                                            </div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <label className="text-[12px] font-medium text-slate-600">Duration (Calc)</label>
-                                                <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-400 flex items-center cursor-not-allowed">
-                                                    {data.start_time && data.end_time ? 'Auto-calculated' : 'Fill times...'}
+                                            )}
+                                            {showReadOnlyCompletionSummary && (
+                                                <>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <label className="text-[12px] font-medium text-slate-600">Completed At</label>
+                                                        <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-700 flex items-center">
+                                                            {task?.completed_at ? `${getDatePart(task.completed_at)} ${getTimePart(task.completed_at)}` : '-'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <label className="text-[12px] font-medium text-slate-600">Duration</label>
+                                                        <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-500 flex items-center">
+                                                            System-managed
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {(showStartTimeInput || showCompletionInputs) && (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {showStartTimeInput && (
+                                                <div className="flex flex-col gap-1.5">
+                                                    <label className="text-[12px] font-medium text-slate-600">Start Time <span className="text-rose-500">*</span></label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="time"
+                                                            aria-label="Start Time"
+                                                            value={data.start_time}
+                                                            onChange={(e) => setData('start_time', e.target.value)}
+                                                            className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.start_time ? "border-rose-300" : "border-slate-200")}
+                                                        />
+                                                        <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                                                    </div>
+                                                    {errors.start_time && <p className="text-[10px] text-rose-500">{errors.start_time}</p>}
                                                 </div>
-                                            </div>
-                                        </>
+                                            )}
+
+                                            {showCompletionInputs && (
+                                                <>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <label className="text-[12px] font-medium text-slate-600">Completed Date <span className="text-rose-500">*</span></label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="date"
+                                                                aria-label="Completed Date"
+                                                                value={data.completed_date}
+                                                                onChange={(e) => setData('completed_date', e.target.value)}
+                                                                min={data.task_date || undefined}
+                                                                className={cn("w-full h-10 pl-9 pr-3 border rounded-md text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none bg-white cursor-pointer", errors.completed_date ? "border-rose-300" : "border-slate-200")}
+                                                            />
+                                                            <CalendarIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                                                        </div>
+                                                        {errors.completed_date && <p className="text-[10px] text-rose-500">{errors.completed_date}</p>}
+                                                    </div>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <label className="text-[12px] font-medium text-slate-600">End Time <span className="text-rose-500">*</span></label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="time"
+                                                                aria-label="End Time"
+                                                                value={data.end_time}
+                                                                onChange={(e) => setData('end_time', e.target.value)}
+                                                                className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.end_time ? "border-rose-300" : "border-slate-200")}
+                                                            />
+                                                            <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                                                        </div>
+                                                        {errors.end_time && <p className="text-[10px] text-rose-500">{errors.end_time}</p>}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -529,6 +659,8 @@ export function TaskFormModal({
                 <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
                     {data.status === 'completed' ? (
                         <><Clock className="w-3.5 h-3.5" /> Time log required for completed task.</>
+                    ) : showReadOnlyStartSummary ? (
+                        <><Clock className="w-3.5 h-3.5" /> Started time is managed by the system for active tasks.</>
                     ) : (
                         <><span className="w-2 h-2 rounded-full bg-slate-300"></span> Save directly to To Do</>
                     )}

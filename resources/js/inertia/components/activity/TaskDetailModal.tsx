@@ -61,6 +61,29 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
         ? format(new Date(task.due_date), "EEEE, d MMMM yyyy", { locale: idLocale })
         : "-"
 
+    const handleHistoricalQuickAction = (errors: Record<string, string | string[]>) => {
+        if (!task) return false
+
+        const statusError = errors.status
+        const message = Array.isArray(statusError) ? statusError[0] : statusError
+
+        if (!message || !message.toLowerCase().includes('actual execution time')) {
+            return false
+        }
+
+        showToast.error(message)
+
+        if (onEdit) {
+            onEdit(task)
+        } else {
+            router.visit(route("activity.task.index", { task: task.id, modal: "edit" }))
+        }
+
+        onClose()
+
+        return true
+    }
+
     const handleStartTask = () => {
         if (!task) return
         setIsLoading(true)
@@ -73,7 +96,11 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                     showToast.success("Task started")
                     onClose()
                 },
-                onError: () => showToast.error("Failed to start task"),
+                onError: (errors) => {
+                    if (!handleHistoricalQuickAction(errors)) {
+                        showToast.error("Failed to start task")
+                    }
+                },
                 onFinish: () => setIsLoading(false),
             }
         )
@@ -91,7 +118,11 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                     showToast.success("Task completed!")
                     onClose()
                 },
-                onError: () => showToast.error("Failed to complete task"),
+                onError: (errors) => {
+                    if (!handleHistoricalQuickAction(errors)) {
+                        showToast.error("Failed to complete task")
+                    }
+                },
                 onFinish: () => setIsLoading(false),
             }
         )

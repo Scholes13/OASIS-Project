@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { router } from '@inertiajs/react'
 import { TaskDetailModal } from '@/components/activity/TaskDetailModal'
 import type { Task, TaskStatus } from '@/types'
@@ -50,6 +50,12 @@ function makeTask(status: TaskStatus = 'in_progress'): Task {
 describe('TaskDetailModal', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        if (!Element.prototype.getAnimations) {
+            Object.defineProperty(Element.prototype, 'getAnimations', {
+                configurable: true,
+                value: vi.fn(() => []),
+            })
+        }
         global.route = vi.fn((name: string, params?: Record<string, string | number>) => {
             const base = `/${name}`
 
@@ -67,14 +73,16 @@ describe('TaskDetailModal', () => {
         })
     })
 
-    it('renders refreshed modal details and due date format', () => {
-        render(
-            <TaskDetailModal
-                open={true}
-                task={makeTask()}
-                onClose={() => { }}
-            />
-        )
+    it('renders refreshed modal details and due date format', async () => {
+        await act(async () => {
+            render(
+                <TaskDetailModal
+                    open={true}
+                    task={makeTask()}
+                    onClose={() => { }}
+                />
+            )
+        })
 
         expect(screen.getByText('Action Plan')).toBeInTheDocument()
         expect(screen.getByText('In Progress')).toBeInTheDocument()
@@ -86,16 +94,20 @@ describe('TaskDetailModal', () => {
         expect(screen.getAllByRole('button', { name: /open in dashboard/i })[0]).toBeInTheDocument()
     })
 
-    it('runs start action for planned task', () => {
-        render(
-            <TaskDetailModal
-                open={true}
-                task={makeTask('planned')}
-                onClose={() => { }}
-            />
-        )
+    it('runs start action for planned task', async () => {
+        await act(async () => {
+            render(
+                <TaskDetailModal
+                    open={true}
+                    task={makeTask('planned')}
+                    onClose={() => { }}
+                />
+            )
+        })
 
-        fireEvent.click(screen.getByRole('button', { name: /start/i }))
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /start/i }))
+        })
         expect(vi.mocked(router.put)).toHaveBeenCalledWith(
             expect.stringContaining('/activity.task.update'),
             { status: 'in_progress' },
@@ -103,33 +115,71 @@ describe('TaskDetailModal', () => {
         )
     })
 
-    it('runs complete action and modal-first navigation', () => {
+    it('runs complete action and modal-first navigation', async () => {
         const onClose = vi.fn()
 
-        render(
-            <TaskDetailModal
-                open={true}
-                task={makeTask('in_progress')}
-                onClose={onClose}
-            />
-        )
+        await act(async () => {
+            render(
+                <TaskDetailModal
+                    open={true}
+                    task={makeTask('in_progress')}
+                    onClose={onClose}
+                />
+            )
+        })
 
-        fireEvent.click(screen.getByRole('button', { name: /done/i }))
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /done/i }))
+        })
         expect(vi.mocked(router.put)).toHaveBeenCalledWith(
             expect.stringContaining('/activity.task.update'),
             { status: 'completed' },
             expect.objectContaining({ preserveScroll: true })
         )
 
-        fireEvent.click(screen.getAllByRole('button', { name: /open in dashboard/i })[0])
+        await act(async () => {
+            fireEvent.click(screen.getAllByRole('button', { name: /open in dashboard/i })[0])
+        })
         expect(vi.mocked(router.visit)).toHaveBeenCalledWith(
             expect.stringContaining('/activity.task.index?task=99&modal=detail'),
         )
         expect(onClose).toHaveBeenCalledTimes(1)
 
-        fireEvent.click(screen.getByRole('button', { name: /edit task/i }))
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /edit task/i }))
+        })
         expect(vi.mocked(router.visit)).toHaveBeenCalledWith(
             expect.stringContaining('/activity.task.index?task=99&modal=edit'),
         )
     })
+
+    it('opens edit modal when quick action is blocked for historical task', async () => {
+        const onEdit = vi.fn()
+        const task = makeTask('planned')
+        task.task_date = '2026-04-10'
+
+        await act(async () => {
+            render(
+                <TaskDetailModal
+                    open={true}
+                    task={task}
+                    onClose={() => {}}
+                    onEdit={onEdit}
+                />
+            )
+        })
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /start/i }))
+        })
+
+        vi.mocked(router.put).mock.calls[0][2]?.onError?.({
+            status: ['Task uses a historical date. Please confirm actual execution time.']
+        })
+
+        expect(onEdit).toHaveBeenCalledWith(task)
+    })
 })
+
+
+

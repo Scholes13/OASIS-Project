@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Modules\Activity;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Modules\Activity\StoreActivityTaskRequest;
+use App\Http\Requests\Modules\Activity\UpdateActivityTaskRequest;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
@@ -10,6 +12,7 @@ use App\Services\Modules\Activity\ActivityReportAggregationService;
 use App\Services\Modules\Activity\ActivityTypePrioritizationService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use App\Services\Modules\Activity\TaskService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -260,100 +263,32 @@ class ActivityInertiaController extends Controller
     /**
      * Store a new task
      */
-    public function store(Request $request)
+    public function store(StoreActivityTaskRequest $request): RedirectResponse
     {
         $user = Auth::user();
         $buId = session('current_business_unit_id');
         $departmentId = session('current_department_id') ?? $user->getCurrentDepartmentId();
 
-        // Get valid activity type IDs for this department
-        $validActivityTypeIds = $this->getValidActivityTypeIds($departmentId);
-
-        // Check if task_date is backdate (before today)
-        $taskDate = \Carbon\Carbon::parse($request->input('task_date'));
-        $isBackdate = $taskDate->isBefore(now()->startOfDay());
-        $status = $request->input('status');
-
-        // Build dynamic validation rules for time fields
-        $startTimeRule = 'nullable|date_format:H:i';
-        $endTimeRule = 'nullable|date_format:H:i';
-        $completedDateRule = 'nullable|date';
-        if ($status === 'completed' || ($status === 'in_progress' && $isBackdate)) {
-            $startTimeRule = 'required|date_format:H:i';
-        }
-        if ($status === 'completed') {
-            $endTimeRule = 'required|date_format:H:i';
-            $completedDateRule = 'required|date|after_or_equal:'.$request->input('task_date');
-        }
-
-        $validated = $request->validate([
-            'task_title' => 'required|string|max:255',
-            'task_description' => 'nullable|string',
-            'activity_type_id' => [
-                'required',
-                'exists:employee_activity_types,id',
-                function ($attribute, $value, $fail) use ($validActivityTypeIds) {
-                    if (! in_array($value, $validActivityTypeIds)) {
-                        $fail('The selected activity type is not assigned to your department.');
-                    }
-                },
-            ],
-            'sub_activity_id' => 'nullable|exists:employee_sub_activities,id',
-            'status' => 'required|in:planned,in_progress,completed,cancelled',
-            'priority' => 'required|in:low,medium,high',
-            'task_date' => 'required|date',
-            'due_date' => $status === 'completed' ? 'nullable|date' : 'required|date|after_or_equal:task_date',
-            'participant_ids' => 'nullable|array',
-            'participant_ids.*' => 'exists:users,id',
-            // Time fields (HH:mm format)
-            'start_time' => $startTimeRule,
-            'end_time' => $endTimeRule,
-            'completed_date' => $completedDateRule,
-        ]);
-
-        // Validate task_date against backdate permission
-        if (! $this->backdateService->canCreateTaskWithDate($user, $taskDate)) {
-            $allowedRange = $this->backdateService->getAllowedDateRange($user);
-
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'task_date' => 'Task date is outside allowed range. You can only create tasks from '.
-                        $allowedRange['from']->format('Y-m-d').' to '.
-                        $allowedRange['to']->format('Y-m-d').'. '.
-                        'Request backdate access if you need to create tasks with older dates.',
-                ]);
-        }
-
-        // Validate end_time > start_time when completed_date equals task_date
-        $completedDate = $validated['completed_date'] ?? $validated['task_date'];
-        if ($status === 'completed' && $completedDate === $validated['task_date'] && ! empty($validated['start_time']) && ! empty($validated['end_time'])) {
-            if ($validated['end_time'] <= $validated['start_time']) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['end_time' => 'Waktu selesai harus setelah waktu mulai.']);
-            }
-        }
+        $validated = $request->validated();
+        $taskDate = Carbon::parse($validated['task_date']);
+        $isTodayTask = $taskDate->isSameDay(now());
+        $status = $validated['status'];
 
         // Prepare time fields based on status
         $startedAt = null;
         $completedAt = null;
         $durationMinutes = null;
+        $completedDate = $validated['completed_date'] ?? $validated['task_date'];
 
-        if ($validated['status'] === 'in_progress') {
-            // In progress: combine task_date + start_time if backdate, otherwise now()
-            if ($isBackdate && ! empty($validated['start_time'])) {
-                $startedAt = \Carbon\Carbon::parse($validated['task_date'].' '.$validated['start_time']);
+        if ($status === 'in_progress') {
+            if (! $isTodayTask && ! empty($validated['start_time'])) {
+                $startedAt = Carbon::parse($validated['task_date'].' '.$validated['start_time']);
             } else {
                 $startedAt = now();
             }
-        } elseif ($validated['status'] === 'completed') {
-            // Completed: combine task_date + start_time
-            $startedAt = \Carbon\Carbon::parse($validated['task_date'].' '.$validated['start_time']);
-
-            // completed_at: combine completed_date + end_time
-            $completedAt = \Carbon\Carbon::parse($completedDate.' '.$validated['end_time']);
-
+        } elseif ($status === 'completed') {
+            $startedAt = Carbon::parse($validated['task_date'].' '.$validated['start_time']);
+            $completedAt = Carbon::parse($completedDate.' '.$validated['end_time']);
             $durationMinutes = $startedAt->diffInMinutes($completedAt);
         }
 
@@ -361,29 +296,27 @@ class ActivityInertiaController extends Controller
         try {
             $task = EmployeeTask::create([
                 'business_unit_id' => $buId,
-                'department_id' => session('current_department_id'),
+                'department_id' => $departmentId,
                 'created_by' => $user->id,
                 'activity_type_id' => $validated['activity_type_id'],
                 'sub_activity_id' => $validated['sub_activity_id'] ?? null,
                 'task_title' => $validated['task_title'],
                 'task_description' => $validated['task_description'] ?? null,
-                'status' => $validated['status'],
+                'status' => $status,
                 'priority' => $validated['priority'],
                 'task_date' => $validated['task_date'],
                 'due_date' => $validated['due_date'] ?? null,
                 'started_at' => $startedAt,
                 'completed_at' => $completedAt,
-                'completed_by' => $validated['status'] === 'completed' ? $user->id : null,
+                'completed_by' => $status === 'completed' ? $user->id : null,
                 'duration_minutes' => $durationMinutes,
             ]);
 
-            // Add creator as owner participant
             $task->participants()->attach($user->id, [
                 'is_owner' => true,
                 'joined_at' => now(),
             ]);
 
-            // Add other participants
             if (! empty($validated['participant_ids'])) {
                 foreach ($validated['participant_ids'] as $participantId) {
                     if ($participantId != $user->id) {
@@ -395,9 +328,7 @@ class ActivityInertiaController extends Controller
                 }
             }
 
-            // Clear cache
             $this->clearCache($buId, $user->id);
-
             DB::commit();
 
             return redirect()
@@ -407,7 +338,9 @@ class ActivityInertiaController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Failed to create task: '.$e->getMessage());
+            report($e);
+
+            return back()->with('error', 'Failed to create task.');
         }
     }
 
@@ -424,24 +357,18 @@ class ActivityInertiaController extends Controller
     /**
      * Update a task
      */
-    public function update(Request $request, EmployeeTask $task)
+    public function update(UpdateActivityTaskRequest $request, EmployeeTask $task): RedirectResponse
     {
         $user = Auth::user();
         $buId = session('current_business_unit_id');
 
         abort_unless($this->canEditTask($task, $user, $buId), 403);
 
-        // Check if this is a partial update (e.g., drag & drop for due_date or status change)
         $isPartialUpdate = $request->has('due_date') && ! $request->has('task_title');
         $isStatusUpdate = $request->has('status') && ! $request->has('task_title');
 
         if ($isPartialUpdate || $isStatusUpdate) {
-            // Partial update - only validate provided fields
-            $validated = $request->validate([
-                'due_date' => 'sometimes|date',
-                'status' => 'sometimes|in:planned,in_progress,completed,cancelled',
-            ]);
-
+            $validated = $request->validated();
             $updateData = [];
 
             if (isset($validated['due_date'])) {
@@ -451,7 +378,6 @@ class ActivityInertiaController extends Controller
             if (isset($validated['status'])) {
                 $updateData['status'] = $validated['status'];
 
-                // Handle status-specific updates
                 if ($validated['status'] === 'in_progress' && ! $task->started_at) {
                     $updateData['started_at'] = now();
                 }
@@ -463,12 +389,18 @@ class ActivityInertiaController extends Controller
                         $updateData['duration_minutes'] = $task->started_at->diffInMinutes(now());
                     }
                 }
+
+                if ($validated['status'] === 'planned') {
+                    $updateData['started_at'] = null;
+                    $updateData['completed_at'] = null;
+                    $updateData['completed_by'] = null;
+                    $updateData['duration_minutes'] = null;
+                }
             }
 
             $task->update($updateData);
             $this->clearCache($buId, $user->id);
 
-            // For AJAX/Inertia partial requests, return back
             if ($request->wantsJson() || $request->header('X-Inertia')) {
                 return back()->with('success', 'Task updated successfully.');
             }
@@ -478,98 +410,45 @@ class ActivityInertiaController extends Controller
                 ->with('success', 'Task updated successfully.');
         }
 
-        // Full update - validate all fields
+        // Full update
+        $validated = $request->validated();
         $departmentId = $task->department_id ?? $user->getCurrentDepartmentId();
 
-        // Get valid activity type IDs for this department
-        $validActivityTypeIds = $this->getValidActivityTypeIds($departmentId);
+        $participantIds = $validated['participant_ids'] ?? [];
 
-        // Pre-filter participant_ids to remove invalid values (null, 0, empty strings)
-        $participantIds = $request->input('participant_ids', []);
-        if (is_array($participantIds)) {
-            $participantIds = array_values(array_filter($participantIds, fn ($id) => ! empty($id) && is_numeric($id) && $id > 0));
-        } else {
-            $participantIds = [];
-        }
-        $request->merge(['participant_ids' => $participantIds]);
+        $status = $validated['status'];
+        $submittedTaskDate = Carbon::parse($validated['task_date']);
+        $completedDate = $validated['completed_date'] ?? $validated['task_date'];
+        $requiresStartCorrection = $this->requiresStartTimeCorrection($task, $submittedTaskDate, $status);
+        $requiresCompletionCorrection = $this->requiresCompletionTimeCorrection($task, $submittedTaskDate, $validated);
 
-        // Check if task_date is backdate (before today)
-        $taskDate = $task->task_date;
-        $isBackdate = $taskDate->isBefore(now()->startOfDay());
-        $status = $request->input('status');
-
-        // Build dynamic validation rules for time fields
-        $startTimeRule = 'nullable|date_format:H:i';
-        $endTimeRule = 'nullable|date_format:H:i';
-        $completedDateRule = 'nullable|date';
-        if ($status === 'completed' || ($status === 'in_progress' && $isBackdate)) {
-            $startTimeRule = 'required|date_format:H:i';
-        }
-        if ($status === 'completed') {
-            $endTimeRule = 'required|date_format:H:i';
-            $completedDateRule = 'required|date|after_or_equal:'.$taskDate->format('Y-m-d');
-        }
-
-        $validated = $request->validate([
-            'task_title' => 'required|string|max:255',
-            'task_description' => 'nullable|string',
-            'activity_type_id' => [
-                'required',
-                'exists:employee_activity_types,id',
-                function ($attribute, $value, $fail) use ($validActivityTypeIds) {
-                    if (! in_array($value, $validActivityTypeIds)) {
-                        $fail('The selected activity type is not assigned to this department.');
-                    }
-                },
-            ],
-            'sub_activity_id' => 'nullable|exists:employee_sub_activities,id',
-            'status' => 'required|in:planned,in_progress,completed,cancelled',
-            'priority' => 'required|in:low,medium,high',
-            'due_date' => $status === 'completed'
-                ? 'nullable|date'
-                : 'required|date|after_or_equal:'.$taskDate->format('Y-m-d'),
-            'participant_ids' => 'nullable|array',
-            'participant_ids.*' => 'nullable|integer|exists:users,id',
-            // Time fields (HH:mm format)
-            'start_time' => $startTimeRule,
-            'end_time' => $endTimeRule,
-            'completed_date' => $completedDateRule,
-        ]);
-
-        // Validate end_time > start_time when completed_date equals task_date
-        $completedDate = $validated['completed_date'] ?? $taskDate->format('Y-m-d');
-        if ($status === 'completed' && $completedDate === $taskDate->format('Y-m-d') && ! empty($validated['start_time']) && ! empty($validated['end_time'])) {
-            if ($validated['end_time'] <= $validated['start_time']) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['end_time' => 'Waktu selesai harus setelah waktu mulai.']);
-            }
-        }
-
-        // Prepare time fields based on status
         $startedAt = $task->started_at;
-        $completedAt = null;
+        $completedAt = $task->completed_at;
         $durationMinutes = $task->duration_minutes;
         $completedBy = $task->completed_by;
 
-        if ($validated['status'] === 'in_progress') {
-            // In progress: combine task_date + start_time if backdate, otherwise keep existing or set now()
-            if ($isBackdate && ! empty($validated['start_time'])) {
-                $startedAt = \Carbon\Carbon::parse($taskDate->format('Y-m-d').' '.$validated['start_time']);
-            } elseif (! $task->started_at) {
+        if ($status === 'in_progress') {
+            if ($task->started_at) {
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$task->started_at->format('H:i:s'));
+            } elseif ($requiresStartCorrection && ! empty($validated['start_time'])) {
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
+            } elseif (! $task->started_at && $submittedTaskDate->isSameDay(now())) {
                 $startedAt = now();
             }
-        } elseif ($validated['status'] === 'completed') {
-            // Completed: combine task_date + start_time
-            $startedAt = \Carbon\Carbon::parse($taskDate->format('Y-m-d').' '.$validated['start_time']);
+        } elseif ($status === 'completed') {
+            if (($requiresStartCorrection || ! $task->started_at) && ! empty($validated['start_time'])) {
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
+            }
 
-            // completed_at: combine completed_date + end_time
-            $completedAt = \Carbon\Carbon::parse($completedDate.' '.$validated['end_time']);
+            if (($requiresCompletionCorrection || ! $task->completed_at) && ! empty($validated['end_time'])) {
+                $completedAt = Carbon::parse($completedDate.' '.$validated['end_time']);
+            }
 
-            $durationMinutes = $startedAt->diffInMinutes($completedAt);
-            $completedBy = $user->id;
-        } elseif ($validated['status'] === 'planned') {
-            // Reset to planned: clear time fields
+            if ($startedAt && $completedAt) {
+                $durationMinutes = $startedAt->diffInMinutes($completedAt);
+                $completedBy = $user->id;
+            }
+        } elseif ($status === 'planned') {
             $startedAt = null;
             $completedAt = null;
             $durationMinutes = null;
@@ -583,8 +462,9 @@ class ActivityInertiaController extends Controller
                 'sub_activity_id' => $validated['sub_activity_id'] ?? null,
                 'task_title' => $validated['task_title'],
                 'task_description' => $validated['task_description'] ?? null,
-                'status' => $validated['status'],
+                'status' => $status,
                 'priority' => $validated['priority'],
+                'task_date' => $submittedTaskDate->format('Y-m-d'),
                 'due_date' => $validated['due_date'] ?? null,
                 'started_at' => $startedAt,
                 'completed_at' => $completedAt,
@@ -592,19 +472,15 @@ class ActivityInertiaController extends Controller
                 'duration_minutes' => $durationMinutes,
             ]);
 
-            // Update participants (keep owner, sync others)
             $ownerId = $task->participants()->wherePivot('is_owner', true)->first()?->id;
             $newParticipants = [];
 
-            // Always keep owner if exists
             if ($ownerId) {
                 $newParticipants[$ownerId] = ['is_owner' => true, 'joined_at' => now()];
             }
 
-            // Add other participants from validated input
-            if (! empty($validated['participant_ids'])) {
-                foreach ($validated['participant_ids'] as $participantId) {
-                    // Skip if empty, null, or same as owner
+            if (! empty($participantIds)) {
+                foreach ($participantIds as $participantId) {
                     if (empty($participantId) || $participantId == $ownerId) {
                         continue;
                     }
@@ -612,14 +488,11 @@ class ActivityInertiaController extends Controller
                 }
             }
 
-            // Only sync if we have participants
             if (! empty($newParticipants)) {
                 $task->participants()->sync($newParticipants);
             }
 
-            // Clear cache
             $this->clearCache($buId, $user->id);
-
             DB::commit();
 
             return $this->redirectToTaskIndex($task, 'detail')
@@ -627,7 +500,9 @@ class ActivityInertiaController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Failed to update task: '.$e->getMessage());
+            report($e);
+
+            return back()->with('error', 'Failed to update task.');
         }
     }
 
@@ -647,7 +522,9 @@ class ActivityInertiaController extends Controller
                 ->route('activity.task.index')
                 ->with('success', 'Task deleted successfully.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to delete task: '.$e->getMessage());
+            report($e);
+
+            return back()->with('error', 'Failed to delete task.');
         }
     }
 
@@ -1645,6 +1522,44 @@ class ActivityInertiaController extends Controller
         $modal = $request->string('modal')->toString();
 
         return in_array($modal, ['detail', 'edit'], true) ? $modal : null;
+    }
+
+    protected function requiresStartTimeCorrection(EmployeeTask $task, Carbon $submittedTaskDate, string $status): bool
+    {
+        if (! in_array($status, ['in_progress', 'completed'], true)) {
+            return false;
+        }
+
+        if ($status === 'completed') {
+            if (! $task->started_at) {
+                return true;
+            }
+
+            return $submittedTaskDate->format('Y-m-d') !== $task->started_at->format('Y-m-d');
+        }
+
+        if (! $task->started_at) {
+            return ! $submittedTaskDate->isSameDay(now());
+        }
+
+        return false;
+    }
+
+    protected function requiresCompletionTimeCorrection(EmployeeTask $task, Carbon $submittedTaskDate, array $validated): bool
+    {
+        if (($validated['status'] ?? null) !== 'completed') {
+            return false;
+        }
+
+        if (! $task->completed_at) {
+            return true;
+        }
+
+        if (empty($validated['completed_date'])) {
+            return false;
+        }
+
+        return $validated['completed_date'] !== $task->completed_at->format('Y-m-d');
     }
 
     /**

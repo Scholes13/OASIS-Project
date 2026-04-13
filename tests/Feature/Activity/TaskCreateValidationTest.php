@@ -128,6 +128,20 @@ class TaskCreateValidationTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_string_activity_type_id_when_creating_task()
+    {
+        $response = $this->actingAs($this->user)
+            ->from(route('activity.task.create'))
+            ->post(route('activity.task.store'), $this->validPayload([
+                'activity_type_id' => (string) $this->activityType->id,
+                'sub_activity_id' => (string) $this->subActivity->id,
+            ]));
+
+        $response->assertRedirect(route('activity.task.create'));
+        $response->assertSessionHasNoErrors();
+    }
+
+    #[Test]
     public function it_redirects_back_to_origin_page_after_successful_create()
     {
         $response = $this->actingAs($this->user)
@@ -207,6 +221,29 @@ class TaskCreateValidationTest extends TestCase
         ]));
 
         $response->assertSessionHasErrors(['start_time']);
+    }
+
+    #[Test]
+    public function it_requires_start_time_for_future_in_progress_task()
+    {
+        $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([
+            'status' => 'in_progress',
+            'task_date' => now()->addDay()->format('Y-m-d'),
+            'due_date' => now()->addDays(2)->format('Y-m-d'),
+            'start_time' => '',
+        ]));
+
+        $response->assertSessionHasErrors(['start_time']);
+    }
+
+    #[Test]
+    public function it_returns_validation_error_for_invalid_task_date_instead_of_throwing()
+    {
+        $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([
+            'task_date' => 'not-a-date',
+        ]));
+
+        $response->assertSessionHasErrors(['task_date']);
     }
 
     #[Test]

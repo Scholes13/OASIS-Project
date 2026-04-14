@@ -4,6 +4,17 @@ import { TaskFormModal } from '@/components/activity/TaskFormModal';
 import type { Task } from '@/types';
 import { beforeEach, vi } from 'vitest';
 
+const getTomorrowLocalDate = (): string => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
 beforeEach(() => {
     if (!Element.prototype.getAnimations) {
         Object.defineProperty(Element.prototype, 'getAnimations', {
@@ -188,6 +199,8 @@ describe('TaskFormModal due date requirement', () => {
         });
 
         it('requires start time when creating a future dated in_progress task', async () => {
+            const tomorrow = getTomorrowLocalDate();
+
             await act(async () => {
                 render(
                     <TaskFormModal
@@ -203,7 +216,7 @@ describe('TaskFormModal due date requirement', () => {
 
             await act(async () => {
                 fireEvent.change(screen.getByDisplayValue('To Do'), { target: { value: 'in_progress' } });
-                fireEvent.change(screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/), { target: { value: '2026-04-14' } });
+                fireEvent.change(screen.getByDisplayValue(/\d{4}-\d{2}-\d{2}/), { target: { value: tomorrow } });
             });
 
             expect(screen.getByLabelText(/Start Time/i)).toBeInTheDocument();

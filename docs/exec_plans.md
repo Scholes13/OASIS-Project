@@ -24,6 +24,32 @@
 
 ## Active Tasks
 
+### 2026-04-13 - Activity task modal create-again checkbox flow
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why the activity create-task modal reopens immediately after a successful create,
+  - replace the implicit reopen behavior with an explicit `Ingin membuat task lagi?` checkbox in the create modal footer,
+  - keep the default unchecked so a normal create closes the modal, while checked mode resets and reopens the form for rapid consecutive task entry,
+  - confirm whether edit flow shares the same behavior and preserve the intended post-save destination.
+- Risks:
+  - create flow now mixes client-side close/reset behavior with backend redirects, so the URL/query-state contract must stay aligned to avoid accidental reopen loops,
+  - the new checkbox must only affect create mode and must not leak into edit mode or break the existing detail-after-edit journey,
+  - modal reset behavior should keep date defaults and validation state consistent for both normal create and create-again paths.
+- Verification:
+  - focused Vitest coverage for task form modal create-again behavior,
+  - focused Vitest coverage for dashboard modal query handling if the redirect/query contract changes,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user wants the modal to close by default after create, with an opt-in checkbox to immediately create another task,
+  - approved checkbox default is unchecked.
+  - root cause was split across frontend and backend: the modal always called `onClose()` after create, but the store redirect also reused the stale `modal=create` referer, so the dashboard could reopen the create modal immediately after the visit completed,
+  - `TaskFormModal` now shows an `Ingin membuat task lagi?` checkbox only in create mode, defaulting to unchecked on each fresh open,
+  - when the checkbox stays unchecked, successful create closes the modal as before; when checked, the form resets in place for the next task while preserving the selected task date and keeping edit flow unchanged,
+  - the store redirect now sanitizes stale `modal`, `task`, and `date` query params from the referer and maps the deprecated `/activity/task/create` origin back to `activity.task.index`, preventing accidental modal reopen loops after create,
+  - edit flow is intentionally different and unchanged: after save it still returns to the detail modal for the edited task.
+
 ### 2026-04-13 - Activity task modal overflow hardening for short viewports
 - Status: implemented
 - Owner: PM Agent

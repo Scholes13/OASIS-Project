@@ -341,7 +341,7 @@ class ActivityInertiaController extends Controller
             DB::commit();
 
             return redirect()
-                ->back(302, [], route('activity.task.create'))
+                ->to($this->resolveTaskCreateRedirectUrl($request))
                 ->with('success', 'Task created successfully.')
                 ->with('created_task_id', $task->id);
         } catch (\Exception $e) {
@@ -1471,6 +1471,54 @@ class ActivityInertiaController extends Controller
             'task' => $task->id,
             'modal' => $modal,
         ]));
+    }
+
+    /**
+     * Resolve the post-create redirect target without reviving stale modal intent.
+     */
+    protected function resolveTaskCreateRedirectUrl(Request $request): string
+    {
+        $fallbackUrl = route('activity.task.index');
+        $referer = $request->headers->get('referer');
+
+        if (! is_string($referer) || $referer === '') {
+            return $fallbackUrl;
+        }
+
+        $parsedReferer = parse_url($referer);
+        if ($parsedReferer === false) {
+            return $fallbackUrl;
+        }
+
+        $appUrl = config('app.url') ?: url('/');
+        $appHost = parse_url($appUrl, PHP_URL_HOST);
+        $refererHost = $parsedReferer['host'] ?? $appHost;
+
+        if ($appHost !== null && $refererHost !== $appHost) {
+            return $fallbackUrl;
+        }
+
+        $refererPath = $parsedReferer['path'] ?? '';
+        $taskCreatePath = parse_url(route('activity.task.create'), PHP_URL_PATH) ?: '';
+        $taskIndexPath = parse_url(route('activity.task.index'), PHP_URL_PATH) ?: '';
+
+        parse_str($parsedReferer['query'] ?? '', $query);
+        unset($query['modal'], $query['task'], $query['date']);
+
+        $targetPath = $refererPath === $taskCreatePath ? $taskIndexPath : $refererPath;
+        if ($targetPath === '') {
+            return $fallbackUrl;
+        }
+
+        $scheme = $parsedReferer['scheme'] ?? parse_url($appUrl, PHP_URL_SCHEME) ?? 'http';
+        $port = isset($parsedReferer['port']) ? ':'.$parsedReferer['port'] : '';
+        $targetUrl = "{$scheme}://{$refererHost}{$port}{$targetPath}";
+
+        if ($query !== []) {
+            $targetUrl .= '?'.http_build_query($query);
+        }
+
+        return $targetUrl;
     }
 
     /**

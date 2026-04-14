@@ -260,6 +260,39 @@ class ActivityTaskModalRedirectTest extends TestCase
         $this->assertStringContainsString('date=2026-03-31', $location);
     }
 
+    public function test_store_from_create_modal_redirects_back_to_task_index_without_modal_query(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->from(route('activity.task.index', [
+                'view' => 'calendar',
+                'modal' => 'create',
+                'date' => '2026-04-13',
+            ]))
+            ->post(route('activity.task.store'), [
+                'task_title' => 'Create from modal flow',
+                'task_description' => 'Regression coverage for create redirect',
+                'activity_type_id' => $this->activityType->id,
+                'sub_activity_id' => null,
+                'status' => 'planned',
+                'priority' => 'medium',
+                'task_date' => now()->format('Y-m-d'),
+                'due_date' => now()->addDay()->format('Y-m-d'),
+                'participant_ids' => [],
+                'start_time' => '',
+                'end_time' => '',
+                'completed_date' => '',
+            ]);
+
+        $location = $response->headers->get('Location');
+
+        $this->assertNotNull($location);
+        $this->assertStringStartsWith(route('activity.task.index'), $location);
+        $this->assertStringContainsString('view=calendar', $location);
+        $this->assertStringNotContainsString('modal=create', $location);
+        $this->assertStringNotContainsString('date=2026-04-13', $location);
+        $this->assertStringNotContainsString('task=', $location);
+    }
+
     public function test_task_index_includes_selected_task_payload_when_modal_query_is_present(): void
     {
         $response = $this->actingAs($this->user)

@@ -115,7 +115,7 @@ class TaskCreateValidationTest extends TestCase
                 'status' => 'planned',
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('employee_tasks', [
@@ -137,7 +137,7 @@ class TaskCreateValidationTest extends TestCase
                 'sub_activity_id' => (string) $this->subActivity->id,
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
         $response->assertSessionHasNoErrors();
     }
 
@@ -162,7 +162,7 @@ class TaskCreateValidationTest extends TestCase
                 'status' => 'in_progress',
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
 
         $task = EmployeeTask::latest('id')->first();
 
@@ -184,7 +184,7 @@ class TaskCreateValidationTest extends TestCase
                 'completed_date' => now()->format('Y-m-d'),
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
 
         $task = EmployeeTask::latest('id')->first();
 

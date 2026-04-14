@@ -202,6 +202,7 @@ export function TaskFormModal({
 }: TaskFormModalProps) {
     const isEditing = !!task;
     const [showBackdateModal, setShowBackdateModal] = useState(false);
+    const [createAnother, setCreateAnother] = useState(false);
     const todayLocal = getTodayLocalDate();
     const defaultTaskDate = initialTaskDate || todayLocal;
     const originalStartedDate = getDatePart(task?.started_at);
@@ -215,6 +216,9 @@ export function TaskFormModal({
         if (open) {
             const createTaskDate = initialTaskDate || getTodayLocalDate();
             setData(getTaskFormSeed(task, createTaskDate));
+            if (!task) {
+                setCreateAnother(false);
+            }
         }
     }, [open, task, initialTaskDate, reset, setData]);
 
@@ -314,16 +318,34 @@ export function TaskFormModal({
         method(url, {
             preserveScroll: true,
             onSuccess: () => {
+                const nextCreateSeedDate = data.task_date || initialTaskDate || getTodayLocalDate();
+
                 showToast.success(
-                    isEditing ? 'Task berhasil diperbarui' : 'Task berhasil dibuat',
-                    isEditing ? 'Perubahan sudah tersimpan.' : 'Task baru sudah masuk ke daftar.'
+                    isEditing ? 'Task updated' : 'Task created',
+                    isEditing
+                        ? 'Your changes have been saved.'
+                        : createAnother
+                            ? 'The task has been added. The form is ready for another entry.'
+                            : 'The task has been added to your list.'
                 );
+
+                if (isEditing) {
+                    onClose();
+                    reset();
+                    return;
+                }
+
+                if (createAnother) {
+                    setData(getTaskFormSeed(null, nextCreateSeedDate));
+                    return;
+                }
+
                 onClose();
                 reset();
             },
             onError: (formErrors) => {
                 const firstError = Object.values(formErrors)[0];
-                showToast.error('Gagal menyimpan task', firstError || 'Periksa kembali input yang wajib diisi.');
+                showToast.error('Failed to save task', firstError || 'Please review the required fields and try again.');
             },
         });
     };
@@ -656,14 +678,26 @@ export function TaskFormModal({
 
             {/* Footer — pinned bottom */}
             <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-200 rounded-b-xl shrink-0">
-                <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
-                    {data.status === 'completed' ? (
-                        <><Clock className="w-3.5 h-3.5" /> Time log required for completed task.</>
-                    ) : showReadOnlyStartSummary ? (
-                        <><Clock className="w-3.5 h-3.5" /> Started time is managed by the system for active tasks.</>
-                    ) : (
-                        <><span className="w-2 h-2 rounded-full bg-slate-300"></span> Save directly to To Do</>
-                    )}
+                <div className="flex flex-col gap-2">
+                    <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
+                        {data.status === 'completed' ? (
+                            <><Clock className="w-3.5 h-3.5" /> Time log required for completed task.</>
+                        ) : showReadOnlyStartSummary ? (
+                            <><Clock className="w-3.5 h-3.5" /> Started time is managed by the system for active tasks.</>
+                        ) : null}
+                    </div>
+
+                    {!isEditing ? (
+                        <label className="flex items-center gap-2 text-[12px] font-medium text-slate-600 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={createAnother}
+                                onChange={(e) => setCreateAnother(e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-[#16599c] focus:ring-[#16599c]/20"
+                            />
+                            <span>Create another task?</span>
+                        </label>
+                    ) : null}
                 </div>
                 <div className="flex items-center gap-3">
                     <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-transparent hover:bg-slate-200/50 rounded-md transition-colors">

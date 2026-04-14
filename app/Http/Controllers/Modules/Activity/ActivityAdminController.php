@@ -246,6 +246,13 @@ class ActivityAdminController extends Controller
             ->orderBy('department_activity_types.sort_order')
             ->get();
 
+        $selectedTask = $this->resolveSelectedDepartmentTask(
+            request: $request,
+            departmentId: $departmentId,
+            scopedBusinessUnitIds: $scopedBusinessUnitIds,
+        );
+        $selectedTaskModal = $selectedTask ? 'detail' : null;
+
         return Inertia::render('Activity/Admin/DepartmentDetail', [
             'department' => $department,
             'tasks' => $tasks,
@@ -253,6 +260,8 @@ class ActivityAdminController extends Controller
             'userBreakdown' => $userBreakdown,
             'activityTypeDistribution' => $activityTypeDistribution,
             'activityTypes' => $activityTypes,
+            'selectedTask' => $selectedTask,
+            'selectedTaskModal' => $selectedTaskModal,
             'filters' => [
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
@@ -398,5 +407,29 @@ class ActivityAdminController extends Controller
         }
 
         return $currentBusinessUnit->getAccessibleBusinessUnits();
+    }
+
+    private function resolveSelectedDepartmentTask(Request $request, int $departmentId, array $scopedBusinessUnitIds): ?EmployeeTask
+    {
+        $modal = $request->string('modal')->toString();
+        $taskId = $request->integer('task');
+
+        if ($modal !== 'detail' || $taskId <= 0) {
+            return null;
+        }
+
+        return EmployeeTask::query()
+            ->whereKey($taskId)
+            ->whereIn('business_unit_id', $scopedBusinessUnitIds)
+            ->where('department_id', $departmentId)
+            ->with([
+                'activityType',
+                'subActivity',
+                'participants',
+                'creator',
+                'department',
+                'attachments',
+            ])
+            ->first();
     }
 }

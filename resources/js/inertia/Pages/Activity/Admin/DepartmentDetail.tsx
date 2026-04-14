@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from '@/components/ui/toast';
+import { TaskDetailModal } from '@/components/activity/TaskDetailModal';
 import { cn } from '@/lib/utils';
 import type { PageProps, Department, Task, ActivityType, PaginatedData } from '@/types';
 
@@ -45,6 +46,8 @@ interface DepartmentDetailProps extends PageProps {
         activity_type_id: string;
         search: string;
     };
+    selectedTask?: Task | null;
+    selectedTaskModal?: 'detail' | null;
 }
 
 const statusConfig: Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'danger' | 'default' }> = {
@@ -60,16 +63,93 @@ function formatDate(d: string) {
 
 export default function DepartmentDetail({
     department, tasks, stats, userBreakdown, activityTypeDistribution, activityTypes, filters,
+    selectedTask = null, selectedTaskModal = null,
 }: DepartmentDetailProps) {
     const { flash } = usePage<PageProps>().props;
     const [search, setSearch] = useState(filters.search);
     const [dateFrom, setDateFrom] = useState(filters.date_from);
     const [dateTo, setDateTo] = useState(filters.date_to);
+    const [detailTask, setDetailTask] = useState<Task | null>(null);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const handledModalQueryRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (flash.success) toast.success(flash.success);
         if (flash.error) toast.error(flash.error);
     }, [flash]);
+
+    const syncModalQueryState = useCallback((taskId: number) => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set('modal', 'detail');
+        nextUrl.searchParams.set('task', String(taskId));
+
+        const nextSearch = nextUrl.searchParams.toString();
+        window.history.replaceState({}, '', `${nextUrl.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+    }, []);
+
+    const clearModalQueryState = useCallback(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete('modal');
+        nextUrl.searchParams.delete('task');
+
+        const nextSearch = nextUrl.searchParams.toString();
+        window.history.replaceState({}, '', `${nextUrl.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+        handledModalQueryRef.current = null;
+    }, []);
+
+    const openTaskDetail = useCallback((task: Task, config?: { syncUrl?: boolean }) => {
+        setDetailTask(task);
+        setShowDetailModal(true);
+
+        if (config?.syncUrl !== false) {
+            syncModalQueryState(task.id);
+        }
+    }, [syncModalQueryState]);
+
+    const closeTaskDetail = useCallback(() => {
+        setShowDetailModal(false);
+        setDetailTask(null);
+        clearModalQueryState();
+    }, [clearModalQueryState]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const modalType = searchParams.get('modal') ?? selectedTaskModal;
+        const taskId = searchParams.get('task') ?? (selectedTask && modalType === 'detail' ? String(selectedTask.id) : null);
+
+        if (modalType !== 'detail' || !taskId) {
+            return;
+        }
+
+        const signature = `${taskId}:${modalType}`;
+        if (handledModalQueryRef.current === signature) {
+            return;
+        }
+
+        const matchedTask =
+            (selectedTask && String(selectedTask.id) === taskId ? selectedTask : null) ??
+            tasks.data.find((task) => String(task.id) === taskId) ??
+            null;
+
+        if (!matchedTask) {
+            return;
+        }
+
+        handledModalQueryRef.current = signature;
+        openTaskDetail(matchedTask, { syncUrl: false });
+    }, [openTaskDetail, selectedTask, selectedTaskModal, tasks.data]);
 
     const applyFilters = (overrides: Record<string, string> = {}) => {
         router.get(
@@ -254,12 +334,13 @@ export default function DepartmentDetail({
                                 <tr key={task.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3 text-sm text-gray-900">{task.task_date ? formatDate(task.task_date) : '-'}</td>
                                     <td className="px-4 py-3">
-                                        <Link
-                                            href={route('activity.admin.task', { task: task.id })}
+                                        <button
+                                            type="button"
+                                            onClick={() => openTaskDetail(task)}
                                             className="text-sm font-medium text-primary hover:text-primary hover:underline"
                                         >
                                             {task.task_title}
-                                        </Link>
+                                        </button>
                                     </td>
                                     <td className="px-4 py-3">
                                         {task.activity_type && (
@@ -310,6 +391,13 @@ export default function DepartmentDetail({
                         </div>
                     )}
                 </div>
+
+                <TaskDetailModal
+                    open={showDetailModal}
+                    task={detailTask}
+                    onClose={closeTaskDetail}
+                    mode="admin-readonly"
+                />
             </div>
         </>
     );

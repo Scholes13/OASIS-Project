@@ -207,6 +207,32 @@ class ActivityAdminParentBusinessUnitScopeTest extends TestCase
     }
 
     #[Test]
+    public function parent_business_unit_department_detail_can_hydrate_selected_task_modal_from_query(): void
+    {
+        $response = $this->actingAs($this->superAdmin)
+            ->withSession([
+                'current_business_unit_id' => $this->parentBusinessUnit->id,
+                'current_business_unit_code' => $this->parentBusinessUnit->code,
+                'current_business_unit_name' => $this->parentBusinessUnit->name,
+                'current_business_unit_logo' => $this->parentBusinessUnit->logo,
+                'current_department_id' => $this->parentDepartment->id,
+            ])
+            ->get(route('activity.admin.department', [
+                'department' => $this->firstChildDepartment->id,
+                'date_from' => '2026-04-01',
+                'date_to' => '2026-04-06',
+                'modal' => 'detail',
+                'task' => $this->firstChildTask->id,
+            ]));
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Activity/Admin/DepartmentDetail')
+            ->where('selectedTask.id', $this->firstChildTask->id)
+            ->where('selectedTaskModal', 'detail')
+        );
+    }
+
+    #[Test]
     public function parent_business_unit_can_open_child_task_detail_from_activity_admin(): void
     {
         $response = $this->actingAs($this->superAdmin)

@@ -41,6 +41,7 @@ Thumbs.db
 
 # Local git worktrees
 /.worktrees/
+/.superpowers/
 
 # IDE helper files (auto-generated)
 _ide_helper.php

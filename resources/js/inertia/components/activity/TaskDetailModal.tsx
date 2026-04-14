@@ -36,6 +36,7 @@ interface TaskDetailModalProps {
     open: boolean
     onClose: () => void
     onEdit?: (task: Task) => void
+    mode?: 'default' | 'admin-readonly'
 }
 
 function canEditTask(task: Task, currentUserId: number | undefined): boolean {
@@ -48,11 +49,12 @@ function canEditTask(task: Task, currentUserId: number | undefined): boolean {
     return isParticipant || task.created_by === currentUserId
 }
 
-export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' }: TaskDetailModalProps) {
     const [isLoading, setIsLoading] = React.useState(false)
     const { auth } = usePage<PageProps>().props
     const currentUserId = auth?.user?.id
-    const editable = task ? canEditTask(task, currentUserId) : false
+    const isAdminReadonly = mode === 'admin-readonly'
+    const editable = !isAdminReadonly && task ? canEditTask(task, currentUserId) : false
 
     const isOverdue = task ? (task.due_date && new Date(task.due_date) < new Date() &&
         !["completed", "cancelled"].includes(task.status)) : false
@@ -152,20 +154,22 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
                     <div className="flex items-start justify-between border-b border-border bg-background px-8 py-5">
                         <div>
                             <div className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                                Activity Tracking / Task / #{task.id}
+                                {isAdminReadonly ? 'Activity Admin' : 'Activity Tracking'} / Task / #{task.id}
                             </div>
                             <h2 className="text-[20px] font-semibold leading-snug text-foreground">
                                 {task.task_title}
                             </h2>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleViewDetail}
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                                title="Open in Dashboard"
-                            >
-                                <ExternalLink className="h-[18px] w-[18px]" />
-                            </button>
+                            {!isAdminReadonly && (
+                                <button
+                                    onClick={handleViewDetail}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                    title="Open in Dashboard"
+                                >
+                                    <ExternalLink className="h-[18px] w-[18px]" />
+                                </button>
+                            )}
                             {editable && (
                                 <button
                                     onClick={handleEdit}
@@ -361,12 +365,14 @@ export function TaskDetailModal({ task, open, onClose, onEdit }: TaskDetailModal
 
                             <div className="flex-1"></div>
 
-                            <button 
-                                onClick={handleViewDetail}
-                                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-card px-3 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
-                            >
-                                <ExternalLink className="h-4 w-4" /> Open in Dashboard
-                            </button>
+                            {!isAdminReadonly && (
+                                <button 
+                                    onClick={handleViewDetail}
+                                    className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-card px-3 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+                                >
+                                    <ExternalLink className="h-4 w-4" /> Open in Dashboard
+                                </button>
+                            )}
 
                         </div>
                     </div>

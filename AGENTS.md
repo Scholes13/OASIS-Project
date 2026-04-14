@@ -12,7 +12,7 @@ Start here, then follow the referenced files instead of adding new monolithic in
 - The main agent acts as `PM Agent` and orchestrates work.
 - Delegate implementation to specialized sub-agents:
   - `@coder_backend` for database, Laravel domain logic, controllers, requests, jobs, policies, and server-side integrations.
-  - `@coder_frontend` for Inertia/React pages, components, client state, forms, and UI behavior.
+  - `@coder_frontend` for Inertia/React pages, components, client state, forms, and UI behavior. When the work changes user-facing UI, this lane must also follow the `frontend-skill` guidance so outputs stay aligned with the product brand and visual standards.
   - `@reviewer` for architectural drift checks, security review, linting, and standards validation.
 - Harness mapping:
   - `@coder_backend` => spawn `worker`

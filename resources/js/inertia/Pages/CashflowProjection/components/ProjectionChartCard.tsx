@@ -1,16 +1,13 @@
 import { Popover, Transition } from '@headlessui/react';
-import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarDays, ChevronDown } from 'lucide-react';
 import {
     Bar,
-    BarChart,
     CartesianGrid,
     Cell,
     ComposedChart,
     Legend,
     Line,
-    LineChart,
     ReferenceLine,
     ResponsiveContainer,
     Tooltip,
@@ -19,7 +16,6 @@ import {
 } from 'recharts';
 import {
     buildLineSeries,
-    resolveAggregateGradientOffset,
     resolveLineChartDomain,
     type CashflowChartRow,
 } from '../chart-utils';
@@ -57,6 +53,8 @@ const viewModes: ViewMode[] = ['day', 'week', 'month'];
 const INFLOW_COLOR = '#3b82f6';
 const OUTFLOW_COLOR = '#f43f5e';
 const BALANCE_COLOR = '#059669';
+const WARNING_COLOR = '#f59e0b';
+const WARNING_MULTIPLIER = 2;
 
 export default function ProjectionChartCard({
     title,
@@ -69,29 +67,37 @@ export default function ProjectionChartCard({
     onDayFilterChange,
     minimumBalanceThreshold,
 }: ProjectionChartCardProps) {
-    const rawLineSeries = buildLineSeries(chartData as CashflowChartRow[], viewMode);
-    const lineSeries = rawLineSeries.map(row => ({
-        ...row,
-        dominantMovement: Math.abs(row.outflow ?? 0) > Math.abs(row.inflow ?? 0) ? row.outflow : row.inflow,
-    }));
+    const lineSeries = buildLineSeries(chartData as CashflowChartRow[], viewMode);
     const chartDomain = resolveLineChartDomain(chartData as CashflowChartRow[], viewMode);
-    const gradientId = useId().replace(/:/g, '-');
-    const aggregateGradientOffset = resolveAggregateGradientOffset(chartDomain);
 
     // Day single → full opacity bar, All others → composed chart
     const isSingleDay = viewMode === 'day' && selectedDayKey !== 'all';
     const useMultiPeriodChart = !isSingleDay;
     const hasBalanceData = lineSeries.some((row) => row.closingBalance != null && row.closingBalance !== 0);
+    const showMovementBars = !useMultiPeriodChart || !hasBalanceData;
+    const hideMovementAxis = useMultiPeriodChart && hasBalanceData;
+    const closingBalances = lineSeries
+        .map((row) => row.closingBalance)
+        .filter((value): value is number => typeof value === 'number');
+    const warningBalanceThreshold = minimumBalanceThreshold ? minimumBalanceThreshold * WARNING_MULTIPLIER : undefined;
+    const minClosingBalance = closingBalances.length > 0 ? Math.min(...closingBalances) : undefined;
+    const showBalanceWarning = Boolean(
+        warningBalanceThreshold !== undefined
+        && minClosingBalance !== undefined
+        && minClosingBalance <= warningBalanceThreshold,
+    );
 
     // Right Y-axis domain for balance line (month view)
     const balanceDomain: [number, number] = (() => {
         if (!hasBalanceData) return [0, 1];
-        const balances = lineSeries.map((row) => row.closingBalance ?? 0);
-        if (minimumBalanceThreshold) balances.push(minimumBalanceThreshold);
-        const minBal = Math.min(0, ...balances);
+        const balances = [...closingBalances];
+        if (showBalanceWarning && warningBalanceThreshold !== undefined) {
+            balances.push(warningBalanceThreshold);
+        }
+        const minBal = Math.min(...balances);
         const maxBal = Math.max(...balances);
-        const padding = Math.max((maxBal - minBal) * 0.1, 1);
-        return [Math.floor(minBal - padding), Math.ceil(maxBal + padding)];
+        const padding = Math.max((maxBal - minBal) * 0.12, maxBal * 0.04, 1);
+        return [Math.max(0, Math.floor(minBal - padding)), Math.ceil(maxBal + padding)];
     })();
 
     const selectedDayLabel = selectedDayKey === 'all'
@@ -113,10 +119,16 @@ export default function ProjectionChartCard({
     const renderTooltip = ({ active, payload, label }: any) => {
         if (!active || !payload?.length) return null;
 
-        const balancePayload = payload.find((e: any) => e.name === 'Balance');
-        const inflowPayload = payload.find((e: any) => e.name === 'Inflow');
-        const outflowPayload = payload.find((e: any) => e.name === 'Outflow');
-        const netPayload = payload.find((e: any) => e.name === 'Net Cashflow');
+        const activeRow = payload.find((entry: any) => entry?.payload)?.payload as {
+            inflow?: number;
+            outflow?: number;
+            net?: number;
+        } | undefined;
+        const balancePayload = payload.find((e: any) => e.name === 'Saldo Proyeksi');
+        const inflowValue = payload.find((e: any) => e.name === 'Inflow')?.value ?? activeRow?.inflow ?? 0;
+        const outflowValue = payload.find((e: any) => e.name === 'Outflow')?.value ?? activeRow?.outflow ?? 0;
+        const netValue = payload.find((e: any) => e.name === 'Net Cashflow')?.value ?? activeRow?.net ?? 0;
+        const hasMovementData = inflowValue !== 0 || outflowValue !== 0;
 
         return (
             <div className="rounded-xl border border-slate-200/80 bg-white/95 p-4 shadow-xl backdrop-blur-md min-w-[240px]">
@@ -124,7 +136,7 @@ export default function ProjectionChartCard({
 
                 {balancePayload && (
                     <div className="mb-4 rounded-lg bg-emerald-50/50 p-3 ring-1 ring-emerald-100/80">
-                        <p className="text-[11px] font-semibold text-emerald-600 mb-1 uppercase tracking-wider">Projected Balance</p>
+                        <p className="text-[11px] font-semibold text-emerald-600 mb-1 uppercase tracking-wider">Saldo Proyeksi</p>
                         <p className="text-xl font-bold tracking-tight text-slate-900">
                             {formatCurrency(Math.abs(Number(balancePayload.value ?? 0)))}
                         </p>
@@ -133,17 +145,33 @@ export default function ProjectionChartCard({
                                 <div className="flex justify-between items-center text-slate-600">
                                     <span className="flex items-center gap-1.5">
                                         <span className="h-1 w-1 rounded-full bg-slate-400" />
-                                        Lower Limit
+                                        Minimum Balance
                                     </span>
                                     <span>{formatCurrency(minimumBalanceThreshold)}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="flex items-center gap-1.5 text-slate-500">
-                                        <span className={`h-1 w-1 rounded-full ${Number(balancePayload.value) < minimumBalanceThreshold ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                                        Status
+                                        <span className={`h-1 w-1 rounded-full ${
+                                            Number(balancePayload.value) < minimumBalanceThreshold
+                                                ? 'bg-rose-500'
+                                                : showBalanceWarning && warningBalanceThreshold !== undefined && Number(balancePayload.value) <= warningBalanceThreshold
+                                                    ? 'bg-amber-500'
+                                                    : 'bg-emerald-500'
+                                        }`} />
+                                        Threshold Status
                                     </span>
-                                    <span className={Number(balancePayload.value) < minimumBalanceThreshold ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold'}>
-                                        {Number(balancePayload.value) < minimumBalanceThreshold ? 'Below Threshold' : 'Safe'}
+                                    <span className={
+                                        Number(balancePayload.value) < minimumBalanceThreshold
+                                            ? 'text-rose-600 font-semibold'
+                                            : showBalanceWarning && warningBalanceThreshold !== undefined && Number(balancePayload.value) <= warningBalanceThreshold
+                                                ? 'text-amber-600 font-semibold'
+                                                : 'text-emerald-600 font-semibold'
+                                    }>
+                                        {Number(balancePayload.value) < minimumBalanceThreshold
+                                            ? 'Below Limit'
+                                            : showBalanceWarning && warningBalanceThreshold !== undefined && Number(balancePayload.value) <= warningBalanceThreshold
+                                                ? 'Watch Zone'
+                                                : 'Above Limit'}
                                     </span>
                                 </div>
                             </div>
@@ -151,24 +179,25 @@ export default function ProjectionChartCard({
                     </div>
                 )}
 
-                {netPayload && !balancePayload && (
+                {!balancePayload && netValue !== 0 && (
                     <div className="mb-4 rounded-lg bg-blue-50/50 p-3 ring-1 ring-blue-100/80">
                         <p className="text-[11px] font-semibold text-blue-600 mb-1 uppercase tracking-wider">Net Cashflow</p>
                         <p className="text-xl font-bold tracking-tight text-slate-900">
-                            {formatCurrency(Math.abs(Number(netPayload.value ?? 0)))}
+                            {formatCurrency(Math.abs(Number(netValue ?? 0)))}
                         </p>
                     </div>
                 )}
 
-                {(inflowPayload || outflowPayload) && (
-                    <div className={`${balancePayload || netPayload ? 'mt-3 pt-3 border-t border-slate-100' : ''} space-y-1`}>
+                {hasMovementData && (
+                    <div className={`${balancePayload || netValue !== 0 ? 'mt-3 pt-3 border-t border-slate-100' : ''} space-y-1`}>
+                        <div className="mb-1.5 text-[11px] font-medium text-slate-500">Cash Movement</div>
                         <div className="flex justify-between items-center text-[11px]">
-                            <span className="text-slate-500 font-medium">In / Out Volume</span>
-                            <div className="flex items-center gap-1.5 font-semibold">
-                                <span className="text-blue-600">{formatCurrency(Math.abs(Number(inflowPayload?.value ?? 0)))}</span>
-                                <span className="text-slate-400 font-normal">/</span>
-                                <span className="text-rose-600">{formatCurrency(Math.abs(Number(outflowPayload?.value ?? 0)))}</span>
-                            </div>
+                            <span className="text-slate-500 font-medium">Inflow</span>
+                            <span className="font-semibold text-blue-600">{formatCurrency(Math.abs(Number(inflowValue ?? 0)))}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-slate-500 font-medium">Outflow</span>
+                            <span className="font-semibold text-rose-600">{formatCurrency(Math.abs(Number(outflowValue ?? 0)))}</span>
                         </div>
                     </div>
                 )}
@@ -189,11 +218,12 @@ export default function ProjectionChartCard({
     const sharedYAxis = (
         <YAxis
             domain={chartDomain}
-            tick={{ fontSize: 11, fill: '#64748b' }}
+            tick={hideMovementAxis ? false : { fontSize: 11, fill: '#64748b' }}
             axisLine={false}
             tickLine={false}
             width={72}
             tickFormatter={formatAxisCurrency}
+            hide={hideMovementAxis}
         />
     );
 
@@ -367,72 +397,55 @@ export default function ProjectionChartCard({
                                 )}
                                 <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} content={renderTooltip} />
                                 <ReferenceLine y={0} stroke="#cbd5e1" strokeWidth={1} />
-                                {hasBalanceData && minimumBalanceThreshold && (
+                                {showBalanceWarning && warningBalanceThreshold && (
                                     <ReferenceLine
                                         yAxisId="balance"
-                                        y={minimumBalanceThreshold}
-                                        stroke={OUTFLOW_COLOR}
+                                        y={warningBalanceThreshold}
+                                        stroke={WARNING_COLOR}
                                         strokeWidth={1}
                                         strokeDasharray="6 4"
                                         label={{
-                                            value: `Min ${formatAxisCurrencyShort(minimumBalanceThreshold)}`,
+                                            value: `Watch ${formatAxisCurrencyShort(warningBalanceThreshold)}`,
                                             position: 'right',
                                             fontSize: 10,
                                             fontWeight: 600,
-                                            fill: OUTFLOW_COLOR,
+                                            fill: WARNING_COLOR,
                                         }}
                                     />
                                 )}
-                                <Bar dataKey="inflow" name="Inflow" fill={INFLOW_COLOR} radius={[4, 4, 0, 0]}>
-                                    {lineSeries.map((entry) => (
-                                        <Cell key={entry.key} fill={INFLOW_COLOR} fillOpacity={(entry.inflow ?? 0) > 0 ? 0.35 : 0} />
-                                    ))}
-                                </Bar>
-                                <Bar dataKey="outflow" name="Outflow" fill={OUTFLOW_COLOR} radius={[0, 0, 4, 4]}>
-                                    {lineSeries.map((entry) => (
-                                        <Cell key={entry.key} fill={OUTFLOW_COLOR} fillOpacity={(entry.outflow ?? 0) < 0 ? 0.35 : 0} />
-                                    ))}
-                                </Bar>
-                                <defs>
-                                    <linearGradient id={`${gradientId}-trend`} x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={INFLOW_COLOR} />
-                                        <stop offset={`${aggregateGradientOffset * 100}%`} stopColor={INFLOW_COLOR} />
-                                        <stop offset={`${aggregateGradientOffset * 100}%`} stopColor={OUTFLOW_COLOR} />
-                                        <stop offset="100%" stopColor={OUTFLOW_COLOR} />
-                                    </linearGradient>
-                                </defs>
-                                {/* Single Dominant Trend Line */}
-                                <Line
-                                    type="monotone"
-                                    dataKey="dominantMovement"
-                                    name="Volume"
-                                    stroke="#94a3b8"
-                                    strokeWidth={1.5}
-                                    strokeDasharray="4 4"
-                                    dot={({ cx, cy, payload }) => (
-                                        <circle cx={cx} cy={cy} r={3} fill={Number(payload?.dominantMovement ?? 0) < 0 ? OUTFLOW_COLOR : INFLOW_COLOR} stroke="#ffffff" strokeWidth={1.5} />
-                                    )}
-                                    activeDot={false}
-                                    legendType="none"
-                                />
+                                {showMovementBars && (
+                                    <Bar dataKey="inflow" name="Inflow" fill={INFLOW_COLOR} radius={[4, 4, 0, 0]}>
+                                        {lineSeries.map((entry) => (
+                                            <Cell key={entry.key} fill={INFLOW_COLOR} fillOpacity={(entry.inflow ?? 0) > 0 ? 0.35 : 0} />
+                                        ))}
+                                    </Bar>
+                                )}
+                                {showMovementBars && (
+                                    <Bar dataKey="outflow" name="Outflow" fill={OUTFLOW_COLOR} radius={[0, 0, 4, 4]}>
+                                        {lineSeries.map((entry) => (
+                                            <Cell key={entry.key} fill={OUTFLOW_COLOR} fillOpacity={(entry.outflow ?? 0) < 0 ? 0.35 : 0} />
+                                        ))}
+                                    </Bar>
+                                )}
                                 {/* Balance line on right axis */}
                                 {hasBalanceData && (
                                     <Line
                                         yAxisId="balance"
                                         type="monotone"
                                         dataKey="closingBalance"
-                                        name="Balance"
+                                        name="Saldo Proyeksi"
                                         stroke={BALANCE_COLOR}
                                         strokeWidth={3.5}
                                         dot={({ cx, cy, payload }) => {
                                             const val = payload?.closingBalance ?? 0;
                                             const isBelowThreshold = minimumBalanceThreshold ? val < minimumBalanceThreshold : false;
+                                            const isInWatchZone = !isBelowThreshold && showBalanceWarning && warningBalanceThreshold !== undefined && val <= warningBalanceThreshold;
                                             return (
                                                 <circle
                                                     cx={cx}
                                                     cy={cy}
                                                     r={4}
-                                                    fill={isBelowThreshold ? OUTFLOW_COLOR : BALANCE_COLOR}
+                                                    fill={isBelowThreshold ? OUTFLOW_COLOR : isInWatchZone ? WARNING_COLOR : BALANCE_COLOR}
                                                     stroke="#fff"
                                                     strokeWidth={2}
                                                 />
@@ -443,7 +456,13 @@ export default function ProjectionChartCard({
                                                 cx={cx}
                                                 cy={cy}
                                                 r={6}
-                                                fill={minimumBalanceThreshold && (payload?.closingBalance ?? 0) < minimumBalanceThreshold ? OUTFLOW_COLOR : BALANCE_COLOR}
+                                                fill={
+                                                    minimumBalanceThreshold && (payload?.closingBalance ?? 0) < minimumBalanceThreshold
+                                                        ? OUTFLOW_COLOR
+                                                        : showBalanceWarning && warningBalanceThreshold !== undefined && (payload?.closingBalance ?? 0) <= warningBalanceThreshold
+                                                            ? WARNING_COLOR
+                                                            : BALANCE_COLOR
+                                                }
                                                 stroke="#fff"
                                                 strokeWidth={2}
                                             />
@@ -455,9 +474,13 @@ export default function ProjectionChartCard({
                                     wrapperStyle={{ fontSize: 12, paddingTop: 16 }}
                                     {...({
                                         payload: [
-                                            { value: 'Inflow', type: 'square', color: INFLOW_COLOR },
-                                            { value: 'Outflow', type: 'square', color: OUTFLOW_COLOR },
-                                            ...(hasBalanceData ? [{ value: 'Balance', type: 'line' as const, color: BALANCE_COLOR }] : []),
+                                            ...(showMovementBars
+                                                ? [
+                                                    { value: 'Inflow', type: 'square', color: INFLOW_COLOR },
+                                                    { value: 'Outflow', type: 'square', color: OUTFLOW_COLOR },
+                                                ]
+                                                : []),
+                                            ...(hasBalanceData ? [{ value: 'Saldo Proyeksi', type: 'line' as const, color: BALANCE_COLOR }] : []),
                                         ],
                                     } as any)}
                                 />

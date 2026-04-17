@@ -266,7 +266,6 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
                                 type="date"
                                 value={data.expected_date || ''}
                                 onChange={(e) => setData('expected_date', e.target.value)}
-                                onClick={(e) => (e.target as HTMLInputElement).showPicker()}
                                 className="w-full cursor-pointer"
                             />
                         </div>

@@ -18,8 +18,28 @@ class SharedRouteContractTest extends TestCase
         );
 
         $this->assertRouteAction(
+            'stock-requests.store',
+            'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestController@store'
+        );
+
+        $this->assertRouteAction(
             'stock-requests.edit',
             'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestController@editInertia'
+        );
+
+        $this->assertRouteAction(
+            'stock-requests.update',
+            'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestController@update'
+        );
+
+        $this->assertRouteAction(
+            'stock-requests.resend-approval-email',
+            'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestController@resendApprovalEmail'
+        );
+
+        $this->assertRouteAction(
+            'stock-requests.offline-approval-document',
+            'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestController@offlineApprovalDocument'
         );
 
         $this->assertRouteAction(

@@ -10,60 +10,83 @@ use App\Models\Core\Position;
 use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
-use App\Models\Modules\Purchasing\StockRequest\StockItem;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class StockApprovalViewTest extends TestCase
+class StockRequestActionAuthorizationParityTest extends TestCase
 {
     use RefreshDatabase;
 
-    #[Test]
-    public function approver_can_open_stock_approval_detail_page(): void
+    protected function setUp(): void
     {
-        config(['inertia.testing.ensure_pages_exist' => false]);
+        parent::setUp();
 
-        [$approver, $stockApproval, $stockRequest] = $this->createStockApprovalFixture();
-        /** @var \Illuminate\Contracts\Auth\Authenticatable $approver */
-        $response = $this->actingAs($approver)
-            ->get(route('stock-approvals.show', $stockApproval));
-
-        $response->assertOk();
-        $response->assertInertia(fn (Assert $page) => $page
-            ->component('Purchasing/StockRequest/Show')
-            ->where('stockRequest.st_number', $stockRequest->st_number)
-            ->where('approvalContext.approvalId', $stockApproval->id)
-            ->where('approvalContext.canApprove', true)
-            ->where('approvalContext.approvalStatus', 'pending')
-            ->where('can.approve', true)
-            ->where('can.reject', true)
-            ->where('can.resendApprovalEmail', false)
-        );
+        Storage::fake('public');
     }
 
     #[Test]
-    public function non_approver_cannot_open_stock_approval_detail_page(): void
+    public function non_owner_cannot_mark_stock_request_as_offline_approved(): void
     {
-        config(['inertia.testing.ensure_pages_exist' => false]);
+        [$owner, , $stockRequest] = $this->createInApprovalFixture();
+        [$otherUser] = $this->createUserContext('other.stock@example.com', $stockRequest->businessUnit, $stockRequest->department);
 
-        [, $stockApproval] = $this->createStockApprovalFixture();
-        [$anotherUser] = $this->createUserContext();
-        /** @var \Illuminate\Contracts\Auth\Authenticatable $anotherUser */
-        $response = $this->actingAs($anotherUser)
-            ->get(route('stock-approvals.show', $stockApproval));
+        $response = $this->actingAs($otherUser)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->post(route('stock-requests.mark-offline-approved', $stockRequest), [
+                'offline_approval_document' => UploadedFile::fake()->create('offline-proof.pdf', 50, 'application/pdf'),
+            ]);
 
         $response->assertForbidden();
     }
 
     #[Test]
-    public function approver_cannot_open_stock_approval_detail_page_from_another_business_unit_context(): void
+    public function inactive_approver_cannot_process_stock_approval_action(): void
     {
-        config(['inertia.testing.ensure_pages_exist' => false]);
+        [$owner, $firstApprover, $stockRequest] = $this->createInApprovalFixture();
+        [$secondApprover] = $this->createUserContext('second.approver@example.com', $stockRequest->businessUnit, $stockRequest->department);
 
-        [$approver, $stockApproval] = $this->createStockApprovalFixture();
+        StockApproval::create([
+            'stock_request_id' => $stockRequest->id,
+            'approver_id' => $secondApprover->id,
+            'step_order' => 2,
+            'approval_type' => 'approval',
+            'task_type' => 'approval',
+            'status' => 'pending',
+        ]);
+
+        $inactiveApproval = StockApproval::query()
+            ->where('stock_request_id', $stockRequest->id)
+            ->where('approver_id', $secondApprover->id)
+            ->firstOrFail();
+
+        $response = $this->actingAs($secondApprover)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->from(route('stock-approvals.show', $inactiveApproval))
+            ->post(route('stock-approvals.process', $inactiveApproval), [
+                'action' => 'approve',
+                'notes' => 'Trying to skip the active step',
+            ]);
+
+        $response->assertRedirect(route('stock-approvals.show', $inactiveApproval));
+        $response->assertSessionHas('error', 'This approval is not currently active.');
+        $this->assertSame('pending', $inactiveApproval->fresh()?->status);
+        $this->assertSame('pending', StockApproval::query()->where('stock_request_id', $stockRequest->id)->where('approver_id', $firstApprover->id)->firstOrFail()->status);
+    }
+
+    #[Test]
+    public function approver_cannot_process_stock_approval_from_another_business_unit_context(): void
+    {
+        [, $approver, $stockRequest] = $this->createInApprovalFixture();
         $otherBusinessUnit = BusinessUnit::factory()->create();
         $otherDepartment = Department::factory()->create([
             'business_unit_id' => $otherBusinessUnit->id,
@@ -82,22 +105,30 @@ class StockApprovalViewTest extends TestCase
             'is_active' => true,
         ]);
 
+        $approval = StockApproval::query()
+            ->where('stock_request_id', $stockRequest->id)
+            ->where('approver_id', $approver->id)
+            ->firstOrFail();
+
         $response = $this->actingAs($approver)
             ->withSession([
                 'current_business_unit_id' => $otherBusinessUnit->id,
                 'current_department_id' => $otherDepartment->id,
             ])
-            ->get(route('stock-approvals.show', $stockApproval));
+            ->post(route('stock-approvals.process', $approval), [
+                'action' => 'approve',
+            ]);
 
         $response->assertForbidden();
     }
 
     /**
-     * @return array{0: User, 1: StockApproval, 2: StockRequest}
+     * @return array{0: User, 1: User, 2: StockRequest}
      */
-    protected function createStockApprovalFixture(): array
+    private function createInApprovalFixture(): array
     {
-        [$approver, $businessUnit, $department] = $this->createUserContext('approver.test@example.com');
+        [$owner, $businessUnit, $department] = $this->createUserContext('owner.stock@example.com');
+        [$approver] = $this->createUserContext('approver.stock@example.com', $businessUnit, $department);
 
         $numberingModule = NumberingModule::create([
             'business_unit_id' => $businessUnit->id,
@@ -121,28 +152,16 @@ class StockApprovalViewTest extends TestCase
             'st_number' => 'ST/'.$businessUnit->code.'/'.now()->format('Ym').'/001',
             'business_unit_id' => $businessUnit->id,
             'department_id' => $department->id,
-            'user_id' => $approver->id,
+            'user_id' => $owner->id,
             'sequence_id' => $numberSequence->id,
-            'purpose' => 'Stock item for operational needs',
+            'purpose' => 'Action authorization parity test',
             'date_of_request' => now()->toDateString(),
             'expected_date' => now()->addDay()->toDateString(),
             'status' => 'in_approval',
             'submitted_at' => now(),
         ]);
 
-        StockItem::create([
-            'stock_request_id' => $stockRequest->id,
-            'item_order' => 1,
-            'item_name' => 'Test Stock Item',
-            'quantity' => 2,
-            'unit' => 'pcs',
-            'price' => 50000,
-            'total' => 100000,
-            'specifications' => 'Spec A',
-            'item_code' => 'ITEM-001',
-        ]);
-
-        $stockApproval = StockApproval::create([
+        StockApproval::create([
             'stock_request_id' => $stockRequest->id,
             'approver_id' => $approver->id,
             'step_order' => 1,
@@ -152,16 +171,16 @@ class StockApprovalViewTest extends TestCase
             'assigned_at' => now(),
         ]);
 
-        return [$approver, $stockApproval, $stockRequest];
+        return [$owner, $approver, $stockRequest->fresh()];
     }
 
     /**
      * @return array{0: User, 1: BusinessUnit, 2: Department}
      */
-    protected function createUserContext(?string $email = null): array
+    private function createUserContext(?string $email = null, ?BusinessUnit $businessUnit = null, ?Department $department = null): array
     {
-        $businessUnit = BusinessUnit::factory()->create();
-        $department = Department::factory()->create([
+        $businessUnit ??= BusinessUnit::factory()->create();
+        $department ??= Department::factory()->create([
             'business_unit_id' => $businessUnit->id,
         ]);
 

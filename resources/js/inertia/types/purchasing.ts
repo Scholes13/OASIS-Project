@@ -283,3 +283,93 @@ export interface ApprovalsPageProps {
     };
     [key: string]: unknown;
 }
+
+// ==================== Stock Request Types ====================
+
+// Stock Request Status
+export type StockRequestStatus =
+    | 'draft'
+    | 'submitted'
+    | 'in_approval'
+    | 'approved'
+    | 'rejected'
+    | 'voided';
+
+// Stock Request Item
+export interface StockItem {
+    id: number;
+    item_name: string;
+    item_description: string | null;
+    quantity: number;
+    unit: string;
+    image_path: string | null;
+}
+
+// Stock Request Approval
+export interface StockApproval {
+    id: number;
+    approver_id: number;
+    step_order: number;
+    status: 'pending' | 'approved' | 'rejected';
+    notes: string | null;
+    responded_at: string | null;
+    approver: User;
+}
+
+// Stock Request
+export interface StockRequest {
+    id: number;
+    st_number: string;
+    business_unit_id: number;
+    department_id: number;
+    user_id: number;
+    purpose: string;
+    date_of_request: string;
+    expected_date: string | null;
+    status: StockRequestStatus;
+    submitted_at: string | null;
+    approved_at: string | null;
+    rejected_at: string | null;
+    voided_at: string | null;
+    offline_approved_at: string | null;
+    offline_approval_document_path: string | null;
+    offline_approval_document_name: string | null;
+    created_at: string;
+    updated_at: string;
+    user: User;
+    department: Department;
+    business_unit: BusinessUnit;
+    items?: StockItem[];
+    approvals?: StockApproval[];
+    approval_progress?: { approved: number; total: number };
+}
+
+// ST Permissions (parity-grade with PR)
+export interface STPermissions {
+    edit: boolean;
+    delete: boolean;
+    void: boolean;
+    resubmit: boolean;
+    resendApprovalEmail?: boolean;
+    approve?: boolean;
+    reject?: boolean;
+    downloadPdf: boolean;
+    markOfflineApproved?: boolean;
+    offlineApprovalDocument?: boolean;
+}
+
+// Approval Context for ST
+export interface STApprovalContext {
+    approvalId: number;
+    canApprove: boolean;
+    approvalStatus: 'pending' | 'approved' | 'rejected' | 'skipped';
+}
+
+// ST Show Page Props
+export interface STShowProps {
+    stockRequest: StockRequest & {
+        can?: STPermissions;
+    };
+    can?: STPermissions;
+    approvalContext?: STApprovalContext;
+}

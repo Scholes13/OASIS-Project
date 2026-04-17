@@ -14,7 +14,8 @@ import {
     FileText,
     Eye,
     AlertTriangle,
-    Loader2
+    Loader2,
+    Send
 } from 'lucide-react';
 import { PageProps } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -79,8 +80,10 @@ interface STPermissions {
     delete: boolean;
     void: boolean;
     resubmit: boolean;
+    resendApprovalEmail?: boolean;
     downloadPdf: boolean;
     markOfflineApproved: boolean;
+    offlineApprovalDocument?: boolean;
 }
 
 interface ApprovalContext {
@@ -114,6 +117,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
     const [approvalNotes, setApprovalNotes] = useState('');
     const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isResendingEmail, setIsResendingEmail] = useState(false);
 
     const currentStatus = statusConfig[stockRequest.status] || statusConfig.draft;
     const StatusIcon = currentStatus.icon;
@@ -190,6 +194,24 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
         );
     };
 
+    const handleResendApprovalEmail = () => {
+        setIsResendingEmail(true);
+
+        router.post(
+            route('stock-requests.resend-approval-email', { stockRequest: stockRequest.id }),
+            {},
+            {
+                onSuccess: () => {
+                    toast.success('Approval email resent to current approver');
+                },
+                onError: () => {
+                    toast.error('Failed to resend approval email');
+                },
+                onFinish: () => setIsResendingEmail(false),
+            }
+        );
+    };
+
     const handleApprovalDecision = (action: 'approve' | 'reject') => {
         if (!approvalContext?.approvalId) {
             return;
@@ -217,6 +239,27 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
         );
     };
 
+    const getOfflineApprovalDocumentUrl = () => {
+        const ziggy = route as unknown as {
+            (...args: any[]): any;
+        };
+        const routeName = 'stock-requests.offline-approval-document';
+        const fallbackPath = `/stock-requests/${stockRequest.id}/offline-approval-document`;
+
+        try {
+            const routeList = ziggy();
+            if (routeList?.has?.(routeName)) {
+                return ziggy(routeName, {
+                    stockRequest: stockRequest.id,
+                });
+            }
+        } catch {
+            // Fall back to the authenticated application path if Ziggy route metadata is unavailable.
+        }
+
+        return fallbackPath;
+    };
+
 
     return (
         <>
@@ -228,7 +271,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <Link
-                                href={isApprovalView ? route('approvals.index') : route('stock-requests.index')}
+                                href={isApprovalView ? route('stock-approvals.index') : route('stock-requests.index')}
                                 className="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -276,6 +319,23 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                 >
                                     <RotateCcw className="w-4 h-4 mr-1.5" />
                                     Resubmit
+                                </Button>
+                            )}
+
+                            {permissions?.resendApprovalEmail && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleResendApprovalEmail}
+                                    disabled={isResendingEmail}
+                                    className="text-sky-600 hover:text-sky-900 hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isResendingEmail ? (
+                                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                    ) : (
+                                        <Send className="w-4 h-4 mr-1.5" />
+                                    )}
+                                    Resend Email
                                 </Button>
                             )}
 
@@ -559,7 +619,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                             </motion.div>
 
                             {/* Offline Approval Document */}
-                            {stockRequest.offline_approval_document_path && (
+                            {stockRequest.offline_approval_document_path && permissions?.offlineApprovalDocument && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -578,10 +638,11 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                                 </span>
                                             </div>
                                             <a
-                                                href={`/storage/${stockRequest.offline_approval_document_path}`}
+                                                href={getOfflineApprovalDocumentUrl()}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-purple-600 hover:text-purple-800"
+                                                title="View offline approval document"
                                             >
                                                 <Eye className="w-4 h-4" />
                                             </a>

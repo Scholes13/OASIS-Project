@@ -17,9 +17,9 @@ class StockApprovalController extends Controller
     /**
      * Show approval page for a specific approval
      */
-    public function show($approvalId): Response
+    public function show(StockApproval $approval): Response
     {
-        $approval = StockApproval::with([
+        $approval->load([
             'stockRequest' => function ($query) {
                 $query->select('id', 'st_number', 'user_id', 'department_id', 'business_unit_id',
                     'purpose', 'status', 'date_of_request', 'expected_date',
@@ -39,11 +39,15 @@ class StockApprovalController extends Controller
             },
             'stockRequest.approvals.approver:id,name,email',
             'approver:id,name,email',
-        ])->findOrFail($approvalId);
+        ]);
 
         // Check if current user is the approver
         if ($approval->approver_id !== Auth::id()) {
             abort(403, 'You are not authorized to view this approval.');
+        }
+
+        if ($approval->stockRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this stock request approval.');
         }
 
         // Check if this approval is the current pending one
@@ -57,8 +61,10 @@ class StockApprovalController extends Controller
             'delete' => false,
             'void' => false,
             'resubmit' => false,
+            'resendApprovalEmail' => false,
             'downloadPdf' => true,
             'markOfflineApproved' => false,
+            'offlineApprovalDocument' => false,
         ];
 
         return Inertia::render('Purchasing/StockRequest/Show', [
@@ -81,7 +87,7 @@ class StockApprovalController extends Controller
     /**
      * Process approval action
      */
-    public function process(Request $request, $approvalId)
+    public function process(Request $request, StockApproval $approval)
     {
         $request->validate([
             'action' => 'required|in:approve,reject,approved,rejected',
@@ -96,13 +102,17 @@ class StockApprovalController extends Controller
             $action = 'rejected';
         }
 
-        $approval = StockApproval::with([
-            'stockRequest:id,st_number,status,user_id',
-        ])->findOrFail($approvalId);
+        $approval->load([
+            'stockRequest:id,st_number,status,user_id,business_unit_id',
+        ]);
 
         // Check if current user is the approver
         if ($approval->approver_id !== Auth::id()) {
             abort(403, 'You are not authorized to process this approval.');
+        }
+
+        if ($approval->stockRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this stock request approval.');
         }
 
         // Check if approval is still pending

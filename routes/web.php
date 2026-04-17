@@ -177,16 +177,20 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Create Route - Inertia form for creating new Stock Request
         Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'createInertia'])->name('create');
+        Route::post('/', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'store'])->name('store');
 
         // View/Edit Routes
         Route::get('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'showInertia'])->name('show');
         Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'editInertia'])->name('edit');
+        Route::put('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'update'])->name('update');
 
         // Action Routes
         Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
         Route::post('/{stockRequest}/resubmit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{stockRequest}/void', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'void'])->name('void');
         Route::post('/{stockRequest}/mark-offline-approved', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
+        Route::post('/{stockRequest}/resend-approval-email', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
+        Route::get('/{stockRequest}/offline-approval-document', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
 
         // PDF Routes (authenticated)
         Route::get('/{stockRequest}/download-pdf', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'downloadPdf'])->name('download-pdf');

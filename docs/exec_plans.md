@@ -24,6 +24,83 @@
 
 ## Active Tasks
 
+### 2026-04-17 - Purchasing phase 2 PR and ST end-to-end parity
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - define and deliver phase-2 parity between `Purchase Request` and `Stock Request` across the end-to-end surfaces users actually touch,
+  - align user-facing capability, permission contracts, and approval lifecycle behavior so `PR` and `ST` feel like sibling modules with matching maturity,
+  - preserve separate module homes, naming, documents, and routes so parity does not collapse `PR` and `ST` into one generic request type.
+- Risks:
+  - parity work can accidentally copy `PR` behavior into `ST` without preserving stock-specific semantics, route names, or wording,
+  - backend permission drift can leave frontend CTAs visible but non-functional, especially for resend email, offline approval, approval actions, and document access,
+  - end-to-end parity touches routes, controllers, props, pages, and browser journeys, so missing one layer can create subtle regression gaps even when individual buttons render.
+- Verification:
+  - reviewed design spec with sub-agent feedback before implementation,
+  - focused PHPUnit coverage for route/action/authorization parity,
+  - focused React coverage for parity-critical page actions and state rendering,
+  - reviewer pass after implementation against `docs/coding_standards.json`,
+  - browser QA with Playwright using the provided user account on the authenticated purchasing flows.
+- Notes:
+  - user approved a phase-2 spec-first workflow: spec -> sub-agent review -> gap closure -> implementation -> review -> browser QA,
+  - parity target is not just button matching; it covers the end-to-end surfaces users touch so the purchasing module feels mature,
+  - approved product direction is `1:1 parity` in capability and UX while keeping separate `PR` and `ST` module homes,
+  - implemented backend parity for `ST` resend approval email, protected offline approval evidence access, and parity-grade `can`/`approvalContext` contracts,
+  - implemented frontend parity on `ST Show` for resend email CTA, stock-approval home back link, and authenticated offline evidence routing,
+  - focused PHPUnit coverage, focused React coverage, `vendor/bin/pint --dirty`, `npm exec tsc --noEmit --pretty false`, and `npm run build` passed in this workspace,
+  - browser QA with `pramuji@werkudara.com` created a fresh `ST` (`ST.WNS/202604/006`), confirmed create -> detail -> index flow, confirmed live `Resend Email` POST success on `ST`, and confirmed the offline approval modal opens,
+  - browser QA also confirmed `PR.WNS/202603/024` still exposes the sibling `Resend Email` and protected supporting-document actions for parity comparison,
+  - live browser limitation: approval-context / approver-side `stock-approvals.show` flow was not validated with the provided owner account because that branch requires an approver session,
+  - reviewer sub-agent passes were used successfully during spec/plan hardening, but the final code-review sub-agent attempts timed out in this session; main-lane self-review plus passing focused verification were used as the closure fallback.
+
+### 2026-04-17 - Stock request create submit contract and date picker hardening
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why `stock-requests/create` fails during submit on the Inertia create surface,
+  - restore the authenticated stock request submit and update route contract expected by the frontend page,
+  - harden the stock request date input so browser `showPicker()` restrictions do not emit frontend batch errors after refresh or replayed clicks.
+- Risks:
+  - route restoration must preserve the existing Inertia create, edit, and show surfaces without colliding with the authenticated detail route order,
+  - the date-input fix should avoid suppressing legitimate validation while removing the unnecessary browser API call that requires a trusted gesture,
+  - purchasing create flows share similar date input behavior, so any shared hardening should stay contract-safe for purchase requests too.
+- Verification:
+  - focused PHPUnit coverage for stock request named route contracts,
+  - focused Vitest coverage for purchasing request date input interaction,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - root cause investigation found the stock request Inertia page still calls `route('stock-requests.store')` and `route('stock-requests.update')`, but the authenticated `stock-requests` route group in `routes/web.php` no longer registers those names,
+  - a separate frontend batch error comes from calling `HTMLInputElement.showPicker()` directly in the date input click handler, which can throw `NotAllowedError` when the browser does not treat the event as a trusted user gesture,
+  - the authenticated stock request route group now restores `store` and `update` named routes so Ziggy can resolve submit targets again,
+  - purchasing request and stock request forms now rely on the browser's native date input behavior instead of forcing `showPicker()`,
+  - focused PHPUnit coverage, focused Vitest coverage, `vendor/bin/pint --dirty`, `npm exec tsc --noEmit --pretty false`, and `npm run build` all passed in this workspace.
+
+### 2026-04-14 - Activity Admin department detail route performance trim
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate reports that `Activity Admin > Department Detail` feels heavy on the long-range task register route,
+  - measure whether the slowdown comes from backend query time, oversized Inertia payloads, or eager frontend bundle loading,
+  - trim the initial route cost without changing the admin task-detail modal workflow.
+- Risks:
+  - performance work must preserve the current detail-modal journey and query-string hydration from `?modal=detail&task=...`,
+  - reducing initial page cost must not accidentally remove task register pagination or break export/filter state,
+  - bundle-level changes should stay targeted to the admin department page so other Activity surfaces do not regress.
+- Verification:
+  - focused PHPUnit coverage for department detail pagination defaults,
+  - focused Vitest coverage for admin department detail modal behavior,
+  - `npm exec tsc --noEmit --pretty false`,
+  - browser performance trace on `activity/admin/department/4?date_from=2026-01-14&date_to=2026-04-14`.
+- Notes:
+  - browser investigation showed the route TTFB was acceptable (`~329ms`) but reload LCP was dominated by client-side render delay (`~1.4s`),
+  - the initial request chain eagerly loaded `module-activity`, `vendor-dnd`, and `vendor-calendar` because the page statically imported `TaskDetailModal`,
+  - the register was already paginated, but it still shipped `20` rows per page; trimming to `10` reduces payload and DOM work on the initial render,
+  - the admin department page now lazy-loads `TaskDetailModal`, so the heavy activity chunk only loads when the user actually opens task details.
+
 ### 2026-04-13 - Activity task modal create-again checkbox flow
 - Status: implemented
 - Owner: PM Agent

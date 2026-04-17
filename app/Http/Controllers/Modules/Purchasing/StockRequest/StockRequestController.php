@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Modules\Purchasing\StockRequest;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\User;
 use App\Models\Modules\Purchasing\StockRequest\StockNumberReservation;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Core\QrCodeService;
@@ -10,9 +11,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Browsershot\Browsershot;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class StockRequestController extends Controller
 {
@@ -677,6 +680,57 @@ class StockRequestController extends Controller
     }
 
     /**
+     * Resend approval email to the current pending approver.
+     */
+    public function resendApprovalEmail(StockRequest $stockRequest)
+    {
+        $user = Auth::user();
+
+        if ($stockRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this stock request.');
+        }
+
+        if ($stockRequest->user_id !== $user->id) {
+            abort(403, 'Only the ST owner can resend approval email.');
+        }
+
+        if ($stockRequest->status !== 'in_approval') {
+            return back()->with('error', 'Approval email can only be resent when ST is in approval process.');
+        }
+
+        /** @var \App\Models\Modules\Purchasing\StockRequest\StockApproval|null $currentApproval */
+        $currentApproval = $stockRequest->currentApproval();
+        if (! $currentApproval || $currentApproval->status !== 'pending') {
+            return back()->with('error', 'No active pending approver found for this stock request.');
+        }
+
+        try {
+            $currentApproval->loadMissing('approver', 'stockRequest.user');
+            $currentApproval->approver?->notify(
+                new \App\Notifications\Purchasing\StockRequest\ApprovalRequested($currentApproval)
+            );
+
+            $currentApproval->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+            ]);
+
+            return back()->with('success', 'Approval email has been resent to the current approver.');
+        } catch (\Exception $e) {
+            Log::error('Failed to resend stock request approval email', [
+                'st_id' => $stockRequest->id,
+                'st_number' => $stockRequest->st_number,
+                'approval_id' => $currentApproval->id,
+                'requestor_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Failed to resend approval email. Please try again or contact support.');
+        }
+    }
+
+    /**
      * Display PDF view for public access (no authentication required)
      */
     public function pdfPublic(StockRequest $stockRequest)
@@ -769,6 +823,30 @@ class StockRequestController extends Controller
     }
 
     /**
+     * Stream the offline approval evidence for a stock request.
+     */
+    public function offlineApprovalDocument(StockRequest $stockRequest): BinaryFileResponse
+    {
+        $user = Auth::user();
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
+
+        if (! $this->canAccessOfflineApprovalDocument($stockRequest, $user, $currentBusinessUnitId)) {
+            abort(403, 'You do not have access to this stock request.');
+        }
+
+        $documentPath = $stockRequest->offline_approval_document_path;
+        if (! $documentPath || ! Storage::disk('public')->exists($documentPath)) {
+            abort(404);
+        }
+
+        $documentName = $stockRequest->offline_approval_document_name ?? basename($documentPath);
+
+        return response()->file(Storage::disk('public')->path($documentPath), [
+            'Content-Disposition' => 'inline; filename="'.$documentName.'"',
+        ]);
+    }
+
+    /**
      * Generate QR codes for PDF
      */
     protected function generateQrCodesForPdf(StockRequest $stockRequest, QrCodeService $qrCodeService): array
@@ -844,14 +922,47 @@ class StockRequestController extends Controller
     {
         $isOwner = $st->user_id === $user->id;
         $isSuperAdmin = $user->isSuperAdmin();
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
+        $currentApproval = $st->currentApproval();
+        $canApprove = $currentApproval
+            && $currentApproval->approver_id === $user->id
+            && $st->status === 'in_approval'
+            && $currentApproval->status === 'pending';
+        $canResendApprovalEmail = $isOwner
+            && $st->status === 'in_approval'
+            && $currentApproval
+            && $currentApproval->status === 'pending';
 
         return [
             'edit' => $isOwner && $st->isEditable(),
             'delete' => $isOwner && $st->status === 'draft',
             'void' => ($isOwner || $isSuperAdmin) && $st->canBeVoided(),
             'resubmit' => $isOwner && $st->status === 'rejected',
+            'resendApprovalEmail' => $canResendApprovalEmail,
+            'approve' => $canApprove,
+            'reject' => $canApprove,
             'downloadPdf' => true, // All users can download PDF
+            'markOfflineApproved' => in_array($st->status, ['submitted', 'in_approval']) && $isOwner,
+            'offlineApprovalDocument' => $st->offline_approval_document_path !== null
+                && $this->canAccessOfflineApprovalDocument($st, $user, $currentBusinessUnitId),
         ];
+    }
+
+    /**
+     * Check whether the authenticated user may access the offline approval evidence.
+     */
+    private function canAccessOfflineApprovalDocument(StockRequest $stockRequest, User $user, int $currentBusinessUnitId): bool
+    {
+        $isAssignedApprover = $stockRequest->approvals()
+            ->where('approver_id', $user->id)
+            ->exists();
+
+        if ($isAssignedApprover) {
+            return true;
+        }
+
+        return $stockRequest->business_unit_id === $currentBusinessUnitId
+            && $stockRequest->user_id === $user->id;
     }
 
     /**

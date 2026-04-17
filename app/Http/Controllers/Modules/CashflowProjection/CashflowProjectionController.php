@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Modules\CashflowProjection;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CashflowProjection\CashflowProjectionDashboardFilterRequest;
+use App\Http\Requests\CashflowProjection\ImportCashflowProjectionEntriesRequest;
 use App\Http\Requests\CashflowProjection\StoreCashflowProjectionLineItemRequest;
 use App\Http\Requests\CashflowProjection\UpdateCashflowProjectionLineItemRequest;
 use App\Http\Requests\CashflowProjection\UpsertCashflowProjectionFinanceInputRequest;
@@ -16,6 +17,8 @@ use App\Models\Modules\CashflowProjection\CashflowProjectionLineItem;
 use App\Models\Modules\CashflowProjection\CashflowProjectionLinkedUnit;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAccessService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAuditService;
+use App\Services\Modules\CashflowProjection\CashflowProjectionEntryImportService;
+use App\Services\Modules\CashflowProjection\CashflowProjectionEntryImportTemplateService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionScopeService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionTemplateService;
 use Carbon\CarbonImmutable;
@@ -34,7 +37,9 @@ class CashflowProjectionController extends Controller
         protected CashflowProjectionAccessService $accessService,
         protected CashflowProjectionTemplateService $templateService,
         protected CashflowProjectionScopeService $scopeService,
-        protected CashflowProjectionAuditService $auditService
+        protected CashflowProjectionAuditService $auditService,
+        protected CashflowProjectionEntryImportTemplateService $entryImportTemplateService,
+        protected CashflowProjectionEntryImportService $entryImportService
     ) {}
 
     public function index(CashflowProjectionDashboardFilterRequest $request): Response
@@ -1527,5 +1532,44 @@ class CashflowProjectionController extends Controller
             'capital_injection_estimate' => (float) $financeInput->capital_injection_estimate,
             'other_income' => (float) $financeInput->other_income,
         ];
+    }
+
+    public function downloadImportTemplate(Request $request): StreamedResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
+
+        $year = (int) $request->integer('year', (int) now()->format('Y'));
+        $month = (int) max(1, min(12, $request->integer('month', (int) now()->format('n'))));
+
+        return $this->entryImportTemplateService->generateTemplate($businessUnitId, $user, $year, $month);
+    }
+
+    public function importEntries(ImportCashflowProjectionEntriesRequest $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
+
+        $file = $request->file('file');
+
+        $result = $this->entryImportService->import(
+            $file->getRealPath() ?: $file->path(),
+            $file->getClientOriginalName(),
+            $user,
+            $businessUnitId
+        );
+
+        return redirect()
+            ->route('cashflow-projection.entries', [
+                'year' => (int) $request->integer('context_year', (int) now()->format('Y')),
+                'month' => (int) $request->integer('context_month', (int) now()->format('n')),
+            ])
+            ->with('cashflow_import', $result);
     }
 }

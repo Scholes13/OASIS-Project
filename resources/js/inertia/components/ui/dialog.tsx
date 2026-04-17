@@ -24,7 +24,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-slate-950/18 backdrop-blur-[1px]" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -40,7 +40,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
           >
             <HeadlessDialog.Panel
               className={cn(
-                "w-full max-w-lg transform rounded-2xl bg-white p-6 text-left shadow-2xl transition-all",
+                "w-full max-w-lg transform rounded-2xl border border-slate-200/80 bg-white p-6 text-left shadow-[0_24px_80px_rgba(15,23,42,0.18)] transition-all",
                 className
               )}
             >

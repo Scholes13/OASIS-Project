@@ -4,19 +4,21 @@ import type { ComponentProps } from 'react';
 import Entries from '@/Pages/CashflowProjection/Entries';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from '@/Pages/CashflowProjection/types';
 
-const { postMock, patchMock, deleteMock, showToastSuccessMock } = vi.hoisted(() => ({
+const { postMock, patchMock, deleteMock, showToastSuccessMock, currentBusinessUnit, pageFlashState } = vi.hoisted(() => ({
     postMock: vi.fn(),
     patchMock: vi.fn(),
     deleteMock: vi.fn(),
     showToastSuccessMock: vi.fn(),
+    currentBusinessUnit: {
+        id: 1,
+        code: 'WNS',
+        name: 'Werkudara Nirwana Sakti',
+        logo: null,
+    },
+    pageFlashState: {
+        cashflow_import: undefined as Record<string, unknown> | undefined,
+    },
 }));
-
-const currentBusinessUnit = {
-    id: 1,
-    code: 'WNS',
-    name: 'Werkudara Nirwana Sakti',
-    logo: null,
-};
 
 vi.mock('@inertiajs/react', async () => {
     const React = await vi.importActual<typeof import('react')>('react');
@@ -57,6 +59,7 @@ vi.mock('@inertiajs/react', async () => {
                 setData,
                 post: postMock,
                 patch: patchMock,
+                reset: vi.fn(),
             };
         },
         Head: () => null,
@@ -68,6 +71,7 @@ vi.mock('@inertiajs/react', async () => {
         usePage: () => ({
             props: {
                 currentBusinessUnit,
+                flash: pageFlashState,
             },
         }),
     };
@@ -199,12 +203,44 @@ describe('Cashflow Projection Entries page', () => {
                 updater_name: 'Tono',
                 updater_department_label: 'CFC',
             },
+            {
+                id: 102,
+                department_id: 10,
+                department_code: 'CFC',
+                department_name: 'Core Finance',
+                business_unit_id: 1,
+                business_unit_code: 'WNS',
+                business_unit_name: 'Werkudara Nirwana Sakti',
+                flow_type: 'out',
+                action_code: 'OUT_CFC_OPS',
+                action_label: 'CFC - Operational Department CFC',
+                transaction_date: '2026-03-28',
+                due_date: '2026-03-28',
+                amount: 700000,
+                description: 'Estimated utility payment',
+                notes: null,
+                is_estimated_date: true,
+                has_edit_history: false,
+                creator_name: 'Ayu',
+                creator_department_label: 'CFC',
+                updater_name: 'Ayu',
+                updater_department_label: 'CFC',
+            },
         ],
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
+        pageFlashState.cashflow_import = undefined;
         global.route = vi.fn((name: string, params?: Record<string, unknown>) => {
+            if (name === 'cashflow-projection.entries.import-template') {
+                return `/cashflow-projection.entries.import-template?year=${params?.year}&month=${params?.month}`;
+            }
+
+            if (name === 'cashflow-projection.entries.import') {
+                return '/cashflow-projection.entries.import';
+            }
+
             if (name === 'cashflow-projection.line-items.update' && params?.lineItem) {
                 return `/cashflow-projection.line-items.update/${params.lineItem}`;
             }
@@ -214,6 +250,49 @@ describe('Cashflow Projection Entries page', () => {
             }
 
             return `/${name}`;
+        });
+    });
+
+    it('shows import actions and opens the upload dialog', () => {
+        render(<Entries {...baseProps} />);
+
+        expect(screen.getByRole('link', { name: /download template/i })).toHaveAttribute(
+            'href',
+            '/cashflow-projection.entries.import-template?year=2026&month=3'
+        );
+        expect(screen.getByRole('button', { name: /import excel/i })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /import excel/i }));
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText(/upload file `.xlsx` yang mengikuti template resmi/i)).toBeInTheDocument();
+    });
+
+    it('submits xlsx uploads to the import route using form data', async () => {
+        render(<Entries {...baseProps} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /import excel/i }));
+
+        const file = new File(
+            ['spreadsheet'],
+            'cashflow_entries_import.xlsx',
+            { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+        );
+
+        fireEvent.change(screen.getByLabelText(/excel file/i), {
+            target: { files: [file] },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /upload import/i }));
+
+        await waitFor(() => {
+            expect(postMock).toHaveBeenCalledWith(
+                '/cashflow-projection.entries.import',
+                expect.objectContaining({
+                    preserveScroll: true,
+                    forceFormData: true,
+                    onSuccess: expect.any(Function),
+                })
+            );
         });
     });
 
@@ -307,10 +386,68 @@ describe('Cashflow Projection Entries page', () => {
         });
     });
 
+    it('renders failed import details from the shared flash payload', () => {
+        pageFlashState.cashflow_import = {
+            status: 'failed',
+            summary: 'Import gagal. Perbaiki file lalu coba lagi.',
+            file_name: 'cashflow_entries_import.xlsx',
+            total_rows: 12,
+            processed_rows: 12,
+            created_rows: 0,
+            updated_rows: 0,
+            failed_rows: 2,
+            truncated: false,
+            errors: [
+                {
+                    row: 7,
+                    column: 'action_code',
+                    message: 'Kode tidak valid untuk department HR.',
+                    value: 'OUT_HR_UNKNOWN',
+                },
+                {
+                    row: null,
+                    column: 'template',
+                    message: 'Header sheet Template harus sesuai urutan template resmi.',
+                    value: null,
+                },
+            ],
+        };
+
+        render(<Entries {...baseProps} />);
+
+        expect(screen.getByText(/import gagal. perbaiki file lalu coba lagi./i)).toBeInTheDocument();
+        expect(screen.getByText(/source file:/i)).toBeInTheDocument();
+        expect(screen.getByText(/row 7 - action_code: kode tidak valid untuk department hr./i)).toBeInTheDocument();
+        expect(screen.getByText(/template - template: header sheet template harus sesuai urutan template resmi./i)).toBeInTheDocument();
+    });
+
+    it('renders success import summary from the shared flash payload', () => {
+        pageFlashState.cashflow_import = {
+            status: 'success',
+            summary: 'Import berhasil diproses.',
+            file_name: 'cashflow_entries_import.xlsx',
+            total_rows: 8,
+            processed_rows: 8,
+            created_rows: 5,
+            updated_rows: 3,
+            failed_rows: 0,
+            truncated: false,
+            errors: [],
+        };
+
+        render(<Entries {...baseProps} />);
+
+        expect(screen.getByText(/import berhasil diproses./i)).toBeInTheDocument();
+        expect(screen.getByText('8')).toBeInTheDocument();
+        expect(screen.getByText('5')).toBeInTheDocument();
+        expect(screen.getByText('3')).toBeInTheDocument();
+        expect(screen.getByText(/cashflow_entries_import.xlsx/i)).toBeInTheDocument();
+    });
+
     it('renders business unit codes and only shows last edited for meaningful edits', () => {
         render(<Entries {...baseProps} />);
 
-        expect(screen.getAllByText(/^WNS$/i)).toHaveLength(3);
+        expect(screen.getAllByText(/^WNS$/i)).toHaveLength(4);
         expect(screen.queryByText(/human resources/i, { selector: 'td' })).not.toBeInTheDocument();
         expect(screen.getByText(/hr - gaji & benefit karyawan/i)).toBeInTheDocument();
         expect(screen.getByText(/created by: rina \(cfc\)/i)).toBeInTheDocument();
@@ -319,6 +456,9 @@ describe('Cashflow Projection Entries page', () => {
         expect(screen.queryByText(/last edited by: sari \(acc\)/i)).not.toBeInTheDocument();
         expect(screen.getByText(/created by: tono \(cfc\)/i)).toBeInTheDocument();
         expect(screen.getByText(/last edited by: tono \(cfc\)/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/confirmed/i).length).toBeGreaterThan(0);
+        expect(screen.getByText(/pending/i)).toBeInTheDocument();
+        expect(screen.queryByText(/projected/i)).not.toBeInTheDocument();
     });
 
     it('shows a safe empty state when there are no selectable departments', () => {

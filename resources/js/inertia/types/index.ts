@@ -165,11 +165,34 @@ export interface PaginatedData<T> {
 }
 
 // Flash messages
+export interface CashflowImportFlashError {
+    row: number | null;
+    column: string;
+    message: string;
+    value?: string | number | boolean | null;
+}
+
+export interface CashflowImportFlash {
+    status: 'success' | 'failed';
+    summary: string;
+    file_name: string;
+    total_rows: number;
+    processed_rows: number;
+    created_rows: number;
+    updated_rows: number;
+    failed_rows: number;
+    truncated: boolean;
+    errors: CashflowImportFlashError[];
+}
+
 export interface FlashMessages {
     success?: string;
     error?: string;
     warning?: string;
     info?: string;
+    cashflow_import?: CashflowImportFlash;
+    just_logged_in?: boolean;
+    created_task_id?: number | string | null;
 }
 
 // Shared page props (from Inertia middleware)

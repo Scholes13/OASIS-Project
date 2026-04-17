@@ -207,7 +207,7 @@
     "name": "vendor-utils"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BkdCdVwZ.css",
+    "file": "assets/app-D4jGp-hj.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -835,7 +835,7 @@
     ]
   },
   "resources/js/inertia/Pages/CashflowProjection/Entries.tsx": {
-    "file": "js/Entries-Cf6cOwIb.js",
+    "file": "js/Entries-CyrO3B1G.js",
     "name": "Entries",
     "src": "resources/js/inertia/Pages/CashflowProjection/Entries.tsx",
     "isDynamicEntry": true,
@@ -843,6 +843,7 @@
       "_vendor-react-CgPuOuE9.js",
       "_vendor-inertia-CiKsoBrq.js",
       "resources/js/inertia/Pages/CashflowProjection/components/AddProjectionCard.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/ImportEntriesDialog.tsx",
       "_utils-D3SzrAwq.js",
       "_shared-ui-DK2CcDGa.js",
       "_vendor-ui-C_DgbOc7.js",
@@ -913,6 +914,22 @@
       "_utils-D3SzrAwq.js",
       "_vendor-ui-C_DgbOc7.js",
       "_vendor-other-mISJoZEz.js"
+    ]
+  },
+  "resources/js/inertia/Pages/CashflowProjection/components/ImportEntriesDialog.tsx": {
+    "file": "js/ImportEntriesDialog-Cyqbxm0W.js",
+    "name": "ImportEntriesDialog",
+    "src": "resources/js/inertia/Pages/CashflowProjection/components/ImportEntriesDialog.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor-react-CgPuOuE9.js",
+      "_shared-ui-DK2CcDGa.js",
+      "_vendor-ui-C_DgbOc7.js",
+      "_vendor-other-mISJoZEz.js",
+      "_vendor-toast-NU6Xn9fw.js",
+      "_shared-lib-CbP9cePu.js",
+      "_vendor-utils--oADdHdD.js",
+      "_vendor-inertia-CiKsoBrq.js"
     ]
   },
   "resources/js/inertia/Pages/CashflowProjection/components/OverviewHeader.tsx": {
@@ -1611,7 +1628,7 @@
     ]
   },
   "resources/js/inertia/app.tsx": {
-    "file": "js/app-DkKhdLkT.js",
+    "file": "js/app-DrShzPVo.js",
     "name": "app",
     "src": "resources/js/inertia/app.tsx",
     "isEntry": true,
@@ -1673,6 +1690,7 @@
       "resources/js/inertia/Pages/CashflowProjection/Settings.tsx",
       "resources/js/inertia/Pages/CashflowProjection/components/AddProjectionCard.tsx",
       "resources/js/inertia/Pages/CashflowProjection/components/FinanceManagementCard.tsx",
+      "resources/js/inertia/Pages/CashflowProjection/components/ImportEntriesDialog.tsx",
       "resources/js/inertia/Pages/CashflowProjection/components/OverviewHeader.tsx",
       "resources/js/inertia/Pages/CashflowProjection/components/ProjectionChartCard.tsx",
       "resources/js/inertia/Pages/CashflowProjection/components/RecentTransactionsTable.tsx",

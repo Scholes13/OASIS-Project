@@ -62,7 +62,7 @@ export function ConfirmDialog({
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
+                    <div className="fixed inset-0 bg-slate-950/18 backdrop-blur-[1px]" />
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-y-auto">
@@ -76,7 +76,7 @@ export function ConfirmDialog({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 text-left align-middle shadow-[0_24px_80px_rgba(15,23,42,0.18)] transition-all">
                                 <div className="flex items-start gap-4">
                                     <div className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full ${styles.iconBg}`}>
                                         <Icon className={`w-6 h-6 ${styles.iconColor}`} />

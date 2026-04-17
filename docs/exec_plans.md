@@ -24,6 +24,88 @@
 
 ## Active Tasks
 
+### 2026-04-17 - Cashflow entries strict Excel import
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - design a strict Excel template download and upload flow for Cashflow Entries,
+  - support both create and explicit update behavior in one import workflow,
+  - ensure failed imports provide clear row-level error information and server-side logging before any implementation starts.
+- Risks:
+  - import matching must not rely on fuzzy business keys because line items do not currently expose a stable external import identifier,
+  - partial writes or vague validation errors would create finance trust issues, so the workflow must stay atomic and explain failures precisely.
+- Verification:
+  - approved design spec reviewed by `@reviewer` before implementation planning,
+  - `php -d memory_limit=512M artisan test tests/Feature/Modules/CashflowProjection/CashflowProjectionEntriesImportTest.php`,
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand`,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`,
+  - `npm run build`.
+- Notes:
+  - user requested the full enterprise flow: download template, match structure, fill, upload, and import.
+  - product direction is strict template mode to minimize upload ambiguity and production bugs.
+  - user approved allowing updates during import as long as the workflow stays explicit and safe.
+  - implemented strict `.xlsx` template download with `Template`, `Reference`, and `Existing Entries` sheets generated from live scope data.
+  - implemented atomic create/update import with explicit `line_item_id`, strict header validation, capped row limits, row-level failure payloads, and application logging for both success and failure.
+  - shared Inertia flash now exposes typed `cashflow_import` payloads so the Entries page can keep import summaries and row-level errors visible after redirect.
+  - Entries UI now exposes `Download Template` and `Import Excel`, includes a focused upload dialog, and renders persistent success/failure summaries in a finance-friendly format.
+  - reviewer sub-agent work was used during spec hardening, but the backend worker disconnected mid-implementation; main-lane integration completed and verification passed locally.
+
+### 2026-04-17 - Cashflow projection chart balance-first refinement
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - remove the extra movement line from the cashflow projection chart so the main visual follows a balance-first enterprise pattern,
+  - keep `Saldo Proyeksi` as the primary chart series with the minimum-balance threshold,
+  - preserve inflow and outflow values in the tooltip so transaction movement detail remains inspectable without cluttering the chart.
+- Risks:
+  - reducing the visible chart series must not remove the tooltip detail finance users still rely on for day-by-day inspection,
+  - the change should preserve single-day behavior and only simplify the multi-period visualization where the balance scale currently causes noise.
+- Verification:
+  - focused React coverage for multi-period chart series visibility and tooltip/axis behavior,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported that the multi-period chart shows an odd blue line in the middle when the projected balance is high.
+  - approved direction is to match common enterprise cashflow tools by making the chart balance-first and moving inflow/outflow emphasis into the tooltip.
+  - multi-period chart now removes the helper movement line so the visual focuses on `Saldo Proyeksi` and the minimum balance threshold.
+  - multi-period chart now hides inflow and outflow bars from the main visual while keeping their values available from the hovered row data in the tooltip.
+  - balance axis no longer anchors to zero in all-positive ranges; it now scales to the projected balance data so the trend stays readable when cash remains healthy.
+  - the old always-visible hard threshold line is replaced by a contextual warning line that only appears once projected balance enters the watch zone above the hard minimum.
+  - focused React coverage now asserts that only the balance line renders in multi-period balance-first mode and that no bar series are drawn there.
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/ProjectionChartCard.test.tsx --runInBand`, `npm exec tsc --noEmit --pretty false`, and `npm run build` passed after the patch.
+  - production build still reports the pre-existing Vite circular chunk warnings around `vendor-react`/`vendor-other` and `shared-ui`/`shared-lib`, but the build completed successfully.
+
+### 2026-04-17 - Cashflow export projected metric investigation
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`
+- Scope:
+  - investigate why the cashflow dashboard export appears to exclude projected results while the dashboard still shows projected balances and movement,
+  - trace the dashboard metric builders and export workbook generation to confirm whether the gap is in filtering, aggregation, or workbook column/schema design,
+  - document whether `projected` is treated as a distinct metric anywhere in the backend contract or only as a UI presentation concept.
+- Risks:
+  - the UI uses the word `projected` in more than one sense, including projected closing balance and row status labeling, so export expectations can drift from the implemented workbook schema,
+  - export and dashboard currently share summary builders, so a missing projected column may be a contract omission rather than a calculation bug.
+- Verification:
+  - inspect `CashflowProjectionController@index` and `export` paths side by side,
+  - compare workbook sheet columns with dashboard summary and chart inputs,
+  - confirm current automated coverage around cashflow export payloads.
+- Notes:
+  - user reported that exported cashflow results include inflow but do not appear to include projected results.
+  - local QA review on `http://127.0.0.1:8000` using `qa@werkudara.com` confirmed the terminology gap is real in the current UI: the outflow row `[Demo] April corporate spend` is displayed with badge `PROJECTED`, which is easy to misread as a transaction type rather than a status.
+  - local QA review also confirmed the export request succeeds (`/cashflow-projection/export?...` returns attachment `200`), but the workbook still omits the daily running projected balance line that users visually rely on in the dashboard.
+  - local QA review surfaced a governance question: `qa@werkudara.com` is a regular `user` assigned as CFC staff, yet can still access and manage finance settings plus linked business units because the current access rule treats any CFC/FIN assignment as finance management access.
+  - written review captured in `docs/superpowers/specs/2026-04-17-cashflow-local-qa-review.md`.
+  - Product direction was confirmed during spec review: all `CFC/FIN` users should retain current access to dashboard, export, settings, and linked business unit management, so no authorization tightening was included in implementation.
+  - approved spec written to `docs/superpowers/specs/2026-04-17-cashflow-terminology-export-parity-design.md` and approved implementation plan written to `docs/superpowers/plans/2026-04-17-cashflow-terminology-export-parity.md`.
+  - dashboard and entries transaction badges now use state-only wording: non-estimated entries show `Confirmed`, estimated-date entries show `Pending`, and the old outflow=`Projected` mapping has been removed from the touched surfaces.
+  - dashboard and export result wording now uses `Saldo Proyeksi` for the projected-balance metric.
+  - `Daily Movement` export now includes running `Saldo Proyeksi`, aligned with the dashboard month/range/year chart logic including month-boundary resets and zero-movement days.
+  - focused PHPUnit coverage, focused React coverage, `vendor/bin/pint --dirty`, and `npm exec tsc --noEmit --pretty false` all passed after implementation.
+  - reviewer approved the scoped implementation with no blocking findings; only non-blocking notes remained about possible future tightening of export assertions.
+
 ### 2026-04-17 - Activity export tagged-user participation investigation
 - Status: implemented
 - Owner: PM Agent

@@ -1,13 +1,15 @@
 import { Popover, Transition } from '@headlessui/react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, Fragment, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, MoreHorizontal, Pencil, Server, ShoppingBag, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Download, MoreHorizontal, Pencil, Server, ShoppingBag, Trash2, Upload, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import './cashflow-dashboard.css';
 import AddProjectionCard from './components/AddProjectionCard';
+import ImportEntriesDialog from './components/ImportEntriesDialog';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/ui/toast';
 import type { PageProps } from '@/types';
 
@@ -110,10 +112,13 @@ export default function CashflowProjectionEntries({
     departments,
     lineItems,
 }: CashflowProjectionEntriesPageProps) {
-    const { currentBusinessUnit: activeBusinessUnit } = usePage<PageProps>().props;
+    const pageProps = usePage<PageProps>().props;
+    const { currentBusinessUnit: activeBusinessUnit, flash } = pageProps;
+    const cashflowImportFlash = flash?.cashflow_import;
     const [flowType, setFlowType] = useState<FlowType>('in');
     const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [deleteDialogState, setDeleteDialogState] = useState<{
         isOpen: boolean;
         lineItemId: number | null;
@@ -183,7 +188,24 @@ export default function CashflowProjectionEntries({
         description: '',
         notes: '',
     });
-    const { data, setData, post, patch, processing, errors } = lineItemForm;
+    const { data, setData, post: submitLineItem, patch: updateExistingLineItem, processing, errors } = lineItemForm;
+
+    const importForm = useForm<{
+        file: File | null;
+        context_year: number;
+        context_month: number;
+    }>({
+        file: null,
+        context_year: year,
+        context_month: selectedMonth,
+    });
+    const {
+        data: importData,
+        setData: setImportData,
+        post: submitImport,
+        processing: importProcessing,
+        errors: importErrors,
+    } = importForm;
 
     const selectedDepartment = useMemo(() => {
         return departments.find((department) => department.id === data.department_id) ?? null;
@@ -285,18 +307,23 @@ export default function CashflowProjectionEntries({
         setData('transaction_date', defaultTransactionDate);
     }, [defaultTransactionDate, selectedMonth, setData, year]);
 
+    useEffect(() => {
+        setImportData('context_year', year);
+        setImportData('context_month', selectedMonth);
+    }, [selectedMonth, setImportData, year]);
+
     const handleLineItemSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
         if (editingLineItemId !== null) {
-            patch(route('cashflow-projection.line-items.update', { lineItem: editingLineItemId }), {
+            updateExistingLineItem(route('cashflow-projection.line-items.update', { lineItem: editingLineItemId }), {
                 preserveScroll: true,
             });
 
             return;
         }
 
-        post(route('cashflow-projection.line-items.store'), { preserveScroll: true });
+        submitLineItem(route('cashflow-projection.line-items.store'), { preserveScroll: true });
     };
 
     const handleCategoryChange = (categoryCode: string) => {
@@ -312,6 +339,34 @@ export default function CashflowProjectionEntries({
 
     const handleDepartmentChange = (departmentId: number) => {
         setData('department_id', departmentId);
+    };
+
+    const resetImportForm = () => {
+        setImportData({
+            file: null,
+            context_year: year,
+            context_month: selectedMonth,
+        });
+    };
+
+    const closeImportDialog = () => {
+        setIsImportDialogOpen(false);
+        resetImportForm();
+    };
+
+    const handleImportSubmit = () => {
+        if (!importData.file) {
+            return;
+        }
+
+        submitImport(route('cashflow-projection.entries.import'), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                setIsImportDialogOpen(false);
+                resetImportForm();
+            },
+        });
     };
 
     const resetForm = () => {
@@ -410,7 +465,85 @@ export default function CashflowProjectionEntries({
                                 {formatMonthLabel(selectedMonth)} {year} &mdash; Add and manage projection entries.
                             </p>
                         </div>
+
+                        <div className="flex items-center gap-3">
+                            <a
+                                href={route('cashflow-projection.entries.import-template', { year, month: selectedMonth })}
+                                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                            >
+                                <Download className="h-4 w-4" />
+                                Download Template
+                            </a>
+                            <Button type="button" variant="primary" onClick={() => setIsImportDialogOpen(true)}>
+                                <Upload className="h-4 w-4" />
+                                Import Excel
+                            </Button>
+                        </div>
                     </div>
+
+                    {cashflowImportFlash && (
+                        <section
+                            className={`rounded-2xl border p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+                                cashflowImportFlash.status === 'success'
+                                    ? 'border-emerald-200 bg-emerald-50/80'
+                                    : 'border-amber-200 bg-amber-50/90'
+                            }`}
+                        >
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Import Summary</p>
+                                    <h2 className="text-lg font-semibold text-slate-900">{cashflowImportFlash.summary}</h2>
+                                    <p className="text-sm text-slate-600">
+                                        Source file: <span className="font-medium text-slate-800">{cashflowImportFlash.file_name}</span>
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Processed</p>
+                                        <p className="mt-1 text-lg font-semibold text-slate-900">{cashflowImportFlash.processed_rows}</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Created</p>
+                                        <p className="mt-1 text-lg font-semibold text-emerald-700">{cashflowImportFlash.created_rows}</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Updated</p>
+                                        <p className="mt-1 text-lg font-semibold text-blue-700">{cashflowImportFlash.updated_rows}</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Failed Rows</p>
+                                        <p className="mt-1 text-lg font-semibold text-amber-700">{cashflowImportFlash.failed_rows}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {cashflowImportFlash.errors.length > 0 && (
+                                <div className="mt-5 rounded-2xl border border-amber-200/80 bg-white/85 p-4">
+                                    <p className="text-sm font-semibold text-slate-900">Validation details</p>
+                                    <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                                        {cashflowImportFlash.errors.map((error, index) => {
+                                            const prefix = error.row ? `Row ${error.row}` : 'Template';
+                                            const valueText = error.value !== undefined && error.value !== null && `${error.value}` !== ''
+                                                ? ` (${error.value})`
+                                                : '';
+
+                                            return (
+                                                <li key={`${error.column}-${error.row ?? 'template'}-${index}`}>
+                                                    {prefix} - {error.column}: {error.message}{valueText}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+
+                                    {cashflowImportFlash.truncated && (
+                                        <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
+                                            Additional errors were truncated for readability.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </section>
+                    )}
 
                     <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                         {/* Left column — Add Projection Form */}
@@ -478,8 +611,8 @@ export default function CashflowProjectionEntries({
                                         )}
 
                                         {lineItems.map((item) => {
-                                            const status = item.is_estimated_date ? 'pending' : item.flow_type === 'in' ? 'confirmed' : 'projected';
-                                            const statusLabel = status === 'confirmed' ? 'Confirmed' : status === 'pending' ? 'Pending' : 'Projected';
+                                            const status: 'confirmed' | 'pending' = item.is_estimated_date ? 'pending' : 'confirmed';
+                                            const statusLabel = status === 'confirmed' ? 'Confirmed' : 'Pending';
                                             const displayActionLabel = formatCategoryLabel(
                                                 item.action_code,
                                                 item.action_label,
@@ -589,6 +722,17 @@ export default function CashflowProjectionEntries({
                 confirmText="Delete"
                 variant="danger"
                 isLoading={isDeleting}
+            />
+
+            <ImportEntriesDialog
+                open={isImportDialogOpen}
+                processing={importProcessing}
+                selectedFileName={importData.file?.name ?? null}
+                flashImport={cashflowImportFlash}
+                fileError={importErrors.file}
+                onClose={closeImportDialog}
+                onFileChange={(file) => setImportData('file', file)}
+                onSubmit={handleImportSubmit}
             />
         </>
     );

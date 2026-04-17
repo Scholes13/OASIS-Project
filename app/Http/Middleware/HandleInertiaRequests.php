@@ -72,17 +72,15 @@ class HandleInertiaRequests extends Middleware
             ],
             'currentBusinessUnit' => fn () => $this->getCurrentBusinessUnit($currentBusinessUnitId),
             'currentDepartment' => fn () => $this->getCurrentDepartment($currentDepartmentId),
-            // Available business units with caching (loaded on every request, cached for 30 min)
             'availableBusinessUnits' => fn () => $this->getCachedBusinessUnits($user),
-            // Available departments for current business unit
             'availableDepartments' => fn () => $this->getAvailableDepartments($user),
-            // Navigation with caching - always needed for sidebar
             'navigation' => fn () => $this->getCachedNavigation($user, $currentBusinessUnitId),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
+                'cashflow_import' => fn () => $request->session()->get('cashflow_import'),
                 'just_logged_in' => fn () => $request->session()->get('just_logged_in'),
                 'created_task_id' => fn () => $request->session()->get('created_task_id'),
             ],
@@ -110,7 +108,7 @@ class HandleInertiaRequests extends Middleware
             'id' => $businessUnit->id,
             'code' => $businessUnit->code,
             'name' => $businessUnit->name,
-            'logo' => $businessUnit->logo, // Relative path - React prepends /storage/
+            'logo' => $businessUnit->logo,
         ];
     }
 
@@ -146,7 +144,6 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        // Only return departments if user has multiple in current BU
         if (! $user->hasMultipleDepartmentsInCurrentBusinessUnit()) {
             return [];
         }
@@ -162,8 +159,6 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Get cached navigation for the user.
-     * Cache key includes user ID and business unit ID.
-     * Cache is invalidated when user permissions change (via UserBusinessUnitObserver).
      */
     protected function getCachedNavigation($user, ?int $businessUnitId): array
     {
@@ -180,7 +175,6 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Get cached available business units for the user.
-     * Cache is invalidated when user BU assignments change (via UserBusinessUnitObserver).
      */
     protected function getCachedBusinessUnits($user): array
     {
@@ -197,7 +191,6 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Get available business units for the user.
-     * Note: Logo is returned as relative path for React components to construct URL
      */
     protected function getAvailableBusinessUnits($user): array
     {
@@ -211,11 +204,11 @@ class HandleInertiaRequests extends Middleware
             ->active()
             ->orderBy('name')
             ->get()
-            ->map(fn (BusinessUnit $bu) => [
-                'id' => $bu->id,
-                'code' => $bu->code,
-                'name' => $bu->name,
-                'logo' => $bu->logo, // Relative path - React prepends /storage/
+            ->map(fn (BusinessUnit $businessUnit) => [
+                'id' => $businessUnit->id,
+                'code' => $businessUnit->code,
+                'name' => $businessUnit->name,
+                'logo' => $businessUnit->logo,
             ])
             ->toArray();
     }

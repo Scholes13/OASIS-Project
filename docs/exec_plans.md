@@ -24,6 +24,30 @@
 
 ## Active Tasks
 
+### 2026-04-17 - Activity export tagged-user participation investigation
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@reviewer`
+- Scope:
+  - investigate whether users who are only tagged on an activity are excluded from the Excel export participation counts,
+  - trace the activity export dataset and compare it with the task visibility or participation logic used by the activity surfaces,
+  - confirm whether the issue is in query filtering, participant aggregation, or export row transformation.
+- Risks:
+  - activity export may drift from the dashboard/member-filter contract if the export builds its own participant dataset,
+  - tagged-user semantics can differ between creator, participant, assignee, and mention relationships, so the bug may be a contract mismatch rather than a pure export formatting issue.
+- Verification:
+  - code-path inspection for activity export query and workbook transformation,
+  - compare with existing focused activity member filtering or participant payload logic before proposing fixes.
+- Notes:
+  - user reported that when a user is tagged in an activity, the exported Excel output does not count that person as participating in the activity.
+  - investigation confirmed the original workbook was creator-centric: export filtering and sheet data did not fully mirror the creator-or-participant semantics used by task views.
+  - approved spec and implementation plan were written to `docs/superpowers/specs/2026-04-17-activity-export-tagged-participants-design.md` and `docs/superpowers/plans/2026-04-17-activity-export-tagged-participants.md`.
+  - backend implementation aligned personal export scope with task screen semantics by treating `scope=my` as business-unit tasks where the current user is creator or participant, without forcing the current department filter.
+  - `Detail` and `Data Mentah` workbook sheets now append additive participant columns for count, sorted participant names, and sorted participant ids, with deterministic empty output `0 / '' / ''`.
+  - focused regression coverage now locks participant column schema and data for both sheets, including creator-only, participant-only, cross-department `scope=my`, and department member-focus cases.
+  - focused PHPUnit verification and `vendor/bin/pint --dirty` passed in this workspace.
+  - reviewer approved the final patch; QA found no blocking defects and only noted a non-blocking residual consideration about historical inactive participants remaining visible in export data.
+
 ### 2026-04-17 - Activity task detail modal action cleanup
 - Status: implemented
 - Owner: PM Agent

@@ -2,6 +2,7 @@
 
 namespace App\Services\Modules\Activity;
 
+use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -21,6 +22,11 @@ class ActivityExportService
 
     /**
      * Export activities to XLSX
+     *
+     * When userId is provided (scope=my), uses member focus logic:
+     * - created_by = userId OR participant = userId (OR semantics)
+     * When focusedMemberUserId is provided (member focus in department scope):
+     * - created_by = memberUserId OR participant = memberUserId (OR semantics)
      */
     public function exportToXlsx(
         int $businessUnitId,
@@ -74,17 +80,22 @@ class ActivityExportService
     ): Collection {
         $query = EmployeeTask::query()
             ->where('business_unit_id', $businessUnitId)
-            ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
-            ->when($userId, fn ($query) => $query->whereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $userId)))
+            ->when(
+                $departmentId && ! ($userId !== null && $focusedMemberUserId === null),
+                fn ($query) => $query->where('department_id', $departmentId)
+            )
             ->when($dateFrom, fn ($query) => $query->whereDate('task_date', '>=', $dateFrom))
             ->when($dateTo, fn ($query) => $query->whereDate('task_date', '<=', $dateTo))
             ->when($status, fn ($query) => $query->where('status', $status))
             ->when($activityTypeId, fn ($query) => $query->where('activity_type_id', $activityTypeId))
-            ->with(['activityType', 'subActivity', 'creator', 'department'])
+            ->with(['activityType', 'subActivity', 'creator', 'department', 'participants'])
             ->orderBy('task_date', 'desc')
             ->orderBy('created_at', 'desc');
 
-        $this->memberFocusService->applyMemberFocus($query, $focusedMemberUserId);
+        // Use member focus logic when userId or focusedMemberUserId is provided.
+        // This applies creator OR participant semantics (same as task screen).
+        $memberUserId = $focusedMemberUserId ?? $userId;
+        $this->memberFocusService->applyMemberFocus($query, $memberUserId);
 
         return $query->get();
     }
@@ -111,13 +122,18 @@ class ActivityExportService
             'Selesai',
             'Durasi (menit)',
             'Catatan',
+            'Jumlah Participant',
+            'Daftar Participant',
+            'Participant IDs',
         ];
 
-        $this->writeHeaderRow($sheet, $headers, 'A1:P1');
+        $this->writeHeaderRow($sheet, $headers, 'A1:S1');
 
         $row = 2;
         $no = 1;
         foreach ($tasks as $task) {
+            $participantData = $this->formatParticipantData($task);
+
             $sheet->fromArray([
                 $no,
                 $task->task_date?->format('Y-m-d') ?? '-',
@@ -135,6 +151,9 @@ class ActivityExportService
                 $task->completed_at?->format('Y-m-d H:i') ?? '-',
                 $task->duration_minutes ?? '-',
                 $task->notes ?? '-',
+                $participantData['jumlah'],
+                $participantData['daftar'],
+                $participantData['ids'],
             ], null, 'A'.$row);
 
             $sheet->getStyle('H'.$row)->applyFromArray([
@@ -148,9 +167,9 @@ class ActivityExportService
             $no++;
         }
 
-        $this->autoSizeColumns($sheet, 'A', 'P');
+        $this->autoSizeColumns($sheet, 'A', 'S');
         if ($row > 2) {
-            $this->applyDataBorders($sheet, 'A2:P'.($row - 1));
+            $this->applyDataBorders($sheet, 'A2:S'.($row - 1));
         }
     }
 
@@ -236,12 +255,17 @@ class ActivityExportService
             'waktu_selesai',
             'durasi_menit',
             'catatan',
+            'jumlah_participant',
+            'daftar_participant',
+            'participant_ids',
         ];
 
-        $this->writeHeaderRow($sheet, $headers, 'A1:P1');
+        $this->writeHeaderRow($sheet, $headers, 'A1:S1');
 
         $row = 2;
         foreach ($tasks as $task) {
+            $participantData = $this->formatParticipantData($task);
+
             $sheet->fromArray([
                 $task->id,
                 $task->task_date?->format('Y-m-d') ?? '',
@@ -259,14 +283,42 @@ class ActivityExportService
                 $task->completed_at?->format('Y-m-d H:i') ?? '',
                 $task->duration_minutes ?? '',
                 $task->notes ?? '',
+                $participantData['jumlah'],
+                $participantData['daftar'],
+                $participantData['ids'],
             ], null, 'A'.$row);
             $row++;
         }
 
-        $this->autoSizeColumns($sheet, 'A', 'P');
+        $this->autoSizeColumns($sheet, 'A', 'S');
         if ($row > 2) {
-            $this->applyDataBorders($sheet, 'A2:P'.($row - 1));
+            $this->applyDataBorders($sheet, 'A2:S'.($row - 1));
         }
+    }
+
+    /**
+     * Format participant data for export.
+     * Participants are User models through the BelongsToMany relationship.
+     *
+     * @return array{jumlah: string, daftar: string, ids: string}
+     */
+    protected function formatParticipantData(EmployeeTask $task): array
+    {
+        /** @var Collection<int, User> $participants */
+        $participants = $task->participants
+            ->filter(fn ($user) => $user instanceof User)
+            ->sortBy(fn ($user) => $user->name ?? '')
+            ->values();
+
+        $jumlah = (string) $participants->count();
+        $daftar = $participants->pluck('name')->join(', ');
+        $ids = $participants->pluck('id')->sort()->join('|');
+
+        return [
+            'jumlah' => $jumlah,
+            'daftar' => $daftar,
+            'ids' => $ids,
+        ];
     }
 
     /**

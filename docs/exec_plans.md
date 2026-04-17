@@ -24,6 +24,26 @@
 
 ## Active Tasks
 
+### 2026-04-17 - Activity task detail modal action cleanup
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@reviewer`
+- Scope:
+  - investigate why the `Delete` action is missing from the shared activity task detail modal,
+  - restore a clear delete affordance for editable tasks without changing admin read-only behavior,
+  - remove or constrain the `Open in Dashboard` CTA when the modal is already opened from the dashboard route so the journey is not redundant.
+- Risks:
+  - modal action changes must preserve the current modal-first flow and should not expose destructive actions to read-only viewers,
+  - hiding the dashboard CTA should stay route-aware so non-dashboard entry points can still redirect if that journey remains valid.
+- Verification:
+  - focused Vitest coverage for task detail modal action visibility and delete behavior,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported the modal screenshot still misses `Delete` and the `Open in Dashboard` journey is unclear in that context.
+  - the shared `TaskDetailModal` now restores a delete icon for editable tasks, routes the destructive step through the shared `ConfirmDialog`, and disables repeated destructive clicks while the delete request is in flight,
+  - `Open in Dashboard` is now hidden when the active Inertia URL is already under `activity/task`, so the CTA no longer appears as a redundant journey inside the dashboard modal flow,
+  - focused Vitest coverage, TypeScript compilation, and `npm run build` passed in this workspace.
+
 ### 2026-04-17 - Purchasing phase 2 PR and ST end-to-end parity
 - Status: implemented
 - Owner: PM Agent

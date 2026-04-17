@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { router } from '@inertiajs/react'
+import { router, usePage } from '@inertiajs/react'
 import { TaskDetailModal } from '@/components/activity/TaskDetailModal'
 import type { Task, TaskStatus } from '@/types'
 
@@ -48,8 +48,48 @@ function makeTask(status: TaskStatus = 'in_progress'): Task {
 }
 
 describe('TaskDetailModal', () => {
+    function setPageContext(url: string) {
+        vi.mocked(usePage).mockReturnValue({
+            component: 'Activity/Dashboard',
+            url,
+            version: null,
+            props: {
+                auth: {
+                    user: {
+                        id: 1,
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        role: 'user',
+                        avatar_url: null,
+                        primary_department_id: 1,
+                    },
+                },
+                currentBusinessUnit: {
+                    id: 1,
+                    code: 'WNS',
+                    name: 'WNS Business Unit',
+                    logo: null,
+                },
+                availableBusinessUnits: [
+                    {
+                        id: 1,
+                        code: 'WNS',
+                        name: 'WNS Business Unit',
+                        logo: null,
+                    },
+                ],
+                navigation: {
+                    sections: [],
+                },
+                flash: {},
+                appName: 'Oasis',
+            },
+        } as never)
+    }
+
     beforeEach(() => {
         vi.clearAllMocks()
+        setPageContext('/activity/task')
         if (!Element.prototype.getAnimations) {
             Object.defineProperty(Element.prototype, 'getAnimations', {
                 configurable: true,
@@ -91,7 +131,8 @@ describe('TaskDetailModal', () => {
         expect(screen.getByText('Business & Administrative Services')).toBeInTheDocument()
         expect(screen.getByText('Pramuji Arif Yulianto')).toBeInTheDocument()
         expect(screen.getByRole('button', { name: /done/i })).toBeInTheDocument()
-        expect(screen.getAllByRole('button', { name: /open in dashboard/i })[0]).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /delete task/i })).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: /open in dashboard/i })).not.toBeInTheDocument()
     })
 
     it('runs start action for planned task', async () => {
@@ -117,6 +158,7 @@ describe('TaskDetailModal', () => {
 
     it('runs complete action and modal-first navigation', async () => {
         const onClose = vi.fn()
+        setPageContext('/activity/dashboard')
 
         await act(async () => {
             render(
@@ -150,6 +192,35 @@ describe('TaskDetailModal', () => {
         })
         expect(vi.mocked(router.visit)).toHaveBeenCalledWith(
             expect.stringContaining('/activity.task.index?task=99&modal=edit'),
+        )
+    })
+
+    it('opens shared delete dialog and deletes only after confirmation', async () => {
+        await act(async () => {
+            render(
+                <TaskDetailModal
+                    open={true}
+                    task={makeTask('planned')}
+                    onClose={() => {}}
+                />
+            )
+        })
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /delete task/i }))
+        })
+
+        expect(screen.getByText('Delete Task')).toBeInTheDocument()
+        expect(screen.getByText(/delete this task "review q3 financial report analysis"\? this action cannot be undone\./i)).toBeInTheDocument()
+        expect(vi.mocked(router.delete)).not.toHaveBeenCalled()
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /^delete$/i }))
+        })
+
+        expect(vi.mocked(router.delete)).toHaveBeenCalledWith(
+            expect.stringContaining('/activity.task.destroy?task=99'),
+            expect.objectContaining({ preserveScroll: true })
         )
     })
 

@@ -26,6 +26,7 @@ import {
     Share2
 } from "lucide-react"
 import { Dialog } from "../ui/dialog"
+import { ConfirmDialog } from "../ui/ConfirmDialog"
 import { ActivityTypeBadge, PriorityBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
@@ -51,10 +52,15 @@ function canEditTask(task: Task, currentUserId: number | undefined): boolean {
 
 export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' }: TaskDetailModalProps) {
     const [isLoading, setIsLoading] = React.useState(false)
-    const { auth } = usePage<PageProps>().props
+    const [isDeleting, setIsDeleting] = React.useState(false)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+    const page = usePage<PageProps>()
+    const { auth } = page.props
     const currentUserId = auth?.user?.id
     const isAdminReadonly = mode === 'admin-readonly'
+    const isOnDashboard = page.url?.startsWith('/activity/task') ?? false
     const editable = !isAdminReadonly && task ? canEditTask(task, currentUserId) : false
+    const showOpenInDashboard = !isAdminReadonly && !isOnDashboard
 
     const isOverdue = task ? (task.due_date && new Date(task.due_date) < new Date() &&
         !["completed", "cancelled"].includes(task.status)) : false
@@ -137,19 +143,48 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
         } else {
             router.visit(route("activity.task.index", { task: task.id, modal: "edit" }))
         }
+        handleClose()
+    }
+
+    const handleDelete = () => {
+        if (!task || isDeleting) return
+
+        setIsDeleteDialogOpen(true)
+    }
+
+    const handleConfirmDelete = () => {
+        if (!task || isDeleting) return
+
+        setIsDeleting(true)
+        router.delete(route("activity.task.destroy", { task: task.id }), {
+            preserveScroll: true,
+            onSuccess: () => {
+                showToast.success("Task deleted")
+                handleClose()
+            },
+            onError: () => {
+                showToast.error("Failed to delete task")
+            },
+            onFinish: () => setIsDeleting(false),
+        })
+    }
+
+    const handleClose = () => {
+        setIsDeleteDialogOpen(false)
         onClose()
     }
 
     const handleViewDetail = () => {
         if (!task) return
         router.visit(route("activity.task.index", { task: task.id, modal: "detail" }))
-        onClose()
+        handleClose()
     }
 
     return (
-        <Dialog open={open} onClose={onClose} className="flex min-h-0 max-h-[min(85vh,800px)] w-[95vw] max-w-[1000px] flex-col overflow-hidden !rounded-xl !p-0 shadow-2xl">
-            {task && (
-                <div className="flex h-full min-h-0 flex-col bg-background">
+        <>
+            <Dialog open={open} onClose={handleClose} className="flex min-h-0 max-h-[min(85vh,800px)] w-[95vw] max-w-[1000px] flex-col overflow-hidden !rounded-xl !p-0 shadow-2xl">
+                {task && (
+                    <div className="flex h-full min-h-0 flex-col bg-background">
                     {/* Header */}
                     <div className="flex items-start justify-between border-b border-border bg-background px-8 py-5">
                         <div>
@@ -161,10 +196,11 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                             </h2>
                         </div>
                         <div className="flex items-center gap-2">
-                            {!isAdminReadonly && (
+                            {showOpenInDashboard && (
                                 <button
                                     onClick={handleViewDetail}
                                     className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                    aria-label="Open in Dashboard"
                                     title="Open in Dashboard"
                                 >
                                     <ExternalLink className="h-[18px] w-[18px]" />
@@ -179,8 +215,19 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                                     <Edit className="h-[18px] w-[18px]" />
                                 </button>
                             )}
+                            {editable && (
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={isDeleting}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Delete Task"
+                                    title="Delete Task"
+                                >
+                                    <Trash2 className="h-[18px] w-[18px]" />
+                                </button>
+                            )}
                             <button
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                                 aria-label="Close modal"
                             >
@@ -268,7 +315,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                                     {task.status === "planned" && (
                                         <button
                                             onClick={handleStartTask}
-                                            disabled={isLoading}
+                                            disabled={isLoading || isDeleting}
                                             className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-[14px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                                         >
                                             <Play className="h-4 w-4" /> Start
@@ -277,7 +324,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                                     {["planned", "in_progress"].includes(task.status) && (
                                         <button
                                             onClick={handleCompleteTask}
-                                            disabled={isLoading}
+                                            disabled={isLoading || isDeleting}
                                             className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-emerald-600 py-2 text-[14px] font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
                                         >
                                             <CheckCircle2 className="h-4 w-4" /> Mark Done
@@ -365,7 +412,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
 
                             <div className="flex-1"></div>
 
-                            {!isAdminReadonly && (
+                            {showOpenInDashboard && (
                                 <button 
                                     onClick={handleViewDetail}
                                     className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-card px-3 py-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
@@ -376,9 +423,23 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
 
                         </div>
                     </div>
-                </div>
+                    </div>
+                )}
+            </Dialog>
+
+            {task && (
+                <ConfirmDialog
+                    isOpen={isDeleteDialogOpen}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                    onConfirm={handleConfirmDelete}
+                    title="Delete Task"
+                    message={`Delete this task "${task.task_title}"? This action cannot be undone.`}
+                    confirmText="Delete"
+                    variant="danger"
+                    isLoading={isDeleting}
+                />
             )}
-        </Dialog>
+        </>
     )
 }
 

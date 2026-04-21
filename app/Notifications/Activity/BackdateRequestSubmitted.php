@@ -32,7 +32,7 @@ class BackdateRequestSubmitted extends Notification
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Backdate Permission Request - ' . $this->backdatePermission->requester->name)
+            ->subject('Backdate Permission Request - '.$this->backdatePermission->requester->name)
             ->view('emails.activity.backdate-request-submitted', [
                 'backdatePermission' => $this->backdatePermission,
                 'departmentHead' => $notifiable,
@@ -46,14 +46,19 @@ class BackdateRequestSubmitted extends Notification
     {
         return [
             'type' => 'backdate_request_submitted',
+            'category' => 'backdate',
+            'event' => 'backdate_request_submitted',
             'backdate_permission_id' => $this->backdatePermission->id,
             'requester_id' => $this->backdatePermission->user_id,
             'requester_name' => $this->backdatePermission->requester->name,
             'requested_date' => $this->backdatePermission->requested_date->toISOString(),
             'reason' => $this->backdatePermission->reason,
             'department_name' => $this->backdatePermission->department->name ?? 'N/A',
+            'title' => sprintf('Backdate request submitted by %s', $this->backdatePermission->requester->name),
             'message' => "{$this->backdatePermission->requester->name} has requested backdate permission for {$this->backdatePermission->requested_date->format('d M Y')}",
-            'action_url' => route('activity.backdate-approvals'),
+            'action_url' => route('activity.backdate.approvals'),
+            'priority' => 'high',
+            'occurred_at' => $this->backdatePermission->created_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 }

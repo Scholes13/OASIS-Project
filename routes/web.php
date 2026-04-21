@@ -105,6 +105,13 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     // Main Dashboard (Quick Access after login)
     Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('index');
+        Route::get('/recent', [\App\Http\Controllers\NotificationCenterController::class, 'recent'])->name('recent');
+        Route::post('/mark-all-read', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('mark-all-read');
+        Route::get('/{notification}/open', [\App\Http\Controllers\NotificationCenterController::class, 'open'])->name('open');
+    });
+
     // Purchase Request Management
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
         // My History - Inertia/React page

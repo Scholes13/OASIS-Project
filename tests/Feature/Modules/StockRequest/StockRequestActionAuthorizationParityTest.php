@@ -13,6 +13,7 @@ use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -120,6 +121,58 @@ class StockRequestActionAuthorizationParityTest extends TestCase
             ]);
 
         $response->assertForbidden();
+    }
+
+    #[Test]
+    public function requester_receives_notification_when_stock_request_is_rejected(): void
+    {
+        Notification::fake();
+
+        [$owner, $approver, $stockRequest] = $this->createInApprovalFixture();
+
+        $approval = StockApproval::query()
+            ->where('stock_request_id', $stockRequest->id)
+            ->where('approver_id', $approver->id)
+            ->firstOrFail();
+
+        $this->actingAs($approver)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->post(route('stock-approvals.process', $approval), [
+                'action' => 'reject',
+                'notes' => 'Rejected for test coverage',
+            ])
+            ->assertRedirect();
+
+        Notification::assertCount(1);
+    }
+
+    #[Test]
+    public function requester_receives_notification_when_stock_request_is_fully_approved(): void
+    {
+        Notification::fake();
+
+        [$owner, $approver, $stockRequest] = $this->createInApprovalFixture();
+
+        $approval = StockApproval::query()
+            ->where('stock_request_id', $stockRequest->id)
+            ->where('approver_id', $approver->id)
+            ->firstOrFail();
+
+        $this->actingAs($approver)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->post(route('stock-approvals.process', $approval), [
+                'action' => 'approve',
+                'notes' => 'Approved for test coverage',
+            ])
+            ->assertRedirect();
+
+        Notification::assertCount(1);
     }
 
     /**

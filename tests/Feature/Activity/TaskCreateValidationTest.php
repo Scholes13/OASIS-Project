@@ -10,6 +10,7 @@ use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Activity\SubActivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -125,6 +126,34 @@ class TaskCreateValidationTest extends TestCase
             'activity_type_id' => $this->activityType->id,
             'sub_activity_id' => $this->subActivity->id,
         ]);
+    }
+
+    #[Test]
+    public function it_notifies_newly_tagged_participants_when_creating_a_task(): void
+    {
+        Notification::fake();
+
+        $participant = User::factory()->create([
+            'primary_department_id' => $this->department->id,
+            'email_verified_at' => now(),
+        ]);
+
+        $participant->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'position_id' => $this->position->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user)
+            ->from(route('activity.task.create'))
+            ->post(route('activity.task.store'), $this->validPayload([
+                'participant_ids' => [$participant->id],
+            ]))
+            ->assertRedirect(route('activity.task.index'));
+
+        Notification::assertCount(1);
     }
 
     #[Test]

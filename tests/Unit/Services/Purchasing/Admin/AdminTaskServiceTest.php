@@ -9,9 +9,11 @@ use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Notifications\Purchasing\Admin\TaskAssigned;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
 use App\Services\Modules\Purchasing\Admin\PriceEfficiencyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -90,6 +92,30 @@ class AdminTaskServiceTest extends TestCase
         $this->assertSame(25000.0, (float) $completedTask->savings_amount);
         $this->assertSame(12.5, (float) $completedTask->savings_percentage);
         $this->assertNotNull($completedTask->completed_at);
+    }
+
+    #[Test]
+    public function it_notifies_the_assigned_admin_when_a_task_is_claimed(): void
+    {
+        Notification::fake();
+
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $department);
+
+        $task = AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => 901,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'status' => 'pending_followup',
+            'entered_at' => now()->subHour(),
+            'estimated_total_price' => 100000,
+        ]);
+
+        app(AdminTaskService::class)->claimTask($task, $user->id);
+
+        Notification::assertSentTo($user, TaskAssigned::class);
     }
 
     /**

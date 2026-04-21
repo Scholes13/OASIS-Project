@@ -38,7 +38,7 @@ class ApprovalCompleted extends Notification
             ->get();
 
         return (new MailMessage)
-            ->subject('Purchase Request Fully Approved - PR #' . $this->purchaseRequest->pr_number)
+            ->subject('Purchase Request Fully Approved - PR #'.$this->purchaseRequest->pr_number)
             ->view('emails.purchasing.purchase-request.approval-completed', [
                 'pr' => $this->purchaseRequest,
                 'recipient' => $notifiable,
@@ -60,13 +60,18 @@ class ApprovalCompleted extends Notification
 
         return [
             'type' => 'approval_completed',
+            'category' => 'purchasing',
+            'event' => 'purchase_request_approved',
             'pr_id' => $this->purchaseRequest->id,
             'pr_number' => $this->purchaseRequest->pr_number,
             'amount' => $this->purchaseRequest->total_amount,
             'approvers' => $approvers,
             'approved_at' => $this->purchaseRequest->approved_at?->toISOString(),
+            'title' => "Purchase Request {$this->purchaseRequest->pr_number} was approved",
             'message' => "Your Purchase Request #{$this->purchaseRequest->pr_number} has been fully approved",
             'action_url' => route('purchase-requests.show', $this->purchaseRequest->id),
+            'priority' => 'high',
+            'occurred_at' => $this->purchaseRequest->approved_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 }

@@ -84,6 +84,9 @@ class HandleInertiaRequests extends Middleware
                 'just_logged_in' => fn () => $request->session()->get('just_logged_in'),
                 'created_task_id' => fn () => $request->session()->get('created_task_id'),
             ],
+            'notifications' => [
+                'unread_count' => fn () => $user ? $user->unreadNotifications()->count() : 0,
+            ],
             'appName' => config('app.name'),
         ]);
     }

@@ -34,7 +34,7 @@ class ApprovalRejected extends Notification
         $pr = $this->approval->purchaseRequest;
 
         return (new MailMessage)
-            ->subject('Purchase Request Rejected - PR #' . $pr->pr_number)
+            ->subject('Purchase Request Rejected - PR #'.$pr->pr_number)
             ->view('emails.purchasing.purchase-request.approval-rejected', [
                 'approval' => $this->approval,
                 'pr' => $pr,
@@ -52,13 +52,18 @@ class ApprovalRejected extends Notification
 
         return [
             'type' => 'approval_rejected',
+            'category' => 'purchasing',
+            'event' => 'purchase_request_rejected',
             'pr_id' => $pr->id,
             'pr_number' => $pr->pr_number,
             'approval_id' => $this->approval->id,
             'approver_name' => $approverName,
             'rejection_notes' => $this->approval->notes,
+            'title' => "Purchase Request {$pr->pr_number} was rejected",
             'message' => "Your Purchase Request #{$pr->pr_number} has been rejected by {$approverName}",
             'action_url' => route('purchase-requests.show', $pr->id),
+            'priority' => 'high',
+            'occurred_at' => $this->approval->responded_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 }

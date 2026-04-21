@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Modules\Purchasing\StockRequest;
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Notifications\Purchasing\StockRequest\ApprovalApproved;
+use App\Notifications\Purchasing\StockRequest\ApprovalRejected;
 use App\Services\Core\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -162,6 +164,8 @@ class StockApprovalController extends Controller
                 'rejected_at' => now(),
                 'rejection_notes' => $notes,
             ]);
+
+            $stockRequest->user?->notify(new ApprovalRejected($approval->fresh(['stockRequest', 'approver'])));
         } elseif ($action === 'approved') {
             // Check if all approvals are complete
             $pendingApprovals = $stockRequest->approvals()->where('status', 'pending')->count();
@@ -172,6 +176,8 @@ class StockApprovalController extends Controller
                     'status' => 'approved',
                     'approved_at' => now(),
                 ]);
+
+                $stockRequest->user?->notify(new ApprovalApproved($stockRequest->fresh()));
             } else {
                 // Assign next approval step
                 $nextApproval = $stockRequest->approvals()

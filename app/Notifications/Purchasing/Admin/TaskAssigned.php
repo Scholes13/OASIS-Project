@@ -57,6 +57,8 @@ class TaskAssigned extends Notification
 
         return [
             'type' => 'task_assigned',
+            'category' => 'purchasing',
+            'event' => 'admin_task_assigned',
             'task_id' => $this->task->id,
             'taskable_type' => $this->task->taskable_type,
             'taskable_id' => $this->task->taskable_id,
@@ -66,8 +68,11 @@ class TaskAssigned extends Notification
             'department_id' => $this->task->department_id,
             'estimated_amount' => $this->task->estimated_total_price,
             'entered_at' => $this->task->entered_at->toISOString(),
+            'title' => "{$taskType} admin task {$taskNumber} was assigned to you",
             'message' => "New {$taskType} admin task #{$taskNumber} has been assigned to you",
-            'action_url' => url('/purchasing/admin/tasks/' . $this->task->id),
+            'action_url' => url('/purchasing/admin/tasks/'.$this->task->id),
+            'priority' => 'high',
+            'occurred_at' => $this->task->updated_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 

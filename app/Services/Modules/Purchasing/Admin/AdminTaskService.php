@@ -2,7 +2,9 @@
 
 namespace App\Services\Modules\Purchasing\Admin;
 
+use App\Models\Core\User;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Notifications\Purchasing\Admin\TaskAssigned;
 use Illuminate\Support\Facades\DB;
 
 class AdminTaskService
@@ -36,6 +38,8 @@ class AdminTaskService
                 'savings_amount' => null,
                 'savings_percentage' => null,
             ]);
+
+            $this->notifyAssignedAdmin($task);
 
             activity()
                 ->performedOn($task)
@@ -191,6 +195,8 @@ class AdminTaskService
                 'assigned_admin_id' => $adminId,
             ]);
 
+            $this->notifyAssignedAdmin($task);
+
             activity()
                 ->performedOn($task)
                 ->causedBy($adminId)
@@ -198,5 +204,20 @@ class AdminTaskService
 
             return $task->fresh();
         });
+    }
+
+    protected function notifyAssignedAdmin(AdminTask $task): void
+    {
+        if (! $task->assigned_admin_id) {
+            return;
+        }
+
+        $admin = User::query()->find($task->assigned_admin_id);
+
+        if (! $admin) {
+            return;
+        }
+
+        $admin->notify(new TaskAssigned($task->fresh(['taskable'])));
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Requests\Modules\Activity\UpdateActivityTaskRequest;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
+use App\Notifications\Activity\TaskTaggedNotification;
 use App\Services\Modules\Activity\ActivityMemberFocusService;
 use App\Services\Modules\Activity\ActivityReportAggregationService;
 use App\Services\Modules\Activity\ActivityTypePrioritizationService;
@@ -333,6 +334,12 @@ class ActivityInertiaController extends Controller
                             'is_owner' => false,
                             'joined_at' => now(),
                         ]);
+
+                        $participant = User::query()->find($participantId);
+
+                        if ($participant) {
+                            $participant->notify(new TaskTaggedNotification($task, $user));
+                        }
                     }
                 }
             }
@@ -424,6 +431,10 @@ class ActivityInertiaController extends Controller
         $departmentId = $task->department_id ?? $user->getCurrentDepartmentId();
 
         $participantIds = $validated['participant_ids'] ?? [];
+        $existingParticipantIds = $task->participants()
+            ->pluck('users.id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
 
         $status = $validated['status'];
         $submittedTaskDate = Carbon::parse($validated['task_date']);
@@ -499,6 +510,15 @@ class ActivityInertiaController extends Controller
 
             if (! empty($newParticipants)) {
                 $task->participants()->sync($newParticipants);
+            }
+
+            $newlyAddedParticipantIds = array_values(array_diff(array_keys($newParticipants), $existingParticipantIds, [$ownerId]));
+
+            if (! empty($newlyAddedParticipantIds)) {
+                User::query()
+                    ->whereIn('id', $newlyAddedParticipantIds)
+                    ->get()
+                    ->each(fn (User $participant): User => tap($participant, fn (User $recipient) => $recipient->notify(new TaskTaggedNotification($task, $user))));
             }
 
             $this->clearCache($buId, $user->id);

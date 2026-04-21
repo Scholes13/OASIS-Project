@@ -119,6 +119,25 @@ class BackdateNotificationTest extends TestCase
     }
 
     #[Test]
+    public function submitted_backdate_notification_uses_the_backdate_approvals_route(): void
+    {
+        $permission = BackdatePermission::create([
+            'user_id' => $this->employee->id,
+            'department_id' => $this->department->id,
+            'business_unit_id' => $this->businessUnit->id,
+            'requested_date' => now()->subDays(3),
+            'reason' => 'Need to log missed tasks',
+            'status' => 'pending',
+        ]);
+
+        $notification = new BackdateRequestSubmitted($permission);
+
+        $payload = $notification->toArray($this->departmentHead);
+
+        $this->assertSame(route('activity.backdate.approvals'), $payload['action_url']);
+    }
+
+    #[Test]
     public function it_sends_notification_when_backdate_request_is_approved()
     {
         Notification::fake();

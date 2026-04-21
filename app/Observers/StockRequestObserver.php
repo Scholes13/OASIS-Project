@@ -23,17 +23,39 @@ class StockRequestObserver
         // Check if status changed to 'approved'
         if ($stockRequest->isDirty('status') && $stockRequest->status === 'approved') {
             try {
+                $departmentId = $stockRequest->department_id;
+                $businessUnitId = $stockRequest->business_unit_id;
+
+                if (! $departmentId || ! $businessUnitId) {
+                    $fresh = StockRequest::query()
+                        ->select(['id', 'department_id', 'business_unit_id'])
+                        ->find($stockRequest->id);
+
+                    $departmentId = $departmentId ?: $fresh?->department_id;
+                    $businessUnitId = $businessUnitId ?: $fresh?->business_unit_id;
+                }
+
+                if (! $departmentId || ! $businessUnitId) {
+                    Log::warning('Skip admin task creation due to missing ST context', [
+                        'st_id' => $stockRequest->id,
+                        'department_id' => $departmentId,
+                        'business_unit_id' => $businessUnitId,
+                    ]);
+
+                    return;
+                }
+
                 // Determine if task should be auto-assigned
                 $assignedAdminId = $this->assignmentService->determineAssignment(
-                    $stockRequest->department_id,
-                    $stockRequest->business_unit_id
+                    (int) $departmentId,
+                    (int) $businessUnitId
                 );
 
                 // Create admin task
                 $this->adminTaskService->createTask(
                     $stockRequest,
-                    $stockRequest->business_unit_id,
-                    $stockRequest->department_id,
+                    (int) $businessUnitId,
+                    (int) $departmentId,
                     $assignedAdminId
                 );
 

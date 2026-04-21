@@ -12,6 +12,7 @@ class SlaExceeded extends Notification
     use Queueable;
 
     protected AdminTask $task;
+
     protected string $slaType; // 'followup' or 'completion'
 
     public function __construct(AdminTask $task, string $slaType)
@@ -63,6 +64,8 @@ class SlaExceeded extends Notification
 
         return [
             'type' => 'sla_exceeded',
+            'category' => 'purchasing',
+            'event' => 'admin_task_sla_exceeded',
             'sla_type' => $this->slaType,
             'task_id' => $this->task->id,
             'taskable_type' => $this->task->taskable_type,
@@ -76,8 +79,11 @@ class SlaExceeded extends Notification
             'estimated_amount' => $this->task->estimated_total_price,
             'entered_at' => $this->task->entered_at->toISOString(),
             'started_at' => $this->task->started_at?->toISOString(),
+            'title' => "SLA alert for {$taskType} {$taskNumber}",
             'message' => "SLA Alert: {$slaLabel} time exceeded for {$taskType} #{$taskNumber}",
-            'action_url' => url('/purchasing/admin/tasks/' . $this->task->id),
+            'action_url' => url('/purchasing/admin/tasks/'.$this->task->id),
+            'priority' => 'high',
+            'occurred_at' => now()->toISOString(),
         ];
     }
 

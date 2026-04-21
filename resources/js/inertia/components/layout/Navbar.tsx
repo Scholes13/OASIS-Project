@@ -2,14 +2,17 @@ import { Menu } from 'lucide-react';
 import { format } from 'date-fns';
 import BusinessUnitSwitcher from './BusinessUnitSwitcher';
 import DepartmentSwitcher from './DepartmentSwitcher';
+import NotificationBell from './NotificationBell';
 import UserMenu from './UserMenu';
+import type { NotificationListItem } from '@/types/notifications';
 
 interface NavbarProps {
     onMenuClick: () => void;
     sidebarMinimized?: boolean;
+    recentNotifications?: NotificationListItem[];
 }
 
-export default function Navbar({ onMenuClick }: NavbarProps) {
+export default function Navbar({ onMenuClick, recentNotifications = [] }: NavbarProps) {
     // Format current date: "Wednesday, January 28, 2026"
     const today = format(new Date(), 'EEEE, MMMM d, yyyy');
 
@@ -38,6 +41,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                     </span>
                     <BusinessUnitSwitcher />
                     <DepartmentSwitcher />
+                    <NotificationBell recentNotifications={recentNotifications} />
                     <UserMenu />
                 </div>
             </div>

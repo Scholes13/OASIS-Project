@@ -204,6 +204,9 @@ export interface PageProps {
     availableBusinessUnits: BusinessUnit[];
     navigation: NavigationMenu;
     flash: FlashMessages;
+    notifications: {
+        unread_count: number;
+    };
     appName: string;
     [key: string]: unknown; // Index signature for Inertia compatibility
 }
@@ -226,3 +229,4 @@ export interface ActivityStat {
 // Re-export types from other modules
 export * from './purchasing';
 export * from './admin';
+export * from './notifications';

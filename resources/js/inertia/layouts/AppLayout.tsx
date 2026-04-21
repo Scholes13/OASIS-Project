@@ -1,11 +1,12 @@
 import { ReactNode, useState, useEffect, useCallback } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import BuTransitionOverlay from '../components/layout/BuTransitionOverlay';
 import LogoutOverlay from '../components/layout/LogoutOverlay';
 import { Toaster } from '../components/ui/toast';
 import { cn } from '../lib/utils';
+import type { NotificationListItem, PageProps } from '@/types';
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -13,8 +14,10 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children, title }: AppLayoutProps) {
+    const page = usePage<PageProps>();
     const [sidebarMinimized, setSidebarMinimized] = useState(false);
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+    const recentNotifications = (page.props.recentNotifications ?? []) as NotificationListItem[];
 
     // Load sidebar state from localStorage
     useEffect(() => {
@@ -115,6 +118,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     <Navbar
                         onMenuClick={toggleMobileSidebar}
                         sidebarMinimized={sidebarMinimized}
+                        recentNotifications={recentNotifications}
                     />
 
                     {/* Main Content — scrollable area */}

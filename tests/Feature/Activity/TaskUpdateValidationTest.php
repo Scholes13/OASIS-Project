@@ -10,6 +10,7 @@ use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Activity\SubActivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -122,6 +123,80 @@ class TaskUpdateValidationTest extends TestCase
 
         $task->refresh();
         $this->assertEquals($newTaskDate, $task->task_date->format('Y-m-d'));
+    }
+
+    #[Test]
+    public function it_notifies_only_newly_added_participants_when_updating_a_task(): void
+    {
+        Notification::fake();
+
+        $existingParticipant = User::factory()->create([
+            'primary_department_id' => $this->department->id,
+            'email_verified_at' => now(),
+        ]);
+        $newParticipant = User::factory()->create([
+            'primary_department_id' => $this->department->id,
+            'email_verified_at' => now(),
+        ]);
+
+        foreach ([$existingParticipant, $newParticipant] as $participant) {
+            $participant->businessUnits()->create([
+                'business_unit_id' => $this->businessUnit->id,
+                'department_id' => $this->department->id,
+                'position_id' => $this->position->id,
+                'is_primary' => true,
+                'is_active' => true,
+            ]);
+        }
+
+        $task = $this->createTask();
+        $task->participants()->attach($existingParticipant->id, [
+            'is_owner' => false,
+            'joined_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->put(route('activity.task.update', $task), $this->updatePayload($task, [
+                'participant_ids' => [$existingParticipant->id, $newParticipant->id],
+            ]));
+
+        $response->assertRedirect();
+
+        Notification::assertCount(1);
+    }
+
+    #[Test]
+    public function it_does_not_notify_when_participants_do_not_change(): void
+    {
+        Notification::fake();
+
+        $existingParticipant = User::factory()->create([
+            'primary_department_id' => $this->department->id,
+            'email_verified_at' => now(),
+        ]);
+
+        $existingParticipant->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'position_id' => $this->position->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $task = $this->createTask();
+        $task->participants()->attach($existingParticipant->id, [
+            'is_owner' => false,
+            'joined_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->put(route('activity.task.update', $task), $this->updatePayload($task, [
+                'participant_ids' => [$existingParticipant->id],
+            ]));
+
+        $response->assertRedirect();
+
+        Notification::assertNothingSent();
     }
 
     #[Test]

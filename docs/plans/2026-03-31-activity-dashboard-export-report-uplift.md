@@ -99,7 +99,7 @@
 
 **Files:**
 - Modify: `docs/exec_plans.md`
-- Modify: `docs/superpowers/plans/2026-03-31-activity-dashboard-export-report-uplift.md`
+- Modify: `docs/plans/2026-03-31-activity-dashboard-export-report-uplift.md`
 
 - [ ] Step 1: Update the matching `docs/exec_plans.md` entry from `planned` to the correct implementation status and append outcome notes for dashboard focus detail, workbook sheets, and raw pivotability.
 - [ ] Step 2: Review all changed files against `docs/coding_standards.json` with attention to backend/frontend ownership boundaries and stable response contracts.

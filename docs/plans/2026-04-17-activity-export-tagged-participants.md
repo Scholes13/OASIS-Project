@@ -219,4 +219,4 @@ git add app/Services/Modules/Activity/ActivityExportService.php app/Services/Mod
 git commit -m "test: cover tagged participant activity export regression"
 ```
 
-Plan complete and saved to `docs/superpowers/plans/2026-04-17-activity-export-tagged-participants.md`. Ready to execute?
+Plan complete and saved to `docs/plans/2026-04-17-activity-export-tagged-participants.md`. Ready to execute?

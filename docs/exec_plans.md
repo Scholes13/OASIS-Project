@@ -5,24 +5,172 @@
 - The main agent acts as `PM Agent`.
 - The PM updates this file when substantial work starts, changes scope, completes, or reveals meaningful tech debt.
 - Implementation must be routed through the correct sub-agent and reviewed against `docs/coding_standards.json` before being presented as complete.
+- User-facing or runtime-sensitive work should also be routed through `@qa` before completion claims are made.
 
 ## Sub-Agent Roster
+- `@viewer`: read-only repository mapping, contract tracing, impact analysis, and evidence gathering.
 - `@coder_backend`: database, Laravel domain logic, API and server-side implementation.
 - `@coder_frontend`: Inertia/React UI, state, and client-side integration.
+- `@qa`: browser QA, runtime validation, smoke/regression walkthroughs, request-response inspection, and screenshot evidence.
 - `@reviewer`: standards review, security checks, architecture drift checks, lint and verification review.
 
 ## Harness Assignment Rules
 - Conceptual roles are mapped onto harness sub-agent types when work starts; they are not permanently connected agents.
 - Default mapping:
+  - `@viewer` => `explorer`
   - `@coder_backend` => `worker`
   - `@coder_frontend` => `worker`
-  - `@reviewer` => `explorer`
+  - `@qa` => `qa`
+  - `@reviewer` => `@viewer` by default
   - escalated `@reviewer` => `default`
-  - repo discovery or impact analysis => `explorer`
+  - repo discovery or impact analysis => `@viewer`
 - The `PM Agent` should spawn agents per task, define ownership clearly, and close them after completion.
 - Use parallel workers only when their write scopes are meaningfully separate.
+- For small, obvious, low-risk work, the `PM Agent` should stay in the main lane instead of spawning a read-only or review sub-agent by default.
+- Avoid chaining `@viewer`, `@qa`, and `@reviewer` together unless the task complexity or risk justifies distinct value from each gate.
 
 ## Active Tasks
+
+### 2026-04-20 - Notification center enterprise core pack
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
+- Scope:
+  - add a global in-app notification center with a navbar bell, recent dropdown, unread badge, and full archive page,
+  - normalize notification rendering across Activity, Purchasing, and Backdate using Laravel database notifications,
+  - add knowledge-style Activity tag notifications for newly tagged participants without introducing approval or acknowledgement actions,
+  - preserve enterprise-critical email behavior where existing notification flows already depend on it.
+- Risks:
+  - the feature touches shared authenticated layout and cross-module notification payloads, so contract drift can break unrelated flows if payload normalization is too aggressive,
+  - dropdown and archive UX must stay high-signal and avoid turning into a noisy event feed,
+  - notification-open routing must remain authorization-safe so users cannot open or mark another user's notifications.
+- Verification:
+  - focused PHPUnit coverage for notification list, read, open, and Activity tag emission flows,
+  - focused React coverage for bell badge, dropdown states, archive page filters, and mark-all behavior,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`,
+  - QA walkthrough of the notification bell, archive page, mark-as-read journey, and activity tag behavior.
+- Notes:
+  - approved product direction is a modern enterprise notification center backed by Laravel native notifications rather than a custom notification table,
+  - user-facing notification copy for this feature should be in English,
+  - the phase-1 package is the `Enterprise Core Pack`: Activity, Purchasing, Backdate, and System high-signal notifications only.
+  - all 12 notification classes exist and are dispatched from real mutation paths: Activity tag (controller), Backdate submit/approve/reject (service), PR approval requested/completed/rejected (email service), ST approval requested/approved/rejected (controller), Admin TaskAssigned (service), SLA exceeded (command),
+  - `NotificationCenterController` handles archive page with category and unread filters, recent JSON endpoint, mark-all-read (optimized to direct UPDATE query), and notification-open with ownership check and read-marking,
+  - `HandleInertiaRequests` shares `notifications.unread_count` globally for authenticated users,
+  - frontend `NotificationBell` renders unread badge (99+ cap), lazy-loaded dropdown with recent items, and "View all notifications" link,
+  - `useNotifications` hook supports real-time broadcast via Laravel Echo/Reverb private channel with graceful fallback,
+  - `Notifications/Index` page provides filter tabs (All, Unread, Activity, Purchasing, Backdate, System), pagination, mark-all-read, and empty state,
+  - Stock Request `approved` is the terminal success state so `ApprovalApproved` covers the "completed" notification without needing a separate class,
+  - focused PHPUnit coverage (8 tests, 53 assertions), focused Vitest coverage (21 tests across bell, navbar, and archive page), `vendor/bin/pint --dirty`, and `npm exec tsc --noEmit --pretty false` all passed,
+  - `markAllRead` was optimized from eager collection load to direct query update to prevent memory issues with high-volume users.
+
+### 2026-04-20 - Cross-platform dev hot-file cleanup hardening
+- Status: implemented
+- Owner: PM Agent
+- Scope:
+  - prevent stale `public/hot` files from breaking local OpenCode previews and production requests,
+  - make `composer dev` work safely on Windows where `laravel/pail` cannot run because `pcntl` is unavailable,
+  - ensure the dev startup path cleans stale hot-file state before bringing Vite back up.
+- Risks:
+  - changing the dev startup contract must preserve the current Linux/macOS behavior where `pail` is still useful,
+  - production-side cleanup must never remove the hot file in `local` or `testing`, where Vite HMR is expected.
+- Verification:
+  - focused PHPUnit coverage for production-vs-local hot-file cleanup behavior,
+  - manual process and file cleanup to confirm no stale `public/hot` remains in this workspace after the patch.
+- Notes:
+  - user reported OpenCode showing `Could not reach Local Server` while the Laravel app still rendered a Vite dev URL from `public/hot`,
+  - local logs already confirmed `composer dev` can fail on Windows because `php artisan pail` requires `pcntl`.
+  - `AppServiceProvider` now removes stale `public/hot` automatically outside `local` and `testing`, so production-like runtimes stop pointing at dead Vite URLs.
+  - `composer dev` now routes through a cross-platform Node wrapper that skips `pail` on Windows while still keeping it on non-Windows environments.
+  - `npm run dev` now routes through a Vite wrapper that clears `public/hot` before startup and after shutdown, reducing the chance of OpenCode reconnecting to a dead local server.
+
+### 2026-04-20 - Minimal docs structure migration
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@viewer`, `@reviewer`
+- Scope:
+  - migrate the repository docs toward a smaller harness-friendly structure,
+  - keep canonical workflow docs at the top level,
+  - archive clearly historical bug-fix notes, task reports, and legacy summary docs,
+  - add stable landing pages for `specs`, `references`, `generated`, and `archive`.
+- Risks:
+  - moving docs could break historical references if old paths are not updated,
+  - an over-aggressive migration could hide still-useful active docs behind too much structure.
+- Verification:
+  - rewrite `docs/INDEX.md` to match the new structure,
+  - confirm legacy bug-fix and task locations are no longer referenced by active docs,
+  - confirm new archive and landing-page directories are present and readable.
+- Notes:
+  - this migration intentionally keeps `docs/superpowers/` in place for now to avoid a noisy second-order refactor,
+  - the chosen target is a pragmatic subset of the more elaborate harness-engineering article structure rather than a full template copy.
+
+### 2026-04-20 - Superpowers docs navigation cleanup
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@viewer`
+- Scope:
+  - add local index pages under `docs/superpowers/`,
+  - clarify that `docs/superpowers/` is a legacy-but-active area,
+  - improve navigation without moving those files yet.
+- Verification:
+  - add `index.md` files for `docs/superpowers/`, `docs/superpowers/specs/`, and `docs/superpowers/plans/`,
+  - update `docs/INDEX.md` and `docs/specs/index.md` to describe the transitional role,
+  - confirm existing `docs/superpowers/specs/` and `docs/superpowers/plans/` references still remain valid.
+
+### 2026-04-20 - Superpowers docs full migration
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@viewer`, `@reviewer`
+- Scope:
+  - migrate remaining dated plan and spec artifacts out of `docs/superpowers/`,
+  - standardize canonical locations under `docs/plans/` and `docs/specs/`,
+  - keep `docs/superpowers/` only as a navigation shim.
+- Verification:
+  - move all remaining dated files from `docs/superpowers/plans/` into `docs/plans/`,
+  - move all remaining dated files from `docs/superpowers/specs/` into `docs/specs/`,
+  - update embedded old-path references in moved files and top-level indexes,
+  - confirm no active references remain to migrated files under the old `docs/superpowers/` paths.
+
+### 2026-04-20 - QA ownership lane introduction
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@qa`, `@reviewer`
+- Scope:
+  - introduce a first-class `@qa` ownership lane into the repo harness documentation,
+  - define what QA owns versus what remains with implementation and standards review,
+  - align harness role mapping and completion rules so runtime browser validation becomes an explicit part of the workflow.
+- Risks:
+  - if QA responsibilities overlap with reviewer ownership, future agents may duplicate validation or skip the right gate,
+  - if the harness mapping is not documented consistently, OpenCode configuration work and future exec plans will drift.
+- Verification:
+  - manual consistency review across `AGENTS.md`, `docs/architecture.md`, `docs/exec_plans.md`, and `docs/coding_standards.json`,
+  - confirm `@qa` is mapped to the harness `qa` agent type in every touched workflow document,
+  - confirm completion criteria now call out QA for user-facing or runtime-sensitive work.
+- Notes:
+  - user requested a dedicated QA ownership lane so OpenCode can support broader browser-level QA, not only reviewer-style standards checks,
+  - the new lane is intentionally scoped to runtime validation and evidence gathering rather than implementation ownership.
+
+### 2026-04-20 - Activity quick status timestamp restoration
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - restore the intended Activity workflow where `To Do -> In Progress` captures the actual start timestamp at transition time and `In Progress -> Done` calculates duration from that execution start,
+  - stop treating historical `task_date` as a blocker for starting work or completing work that already has a `started_at`,
+  - keep direct `To Do -> Done` guarded so users still provide actual execution time when no start timestamp exists yet.
+- Risks:
+  - the backend route serves board, list, and modal quick actions, so the guard change must preserve a single consistent rule across all three surfaces,
+  - loosening the historical-date rule too far could silently manufacture execution history for tasks that jump straight from planned to completed.
+- Verification:
+  - focused PHPUnit coverage for historical quick start, historical quick complete with an existing `started_at`, and direct complete without a start timestamp,
+  - focused React coverage for the remaining direct-complete guidance path in board, list, and detail modal,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - user reported that `To Do -> In Progress` and `In Progress -> Done` were blocked from `activity/task`, making the main Activity workflow unusable,
+  - root cause investigation found the backend quick-action guard was incorrectly treating historical `task_date` as a blocker even when the transition itself should establish the real execution timestamp,
+  - the backend guard now blocks only direct completion when no `started_at` exists yet, while historical quick start and historical quick completion from `in_progress` both proceed normally,
+  - board drag-and-drop, list status dropdown, and task detail modal still share the same execution-time guidance helper for the remaining direct-complete validation path,
+  - focused PHPUnit coverage, focused Vitest coverage, and `npm exec tsc --noEmit --pretty false` all passed after the patch.
 
 ### 2026-04-17 - Cashflow entries strict Excel import
 - Status: implemented
@@ -97,9 +245,9 @@
   - local QA review on `http://127.0.0.1:8000` using `qa@werkudara.com` confirmed the terminology gap is real in the current UI: the outflow row `[Demo] April corporate spend` is displayed with badge `PROJECTED`, which is easy to misread as a transaction type rather than a status.
   - local QA review also confirmed the export request succeeds (`/cashflow-projection/export?...` returns attachment `200`), but the workbook still omits the daily running projected balance line that users visually rely on in the dashboard.
   - local QA review surfaced a governance question: `qa@werkudara.com` is a regular `user` assigned as CFC staff, yet can still access and manage finance settings plus linked business units because the current access rule treats any CFC/FIN assignment as finance management access.
-  - written review captured in `docs/superpowers/specs/2026-04-17-cashflow-local-qa-review.md`.
+  - written review captured in `docs/specs/2026-04-17-cashflow-local-qa-review.md`.
   - Product direction was confirmed during spec review: all `CFC/FIN` users should retain current access to dashboard, export, settings, and linked business unit management, so no authorization tightening was included in implementation.
-  - approved spec written to `docs/superpowers/specs/2026-04-17-cashflow-terminology-export-parity-design.md` and approved implementation plan written to `docs/superpowers/plans/2026-04-17-cashflow-terminology-export-parity.md`.
+  - approved spec written to `docs/specs/2026-04-17-cashflow-terminology-export-parity-design.md` and approved implementation plan written to `docs/plans/2026-04-17-cashflow-terminology-export-parity.md`.
   - dashboard and entries transaction badges now use state-only wording: non-estimated entries show `Confirmed`, estimated-date entries show `Pending`, and the old outflow=`Projected` mapping has been removed from the touched surfaces.
   - dashboard and export result wording now uses `Saldo Proyeksi` for the projected-balance metric.
   - `Daily Movement` export now includes running `Saldo Proyeksi`, aligned with the dashboard month/range/year chart logic including month-boundary resets and zero-movement days.
@@ -123,7 +271,7 @@
 - Notes:
   - user reported that when a user is tagged in an activity, the exported Excel output does not count that person as participating in the activity.
   - investigation confirmed the original workbook was creator-centric: export filtering and sheet data did not fully mirror the creator-or-participant semantics used by task views.
-  - approved spec and implementation plan were written to `docs/superpowers/specs/2026-04-17-activity-export-tagged-participants-design.md` and `docs/superpowers/plans/2026-04-17-activity-export-tagged-participants.md`.
+  - approved spec and implementation plan were written to `docs/specs/2026-04-17-activity-export-tagged-participants-design.md` and `docs/plans/2026-04-17-activity-export-tagged-participants.md`.
   - backend implementation aligned personal export scope with task screen semantics by treating `scope=my` as business-unit tasks where the current user is creator or participant, without forcing the current department filter.
   - `Detail` and `Data Mentah` workbook sheets now append additive participant columns for count, sorted participant names, and sorted participant ids, with deterministic empty output `0 / '' / ''`.
   - focused regression coverage now locks participant column schema and data for both sheets, including creator-only, participant-only, cross-department `scope=my`, and department member-focus cases.

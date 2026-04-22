@@ -101,7 +101,7 @@
 
 **Files:**
 - Modify: `docs/exec_plans.md`
-- Modify: `docs/superpowers/plans/2026-04-13-activity-member-focus-filter.md`
+- Modify: `docs/plans/2026-04-13-activity-member-focus-filter.md`
 
 - [ ] Step 1: Update the matching `docs/exec_plans.md` entry from `in_progress` to the final implementation status and append outcome notes for task management, dashboard, and export member focus behavior.
 - [ ] Step 2: Review all changed files against `docs/coding_standards.json` with attention to backend/frontend ownership boundaries, stable response contracts, and preserved scope rules.

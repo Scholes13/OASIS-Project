@@ -62,3 +62,13 @@ _ide_helper_models.php
 /replace-all*
 /rewrite*
 /run-grid*
+
+# QA scratch scripts and artifacts
+tests/playwright-*.mjs
+tests/browser-qa-*.mjs
+tests/screenshots/
+tmp-*
+tmp_*
+
+# EnvSitter local state
+.envsitter/

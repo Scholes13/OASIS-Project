@@ -3,6 +3,7 @@
   "review_policy": {
     "require_self_review_before_finalization": true,
     "require_reviewer_agent_for_multi_file_or_multi-layer_changes": true,
+    "require_qa_for_user_facing_or_runtime_behavior": true,
     "block_completion_on_standards_violation": true
   },
   "knowledge_sources": {
@@ -18,6 +19,8 @@
       "must": [
         "update docs/exec_plans.md before or during substantial work",
         "delegate implementation by ownership boundary when the task spans multiple layers",
+        "use the viewer lane for read-only mapping, tracing, and evidence gathering when those tasks are justified",
+        "route user-facing or runtime-sensitive work through qa when browser-level validation or runtime evidence matters",
         "translate conceptual roles into the correct harness sub-agent type",
         "send completed work through review before presenting it as final"
       ],
@@ -55,6 +58,31 @@
         "change backend persistence or business rules without backend ownership"
       ]
     },
+    "viewer": {
+      "owns": [
+        "read-only repository mapping",
+        "contract tracing and impact analysis",
+        "diff and output inspection",
+        "evidence gathering before implementation or review"
+      ],
+      "must_not": [
+        "edit implementation files",
+        "replace reviewer validation when a standards gate is required"
+      ]
+    },
+    "qa": {
+      "owns": [
+        "browser-based smoke and regression validation",
+        "runtime request and response inspection",
+        "console and network verification",
+        "screenshot evidence for user-facing behavior",
+        "reproducible QA findings for changed flows"
+      ],
+      "must_not": [
+        "take over backend or frontend implementation ownership",
+        "replace standards review when reviewer validation is required"
+      ]
+    },
     "reviewer": {
       "checks": [
         "architecture boundary compliance",
@@ -70,18 +98,23 @@
     "available_types": [
       "default",
       "explorer",
-      "worker"
+      "worker",
+      "qa"
     ],
     "role_to_type": {
+      "viewer": "explorer",
       "coder_backend": "worker",
       "coder_frontend": "worker",
+      "qa": "qa",
       "reviewer_default": "explorer",
       "reviewer_escalated": "default",
       "researcher": "explorer"
     },
     "rules": [
       "spawn workers for implementation tasks with clear file ownership",
-      "spawn explorers for repo discovery, tracing, and read-only review",
+      "spawn explorers for the viewer lane and other read-only discovery tasks",
+      "spawn qa agents for browser-level verification, runtime tracing, and evidence gathering",
+      "spawn explorers for repo discovery, tracing, and read-only review when routed through viewer or reviewer",
       "use default for reviewer work only when explorer-level review is insufficient",
       "do not assume permanent sub-agent connectivity; assign and spawn per task"
     ]
@@ -140,6 +173,7 @@
     ],
     "required_before_completion": [
       "review changed files against this standards document",
+      "confirm QA coverage for user-facing or runtime-sensitive changes, or explicitly record why QA was skipped",
       "confirm deprecated modules were not unintentionally re-enabled",
       "summarize any remaining risk or skipped verification"
     ]

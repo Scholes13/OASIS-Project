@@ -334,6 +334,6 @@ Stage only the Cashflow Projection files, plan/spec docs for this task, and rela
 Suggested commit:
 
 ```bash
-git add docs/exec_plans.md docs/superpowers/specs/2026-03-27-cashflow-projection-cfc-cross-unit-entry-design.md docs/superpowers/plans/2026-03-27-cashflow-projection-cfc-cross-unit-entry-plan.md app/Http/Controllers/Modules/CashflowProjection app/Http/Requests/CashflowProjection app/Models/Modules/CashflowProjection app/Services/Modules/CashflowProjection database/migrations routes/web.php resources/js/inertia/Pages/CashflowProjection tests/Feature/Modules/CashflowProjection tests/React/Pages/CashflowProjection
+git add docs/exec_plans.md docs/specs/2026-03-27-cashflow-projection-cfc-cross-unit-entry-design.md docs/plans/2026-03-27-cashflow-projection-cfc-cross-unit-entry-plan.md app/Http/Controllers/Modules/CashflowProjection app/Http/Requests/CashflowProjection app/Models/Modules/CashflowProjection app/Services/Modules/CashflowProjection database/migrations routes/web.php resources/js/inertia/Pages/CashflowProjection tests/Feature/Modules/CashflowProjection tests/React/Pages/CashflowProjection
 git commit -m "feat: expand cashflow projection finance entry scope with audit trail"
 ```

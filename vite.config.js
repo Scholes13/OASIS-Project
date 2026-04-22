@@ -19,6 +19,7 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
+            '@echo': '/resources/js/echo.ts',
             '@': '/resources/js/inertia',
         },
     },

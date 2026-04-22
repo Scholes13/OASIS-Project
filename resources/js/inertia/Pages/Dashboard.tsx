@@ -91,9 +91,9 @@ export default function Dashboard({ stats, recentActivities, pendingApprovalsCou
             iconBox: 'bg-[#dbeafe] text-[#1e40af]',
         },
         {
-            title: 'My Tasks',
+            title: 'My Active Tasks',
             value: stats.my_tasks,
-            helper: stats.my_tasks > 0 ? 'Follow up assigned items' : 'No active task',
+            helper: stats.my_tasks > 0 ? `${stats.my_tasks} task(s) in progress` : 'All tasks completed or planned',
             icon: CheckCircle2,
             iconBox: 'bg-[#e0f2fe] text-[#0369a1]',
         },

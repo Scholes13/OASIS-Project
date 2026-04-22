@@ -46,9 +46,19 @@ export default function Index({
     currentBusinessUnit
 }: PRIndexPageProps) {
     // Defensive defaults for purchaseRequests to prevent undefined errors
+    // Inertia v2 serializes Laravel paginator at root level (not nested under meta)
     const safeData = purchaseRequests?.data ?? [];
-    const safeMeta = purchaseRequests?.meta ?? { from: 0, to: 0, total: 0, last_page: 1, links: [] };
-    const safeLinks = purchaseRequests?.links ?? { prev: null, next: null };
+    const safeMeta = purchaseRequests?.meta ?? {
+        from: (purchaseRequests as any)?.from ?? 0,
+        to: (purchaseRequests as any)?.to ?? 0,
+        total: (purchaseRequests as any)?.total ?? 0,
+        last_page: (purchaseRequests as any)?.last_page ?? 1,
+        links: (purchaseRequests as any)?.links ?? [],
+    };
+    const safeLinks = purchaseRequests?.links ?? {
+        prev: (purchaseRequests as any)?.prev_page_url ?? null,
+        next: (purchaseRequests as any)?.next_page_url ?? null,
+    };
 
     const [search, setSearch] = useState(filters?.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters?.status || '');

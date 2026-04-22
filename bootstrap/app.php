@@ -47,8 +47,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             // Handle 419 Page Expired (CSRF Token Mismatch)
-            // Redirect back with flash message instead of showing ugly error modal
+            // If the user is no longer authenticated, redirect to login instead of back
+            // (going back to an authenticated page would just fail again)
             if ($response->getStatusCode() === 419) {
+                if (! $request->user()) {
+                    return redirect()->route('login')->with([
+                        'error' => 'Your session has expired. Please log in again.',
+                    ]);
+                }
+
                 return back()->with([
                     'error' => 'The page expired, please try again.',
                 ]);

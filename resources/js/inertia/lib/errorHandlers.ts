@@ -126,10 +126,11 @@ function handleInertiaError(event: CustomEvent): void {
     if (status === 419) {
         showToast.error(
             'Session Expired',
-            'Your session has expired. Refreshing page...'
+            'Your session has expired. Redirecting to login...'
         );
         setTimeout(() => {
-            window.location.reload();
+            // Redirect to login instead of reload — reload would just show the same expired state
+            window.location.href = '/login';
         }, 1500);
         return;
     }
@@ -227,15 +228,47 @@ function handleInertiaSuccess(event: CustomEvent): void {
  * Handle Inertia invalid events (non-Inertia responses)
  * 
  * This fires when the server returns a non-Inertia response (e.g., plain HTML).
- * Validation errors (422) are already handled by component onError callbacks,
- * so we skip those here.
+ * The most common cause is an expired session: Laravel redirects to /login which
+ * returns HTML instead of an Inertia JSON response. When this happens, we detect
+ * it and redirect the user to the login page cleanly instead of showing an error.
  */
 function handleInertiaInvalid(event: CustomEvent): void {
-    // Don't show anything — validation errors are handled by components
-    // and other invalid responses are edge cases (e.g., server returning HTML)
     const { detail } = event;
     const response = detail?.response;
-    
+
+    // Skip 422 validation errors — handled by component onError callbacks
+    if (response?.status === 422) {
+        return;
+    }
+
+    // Detect session expiry: the server redirected to /login (or returned the login page HTML).
+    // This happens when auth middleware sends a 302 to /login and the final response is HTML.
+    const responseUrl = response?.url || '';
+    const isLoginRedirect = responseUrl.includes('/login');
+
+    // Also check if the response is a 200 HTML page that looks like a login page
+    // (Inertia follows redirects, so the final status is 200 but the content is non-Inertia HTML)
+    const isHtmlResponse = response?.headers?.get?.('content-type')?.includes('text/html');
+    const isNonInertia = !response?.headers?.get?.('x-inertia');
+
+    if (isLoginRedirect || (isHtmlResponse && isNonInertia && response?.status === 200)) {
+        // Prevent the default Inertia behavior (showing a modal with the HTML)
+        event.preventDefault();
+
+        showToast.error(
+            'Session Expired',
+            'Your session has expired. Redirecting to login...'
+        );
+
+        // Small delay so the user sees the toast before redirect
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 1500);
+
+        return;
+    }
+
+    // For other non-Inertia responses, log and let the user know
     if (response?.status && response.status !== 422) {
         logWarning(`Received non-Inertia response (${response.status})`, {
             context: {

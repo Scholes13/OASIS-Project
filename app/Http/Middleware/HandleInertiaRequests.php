@@ -170,6 +170,10 @@ class HandleInertiaRequests extends Middleware
      */
     protected function getCachedNavigation($user, ?int $businessUnitId): array
     {
+        if (! $user) {
+            return ['sections' => []];
+        }
+
         return $this->navigationService->buildMenuForUser($user, $businessUnitId);
     }
 

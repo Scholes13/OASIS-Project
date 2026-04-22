@@ -12,6 +12,16 @@ use Illuminate\Http\Request;
 class TaskCommentController extends Controller
 {
     /**
+     * Redirect back to the task detail modal so comments stay visible.
+     */
+    protected function redirectToTaskModal(EmployeeTask $task): RedirectResponse
+    {
+        return redirect()->to(
+            route('activity.task.index', ['task' => $task->id, 'modal' => 'detail'])
+        );
+    }
+
+    /**
      * Store a new comment on a task.
      */
     public function store(Request $request, EmployeeTask $task): RedirectResponse
@@ -52,7 +62,7 @@ class TaskCommentController extends Controller
             $recipient->notify(new TaskCommentNotification($comment, auth()->user(), $task));
         }
 
-        return back();
+        return $this->redirectToTaskModal($task);
     }
 
     /**
@@ -90,7 +100,7 @@ class TaskCommentController extends Controller
             'edited_at' => now(),
         ]);
 
-        return back();
+        return $this->redirectToTaskModal($task);
     }
 
     /**
@@ -115,6 +125,6 @@ class TaskCommentController extends Controller
 
         $comment->delete();
 
-        return back();
+        return $this->redirectToTaskModal($task);
     }
 }

@@ -1579,9 +1579,24 @@ class ActivityInertiaController extends Controller
                 'creator',
                 'department',
                 'attachments',
+                'comments' => fn ($q) => $q->with('user:id,name')->whereNull('deleted_at')->orderBy('created_at', 'asc')->limit(50),
             ]);
 
-        return $query->find($taskId);
+        $task = $query->find($taskId);
+
+        if ($task) {
+            $task->comments_data = $task->comments->map(fn ($c) => [
+                'id' => $c->id,
+                'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
+                'body' => $c->body,
+                'edited_at' => $c->edited_at?->toISOString(),
+                'created_at' => $c->created_at->toISOString(),
+                'can_edit' => $c->user_id === auth()->id(),
+                'can_delete' => $c->user_id === auth()->id(),
+            ]);
+        }
+
+        return $task;
     }
 
     /**

@@ -124,6 +124,14 @@ class EmployeeTask extends Model
     }
 
     /**
+     * Get task comments
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TaskComment::class, 'employee_task_id');
+    }
+
+    /**
      * Get task attachments
      */
     public function attachments(): HasMany

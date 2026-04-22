@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Api\DepartmentController as ApiDepartmentController;
+use App\Http\Controllers\Modules\Activity\TaskCommentController;
 use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
@@ -318,6 +319,13 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/{task}/edit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'edit'])->name('edit')->whereNumber('task');
             Route::put('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'update'])->name('update')->whereNumber('task');
             Route::delete('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'destroy'])->name('destroy')->whereNumber('task');
+
+            // Task Comment Routes
+            Route::prefix('{task}/comments')->name('comments.')->whereNumber('task')->group(function () {
+                Route::post('/', [TaskCommentController::class, 'store'])->name('store')->middleware('throttle:10,1');
+                Route::put('/{comment}', [TaskCommentController::class, 'update'])->name('update')->whereNumber('comment');
+                Route::delete('/{comment}', [TaskCommentController::class, 'destroy'])->name('destroy')->whereNumber('comment');
+            });
         });
 
         // Backdate Permission Routes

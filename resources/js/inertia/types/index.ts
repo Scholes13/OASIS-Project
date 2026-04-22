@@ -88,6 +88,16 @@ export interface TaskParticipantUser {
     user?: User;
 }
 
+export interface TaskComment {
+    id: number;
+    user: { id: number; name: string } | null;
+    body: string;
+    edited_at: string | null;
+    created_at: string;
+    can_edit: boolean;
+    can_delete: boolean;
+}
+
 export interface Task {
     id: number;
     task_title: string;
@@ -113,6 +123,7 @@ export interface Task {
     participants: TaskParticipantUser[];
     department: Department;
     attachments?: TaskAttachment[];
+    comments_data?: TaskComment[];
     created_at: string;
     updated_at: string;
 }

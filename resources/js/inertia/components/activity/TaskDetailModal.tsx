@@ -31,6 +31,7 @@ import { ActivityTypeBadge, PriorityBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
 import { handleExecutionTimeGuidance } from "./quick-status-guidance"
+import { TaskCommentSection } from "./TaskCommentSection"
 import type { PageProps, Task } from "@/types"
 
 interface TaskDetailModalProps {
@@ -252,34 +253,22 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                                 </button>
                             </div>
 
-                            {/* Activity Tabs Placeholder (Visual Only) */}
+                            {/* Comments Section */}
                             <div>
                                 <div className="mb-6 flex gap-6 border-b border-border">
-                                    <div className="border-b-2 border-primary pb-3 text-[14px] font-medium text-primary">Comments</div>
+                                    <div className="border-b-2 border-primary pb-3 text-[14px] font-medium text-primary">
+                                        <MessageSquare className="mr-1.5 inline h-4 w-4" />
+                                        Comments {task.comments_data && task.comments_data.length > 0 && `(${task.comments_data.length})`}
+                                    </div>
                                     <div className="border-b-2 border-transparent pb-3 text-[14px] font-medium text-muted-foreground cursor-pointer hover:text-foreground">History</div>
                                     <div className="border-b-2 border-transparent pb-3 text-[14px] font-medium text-muted-foreground cursor-pointer hover:text-foreground">Files (0)</div>
                                 </div>
 
-                                <div className="flex gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                                        You
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="overflow-hidden rounded-md border border-border bg-background">
-                                            <input
-                                                type="text"
-                                                placeholder="Write a comment... (Coming soon)"
-                                                className="w-full border-none p-3 text-[14px] outline-none bg-transparent disabled:opacity-50"
-                                                disabled
-                                            />
-                                            <div className="flex justify-end bg-muted p-2">
-                                                <button className="rounded-md bg-primary px-3.5 py-1.5 text-[12px] font-medium text-white opacity-50 cursor-not-allowed">
-                                                    Post
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <TaskCommentSection
+                                    taskId={task.id}
+                                    comments={task.comments_data ?? []}
+                                    canComment={editable && task.status !== 'cancelled'}
+                                />
                             </div>
 
                         </div>

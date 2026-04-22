@@ -31,6 +31,38 @@
 
 ## Active Tasks
 
+### 2026-04-22 - Activity task comments
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`
+- Scope:
+  - add flat chronological comments to Activity tasks with post, edit, and delete,
+  - authorize commenting to task creators and participants only,
+  - block new comments on cancelled tasks (read-only),
+  - soft-delete comments so they are hidden from UI but preserved in DB,
+  - dispatch in-app notifications to all task participants except the commenter via database and broadcast channels,
+  - integrate comment section into the existing TaskDetailModal replacing the placeholder Comments tab,
+  - add rate limiting (10 comments per minute per user).
+- Risks:
+  - comment routes are nested inside the activity task group, so route model binding must correctly scope comments to their parent task,
+  - notification dispatch must not attempt broadcast in test environments without a running Reverb/Pusher server,
+  - the comment section must stay compact inside the modal without breaking the existing sidebar layout on short viewports.
+- Verification:
+  - `php artisan test tests/Feature/Modules/Activity/TaskCommentTest.php`,
+  - `npx vitest run tests/React/Components/Activity/TaskCommentSection.test.tsx`,
+  - `php vendor/bin/pint --dirty`,
+  - `npx tsc --noEmit --pretty false`.
+- Notes:
+  - design spec at `docs/plans/2026-04-22-task-comments-design.md` and implementation plan at `docs/plans/2026-04-22-task-comments.md`,
+  - `task_comments` migration creates table with FK to `employee_tasks` (cascade on delete) and `users` (null on delete), soft deletes, and composite index on `(employee_task_id, created_at)`,
+  - `TaskComment` model uses SoftDeletes with `task()` and `user()` relationships,
+  - `TaskCommentController` handles store (with participant check, cancelled guard, trim, notification dispatch), update (author-only, sets edited_at), and destroy (author-only, soft delete),
+  - `TaskCommentNotification` dispatches via database + broadcast with payload matching the notification center contract (category: activity, event: task_comment),
+  - `ActivityInertiaController.getSelectedTaskForModal` now eager-loads comments with user and transforms them into `comments_data` with `can_edit`/`can_delete` flags,
+  - `TaskCommentSection` React component renders chronological comment list, edit/delete actions for own comments, and a post form with Inertia `useForm`,
+  - `TaskDetailModal` now renders the working comment section instead of the placeholder,
+  - focused PHPUnit coverage (11 tests, 32 assertions), focused Vitest coverage (11 tests), `vendor/bin/pint --dirty`, and `npx tsc --noEmit --pretty false` all passed.
+
 ### 2026-04-20 - Notification center enterprise core pack
 - Status: implemented
 - Owner: PM Agent

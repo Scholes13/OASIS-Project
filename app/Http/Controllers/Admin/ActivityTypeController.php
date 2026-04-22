@@ -406,7 +406,7 @@ class ActivityTypeController extends Controller
 
         $count = count($validated['department_ids']);
 
-        return redirect()->route('admin.activity-types.show', $activityType)
+        return redirect()->route('admin.activity-types.index')
             ->with('success', "Activity type assigned to {$count} department(s) successfully.");
     }
 

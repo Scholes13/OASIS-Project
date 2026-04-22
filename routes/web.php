@@ -390,6 +390,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Activity Type & Sub-Activity Management
         Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class);
+        Route::post('activity-types/{activity_type}/assign-departments', [\App\Http\Controllers\Admin\ActivityTypeController::class, 'assignDepartments'])->name('activity-types.assign-departments');
         Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class);
         Route::prefix('activity-admins')->name('activity-admins.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'index'])->name('index');

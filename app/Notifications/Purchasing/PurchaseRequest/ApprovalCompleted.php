@@ -4,6 +4,7 @@ namespace App\Notifications\Purchasing\PurchaseRequest;
 
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -23,7 +24,15 @@ class ApprovalCompleted extends Notification
      */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->toArray($notifiable));
     }
 
     /**

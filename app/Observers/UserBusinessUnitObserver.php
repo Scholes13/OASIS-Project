@@ -31,41 +31,17 @@ class UserBusinessUnitObserver
 
     /**
      * Invalidate all cached data for a user.
-     * This includes navigation and business unit list caches.
+     *
+     * Navigation is no longer cached (built fresh every request for
+     * correctness), so only the business-unit list cache needs clearing.
      */
     protected function invalidateUserCache(int $userId, ?int $businessUnitId = null): void
     {
-        // Clear business unit list cache
         Cache::forget("bu_list:{$userId}");
-
-        // Clear navigation cache for specific BU
-        if ($businessUnitId) {
-            Cache::forget("nav:{$userId}:{$businessUnitId}");
-        }
-
-        // Also clear navigation cache for all BUs this user might have access to
-        // This is a bit aggressive but ensures consistency
-        $this->clearAllNavigationCacheForUser($userId);
 
         Log::debug('User cache invalidated', [
             'user_id' => $userId,
             'business_unit_id' => $businessUnitId,
         ]);
-    }
-
-    /**
-     * Clear all navigation caches for a user across all business units.
-     * Uses pattern matching if available (Redis), otherwise clears known BUs.
-     */
-    protected function clearAllNavigationCacheForUser(int $userId): void
-    {
-        // Get all BU IDs the user has assignments for
-        $buIds = UserBusinessUnit::where('user_id', $userId)
-            ->pluck('business_unit_id')
-            ->unique();
-
-        foreach ($buIds as $buId) {
-            Cache::forget("nav:{$userId}:{$buId}");
-        }
     }
 }

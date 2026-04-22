@@ -42,7 +42,7 @@ class CashflowProjectionController extends Controller
         protected CashflowProjectionEntryImportService $entryImportService
     ) {}
 
-    public function index(CashflowProjectionDashboardFilterRequest $request): Response
+    public function index(CashflowProjectionDashboardFilterRequest $request): Response|\Symfony\Component\HttpFoundation\Response
     {
         /** @var User $user */
         $user = $request->user();

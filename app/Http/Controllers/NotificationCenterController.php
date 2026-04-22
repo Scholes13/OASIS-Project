@@ -57,7 +57,7 @@ class NotificationCenterController extends Controller
 
     public function markAllRead(Request $request): RedirectResponse
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
 
         return redirect()
             ->route('notifications.index', ['filter' => $request->query('filter', 'all')])
@@ -84,7 +84,16 @@ class NotificationCenterController extends Controller
                 ->with('warning', 'Notification link is unavailable.');
         }
 
-        return redirect()->to($actionUrl);
+        // Extract the path (and query string) from the stored URL so the
+        // redirect always targets the current host.  Stored action_urls
+        // may contain a different host (e.g. localhost vs 127.0.0.1)
+        // which would cause a cross-origin redirect and session loss.
+        $parsed = parse_url($actionUrl);
+        $path = ($parsed['path'] ?? '/').
+            (isset($parsed['query']) ? '?'.$parsed['query'] : '').
+            (isset($parsed['fragment']) ? '#'.$parsed['fragment'] : '');
+
+        return redirect()->to($path);
     }
 
     /**

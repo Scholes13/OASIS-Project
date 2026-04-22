@@ -264,13 +264,11 @@ export function TaskFormModal({
         return data.completed_date !== originalCompletedDate;
     }, [data.status, data.completed_date, isEditing, originalCompletedDate, task?.completed_at]);
 
-    const showReadOnlyStartSummary = isEditingStartedTask && !needsStartCorrection;
-    const showReadOnlyCompletionSummary = isEditingCompletedTask && !needsStartCorrection && !needsCompletionCorrection;
+    const showReadOnlyStartSummary = false;
+    const showReadOnlyCompletionSummary = false;
     const showStartTimeInput = data.status === 'completed'
-        ? (!isEditing || !task?.started_at || needsStartCorrection)
-        : data.status === 'in_progress' && needsStartCorrection;
-    const showCompletionInputs = data.status === 'completed'
-        && (!isEditing || !task?.completed_at || needsCompletionCorrection);
+        || (data.status === 'in_progress' && (needsStartCorrection || isEditingStartedTask));
+    const showCompletionInputs = data.status === 'completed';
     const startedAtDisplayValue = useMemo(() => {
         if (!task?.started_at) {
             return '-';
@@ -594,6 +592,20 @@ export function TaskFormModal({
                                             {showCompletionInputs && (
                                                 <>
                                                     <div className="flex flex-col gap-1.5">
+                                                        <label className="text-[12px] font-medium text-slate-600">End Time <span className="text-rose-500">*</span></label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="time"
+                                                                aria-label="End Time"
+                                                                value={data.end_time}
+                                                                onChange={(e) => setData('end_time', e.target.value)}
+                                                                className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.end_time ? "border-rose-300" : "border-slate-200")}
+                                                            />
+                                                            <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                                                        </div>
+                                                        {errors.end_time && <p className="text-[10px] text-rose-500">{errors.end_time}</p>}
+                                                    </div>
+                                                    <div className="flex flex-col gap-1.5">
                                                         <label className="text-[12px] font-medium text-slate-600">Completed Date <span className="text-rose-500">*</span></label>
                                                         <div className="relative">
                                                             <input
@@ -607,20 +619,6 @@ export function TaskFormModal({
                                                             <CalendarIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
                                                         </div>
                                                         {errors.completed_date && <p className="text-[10px] text-rose-500">{errors.completed_date}</p>}
-                                                    </div>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[12px] font-medium text-slate-600">End Time <span className="text-rose-500">*</span></label>
-                                                        <div className="relative">
-                                                            <input
-                                                                type="time"
-                                                                aria-label="End Time"
-                                                                value={data.end_time}
-                                                                onChange={(e) => setData('end_time', e.target.value)}
-                                                                className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.end_time ? "border-rose-300" : "border-slate-200")}
-                                                            />
-                                                            <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                                                        </div>
-                                                        {errors.end_time && <p className="text-[10px] text-rose-500">{errors.end_time}</p>}
                                                     </div>
                                                 </>
                                             )}

@@ -272,11 +272,11 @@ export default function CashflowProjectionIndex({
 
         return [
             {
-                label: 'Balance Snapshot',
+                label: 'Saldo Proyeksi',
                 value: formatCurrency(summary.total_balance),
                 caption: isBelowMinimumBalance
-                    ? `Projected closing balance is below the ${formatCurrency(minimumBalanceThreshold)} minimum threshold for this period.`
-                    : 'Projected closing balance at the end of the selected period.',
+                    ? `Estimasi saldo akhir berada di bawah batas minimum ${formatCurrency(minimumBalanceThreshold)} untuk periode ini.`
+                    : 'Estimasi saldo akhir pada periode yang dipilih.',
                 tone: isBelowMinimumBalance ? 'negative' : 'positive',
             },
             {

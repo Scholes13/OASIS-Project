@@ -9,10 +9,23 @@ import type { NotificationListItem } from '@/types/notifications';
 interface NavbarProps {
     onMenuClick: () => void;
     sidebarMinimized?: boolean;
-    recentNotifications?: NotificationListItem[];
+    unreadCount: number;
+    notificationItems: NotificationListItem[];
+    hasNewNotification: boolean;
+    notificationDropdownOpen: boolean;
+    onNotificationToggle: () => void;
+    onNotificationOpen: () => void;
 }
 
-export default function Navbar({ onMenuClick, recentNotifications = [] }: NavbarProps) {
+export default function Navbar({
+    onMenuClick,
+    unreadCount,
+    notificationItems,
+    hasNewNotification,
+    notificationDropdownOpen,
+    onNotificationToggle,
+    onNotificationOpen,
+}: NavbarProps) {
     // Format current date: "Wednesday, January 28, 2026"
     const today = format(new Date(), 'EEEE, MMMM d, yyyy');
 
@@ -41,7 +54,14 @@ export default function Navbar({ onMenuClick, recentNotifications = [] }: Navbar
                     </span>
                     <BusinessUnitSwitcher />
                     <DepartmentSwitcher />
-                    <NotificationBell recentNotifications={recentNotifications} />
+                    <NotificationBell
+                        unreadCount={unreadCount}
+                        items={notificationItems}
+                        hasNewNotification={hasNewNotification}
+                        open={notificationDropdownOpen}
+                        onToggle={onNotificationToggle}
+                        onOpen={onNotificationOpen}
+                    />
                     <UserMenu />
                 </div>
             </div>

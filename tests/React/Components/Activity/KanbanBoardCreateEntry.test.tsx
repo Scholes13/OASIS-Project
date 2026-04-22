@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { KanbanBoard } from '@/components/activity/KanbanBoard';
+import { showToast } from '@/components/ui/toast';
 import type { Task } from '@/types';
 
 let latestDndHandlers: {
@@ -59,6 +60,18 @@ vi.mock('@dnd-kit/utilities', () => ({
         Transform: {
             toString: () => undefined,
         },
+    },
+}));
+
+vi.mock('@/components/ui/toast', () => ({
+    showToast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        warning: vi.fn(),
+        info: vi.fn(),
+        loading: vi.fn(),
+        dismiss: vi.fn(),
+        promise: vi.fn(),
     },
 }));
 
@@ -149,5 +162,41 @@ describe('KanbanBoard create entry', () => {
 
         expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
         expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
+    });
+
+    it('surfaces execution-time guidance when direct complete from planned is blocked', () => {
+        const onEditTask = vi.fn();
+        const historicalTask: Task = {
+            ...baseTask,
+            task_date: '2026-04-10',
+        };
+
+        render(<KanbanBoard tasks={[historicalTask]} onEditTask={onEditTask} />);
+
+        act(() => {
+            latestDndHandlers.onDragStart?.({ active: { id: 1 } });
+            latestDndHandlers.onDragOver?.({ active: { id: 1 }, over: { id: 'completed' } });
+            latestDndHandlers.onDragEnd?.({ active: { id: 1 }, over: { id: 'completed' } });
+        });
+
+        expect(vi.mocked(router.put)).toHaveBeenCalledWith(
+            '/activity.task.update?task=1',
+            { status: 'completed' },
+            expect.objectContaining({
+                preserveScroll: true,
+                onError: expect.any(Function),
+            })
+        );
+
+        act(() => {
+            vi.mocked(router.put).mock.calls[0][2]?.onError?.({
+                status: ['Task uses a historical date. Please confirm actual execution time.'],
+            });
+        });
+
+        expect(showToast.error).toHaveBeenCalledWith(
+            'Task uses a historical date. Please confirm actual execution time.'
+        );
+        expect(onEditTask).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
     });
 });

@@ -61,6 +61,21 @@ describe('Cashflow Projection dashboard page', () => {
         departments: [],
         lineItems: [
             {
+                id: 2,
+                department_id: 1,
+                department_code: 'FIN',
+                department_name: 'Finance',
+                flow_type: 'out',
+                action_code: 'finance_expense',
+                action_label: 'Finance Expense',
+                transaction_date: '2026-03-18',
+                due_date: '2026-03-18',
+                amount: 120,
+                description: 'March vendor payment',
+                notes: null,
+                is_estimated_date: false,
+            },
+            {
                 id: 3,
                 department_id: 1,
                 department_code: 'FIN',
@@ -74,6 +89,21 @@ describe('Cashflow Projection dashboard page', () => {
                 description: 'March top-up',
                 notes: null,
                 is_estimated_date: false,
+            },
+            {
+                id: 4,
+                department_id: 1,
+                department_code: 'FIN',
+                department_name: 'Finance',
+                flow_type: 'out',
+                action_code: 'finance_expense',
+                action_label: 'Finance Expense',
+                transaction_date: '2026-03-30',
+                due_date: '2026-03-30',
+                amount: 90,
+                description: 'Estimated March expense',
+                notes: null,
+                is_estimated_date: true,
             },
         ],
         financeInputs: [],
@@ -109,6 +139,8 @@ describe('Cashflow Projection dashboard page', () => {
         expect(screen.getByRole('button', { name: /mar 2026/i })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /apply period/i })).not.toBeInTheDocument();
         expect(screen.getByText(/granular trend for mar 2026/i)).toBeInTheDocument();
+        expect(screen.getByText(/saldo proyeksi/i)).toBeInTheDocument();
+        expect(screen.queryByText(/balance snapshot/i)).not.toBeInTheDocument();
     });
 
     it('opens the period dropdown and applies a year filter as the global dashboard context', async () => {
@@ -197,5 +229,14 @@ describe('Cashflow Projection dashboard page', () => {
         );
 
         openSpy.mockRestore();
+    });
+
+    it('uses transaction badges as state labels rather than inflow or outflow direction', () => {
+        render(<Index {...baseProps} />);
+
+        expect(screen.getByText('March vendor payment')).toBeInTheDocument();
+        expect(screen.getAllByText(/confirmed/i).length).toBeGreaterThan(0);
+        expect(screen.getByText(/pending/i)).toBeInTheDocument();
+        expect(screen.queryByText(/projected/i)).not.toBeInTheDocument();
     });
 });

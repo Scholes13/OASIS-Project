@@ -182,6 +182,7 @@ class ActivityAdminController extends Controller
         $status = $request->get('status', '');
         $activityTypeId = $request->get('activity_type_id', '');
         $search = $request->get('search', '');
+        $perPage = $this->resolveDepartmentTaskPerPage($request);
 
         $department = Department::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->findOrFail($departmentId);
@@ -197,7 +198,7 @@ class ActivityAdminController extends Controller
         $tasks = (clone $query)
             ->with(['activityType', 'subActivity', 'participants', 'creator', 'department'])
             ->latest('task_date')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         // Per-user breakdown
@@ -268,6 +269,7 @@ class ActivityAdminController extends Controller
                 'status' => $status,
                 'activity_type_id' => $activityTypeId,
                 'search' => $search,
+                'per_page' => (string) $perPage,
             ],
         ]);
     }
@@ -431,5 +433,15 @@ class ActivityAdminController extends Controller
                 'attachments',
             ])
             ->first();
+    }
+
+    private function resolveDepartmentTaskPerPage(Request $request): int
+    {
+        $allowedPerPage = [10, 20, 50];
+        $requestedPerPage = $request->integer('per_page', 10);
+
+        return in_array($requestedPerPage, $allowedPerPage, true)
+            ? $requestedPerPage
+            : 10;
     }
 }

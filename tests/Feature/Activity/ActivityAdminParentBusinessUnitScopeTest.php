@@ -202,6 +202,7 @@ class ActivityAdminParentBusinessUnitScopeTest extends TestCase
             ->component('Activity/Admin/DepartmentDetail')
             ->where('department.id', $this->firstChildDepartment->id)
             ->where('stats.total', 1)
+            ->where('tasks.per_page', 10)
             ->where('tasks.data.0.id', $this->firstChildTask->id)
         );
     }

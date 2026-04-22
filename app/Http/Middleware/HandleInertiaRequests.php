@@ -19,11 +19,6 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'layouts.inertia';
 
     /**
-     * Cache TTL for navigation (15 minutes)
-     */
-    protected const NAVIGATION_CACHE_TTL = 900;
-
-    /**
      * Cache TTL for business units list (30 minutes)
      */
     protected const BUSINESS_UNITS_CACHE_TTL = 1800;
@@ -163,17 +158,19 @@ class HandleInertiaRequests extends Middleware
     /**
      * Get cached navigation for the user.
      */
+    /**
+     * Build navigation fresh on every request.
+     *
+     * Navigation depends on the user's current BU context, roles, and
+     * pivot flags which can change at any time (admin assignment, BU
+     * switch, role grant).  Caching caused stale sidebar menus that
+     * showed items the user could not access or hid items they could.
+     * The underlying query is lightweight (a few pivot flag checks),
+     * so the trade-off favours correctness over a marginal cache hit.
+     */
     protected function getCachedNavigation($user, ?int $businessUnitId): array
     {
-        if (! $user || ! $businessUnitId) {
-            return ['sections' => []];
-        }
-
-        $cacheKey = "nav:{$user->id}:{$businessUnitId}";
-
-        return Cache::remember($cacheKey, self::NAVIGATION_CACHE_TTL, function () use ($user, $businessUnitId) {
-            return $this->navigationService->buildMenuForUser($user, $businessUnitId);
-        });
+        return $this->navigationService->buildMenuForUser($user, $businessUnitId);
     }
 
     /**

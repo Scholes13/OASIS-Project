@@ -200,24 +200,47 @@ class NavigationTopManagementTest extends TestCase
     public function test_new_business_unit_assignment_invalidates_cached_navigation(): void
     {
         $navigationService = app(NavigationService::class);
-        $cacheKey = "nav:{$this->staffUser->id}:{$this->childBU->id}";
         /** @var UserBusinessUnit $assignment */
         $assignment = $this->staffUser->businessUnits()->firstOrFail();
 
-        Cache::put($cacheKey, ['sections' => []], 900);
+        // Before: staff user without activity admin flag
+        $navBefore = $navigationService->buildMenuForUser($this->staffUser->fresh(), $this->childBU->id);
+        $hadAdminBefore = $this->hasSectionItem($navBefore, 'Activity Tracking', 'Activity Admin');
 
+        // Grant activity admin
         $assignment->update([
             'is_activity_admin' => true,
         ]);
 
-        $this->assertNull(Cache::get($cacheKey), 'Navigation cache should be cleared when assignment changes.');
+        // After: navigation should immediately reflect the change
+        // (no stale cache — navigation is built fresh every request)
+        $navAfter = $navigationService->buildMenuForUser($this->staffUser->fresh(), $this->childBU->id);
 
-        $navigation = $navigationService->buildMenuForUser($this->staffUser->fresh(), $this->childBU->id);
-
+        $this->assertFalse($hadAdminBefore, 'Staff should not see Activity Admin before assignment.');
         $this->assertTrue(
-            $this->hasSection($navigation, 'Purchasing'),
-            'User should see navigation rebuilt after assignment cache invalidation.'
+            $this->hasSectionItem($navAfter, 'Activity Tracking', 'Activity Admin'),
+            'Staff should see Activity Admin immediately after assignment.'
         );
+    }
+
+    protected function hasSectionItem(array $navigation, string $sectionName, string $itemName): bool
+    {
+        foreach ($navigation['sections'] as $section) {
+            if ($section['name'] === $sectionName) {
+                foreach ($section['items'] as $item) {
+                    if ($item['name'] === $itemName) {
+                        return true;
+                    }
+                    foreach ($item['children'] ?? [] as $child) {
+                        if ($child['name'] === $itemName) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     protected function createCLevelUser(): User

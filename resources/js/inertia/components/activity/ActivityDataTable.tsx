@@ -42,6 +42,7 @@ import { openDownloadInSameTab } from "@/lib/download"
 import { cn } from "@/lib/utils"
 import { TaskDetailModal } from "./TaskDetailModal"
 import { showToast } from "../ui/toast"
+import { handleExecutionTimeGuidance } from "./quick-status-guidance"
 import type { Task, PaginatedData, PageProps, TaskStatus, TaskStats, TaskFilters } from "@/types"
 import { Popover, Transition, Portal } from "@headlessui/react"
 
@@ -491,7 +492,7 @@ const statusConfig: Record<string, {
     },
 }
 
-function StatusDropdown({ task, isReadOnly = false }: { task: Task; isReadOnly?: boolean }) {
+function StatusDropdown({ task, isReadOnly = false, onEditTask }: { task: Task; isReadOnly?: boolean; onEditTask?: (task: Task) => void }) {
     const [isUpdating, setIsUpdating] = React.useState(false)
     const buttonRef = React.useRef<HTMLButtonElement>(null)
     const [panelPosition, setPanelPosition] = React.useState({ top: 0, left: 0, openUpward: false })
@@ -515,7 +516,11 @@ function StatusDropdown({ task, isReadOnly = false }: { task: Task; isReadOnly?:
                     showToast.success("Status updated", `${task.task_title} → ${statusConfig[newStatus]?.label}`)
                     close()
                 },
-                onError: () => showToast.error("Failed to update status"),
+                onError: (errors) => {
+                    if (!handleExecutionTimeGuidance(task, errors, onEditTask, close)) {
+                        showToast.error("Failed to update status")
+                    }
+                },
                 onFinish: () => setIsUpdating(false),
             }
         )
@@ -1168,7 +1173,7 @@ export function ActivityDataTable({
                                     </div>
 
                                     <div onClick={(e) => e.stopPropagation()}>
-                                        <StatusDropdown task={task} isReadOnly={isReadOnly} />
+                                        <StatusDropdown task={task} isReadOnly={isReadOnly} onEditTask={onEditTask} />
                                     </div>
 
                                     <div className="flex justify-end pr-2">

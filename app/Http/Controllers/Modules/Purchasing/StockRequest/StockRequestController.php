@@ -666,17 +666,29 @@ class StockRequestController extends Controller
             return back()->with('error', 'Only rejected stock requests can be resubmitted.');
         }
 
-        // Reset workflow
+        // Reset all approval steps back to pending
+        $stockRequest->approvals()->update([
+            'status' => 'pending',
+            'notes' => null,
+            'responded_at' => null,
+            'email_sent' => false,
+            'email_sent_at' => null,
+        ]);
+
+        // Reset workflow status
         $stockRequest->update([
-            'status' => 'submitted',
+            'status' => 'in_approval',
             'submitted_at' => now(),
             'rejected_at' => null,
             'rejection_notes' => null,
         ]);
 
+        // Notify the first approver
+        $this->notifyFirstApprover($stockRequest);
+
         return redirect()
             ->route('stock-requests.show', $stockRequest)
-            ->with('success', "Stock request {$stockRequest->st_number} has been resubmitted.");
+            ->with('success', "Stock request {$stockRequest->st_number} has been resubmitted for approval.");
     }
 
     /**
@@ -706,14 +718,9 @@ class StockRequestController extends Controller
 
         try {
             $currentApproval->loadMissing('approver', 'stockRequest.user');
-            $currentApproval->approver?->notify(
-                new \App\Notifications\Purchasing\StockRequest\ApprovalRequested($currentApproval)
-            );
 
-            $currentApproval->update([
-                'email_sent' => true,
-                'email_sent_at' => now(),
-            ]);
+            app(\App\Services\Core\EmailNotificationService::class)
+                ->sendStApprovalRequested($currentApproval);
 
             return back()->with('success', 'Approval email has been resent to the current approver.');
         } catch (\Exception $e) {
@@ -1042,6 +1049,36 @@ class StockRequestController extends Controller
 
         // Update stock request status to in_approval
         $stockRequest->update(['status' => 'in_approval']);
+
+        // Send notification to the first approver
+        $this->notifyFirstApprover($stockRequest);
+    }
+
+    /**
+     * Send notification to the first pending approver of a stock request.
+     */
+    private function notifyFirstApprover(StockRequest $stockRequest): void
+    {
+        $firstApproval = $stockRequest->approvals()
+            ->where('status', 'pending')
+            ->orderBy('step_order')
+            ->first();
+
+        if (! $firstApproval || ! $firstApproval->approver) {
+            return;
+        }
+
+        $firstApproval->loadMissing('approver', 'stockRequest.user');
+
+        app(\App\Services\Core\EmailNotificationService::class)
+            ->sendStApprovalRequested($firstApproval);
+
+        Log::info('Stock request first approver notification sent', [
+            'st_number' => $stockRequest->st_number,
+            'approver_id' => $firstApproval->approver_id,
+            'approver_name' => $firstApproval->approver->name,
+            'step_order' => $firstApproval->step_order,
+        ]);
     }
 
     /**

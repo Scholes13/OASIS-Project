@@ -3,25 +3,17 @@
 namespace App\Http\Controllers\Modules\Purchasing;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
 
 class PurchasingController extends Controller
 {
     /**
-     * Display all PR and SR in current business unit (based on hierarchy)
+     * Display all PR and SR in current business unit (based on hierarchy).
+     *
+     * Redirects to the Inertia-powered All Purchase Requests page which
+     * already handles BU scoping, filtering, and pagination.
      */
-    public function allRequests()
+    public function allRequests(): \Illuminate\Http\RedirectResponse
     {
-        $user = Auth::user();
-        $currentBusinessUnitId = session('current_business_unit_id');
-
-        if (!$currentBusinessUnitId) {
-            return redirect()->route('purchasing.dashboard')
-                ->with('error', 'Please select a business unit first.');
-        }
-
-        $accessLevel = $user->getAccessLevel();
-
-        return view('purchasing.all-requests', compact('accessLevel'));
+        return redirect()->route('purchase-requests.all', request()->query());
     }
 }

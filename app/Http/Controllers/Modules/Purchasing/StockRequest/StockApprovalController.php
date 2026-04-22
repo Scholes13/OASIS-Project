@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Modules\Purchasing\StockRequest;
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
-use App\Notifications\Purchasing\StockRequest\ApprovalApproved;
-use App\Notifications\Purchasing\StockRequest\ApprovalRejected;
+use App\Services\Core\EmailNotificationService;
 use App\Services\Core\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -165,7 +164,8 @@ class StockApprovalController extends Controller
                 'rejection_notes' => $notes,
             ]);
 
-            $stockRequest->user?->notify(new ApprovalRejected($approval->fresh(['stockRequest', 'approver'])));
+            app(EmailNotificationService::class)
+                ->sendStApprovalRejected($approval->fresh(['stockRequest', 'approver']));
         } elseif ($action === 'approved') {
             // Check if all approvals are complete
             $pendingApprovals = $stockRequest->approvals()->where('status', 'pending')->count();
@@ -177,7 +177,8 @@ class StockApprovalController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                $stockRequest->user?->notify(new ApprovalApproved($stockRequest->fresh()));
+                app(EmailNotificationService::class)
+                    ->sendStApprovalApproved($stockRequest->fresh());
             } else {
                 // Assign next approval step
                 $nextApproval = $stockRequest->approvals()
@@ -204,14 +205,8 @@ class StockApprovalController extends Controller
     {
         try {
             if ($approval->approver && ! $approval->email_sent) {
-                $approval->approver->notify(
-                    new \App\Notifications\Purchasing\StockRequest\ApprovalRequested($approval)
-                );
-
-                $approval->update([
-                    'email_sent' => true,
-                    'email_sent_at' => now(),
-                ]);
+                app(EmailNotificationService::class)
+                    ->sendStApprovalRequested($approval);
 
                 Log::info('Stock request approval notification sent to next approver', [
                     'st_number' => $approval->stockRequest->st_number,

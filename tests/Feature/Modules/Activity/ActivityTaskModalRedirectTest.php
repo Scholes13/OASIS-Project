@@ -388,4 +388,88 @@ class ActivityTaskModalRedirectTest extends TestCase
         $this->assertStringContainsString('task='.$this->task->id, $location);
         $this->assertStringContainsString('modal=detail', $location);
     }
+
+    public function test_historical_task_can_start_from_quick_status_update(): void
+    {
+        $this->task->update([
+            'task_date' => now()->subDays(5)->toDateString(),
+            'status' => 'planned',
+            'started_at' => null,
+            'completed_at' => null,
+            'completed_by' => null,
+            'duration_minutes' => null,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->put(route('activity.task.update', $this->task), [
+                'status' => 'in_progress',
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $this->task->refresh();
+
+        $this->assertSame('in_progress', $this->task->status);
+        $this->assertNotNull($this->task->started_at);
+        $this->assertTrue($this->task->started_at->greaterThan(now()->subMinute()));
+    }
+
+    public function test_historical_task_can_complete_from_quick_status_update_when_started_at_exists(): void
+    {
+        $startedAt = now()->subHour();
+
+        $this->task->update([
+            'task_date' => now()->subDays(5)->toDateString(),
+            'status' => 'in_progress',
+            'started_at' => $startedAt,
+            'completed_at' => null,
+            'completed_by' => null,
+            'duration_minutes' => null,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->put(route('activity.task.update', $this->task), [
+                'status' => 'completed',
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $this->task->refresh();
+
+        $this->assertSame('completed', $this->task->status);
+        $this->assertNotNull($this->task->completed_at);
+        $this->assertSame($this->user->id, $this->task->completed_by);
+        $this->assertNotNull($this->task->duration_minutes);
+        $this->assertGreaterThan(0, $this->task->duration_minutes);
+    }
+
+    public function test_historical_task_direct_complete_still_requires_execution_time_confirmation(): void
+    {
+        $this->task->update([
+            'task_date' => now()->subDays(5)->toDateString(),
+            'status' => 'planned',
+            'started_at' => null,
+            'completed_at' => null,
+            'completed_by' => null,
+            'duration_minutes' => null,
+        ]);
+
+        $response = $this->from(route('activity.task.index'))
+            ->actingAs($this->user)
+            ->put(route('activity.task.update', $this->task), [
+                'status' => 'completed',
+            ]);
+
+        $response->assertSessionHasErrors([
+            'status' => 'Task uses a historical date. Please confirm actual execution time.',
+        ]);
+
+        $this->task->refresh();
+
+        $this->assertSame('planned', $this->task->status);
+        $this->assertNull($this->task->started_at);
+        $this->assertNull($this->task->completed_at);
+    }
 }

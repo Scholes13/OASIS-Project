@@ -158,11 +158,13 @@ php artisan serve
 composer dev
 
 # This starts:
-# - PHP development server (port 8000)
+# - PHP development server
 # - Queue worker
-# - Real-time log viewer
 # - Vite HMR server
+# - Real-time log viewer on non-Windows machines
 ```
+
+On Windows, `composer dev` now skips `php artisan pail` automatically because `laravel/pail` requires `pcntl`, which is not available in the standard XAMPP PHP build. The dev startup wrappers also clear stale `public/hot` files before startup and after shutdown so OpenCode and production-like environments do not keep pointing at a dead Vite server.
 
 ## Project Structure
 

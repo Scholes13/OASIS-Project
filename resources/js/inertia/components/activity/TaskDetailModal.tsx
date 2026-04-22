@@ -30,6 +30,7 @@ import { ConfirmDialog } from "../ui/ConfirmDialog"
 import { ActivityTypeBadge, PriorityBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
+import { handleExecutionTimeGuidance } from "./quick-status-guidance"
 import type { PageProps, Task } from "@/types"
 
 interface TaskDetailModalProps {
@@ -69,29 +70,6 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
         ? format(new Date(task.due_date), "EEEE, d MMMM yyyy", { locale: idLocale })
         : "-"
 
-    const handleHistoricalQuickAction = (errors: Record<string, string | string[]>) => {
-        if (!task) return false
-
-        const statusError = errors.status
-        const message = Array.isArray(statusError) ? statusError[0] : statusError
-
-        if (!message || !message.toLowerCase().includes('actual execution time')) {
-            return false
-        }
-
-        showToast.error(message)
-
-        if (onEdit) {
-            onEdit(task)
-        } else {
-            router.visit(route("activity.task.index", { task: task.id, modal: "edit" }))
-        }
-
-        onClose()
-
-        return true
-    }
-
     const handleStartTask = () => {
         if (!task) return
         setIsLoading(true)
@@ -105,7 +83,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                     onClose()
                 },
                 onError: (errors) => {
-                    if (!handleHistoricalQuickAction(errors)) {
+                    if (!handleExecutionTimeGuidance(task, errors, onEdit, onClose)) {
                         showToast.error("Failed to start task")
                     }
                 },
@@ -127,7 +105,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                     onClose()
                 },
                 onError: (errors) => {
-                    if (!handleHistoricalQuickAction(errors)) {
+                    if (!handleExecutionTimeGuidance(task, errors, onEdit, onClose)) {
                         showToast.error("Failed to complete task")
                     }
                 },

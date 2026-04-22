@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Support\ViteHotFileGuard;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->cleanupStaleViteHotFile();
+
         // Register PDF Layout Component
         Blade::component('pdf-layout', \App\View\Components\PdfLayout::class);
 
@@ -40,6 +44,21 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model observers
         $this->registerObservers();
+    }
+
+    protected function cleanupStaleViteHotFile(): void
+    {
+        $hotFilePath = public_path('hot');
+        $environment = (string) config('app.env');
+
+        if (! app(ViteHotFileGuard::class)->cleanup($environment, $hotFilePath)) {
+            return;
+        }
+
+        Log::warning('Removed stale Vite hot file outside local runtime.', [
+            'environment' => $environment,
+            'hot_file' => $hotFilePath,
+        ]);
     }
 
     /**

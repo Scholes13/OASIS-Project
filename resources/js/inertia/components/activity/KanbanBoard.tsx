@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { showToast } from "../ui/toast"
+import { handleExecutionTimeGuidance } from "./quick-status-guidance"
 import { TaskDetailModal } from "./TaskDetailModal"
 import type { Task, PageProps } from "@/types"
 
@@ -562,6 +563,8 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask, 
 
     // Handle column change - use originalStatus to detect actual change
     if (originalStatus && overColumn && originalStatus !== overColumn) {
+      const movedTask = tasks.find(task => task.id === activeId)
+
       if (onStatusChange) {
         onStatusChange(activeId, overColumn)
       } else {
@@ -573,9 +576,14 @@ export function KanbanBoard({ tasks, onStatusChange, onTaskClick, onCreateTask, 
             onSuccess: () => {
               showToast.success("Status updated", `Task moved to ${columns.find(c => c.id === overColumn)?.title}`)
             },
-            onError: () => {
+            onError: (errors) => {
               setLocalTasks(tasks)
-              showToast.error("Failed to update status")
+
+              if (movedTask && !handleExecutionTimeGuidance(movedTask, errors, onEditTask)) {
+                showToast.error("Failed to update status")
+              } else if (!movedTask) {
+                showToast.error("Failed to update status")
+              }
             },
           }
         )

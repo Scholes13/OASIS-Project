@@ -60,8 +60,7 @@ class ActivityAdminAssignmentController extends Controller
         $ubu = UserBusinessUnit::findOrFail($id);
         $ubu->update(['is_activity_admin' => ! $ubu->is_activity_admin]);
 
-        // Clear navigation cache for this user
-        cache()->forget("nav:{$ubu->user_id}:{$ubu->business_unit_id}");
+        // Clear business unit list cache for this user
         cache()->forget("bu_list:{$ubu->user_id}");
 
         $status = $ubu->is_activity_admin ? 'assigned as' : 'removed from';

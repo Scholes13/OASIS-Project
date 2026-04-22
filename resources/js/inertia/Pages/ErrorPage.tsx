@@ -30,7 +30,7 @@ function Illustration404() {
             </defs>
 
             {/* Background */}
-            <rect width="400" height="300" fill="url(#sky404)" rx="12" />
+            <rect width="400" height="300" fill="url(#sky404)" />
 
             {/* Ground / floor */}
             <ellipse cx="200" cy="260" rx="170" ry="20" fill="url(#ground404)" />
@@ -117,7 +117,7 @@ function Illustration403() {
                 </linearGradient>
             </defs>
 
-            <rect width="400" height="300" fill="url(#sky403)" rx="12" />
+            <rect width="400" height="300" fill="url(#sky403)" />
 
             {/* Ground */}
             <ellipse cx="200" cy="265" rx="180" ry="18" fill="#FED7AA" opacity="0.3" />
@@ -200,7 +200,7 @@ function Illustration500() {
                 </linearGradient>
             </defs>
 
-            <rect width="400" height="300" fill="url(#sky500)" rx="12" />
+            <rect width="400" height="300" fill="url(#sky500)" />
             <ellipse cx="200" cy="262" rx="170" ry="18" fill="#FECACA" opacity="0.2" />
 
             <text x="200" y="160" textAnchor="middle" fontSize="120" fontWeight="900" fill="#EF4444" opacity="0.05" fontFamily="system-ui, sans-serif">500</text>
@@ -294,7 +294,7 @@ function Illustration503() {
                 </linearGradient>
             </defs>
 
-            <rect width="400" height="300" fill="url(#sky503)" rx="12" />
+            <rect width="400" height="300" fill="url(#sky503)" />
             <ellipse cx="200" cy="262" rx="170" ry="18" fill="#E5E7EB" opacity="0.3" />
 
             <text x="200" y="160" textAnchor="middle" fontSize="120" fontWeight="900" fill="#6B7280" opacity="0.04" fontFamily="system-ui, sans-serif">503</text>
@@ -374,7 +374,7 @@ function Illustration419() {
                 </linearGradient>
             </defs>
 
-            <rect width="400" height="300" fill="url(#sky419)" rx="12" />
+            <rect width="400" height="300" fill="url(#sky419)" />
             <ellipse cx="200" cy="262" rx="170" ry="18" fill="#FDE68A" opacity="0.2" />
 
             <text x="200" y="160" textAnchor="middle" fontSize="120" fontWeight="900" fill="#D97706" opacity="0.05" fontFamily="system-ui, sans-serif">419</text>
@@ -534,75 +534,66 @@ export default function ErrorPage({ status, message }: ErrorPageProps) {
     return (
         <>
             <Head title={`${status} - ${config.title}`} />
-            <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4 py-8">
-                <div className="w-full max-w-lg">
-                    {/* Main Card */}
-                    <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-slate-200/60 ring-1 ring-slate-100">
-                        {/* Illustration Area */}
-                        <div className="flex justify-center px-6 pt-8 pb-2">
-                            <Illustration />
-                        </div>
-
-                        {/* Content */}
-                        <div className="px-8 pb-8 pt-4 text-center">
-                            <div className={`mb-1 text-xs font-bold uppercase tracking-[0.2em] ${config.accent} opacity-60`}>
-                                Error {status}
-                            </div>
-                            <h1 className="mb-3 text-2xl font-bold tracking-tight text-slate-900">
-                                {config.title}
-                            </h1>
-                            <p className="mx-auto mb-8 max-w-sm text-sm leading-relaxed text-slate-500">
-                                {message ?? config.description}
-                            </p>
-
-                            {/* Action Buttons */}
-                            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                                <button
-                                    onClick={() => window.history.back()}
-                                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
-                                >
-                                    <ArrowLeft className="h-4 w-4" />
-                                    Go Back
-                                </button>
-                                <button
-                                    onClick={() => router.visit('/dashboard')}
-                                    className={`inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.buttonBg} ${config.buttonHover} ${config.buttonRing}`}
-                                >
-                                    <Home className="h-4 w-4" />
-                                    Dashboard
-                                </button>
-                                {status === 419 && (
-                                    <button
-                                        onClick={() => (window.location.href = '/login')}
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
-                                    >
-                                        <LogIn className="h-4 w-4" />
-                                        Log In
-                                    </button>
-                                )}
-                                {status === 500 && (
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                        Retry
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-8 text-center">
-                        <p className="text-xs text-slate-400">
-                            If this problem persists, please contact{' '}
-                            <a href="/docs-help" className="text-slate-500 underline decoration-slate-300 underline-offset-2 transition-colors hover:text-slate-700">
-                                IT Support
-                            </a>
-                        </p>
-                    </div>
+            <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
+                {/* Illustration — floating directly on white, no frame */}
+                <div className="mb-6">
+                    <Illustration />
                 </div>
+
+                {/* Content — clean typography, no card */}
+                <div className={`mb-1 text-xs font-bold uppercase tracking-[0.2em] ${config.accent} opacity-50`}>
+                    Error {status}
+                </div>
+                <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-900">
+                    {config.title}
+                </h1>
+                <p className="mx-auto mb-10 max-w-md text-center text-sm leading-relaxed text-slate-400">
+                    {message ?? config.description}
+                </p>
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                        onClick={() => window.history.back()}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Go Back
+                    </button>
+                    <button
+                        onClick={() => router.visit('/dashboard')}
+                        className={`inline-flex items-center justify-center gap-2 rounded-full border border-transparent px-6 py-2.5 text-sm font-medium text-white transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.buttonBg} ${config.buttonHover} ${config.buttonRing}`}
+                    >
+                        <Home className="h-4 w-4" />
+                        Dashboard
+                    </button>
+                    {status === 419 && (
+                        <button
+                            onClick={() => (window.location.href = '/login')}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
+                        >
+                            <LogIn className="h-4 w-4" />
+                            Log In
+                        </button>
+                    )}
+                    {status === 500 && (
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            Retry
+                        </button>
+                    )}
+                </div>
+
+                {/* Footer — subtle, far below */}
+                <p className="mt-16 text-xs text-slate-300">
+                    If this problem persists, please contact{' '}
+                    <a href="/docs-help" className="text-slate-400 underline decoration-slate-200 underline-offset-2 transition-colors hover:text-slate-600">
+                        IT Support
+                    </a>
+                </p>
             </div>
         </>
     );

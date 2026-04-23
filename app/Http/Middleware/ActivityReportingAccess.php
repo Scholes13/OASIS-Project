@@ -32,6 +32,16 @@ class ActivityReportingAccess
             return $next($request);
         }
 
+        // Activity admin with report access toggle
+        $hasReportAccess = $user->activeBusinessUnits()
+            ->where('is_activity_admin', true)
+            ->where('is_activity_report_access', true)
+            ->exists();
+
+        if ($hasReportAccess) {
+            return $next($request);
+        }
+
         // Check if user has a management position
         $hasManagementAccess = $user->activeBusinessUnits()
             ->whereHas('position', function ($query) {

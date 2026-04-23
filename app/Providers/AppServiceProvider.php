@@ -145,7 +145,15 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            return $user->hasTopManagementAccess();
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            // Activity admin with report access toggle ON (same row must have both flags)
+            return $user->activeBusinessUnits()
+                ->where('is_activity_admin', true)
+                ->where('is_activity_report_access', true)
+                ->exists();
         });
 
         // View Department Analytics Gate - For department heads and above
@@ -180,15 +188,9 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            // Check if user is a purchasing admin in current BU
+            // Check if user is a purchasing admin in current BU or any ancestor BU
             if ($currentBuId) {
-                return $user->activeBusinessUnits()
-                    ->where('business_unit_id', $currentBuId)
-                    ->where('is_purchasing_admin', true)
-                    ->whereHas('department', function ($query) {
-                        $query->where('is_purchasing_department', true);
-                    })
-                    ->exists();
+                return $user->isAdminInBuOrAncestor('is_purchasing_admin', $currentBuId);
             }
 
             return false;

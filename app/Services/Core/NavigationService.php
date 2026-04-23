@@ -365,11 +365,7 @@ class NavigationService
             return true;
         }
 
-        return $user->businessUnits()
-            ->where('business_unit_id', $businessUnitId)
-            ->where('is_purchasing_admin', true)
-            ->whereHas('department', fn ($q) => $q->where('is_purchasing_department', true))
-            ->exists();
+        return $user->isAdminInBuOrAncestor('is_purchasing_admin', $businessUnitId);
     }
 
     /**
@@ -403,10 +399,7 @@ class NavigationService
             return true;
         }
 
-        return $user->activeBusinessUnits()
-            ->where('business_unit_id', $businessUnitId)
-            ->where('is_activity_admin', true)
-            ->exists();
+        return $user->isAdminInBuOrAncestor('is_activity_admin', $businessUnitId);
     }
 
     /**

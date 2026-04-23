@@ -403,6 +403,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::prefix('activity-admins')->name('activity-admins.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'index'])->name('index');
             Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
+            Route::post('/{id}/toggle-report', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
         });
 
         // Notification Settings (Super Admin Only)

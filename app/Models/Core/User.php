@@ -465,6 +465,62 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user has an admin flag in the given BU or any of its ancestor BUs.
+     *
+     * Enables top-down cascade: admin in parent BU = admin in all descendant BUs.
+     * Does NOT change user position or access level.
+     *
+     * Performance: 2 queries max — one for user's admin BU IDs, one for the
+     * target BU's ancestor chain. Ancestor walk is in-memory using a pre-loaded
+     * parent_id map to avoid N+1.
+     *
+     * @param  string  $flag  Column name: 'is_activity_admin' or 'is_purchasing_admin'
+     * @param  int  $buId  The business unit to check access for
+     */
+    public function isAdminInBuOrAncestor(string $flag, int $buId): bool
+    {
+        // Query 1: Get all BU IDs where user has this admin flag
+        $adminBuIds = $this->activeBusinessUnits()
+            ->where($flag, true)
+            ->pluck('business_unit_id')
+            ->toArray();
+
+        if (empty($adminBuIds)) {
+            return false;
+        }
+
+        // Direct match — no ancestor walk needed
+        if (in_array($buId, $adminBuIds, true)) {
+            return true;
+        }
+
+        // Query 2: Load all BUs as id=>parent_id map (cached per request via static)
+        static $buParentMap = null;
+        if ($buParentMap === null) {
+            $buParentMap = \App\Models\Core\BusinessUnit::pluck('parent_id', 'id')->toArray();
+        }
+
+        // Walk up ancestor chain entirely in-memory
+        $visited = [$buId];
+        $currentParentId = $buParentMap[$buId] ?? null;
+
+        while ($currentParentId) {
+            if (in_array($currentParentId, $visited, true)) {
+                break; // cycle detection
+            }
+            $visited[] = $currentParentId;
+
+            if (in_array($currentParentId, $adminBuIds, true)) {
+                return true;
+            }
+
+            $currentParentId = $buParentMap[$currentParentId] ?? null;
+        }
+
+        return false;
+    }
+
+    /**
      * Check if user can access department
      */
     public function canAccessDepartment($departmentId): bool

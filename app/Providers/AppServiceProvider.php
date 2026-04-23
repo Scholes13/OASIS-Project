@@ -32,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom([
             database_path('migrations'),
             database_path('migrations/modules/activity'),
+            database_path('migrations/modules/purchasing'),
             // database_path('migrations/modules/sales-crm'), // Temporarily disabled due to duplicate migrations
             database_path('migrations/modules/stock-request'),
         ]);
@@ -194,6 +195,33 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return false;
+        });
+
+        // View Purchasing Reports Gate - For purchasing admins with report access toggle
+        Gate::define('view-purchasing-reports', function ($user) {
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            // Parent BU manager-and-above
+            $hasManagerInParentBU = $user->activeBusinessUnits()
+                ->whereHas('businessUnit', fn ($q) => $q->whereNull('parent_id'))
+                ->whereHas('position', fn ($q) => $q->managerAndAbove())
+                ->exists();
+
+            if ($hasManagerInParentBU) {
+                return true;
+            }
+
+            // Purchasing admin with report access toggle ON (same row must have both flags)
+            return $user->activeBusinessUnits()
+                ->where('is_purchasing_admin', true)
+                ->where('is_purchasing_report_access', true)
+                ->exists();
         });
 
         // Access Cashflow Projection Gate - For department heads and finance/CFC users

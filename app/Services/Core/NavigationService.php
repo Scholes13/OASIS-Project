@@ -310,6 +310,13 @@ class NavigationService
             'active' => request()->routeIs('admin.activity-admins.*'),
         ];
 
+        $items[] = [
+            'name' => 'Purchasing Admin Assignment',
+            'href' => route('admin.purchasing-admins.index'),
+            'icon' => 'shopping-cart',
+            'active' => request()->routeIs('admin.purchasing-admins.*'),
+        ];
+
         return [
             'name' => 'Administration',
             'items' => $items,

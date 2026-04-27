@@ -241,3 +241,4 @@ export interface ActivityStat {
 export * from './purchasing';
 export * from './admin';
 export * from './notifications';
+export * from './ticket';

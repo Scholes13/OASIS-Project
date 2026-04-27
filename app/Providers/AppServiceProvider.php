@@ -35,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
             database_path('migrations/modules/purchasing'),
             // database_path('migrations/modules/sales-crm'), // Temporarily disabled due to duplicate migrations
             database_path('migrations/modules/stock-request'),
+            database_path('migrations/modules/ticket'),
         ]);
 
         // Configure dynamic SMTP settings from database

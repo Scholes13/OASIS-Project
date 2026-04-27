@@ -77,23 +77,27 @@ export default function TicketSlaSettings({ settings }: SlaSettingsProps) {
     };
 
     // Handle save using useForm from Inertia
-    const { post, processing } = useForm({
-        settings: {},
+    interface SlaSettingsFormData {
+        settings: Array<{ priority: string; resolution_hours: number }>;
+    }
+    const { put, setData, processing } = useForm<SlaSettingsFormData>({
+        settings: [],
     });
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
 
-        const settingsData = {
-            low: settingsForm.low,
-            medium: settingsForm.medium,
-            high: settingsForm.high,
-            critical: settingsForm.critical,
-        };
+        const settingsData = [
+            { priority: 'low', resolution_hours: settingsForm.low },
+            { priority: 'medium', resolution_hours: settingsForm.medium },
+            { priority: 'high', resolution_hours: settingsForm.high },
+            { priority: 'critical', resolution_hours: settingsForm.critical },
+        ] as const;
 
-        post(route('it-support.admin.sla-settings.update'), {
-            settings: settingsData,
+        setData('settings', [...settingsData]);
+
+        put(route('it-support.admin.sla-settings.update'), {
             onSuccess: () => {
                 toast.success('SLA settings saved successfully');
                 setIsSaving(false);

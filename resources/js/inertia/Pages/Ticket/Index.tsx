@@ -110,14 +110,14 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
     };
 
     const { post, setData, processing: isAssigning } = useForm({
-        assigned_user_id: 0,
+        assigned_to: 0,
     });
 
     const submitAssignment = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedTicketId || !assigneeId) return;
 
-        setData('assigned_user_id', parseInt(assigneeId));
+        setData('assigned_to', parseInt(assigneeId));
 
         post(route('it-support.admin.tickets.assign', { ticket: selectedTicketId }), {
             onSuccess: () => {

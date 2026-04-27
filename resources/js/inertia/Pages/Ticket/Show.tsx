@@ -55,16 +55,16 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
     });
 
     const { data: assignData, setData: setAssignData, post: assignTicket, processing: assignProcessing } = useForm<{
-        assigned_user_id: number | null;
+        assigned_to: number | null;
     }>({
-        assigned_user_id: ticket.assigned_user?.id ?? null,
+        assigned_to: ticket.assigned_user?.id ?? null,
     });
 
     const handleStatusChange = (e: React.FormEvent) => {
         e.preventDefault();
         setIsStatusChanging(false);
         
-        updateStatus(route('it-support.tickets.changeStatus', { ticket: ticket.id }), {
+        updateStatus(route('it-support.admin.tickets.changeStatus', { ticket: ticket.id }), {
             onSuccess: () => {
                 toast.success('Status ticket berhasil diperbarui');
             },
@@ -78,7 +78,7 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
         e.preventDefault();
         setIsAssigning(false);
         
-        assignTicket(route('it-support.tickets.assign', { ticket: ticket.id }), {
+        assignTicket(route('it-support.admin.tickets.assign', { ticket: ticket.id }), {
             onSuccess: () => {
                 toast.success('Ticket berhasil ditugaskan');
             },
@@ -205,6 +205,7 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                             <CommentSection
                                 comments={visibleComments}
                                 ticketId={ticket.id}
+                                commentRoute={route('it-support.admin.tickets.comment', { ticket: ticket.id })}
                                 canAddPrivateComment={isAdmin}
                             />
                         </motion.div>
@@ -327,8 +328,8 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                                 {isAssigning ? (
                                     <form onSubmit={handleAssignSubmit} className="space-y-3">
                                         <Select
-                                            value={assignData.assigned_user_id?.toString() || ''}
-                                            onChange={(value) => setAssignData('assigned_user_id', value ? parseInt(value.toString()) : null)}
+                                            value={assignData.assigned_to?.toString() || ''}
+                                            onChange={(value) => setAssignData('assigned_to', value ? parseInt(value.toString()) : null)}
                                             options={[
                                                 { value: '', label: 'Belum ditugaskan' },
                                                 ...staff.map(s => ({ value: s.id.toString(), label: s.name })),
@@ -344,7 +345,7 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                                                 size="sm"
                                                 onClick={() => {
                                                     setIsAssigning(false);
-                                                    setAssignData('assigned_user_id', ticket.assigned_user?.id ?? null);
+                                                    setAssignData('assigned_to', ticket.assigned_user?.id ?? null);
                                                 }}
                                             >
                                                 Batal
@@ -410,12 +411,12 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                                     Aksi Cepat
                                 </h3>
                                 <div className="space-y-2">
-                                    <Link
-                                        href={route('it-support.tickets.edit', { ticket: ticket.id })}
-                                        className="block w-full text-center px-4 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                                    >
-                                        Edit Tiket
-                                    </Link>
+<Link
+                                            href={route('it-support.admin.tickets.edit', { ticket: ticket.id })}
+                                            className="block w-full text-center px-4 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                                        >
+                                            Edit Tiket
+                                        </Link>
                                     {articles && articles.length > 0 && (
                                         <Link
                                             href={route('it-support.admin.knowledge.index')}

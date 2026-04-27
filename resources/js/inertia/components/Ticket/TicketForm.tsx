@@ -94,7 +94,7 @@ export function TicketForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        post(route('it-support.tickets.store'), {
+        post(route('it-support.submit.store'), {
             onSuccess: () => {
                 toast.success('Ticket berhasil dibuat');
                 onSuccess?.();

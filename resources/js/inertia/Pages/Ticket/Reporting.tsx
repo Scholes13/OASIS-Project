@@ -109,7 +109,8 @@ export default function TicketReporting({ reportData, filters }: ReportingProps)
     };
 
     const handleExport = (format: 'excel' | 'pdf') => {
-        const url = route('it-support.admin.export') + `?date_from=${dateFrom}&date_to=${dateTo}&format=${format}`;
+        const routeName = format === 'excel' ? 'it-support.admin.reporting.exportExcel' : 'it-support.admin.reporting.exportPdf';
+        const url = route(routeName) + `?date_from=${dateFrom}&date_to=${dateTo}`;
         window.location.href = url;
     };
 

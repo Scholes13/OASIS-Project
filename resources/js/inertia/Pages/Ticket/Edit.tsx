@@ -87,7 +87,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
         setCurrentStatus(statusVal);
         setStatusData('status', statusVal);
 
-        statusPost(route('it-support.admin.tickets.update-status', { ticket: ticket.id }), {
+        statusPost(route('it-support.admin.tickets.changeStatus', { ticket: ticket.id }), {
             onSuccess: () => {
                 toast.success('Status updated successfully');
             },
@@ -261,7 +261,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <CommentSection comments={ticket.comments} ticketId={ticket.id} />
+                                <CommentSection comments={ticket.comments} ticketId={ticket.id} commentRoute={route('it-support.admin.tickets.comment', { ticket: ticket.id })} />
                             </CardContent>
                         </Card>
 

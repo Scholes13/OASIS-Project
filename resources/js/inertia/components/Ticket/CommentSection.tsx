@@ -10,6 +10,7 @@ import type { TicketComment, TicketCommentFormData } from '@/types';
 interface CommentSectionProps {
     comments: TicketComment[];
     ticketId: number;
+    commentRoute: string;
     canAddPrivateComment?: boolean;
     onCommentAdded?: () => void;
     className?: string;
@@ -18,6 +19,7 @@ interface CommentSectionProps {
 export function CommentSection({
     comments,
     ticketId,
+    commentRoute,
     canAddPrivateComment = false,
     onCommentAdded,
     className,
@@ -38,7 +40,7 @@ export function CommentSection({
             return;
         }
 
-        post(route('it-support.tickets.comments.store', { ticket: ticketId }), {
+        post(commentRoute, {
             onSuccess: () => {
                 toast.success('Komentar berhasil ditambahkan');
                 reset();

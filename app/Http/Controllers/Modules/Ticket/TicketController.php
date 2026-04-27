@@ -8,6 +8,7 @@ use App\Http\Requests\Ticket\ChangeTicketStatusRequest;
 use App\Http\Requests\Ticket\StoreTicketCommentRequest;
 use App\Http\Requests\Ticket\UpdateTicketRequest;
 use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Ticket\KnowledgeArticle;
@@ -35,12 +36,14 @@ class TicketController extends Controller
     {
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
 
+        $assignedTo = $request->get('assigned_user_id', $request->get('assigned_to', ''));
+
         $filters = [
             'search' => $request->get('search', ''),
             'status' => $request->get('status', ''),
             'priority' => $request->get('priority', ''),
             'category_id' => $request->get('category_id', ''),
-            'assigned_to' => $request->get('assigned_to', ''),
+            'assigned_user_id' => $assignedTo,
         ];
 
         $query = Ticket::forBusinessUnits($scopedBuIds)
@@ -66,8 +69,8 @@ class TicketController extends Controller
             $query->where('category_id', $filters['category_id']);
         }
 
-        if ($filters['assigned_to']) {
-            $query->where('assigned_to', $filters['assigned_to']);
+        if ($assignedTo) {
+            $query->where('assigned_to', $assignedTo);
         }
 
         $tickets = $query->latest()
@@ -136,7 +139,7 @@ class TicketController extends Controller
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
         abort_unless(in_array((int) $ticket->business_unit_id, $scopedBuIds, true), 403);
 
-        $ticket->load(['category', 'assignedUser', 'requester', 'department']);
+        $ticket->load(['category', 'assignedUser', 'requester', 'department', 'comments.user', 'attachments']);
 
         $categories = TicketCategory::whereIn('business_unit_id', $scopedBuIds)
             ->where('is_active', true)
@@ -145,10 +148,16 @@ class TicketController extends Controller
 
         $staff = $this->getItSupportStaff($scopedBuIds);
 
+        $departments = Department::whereIn('business_unit_id', $scopedBuIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('Ticket/Edit', [
             'ticket' => $ticket,
             'categories' => $categories,
             'staff' => $staff,
+            'departments' => $departments,
         ]);
     }
 
@@ -165,7 +174,7 @@ class TicketController extends Controller
         try {
             $this->ticketService->updateTicket($ticket, $request->validated());
 
-            return redirect()->route('it-support.tickets.show', $ticket)
+            return redirect()->route('it-support.admin.tickets.show', $ticket)
                 ->with('success', 'Ticket berhasil diperbarui.');
         } catch (\Exception $e) {
             Log::error('Failed to update ticket', [
@@ -197,7 +206,7 @@ class TicketController extends Controller
         $ticket->knowledgeArticles()->detach();
         $ticket->delete();
 
-        return redirect()->route('it-support.tickets.index')
+        return redirect()->route('it-support.admin.tickets.index')
             ->with('success', 'Ticket berhasil dihapus.');
     }
 

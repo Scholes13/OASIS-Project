@@ -88,6 +88,7 @@ class UserTicketController extends Controller
         $filters = [
             'search' => $request->get('search', ''),
             'status' => $request->get('status', ''),
+            'priority' => $request->get('priority', ''),
         ];
 
         $query = Ticket::where('requester_id', $user->id)
@@ -104,6 +105,10 @@ class UserTicketController extends Controller
 
         if ($filters['status']) {
             $query->where('status', $filters['status']);
+        }
+
+        if ($filters['priority']) {
+            $query->where('priority', $filters['priority']);
         }
 
         $tickets = $query->latest()

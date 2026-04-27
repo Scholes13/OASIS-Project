@@ -146,11 +146,12 @@ class TicketService
             || $assignee->businessUnits()
                 ->where('business_unit_id', $ticket->business_unit_id)
                 ->where('is_active', true)
+                ->where('is_it_support_admin', true)
                 ->exists();
 
         if (! $hasAccess) {
             throw new Exception(
-                'User does not have IT Support access in this business unit.'
+                'User is not an IT Support admin in this business unit.'
             );
         }
 
@@ -228,28 +229,36 @@ class TicketService
         $byStatus = $tickets->groupBy('status')->map->count();
         $byPriority = $tickets->groupBy('priority')->map->count();
 
-        // By category
-        $byCategory = $tickets->groupBy('category_id')
-            ->map(function ($group) {
-                $first = $group->first();
-
-                return [
-                    'category_id' => $first->category_id,
-                    'count' => $group->count(),
-                ];
-            })
+        // By category — frontend expects {name, count, color}
+        $byCategory = Ticket::forBusinessUnits($buIds)
+            ->select('category_id', DB::raw('count(*) as count'))
+            ->whereNotNull('category_id')
+            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo.' 23:59:59'))
+            ->groupBy('category_id')
+            ->with('category:id,name,color')
+            ->get()
+            ->map(fn ($item) => [
+                'name' => $item->category?->name ?? 'Uncategorized',
+                'count' => $item->count,
+                'color' => $item->category?->color ?? '#6b7280',
+            ])
             ->values()
             ->all();
 
-        // By assigned staff
-        $byStaff = $tickets->whereNotNull('assigned_to')
+        // By assigned staff — frontend expects {name, count}
+        $byStaff = Ticket::forBusinessUnits($buIds)
+            ->select('assigned_to', DB::raw('count(*) as count'))
+            ->whereNotNull('assigned_to')
+            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo.' 23:59:59'))
             ->groupBy('assigned_to')
-            ->map(function ($group) {
-                return [
-                    'user_id' => $group->first()->assigned_to,
-                    'count' => $group->count(),
-                ];
-            })
+            ->with('assignedUser:id,name')
+            ->get()
+            ->map(fn ($item) => [
+                'name' => $item->assignedUser?->name ?? 'Unassigned',
+                'count' => $item->count,
+            ])
             ->values()
             ->all();
 

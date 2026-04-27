@@ -137,7 +137,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
             accessorKey: 'ticket_number',
             header: 'Ticket Number',
             cell: ({ row }) => (
-                <Link href={route('it-support.admin.tickets.edit', { ticket: row.original.id })}>
+                <Link href={route('it-support.admin.tickets.show', { ticket: row.original.id })}>
                     <span className="font-medium text-primary hover:underline">
                         {row.original.ticket_number}
                     </span>
@@ -213,7 +213,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => window.location.href = route('it-support.admin.tickets.edit', { ticket: row.original.id })}>
+                        <DropdownMenuItem onClick={() => window.location.href = route('it-support.admin.tickets.show', { ticket: row.original.id })}>
                             <Eye className="w-4 h-4 mr-2" />
                             View
                         </DropdownMenuItem>

@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Modules\Ticket;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\StoreTicketCommentRequest;
 use App\Http\Requests\Ticket\StoreTicketRequest;
+use App\Models\Core\User;
 use App\Models\Modules\Ticket\Ticket;
 use App\Models\Modules\Ticket\TicketCategory;
+use App\Notifications\Ticket\TicketCreatedNotification;
 use App\Services\Modules\Ticket\KnowledgeBaseService;
 use App\Services\Modules\Ticket\TicketService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -59,7 +62,14 @@ class UserTicketController extends Controller
             }
         }
 
-        // TODO: dispatch TicketCreatedNotification (Task 11)
+        // Notify all IT Support admins in this BU
+        $itSupportAdmins = User::whereHas('businessUnits', function ($q) use ($buId) {
+            $q->where('business_unit_id', $buId)
+                ->where('is_active', true)
+                ->where('is_it_support_admin', true);
+        })->get();
+
+        Notification::send($itSupportAdmins, new TicketCreatedNotification($ticket, $user));
 
         return redirect()->route('it-support.my-tickets')
             ->with('success', "Ticket {$ticket->ticket_number} berhasil dibuat.");

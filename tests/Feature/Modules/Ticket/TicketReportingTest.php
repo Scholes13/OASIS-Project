@@ -137,13 +137,13 @@ class TicketReportingTest extends TestCase
             $to
         );
 
-        // Convert to keyed array for easier assertion
-        $byStatus = collect($metrics)->pluck('count', 'status');
+        // Convert to keyed array for easier assertion — new shape: {name, value, color}
+        $byStatus = collect($metrics)->pluck('value', 'name');
 
-        $this->assertSame(2, $byStatus->get('waiting'));
-        $this->assertSame(1, $byStatus->get('in_progress'));
-        $this->assertSame(1, $byStatus->get('done'));
-        $this->assertSame(1, $byStatus->get('cancelled'));
+        $this->assertSame(2, $byStatus->get('Menunggu'));
+        $this->assertSame(1, $byStatus->get('Dalam Proses'));
+        $this->assertSame(1, $byStatus->get('Done'));
+        $this->assertSame(1, $byStatus->get('Dibatalkan'));
     }
 
     #[Test]
@@ -218,7 +218,7 @@ class TicketReportingTest extends TestCase
             $to
         );
 
-        $totalCount = collect($metrics)->sum('count');
+        $totalCount = collect($metrics)->sum('value');
         $this->assertSame(2, $totalCount);
 
         // Report for other BU only
@@ -228,7 +228,7 @@ class TicketReportingTest extends TestCase
             $to
         );
 
-        $otherTotalCount = collect($otherMetrics)->sum('count');
+        $otherTotalCount = collect($otherMetrics)->sum('value');
         $this->assertSame(1, $otherTotalCount);
     }
 }

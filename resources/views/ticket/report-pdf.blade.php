@@ -215,7 +215,8 @@
     @php
         $byStatus = collect($reportData['by_status']);
         $byPriority = collect($reportData['by_priority']);
-        $totalTickets = $byStatus->sum('count');
+        $totalTickets = $reportData['total_tickets'];
+        $resolvedTickets = $reportData['resolved_tickets'];
     @endphp
 
     <div class="summary-grid">
@@ -224,15 +225,15 @@
             <div class="card-label">Total Tickets</div>
         </div>
         <div class="summary-card">
-            <div class="card-value">{{ $byStatus->firstWhere('status', 'done')['count'] ?? 0 }}</div>
+            <div class="card-value">{{ $resolvedTickets }}</div>
             <div class="card-label">Resolved</div>
         </div>
         <div class="summary-card">
-            <div class="card-value">{{ $byStatus->firstWhere('status', 'in_progress')['count'] ?? 0 }}</div>
+            <div class="card-value">{{ $byStatus->firstWhere('name', 'Dalam Proses')['value'] ?? 0 }}</div>
             <div class="card-label">In Progress</div>
         </div>
         <div class="summary-card">
-            <div class="card-value">{{ number_format($reportData['avg_resolution_time'], 1) }}h</div>
+            <div class="card-value">{{ number_format($reportData['avg_resolution_hours'], 1) }}h</div>
             <div class="card-label">Avg Resolution</div>
         </div>
     </div>
@@ -249,11 +250,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (['waiting', 'in_progress', 'done', 'cancelled'] as $status)
-                        @php $count = $byStatus->firstWhere('status', $status)['count'] ?? 0; @endphp
+                    @foreach ($byStatus as $statusItem)
                         <tr>
-                            <td><span class="badge badge-{{ $status }}">{{ ucfirst(str_replace('_', ' ', $status)) }}</span></td>
-                            <td class="text-right">{{ $count }}</td>
+                            <td>{{ $statusItem['name'] }}</td>
+                            <td class="text-right">{{ $statusItem['value'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -270,11 +270,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (['low', 'medium', 'high', 'critical'] as $priority)
-                        @php $count = $byPriority->firstWhere('priority', $priority)['count'] ?? 0; @endphp
+                    @foreach ($byPriority as $priorityItem)
                         <tr>
-                            <td><span class="badge badge-{{ $priority }}">{{ ucfirst($priority) }}</span></td>
-                            <td class="text-right">{{ $count }}</td>
+                            <td>{{ $priorityItem['name'] }}</td>
+                            <td class="text-right">{{ $priorityItem['count'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -283,7 +282,7 @@
     </div>
 
     <div class="avg-resolution">
-        Average Resolution Time: <strong>{{ number_format($reportData['avg_resolution_time'], 2) }} hours</strong>
+        Average Resolution Time: <strong>{{ number_format($reportData['avg_resolution_hours'], 2) }} hours</strong>
     </div>
 
     {{-- Ticket List --}}

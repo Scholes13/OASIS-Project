@@ -424,7 +424,7 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                                         metrics.recent_tickets.slice(0, 10).map((ticket) => (
                                             <tr key={ticket.id} className="border-b border-gray-100 hover:bg-gray-50/80">
                                                 <td className="px-5 py-4 text-sm font-medium text-primary">
-                                                    <Link href={route('it-support.admin.tickets.edit', { ticket: ticket.id })}>
+                                                    <Link href={route('it-support.admin.tickets.show', { ticket: ticket.id })}>
                                                         {ticket.ticket_number}
                                                     </Link>
                                                 </td>

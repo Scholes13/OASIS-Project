@@ -22,66 +22,114 @@ class TicketReportingService
     ): array {
         [$from, $to] = $this->resolveDateRange($period, $dateFrom, $dateTo);
 
+        $byStatus = $this->getMetricsByStatus($buIds, $from, $to);
+        $byStatusCollection = collect($byStatus);
+
+        $totalTickets = $byStatusCollection->sum('value');
+        $resolvedTickets = $byStatusCollection->firstWhere('name', 'Done')['value'] ?? 0;
+
         return [
             'period' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
                 'label' => $period,
             ],
-            'by_status' => $this->getMetricsByStatus($buIds, $from, $to),
+            'total_tickets' => $totalTickets,
+            'resolved_tickets' => $resolvedTickets,
+            'avg_resolution_hours' => $this->getAvgResolutionTime($buIds, $from, $to),
+            'by_status' => $byStatus,
             'by_priority' => $this->getMetricsByPriority($buIds, $from, $to),
             'by_category' => $this->getMetricsByCategory($buIds, $from, $to),
             'by_staff' => $this->getMetricsByStaff($buIds, $from, $to),
-            'avg_resolution_time' => $this->getAvgResolutionTime($buIds, $from, $to),
-            'trend' => $this->getTicketTrend($buIds, $from, $to),
+            'daily_trend' => $this->getTicketTrend($buIds, $from, $to),
         ];
     }
+
+    /**
+     * Status display names and colors for chart rendering.
+     */
+    private const STATUS_META = [
+        'waiting' => ['name' => 'Menunggu', 'color' => '#f59e0b'],
+        'in_progress' => ['name' => 'Dalam Proses', 'color' => '#3b82f6'],
+        'done' => ['name' => 'Done', 'color' => '#10b981'],
+        'cancelled' => ['name' => 'Dibatalkan', 'color' => '#6b7280'],
+    ];
+
+    /**
+     * Priority display names and colors for chart rendering.
+     */
+    private const PRIORITY_META = [
+        'low' => ['name' => 'Rendah', 'color' => '#94a3b8'],
+        'medium' => ['name' => 'Sedang', 'color' => '#3b82f6'],
+        'high' => ['name' => 'Tinggi', 'color' => '#f59e0b'],
+        'critical' => ['name' => 'Kritis', 'color' => '#ef4444'],
+    ];
 
     /**
      * Get ticket counts grouped by status.
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{status: string, count: int}>
+     * @return array<int, array{name: string, value: int, color: string}>
      */
     public function getMetricsByStatus(array $buIds, Carbon $from, Carbon $to): array
     {
-        return Ticket::forBusinessUnits($buIds)
+        $results = Ticket::forBusinessUnits($buIds)
             ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
             ->select('status', DB::raw('COUNT(*) as count'))
             ->groupBy('status')
             ->get()
-            ->map(fn ($row): array => [
-                'status' => $row->status,
-                'count' => (int) $row->count,
-            ])
-            ->all();
+            ->keyBy('status');
+
+        $output = [];
+
+        foreach (self::STATUS_META as $status => $meta) {
+            $count = (int) ($results->get($status)?->count ?? 0);
+
+            if ($count > 0) {
+                $output[] = [
+                    'name' => $meta['name'],
+                    'value' => $count,
+                    'color' => $meta['color'],
+                ];
+            }
+        }
+
+        return $output;
     }
 
     /**
      * Get ticket counts grouped by priority.
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{priority: string, count: int}>
+     * @return array<int, array{name: string, count: int, color: string}>
      */
     public function getMetricsByPriority(array $buIds, Carbon $from, Carbon $to): array
     {
-        return Ticket::forBusinessUnits($buIds)
+        $results = Ticket::forBusinessUnits($buIds)
             ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
             ->select('priority', DB::raw('COUNT(*) as count'))
             ->groupBy('priority')
             ->get()
-            ->map(fn ($row): array => [
-                'priority' => $row->priority,
-                'count' => (int) $row->count,
-            ])
-            ->all();
+            ->keyBy('priority');
+
+        $output = [];
+
+        foreach (self::PRIORITY_META as $priority => $meta) {
+            $output[] = [
+                'name' => $meta['name'],
+                'count' => (int) ($results->get($priority)?->count ?? 0),
+                'color' => $meta['color'],
+            ];
+        }
+
+        return $output;
     }
 
     /**
      * Get ticket counts grouped by category.
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{category_id: int|null, category_name: string, count: int}>
+     * @return array<int, array{name: string, count: int, color: string}>
      */
     public function getMetricsByCategory(array $buIds, Carbon $from, Carbon $to): array
     {
@@ -90,15 +138,16 @@ class TicketReportingService
             ->leftJoin('ticket_categories', 'tickets.category_id', '=', 'ticket_categories.id')
             ->select(
                 'tickets.category_id',
-                DB::raw("COALESCE(ticket_categories.name, 'Uncategorized') as category_name"),
+                DB::raw("COALESCE(ticket_categories.name, 'Uncategorized') as name"),
+                DB::raw("COALESCE(ticket_categories.color, '#6b7280') as color"),
                 DB::raw('COUNT(*) as count')
             )
-            ->groupBy('tickets.category_id', 'ticket_categories.name')
+            ->groupBy('tickets.category_id', 'ticket_categories.name', 'ticket_categories.color')
             ->get()
             ->map(fn ($row): array => [
-                'category_id' => $row->category_id,
-                'category_name' => $row->category_name,
+                'name' => $row->name,
                 'count' => (int) $row->count,
+                'color' => $row->color,
             ])
             ->all();
     }
@@ -107,24 +156,25 @@ class TicketReportingService
      * Get ticket counts grouped by assigned staff.
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{user_id: int|null, user_name: string, count: int}>
+     * @return array<int, array{name: string, count: int, color: string}>
      */
     public function getMetricsByStaff(array $buIds, Carbon $from, Carbon $to): array
     {
         return Ticket::forBusinessUnits($buIds)
             ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
+            ->whereNotNull('assigned_to')
             ->leftJoin('users', 'tickets.assigned_to', '=', 'users.id')
             ->select(
-                'tickets.assigned_to as user_id',
-                DB::raw("COALESCE(users.name, 'Unassigned') as user_name"),
+                'tickets.assigned_to',
+                DB::raw("COALESCE(users.name, 'Unassigned') as name"),
                 DB::raw('COUNT(*) as count')
             )
             ->groupBy('tickets.assigned_to', 'users.name')
             ->get()
             ->map(fn ($row): array => [
-                'user_id' => $row->user_id,
-                'user_name' => $row->user_name,
+                'name' => $row->name,
                 'count' => (int) $row->count,
+                'color' => '#6366f1',
             ])
             ->all();
     }
@@ -157,7 +207,7 @@ class TicketReportingService
      * Get ticket creation trend (daily or weekly counts).
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{date: string, count: int}>
+     * @return array<int, array{date: string, total: int, resolved: int}>
      */
     public function getTicketTrend(array $buIds, Carbon $from, Carbon $to): array
     {
@@ -225,16 +275,20 @@ class TicketReportingService
     }
 
     /**
-     * Get daily ticket creation trend.
+     * Get daily ticket creation trend with total and resolved counts.
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{date: string, count: int}>
+     * @return array<int, array{date: string, total: int, resolved: int}>
      */
     protected function getDailyTrend(array $buIds, Carbon $from, Carbon $to): array
     {
         $results = Ticket::forBusinessUnits($buIds)
             ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
-            ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('COUNT(*) as total'),
+                DB::raw("SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as resolved")
+            )
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get();
@@ -249,7 +303,8 @@ class TicketReportingService
 
             $trend[] = [
                 'date' => $dateStr,
-                'count' => $found ? (int) $found->count : 0,
+                'total' => $found ? (int) $found->total : 0,
+                'resolved' => $found ? (int) $found->resolved : 0,
             ];
 
             $current->addDay();
@@ -259,10 +314,10 @@ class TicketReportingService
     }
 
     /**
-     * Get weekly ticket creation trend.
+     * Get weekly ticket creation trend with total and resolved counts.
      *
      * @param  array<int>  $buIds
-     * @return array<int, array{date: string, count: int}>
+     * @return array<int, array{date: string, total: int, resolved: int}>
      */
     protected function getWeeklyTrend(array $buIds, Carbon $from, Carbon $to): array
     {
@@ -271,7 +326,8 @@ class TicketReportingService
             ->select(
                 DB::raw('YEARWEEK(created_at, 1) as year_week'),
                 DB::raw('MIN(DATE(created_at)) as week_start'),
-                DB::raw('COUNT(*) as count')
+                DB::raw('COUNT(*) as total'),
+                DB::raw("SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as resolved")
             )
             ->groupBy(DB::raw('YEARWEEK(created_at, 1)'))
             ->orderBy('year_week')
@@ -279,7 +335,8 @@ class TicketReportingService
 
         return $results->map(fn ($row): array => [
             'date' => $row->week_start,
-            'count' => (int) $row->count,
+            'total' => (int) $row->total,
+            'resolved' => (int) $row->resolved,
         ])->all();
     }
 }

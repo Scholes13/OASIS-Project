@@ -131,11 +131,11 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                 {/* Back Navigation */}
                 <div className="mb-6">
                     <Link
-                        href={route('it-support.my-tickets')}
+                        href={isAdmin ? route('it-support.admin.tickets.index') : route('it-support.my-tickets')}
                         className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Kembali ke Tiket Saya
+                        {isAdmin ? 'Kembali ke Semua Tiket' : 'Kembali ke Tiket Saya'}
                     </Link>
                 </div>
 
@@ -205,7 +205,9 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                             <CommentSection
                                 comments={visibleComments}
                                 ticketId={ticket.id}
-                                commentRoute={route('it-support.admin.tickets.comment', { ticket: ticket.id })}
+                                commentRoute={isAdmin
+                                    ? route('it-support.admin.tickets.comment', { ticket: ticket.id })
+                                    : route('it-support.my-tickets.comment', { ticket: ticket.id })}
                                 canAddPrivateComment={isAdmin}
                             />
                         </motion.div>

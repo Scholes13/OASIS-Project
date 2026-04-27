@@ -11,7 +11,7 @@ use Inertia\Response;
 
 class NotificationCenterController extends Controller
 {
-    public const NOTIFICATION_CATEGORIES = ['activity', 'purchasing', 'backdate', 'system'];
+    public const NOTIFICATION_CATEGORIES = ['activity', 'purchasing', 'backdate', 'system', 'it_support'];
 
     public function index(Request $request): Response
     {

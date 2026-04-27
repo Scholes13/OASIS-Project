@@ -58,7 +58,7 @@ class TicketCategoryController extends Controller
             'is_active' => $request->validated()['is_active'] ?? true,
         ]);
 
-        return redirect()->route('it-support.categories.index')
+        return redirect()->route('it-support.admin.categories.index')
             ->with('success', 'Kategori berhasil dibuat.');
     }
 
@@ -89,7 +89,7 @@ class TicketCategoryController extends Controller
 
         $category->update($request->validated());
 
-        return redirect()->route('it-support.categories.index')
+        return redirect()->route('it-support.admin.categories.index')
             ->with('success', 'Kategori berhasil diperbarui.');
     }
 
@@ -110,7 +110,7 @@ class TicketCategoryController extends Controller
 
         $category->delete();
 
-        return redirect()->route('it-support.categories.index')
+        return redirect()->route('it-support.admin.categories.index')
             ->with('success', 'Kategori berhasil dihapus.');
     }
 

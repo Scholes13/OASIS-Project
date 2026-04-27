@@ -39,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'purchasing.admin.access' => \App\Http\Middleware\PurchasingAdminAccess::class,
             'activity.reporting.access' => \App\Http\Middleware\ActivityReportingAccess::class,
             'activity.admin.access' => \App\Http\Middleware\ActivityAdminAccess::class,
+            'it.support.access' => \App\Http\Middleware\ITSupportAccess::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

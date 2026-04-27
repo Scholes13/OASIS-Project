@@ -225,6 +225,38 @@ class AppServiceProvider extends ServiceProvider
                 ->exists();
         });
 
+        // Access IT Support Gate - For IT support admins, super admin, and top management
+        Gate::define('access-it-support', function ($user) {
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            $currentBuId = session('current_business_unit_id');
+
+            return $currentBuId && $user->isAdminInBuOrAncestor('is_it_support_admin', $currentBuId);
+        });
+
+        // View IT Support Reports Gate - For IT support admins with report access toggle
+        Gate::define('view-it-support-reports', function ($user) {
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            // IT support admin with report access toggle ON (same row must have both flags)
+            return $user->activeBusinessUnits()
+                ->where('is_it_support_admin', true)
+                ->where('is_it_support_report_access', true)
+                ->exists();
+        });
+
         // Access Cashflow Projection Gate - For department heads and finance/CFC users
         Gate::define('access-cashflow-projection', function ($user) {
             $currentBuId = session('current_business_unit_id');

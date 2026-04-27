@@ -696,26 +696,109 @@ section "12. SUPERVISOR (Queue Worker & Scheduler)"
 # =============================================================================
 
 SUPERVISOR_FOUND=false
+SUPERVISORD_BIN=""
+SUPERVISORCTL_BIN=""
 
-# Detect Supervisor via process or command
-if pgrep -x supervisord &> /dev/null; then
-    SUPERVISOR_FOUND=true
-    check_pass "Supervisor process is running"
-elif command -v supervisord &> /dev/null; then
-    SUPERVISOR_FOUND=true
-    SUP_VER=$(supervisord --version 2>/dev/null)
-    check_warn "Supervisor v${SUP_VER} installed but NOT running"
-    echo -e "    ${INFO} Start: supervisorctl start all (atau minta admin)"
-    need_admin "Start Supervisor service"
-elif command -v supervisorctl &> /dev/null; then
-    SUPERVISOR_FOUND=true
-    check_warn "supervisorctl found but supervisord not detected"
+# --- Find supervisord binary ---
+# 1. Check PATH
+if command -v supervisord &> /dev/null; then
+    SUPERVISORD_BIN=$(command -v supervisord)
+elif command -v supervisord3 &> /dev/null; then
+    SUPERVISORD_BIN=$(command -v supervisord3)
 fi
 
+# 2. Check common install locations if not in PATH
+if [ -z "$SUPERVISORD_BIN" ]; then
+    for path in \
+        /usr/bin/supervisord \
+        /usr/local/bin/supervisord \
+        /usr/sbin/supervisord \
+        /opt/cpanel/ea-php*/root/usr/bin/supervisord \
+        /usr/local/sbin/supervisord \
+        /home/*/bin/supervisord \
+        ~/.local/bin/supervisord; do
+        # Expand glob
+        for expanded in $path; do
+            if [ -x "$expanded" ] 2>/dev/null; then
+                SUPERVISORD_BIN="$expanded"
+                break 2
+            fi
+        done
+    done
+fi
+
+# --- Find supervisorctl binary ---
+if command -v supervisorctl &> /dev/null; then
+    SUPERVISORCTL_BIN=$(command -v supervisorctl)
+elif command -v supervisorctl3 &> /dev/null; then
+    SUPERVISORCTL_BIN=$(command -v supervisorctl3)
+fi
+
+if [ -z "$SUPERVISORCTL_BIN" ]; then
+    for path in \
+        /usr/bin/supervisorctl \
+        /usr/local/bin/supervisorctl \
+        /usr/sbin/supervisorctl \
+        /opt/cpanel/ea-php*/root/usr/bin/supervisorctl \
+        /usr/local/sbin/supervisorctl \
+        /home/*/bin/supervisorctl \
+        ~/.local/bin/supervisorctl; do
+        for expanded in $path; do
+            if [ -x "$expanded" ] 2>/dev/null; then
+                SUPERVISORCTL_BIN="$expanded"
+                break 2
+            fi
+        done
+    done
+fi
+
+# --- Detect running process ---
+SUP_RUNNING=false
+if pgrep -x supervisord &> /dev/null || pgrep -f "supervisord" &> /dev/null; then
+    SUP_RUNNING=true
+fi
+
+# --- Report findings ---
+if [ "$SUP_RUNNING" = true ]; then
+    SUPERVISOR_FOUND=true
+    check_pass "Supervisor process is running"
+    if [ -n "$SUPERVISORD_BIN" ]; then
+        echo -e "    ${INFO} Binary: ${SUPERVISORD_BIN}"
+    else
+        # Process running but binary not found in known paths — find it
+        SUP_PID=$(pgrep -x supervisord 2>/dev/null || pgrep -f "supervisord" 2>/dev/null | head -1)
+        if [ -n "$SUP_PID" ]; then
+            SUP_EXE=$(readlink -f /proc/$SUP_PID/exe 2>/dev/null)
+            if [ -n "$SUP_EXE" ]; then
+                SUPERVISORD_BIN="$SUP_EXE"
+                echo -e "    ${INFO} Binary (from process): ${SUP_EXE}"
+            fi
+        fi
+    fi
+elif [ -n "$SUPERVISORD_BIN" ]; then
+    SUPERVISOR_FOUND=true
+    SUP_VER=$($SUPERVISORD_BIN --version 2>/dev/null)
+    check_warn "Supervisor v${SUP_VER} installed but NOT running"
+    echo -e "    ${INFO} Binary: ${SUPERVISORD_BIN}"
+    echo -e "    ${INFO} Start: sudo systemctl start supervisor"
+    need_admin "Start Supervisor service"
+elif [ -n "$SUPERVISORCTL_BIN" ]; then
+    SUPERVISOR_FOUND=true
+    check_warn "supervisorctl found at ${SUPERVISORCTL_BIN} but supervisord not detected"
+fi
+
+# --- Check config and worker status ---
 if [ "$SUPERVISOR_FOUND" = true ]; then
-    # Check for OASIS worker configs
-    if command -v supervisorctl &> /dev/null; then
-        SUP_STATUS=$(supervisorctl status 2>/dev/null)
+    # Find supervisorctl if we have supervisord path but not ctl
+    if [ -z "$SUPERVISORCTL_BIN" ] && [ -n "$SUPERVISORD_BIN" ]; then
+        CTL_DIR=$(dirname "$SUPERVISORD_BIN")
+        if [ -x "${CTL_DIR}/supervisorctl" ]; then
+            SUPERVISORCTL_BIN="${CTL_DIR}/supervisorctl"
+        fi
+    fi
+
+    if [ -n "$SUPERVISORCTL_BIN" ]; then
+        SUP_STATUS=$($SUPERVISORCTL_BIN status 2>/dev/null)
         if [ -n "$SUP_STATUS" ]; then
             if echo "$SUP_STATUS" | grep -qi "oasis\|numbering\|laravel\|queue\|worker"; then
                 RUNNING_WORKERS=$(echo "$SUP_STATUS" | grep -ci "RUNNING")
@@ -725,14 +808,37 @@ if [ "$SUPERVISOR_FOUND" = true ]; then
                 done
             else
                 check_warn "Supervisor jalan tapi tidak ada OASIS worker config"
-                echo -e "    ${INFO} Buat config di /etc/supervisor/conf.d/oasis-worker.conf"
+                echo -e "    ${INFO} Jalankan: bash scripts/setup-server.sh"
             fi
+        else
+            echo -e "  ${INFO} supervisorctl tidak bisa connect (mungkin butuh sudo)"
+            echo -e "  ${INFO} Coba: sudo ${SUPERVISORCTL_BIN} status"
         fi
     fi
+
+    # Show config locations
+    echo ""
+    echo -e "  ${CYAN}Config locations yang dicek:${NC}"
+    for dir in /etc/supervisor/conf.d /etc/supervisord.d /usr/local/etc/supervisor/conf.d; do
+        if [ -d "$dir" ]; then
+            CONF_COUNT=$(ls -1 "$dir"/*.conf 2>/dev/null | wc -l)
+            echo -e "    ${INFO} ${dir}/ (${CONF_COUNT} config files)"
+        fi
+    done
 else
-    echo -e "  ${INFO} Supervisor tidak terdeteksi"
-    echo -e "  ${INFO} Tanpa Supervisor, queue worker harus dijalankan via cron"
-    echo -e "  ${INFO} Jika hosting support Supervisor, minta admin install"
+    echo -e "  ${WARN} Supervisor tidak terdeteksi"
+    echo ""
+    echo -e "  ${CYAN}Lokasi yang dicek:${NC}"
+    echo -e "    ${INFO} PATH: supervisord, supervisorctl"
+    echo -e "    ${INFO} /usr/bin/, /usr/local/bin/, /usr/sbin/"
+    echo -e "    ${INFO} /opt/cpanel/, ~/.local/bin/"
+    echo -e "    ${INFO} Process: pgrep supervisord"
+    echo ""
+    echo -e "  ${INFO} Jika admin sudah install, minta info:"
+    echo -e "  ${INFO}   1. Path binary: which supervisord"
+    echo -e "  ${INFO}   2. Apakah service jalan: systemctl status supervisor"
+    echo -e "  ${INFO}   3. Config dir: cat /etc/supervisor/supervisord.conf | grep files"
+    echo -e "  ${INFO} Tanpa Supervisor, queue worker bisa jalan via cron"
 fi
 
 # =============================================================================

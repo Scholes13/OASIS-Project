@@ -177,16 +177,106 @@ echo -e "${BOLD}  STEP 2: Setup Supervisor (queue worker + scheduler)${NC}"
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# Check Supervisor exists
-if ! command -v supervisord &> /dev/null && ! command -v supervisorctl &> /dev/null; then
+# --- Find Supervisor binaries ---
+SUPERVISORD_BIN=""
+SUPERVISORCTL_BIN=""
+
+# Check PATH first
+for cmd in supervisord supervisord3; do
+    if command -v "$cmd" &> /dev/null; then
+        SUPERVISORD_BIN=$(command -v "$cmd")
+        break
+    fi
+done
+
+for cmd in supervisorctl supervisorctl3; do
+    if command -v "$cmd" &> /dev/null; then
+        SUPERVISORCTL_BIN=$(command -v "$cmd")
+        break
+    fi
+done
+
+# Check common install locations if not in PATH
+if [ -z "$SUPERVISORD_BIN" ]; then
+    for path in \
+        /usr/bin/supervisord \
+        /usr/local/bin/supervisord \
+        /usr/sbin/supervisord \
+        /opt/cpanel/ea-php*/root/usr/bin/supervisord \
+        /usr/local/sbin/supervisord \
+        /home/*/bin/supervisord \
+        ~/.local/bin/supervisord; do
+        for expanded in $path; do
+            if [ -x "$expanded" ] 2>/dev/null; then
+                SUPERVISORD_BIN="$expanded"
+                break 2
+            fi
+        done
+    done
+fi
+
+if [ -z "$SUPERVISORCTL_BIN" ]; then
+    for path in \
+        /usr/bin/supervisorctl \
+        /usr/local/bin/supervisorctl \
+        /usr/sbin/supervisorctl \
+        /opt/cpanel/ea-php*/root/usr/bin/supervisorctl \
+        /usr/local/sbin/supervisorctl \
+        /home/*/bin/supervisorctl \
+        ~/.local/bin/supervisorctl; do
+        for expanded in $path; do
+            if [ -x "$expanded" ] 2>/dev/null; then
+                SUPERVISORCTL_BIN="$expanded"
+                break 2
+            fi
+        done
+    done
+fi
+
+# Also check running process
+if [ -z "$SUPERVISORD_BIN" ]; then
+    if pgrep -x supervisord &> /dev/null || pgrep -f "supervisord" &> /dev/null; then
+        SUP_PID=$(pgrep -x supervisord 2>/dev/null || pgrep -f "supervisord" 2>/dev/null | head -1)
+        if [ -n "$SUP_PID" ]; then
+            SUP_EXE=$(readlink -f /proc/$SUP_PID/exe 2>/dev/null)
+            if [ -n "$SUP_EXE" ]; then
+                SUPERVISORD_BIN="$SUP_EXE"
+            fi
+        fi
+    fi
+fi
+
+# Derive ctl from daemon path if needed
+if [ -z "$SUPERVISORCTL_BIN" ] && [ -n "$SUPERVISORD_BIN" ]; then
+    CTL_DIR=$(dirname "$SUPERVISORD_BIN")
+    if [ -x "${CTL_DIR}/supervisorctl" ]; then
+        SUPERVISORCTL_BIN="${CTL_DIR}/supervisorctl"
+    fi
+fi
+
+if [ -z "$SUPERVISORD_BIN" ] && [ -z "$SUPERVISORCTL_BIN" ]; then
     echo -e "  ${FAIL} Supervisor tidak ditemukan!"
-    echo -e "  ${INFO} Minta admin install: apt-get install -y supervisor"
-    echo -e "  ${INFO} Atau jalankan setup-cron.sh sebagai fallback (tanpa Supervisor)"
+    echo ""
+    echo -e "  ${CYAN}Lokasi yang dicek:${NC}"
+    echo -e "    ${INFO} PATH: supervisord, supervisorctl"
+    echo -e "    ${INFO} /usr/bin/, /usr/local/bin/, /usr/sbin/"
+    echo -e "    ${INFO} /opt/cpanel/, ~/.local/bin/"
+    echo -e "    ${INFO} Process: pgrep supervisord"
+    echo ""
+    echo -e "  ${INFO} Jika admin sudah install, minta info:"
+    echo -e "  ${INFO}   which supervisord && which supervisorctl"
     echo ""
     echo -e "  ${YELLOW}Melanjutkan ke Step 3 dengan FULL cron mode...${NC}"
     SUPERVISOR_OK=false
 else
     SUPERVISOR_OK=true
+    echo -e "  ${PASS} Supervisor ditemukan"
+    if [ -n "$SUPERVISORD_BIN" ]; then
+        echo -e "    ${INFO} supervisord: ${SUPERVISORD_BIN}"
+    fi
+    if [ -n "$SUPERVISORCTL_BIN" ]; then
+        echo -e "    ${INFO} supervisorctl: ${SUPERVISORCTL_BIN}"
+    fi
 fi
 
 if [ "$SUPERVISOR_OK" = true ]; then
@@ -219,10 +309,20 @@ if [ "$SUPERVISOR_OK" = true ]; then
     echo -e "  ${INFO} Config file: ${CONF_FILE}"
     echo ""
 
+    # Detect queue connection from .env
+    QUEUE_CONN="database"
+    if [ -f "${APP_DIR}/.env" ]; then
+        ENV_QUEUE=$(grep -E "^QUEUE_CONNECTION=" "${APP_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+        if [ -n "$ENV_QUEUE" ]; then
+            QUEUE_CONN="$ENV_QUEUE"
+        fi
+    fi
+    echo -e "  ${INFO} Queue connection: ${QUEUE_CONN} (from .env)"
+
     # Generate config
     SUPERVISOR_CONFIG="[program:oasis-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=${PHP_BIN} ${APP_DIR}/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=90 --memory=128
+command=${PHP_BIN} ${APP_DIR}/artisan queue:work ${QUEUE_CONN} --sleep=3 --tries=3 --max-time=3600 --timeout=90 --memory=128
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -268,27 +368,30 @@ stdout_logfile_backups=3"
             echo -e "  ${PASS} Config written to ${CONF_FILE}"
 
             # Reload Supervisor
-            if command -v supervisorctl &> /dev/null; then
-                supervisorctl reread 2>/dev/null
-                supervisorctl update 2>/dev/null
+            if [ -n "$SUPERVISORCTL_BIN" ]; then
+                $SUPERVISORCTL_BIN reread 2>/dev/null
+                $SUPERVISORCTL_BIN update 2>/dev/null
                 sleep 2
 
                 echo ""
                 echo -e "  ${BOLD}Worker status:${NC}"
-                supervisorctl status 2>/dev/null | grep -i "oasis" | while read -r line; do
+                $SUPERVISORCTL_BIN status 2>/dev/null | grep -i "oasis" | while read -r line; do
                     echo -e "    ${line}"
                 done
 
                 # Check if workers are running
-                RUNNING=$(supervisorctl status 2>/dev/null | grep -i "oasis" | grep -c "RUNNING" || true)
+                RUNNING=$($SUPERVISORCTL_BIN status 2>/dev/null | grep -i "oasis" | grep -c "RUNNING" || true)
                 if [ "$RUNNING" -gt 0 ]; then
                     echo ""
                     echo -e "  ${PASS} ${RUNNING} OASIS workers running"
                 else
                     echo ""
                     echo -e "  ${WARN} Workers belum RUNNING, mungkin butuh waktu"
-                    echo -e "  ${INFO} Cek: supervisorctl status"
+                    echo -e "  ${INFO} Cek: ${SUPERVISORCTL_BIN} status"
                 fi
+            else
+                echo -e "  ${WARN} supervisorctl tidak ditemukan, reload manual:"
+                echo -e "  ${INFO} supervisorctl reread && supervisorctl update"
             fi
         else
             echo -e "  ${FAIL} Tidak bisa tulis ke ${CONF_FILE}"
@@ -299,8 +402,8 @@ stdout_logfile_backups=3"
             echo "$SUPERVISOR_CONFIG"
             echo "EOFCONF'"
             echo ""
-            echo "  sudo supervisorctl reread"
-            echo "  sudo supervisorctl update"
+            echo "  sudo ${SUPERVISORCTL_BIN:-supervisorctl} reread"
+            echo "  sudo ${SUPERVISORCTL_BIN:-supervisorctl} update"
             echo ""
             SUPERVISOR_OK=false
         fi

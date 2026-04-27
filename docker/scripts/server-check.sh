@@ -1,15 +1,28 @@
 #!/bin/bash
 # =============================================================================
-# OASIS Production Server Readiness Checker (Non-Docker / Bare Metal)
+# DEPRECATED - Script ini sudah dipindah ke scripts/server-check.sh
 # =============================================================================
-# Jalankan dari dalam folder project di server:
+# Gunakan:
 #   cd /path/to/oasis
-#   sudo bash docker/scripts/server-check.sh
-#
-# Script auto-detect project directory dari current working directory (pwd).
-# Jika dijalankan dari luar project, bisa override:
-#   APP_DIR=/path/to/oasis sudo bash server-check.sh
+#   bash scripts/server-check.sh
 # =============================================================================
+
+echo "Script ini sudah dipindah. Jalankan:"
+echo "  bash scripts/server-check.sh"
+echo ""
+
+# Auto-redirect ke script baru
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NEW_SCRIPT="$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd)/scripts/server-check.sh"
+
+if [ -f "$NEW_SCRIPT" ]; then
+    exec bash "$NEW_SCRIPT" "$@"
+else
+    echo "ERROR: $NEW_SCRIPT tidak ditemukan"
+    exit 1
+fi
+
+# --- Original script below kept for reference, no longer executed ---
 
 set -u
 

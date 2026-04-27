@@ -10,6 +10,13 @@ use App\Http\Controllers\Modules\Activity\TaskCommentController;
 use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
+use App\Http\Controllers\Modules\Ticket\KnowledgeBaseController;
+use App\Http\Controllers\Modules\Ticket\KnowledgeCategoryController;
+use App\Http\Controllers\Modules\Ticket\TicketCategoryController;
+use App\Http\Controllers\Modules\Ticket\TicketController;
+use App\Http\Controllers\Modules\Ticket\TicketDashboardController;
+use App\Http\Controllers\Modules\Ticket\TicketReportingController;
+use App\Http\Controllers\Modules\Ticket\UserTicketController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -359,6 +366,71 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/entries/import-template', [CashflowProjectionController::class, 'downloadImportTemplate'])->name('entries.import-template');
         Route::post('/entries/import', [CashflowProjectionController::class, 'importEntries'])->name('entries.import');
     });
+
+    // ============================================================================
+    // IT Support — User routes (all authenticated users)
+    // ============================================================================
+    Route::prefix('it-support')->name('it-support.')->group(function () {
+        // Ticket submission
+        Route::get('/submit', [UserTicketController::class, 'create'])->name('submit');
+        Route::post('/submit', [UserTicketController::class, 'store'])->name('submit.store');
+
+        // My tickets
+        Route::get('/my-tickets', [UserTicketController::class, 'myTickets'])->name('my-tickets');
+        Route::get('/my-tickets/{ticket}', [UserTicketController::class, 'show'])->name('my-tickets.show');
+        Route::post('/my-tickets/{ticket}/comment', [UserTicketController::class, 'addComment'])->name('my-tickets.comment');
+
+        // Knowledge base browse (all users)
+        Route::get('/knowledge', [KnowledgeBaseController::class, 'browse'])->name('knowledge');
+        Route::get('/knowledge/search', [KnowledgeBaseController::class, 'search'])->name('knowledge.search');
+        Route::post('/knowledge/suggest', [KnowledgeBaseController::class, 'suggestArticles'])->name('knowledge.suggest');
+        Route::get('/knowledge/{slug}', [KnowledgeBaseController::class, 'article'])->name('knowledge.article');
+    });
+
+    // ============================================================================
+    // IT Support — Admin routes (IT Support admin only)
+    // ============================================================================
+    Route::middleware(['it.support.access'])
+        ->prefix('it-support')
+        ->name('it-support.admin.')
+        ->group(function () {
+            // Dashboard
+            Route::get('/dashboard', [TicketDashboardController::class, 'index'])->name('dashboard');
+
+            // SLA Settings
+            Route::get('/sla-settings', [TicketDashboardController::class, 'slaSettings'])->name('sla-settings');
+            Route::put('/sla-settings', [TicketDashboardController::class, 'updateSlaSettings'])->name('sla-settings.update');
+
+            // All tickets management
+            Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
+            Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
+            Route::get('/tickets/{ticket}/edit', [TicketController::class, 'edit'])->name('tickets.edit');
+            Route::put('/tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
+            Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
+            Route::post('/tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
+            Route::put('/tickets/{ticket}/change-status', [TicketController::class, 'changeStatus'])->name('tickets.changeStatus');
+            Route::post('/tickets/{ticket}/assign', [TicketController::class, 'assignTicket'])->name('tickets.assign');
+            Route::post('/tickets/{ticket}/link-article', [KnowledgeBaseController::class, 'linkArticle'])->name('tickets.linkArticle');
+
+            // Reporting
+            Route::get('/reporting', [TicketReportingController::class, 'index'])->name('reporting');
+            Route::get('/reporting/export/excel', [TicketReportingController::class, 'exportExcel'])->name('reporting.exportExcel');
+            Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
+
+            // Categories
+            Route::resource('/categories', TicketCategoryController::class)->names('categories');
+
+            // Knowledge base admin
+            Route::get('/knowledge/manage', [KnowledgeBaseController::class, 'adminIndex'])->name('knowledge.index');
+            Route::get('/knowledge/manage/create', [KnowledgeBaseController::class, 'adminCreate'])->name('knowledge.create');
+            Route::post('/knowledge/manage', [KnowledgeBaseController::class, 'adminStore'])->name('knowledge.store');
+            Route::get('/knowledge/manage/{article}/edit', [KnowledgeBaseController::class, 'adminEdit'])->name('knowledge.edit');
+            Route::put('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminUpdate'])->name('knowledge.update');
+            Route::delete('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminDestroy'])->name('knowledge.destroy');
+
+            // Knowledge categories
+            Route::resource('/knowledge/categories', KnowledgeCategoryController::class)->names('knowledge.categories');
+        });
 
     // Reports Routes (Top Management Only - Coming Soon)
     Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {

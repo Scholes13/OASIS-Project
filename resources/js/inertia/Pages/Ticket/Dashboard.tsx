@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Ticket, Clock, CheckCircle2, AlertTriangle,
+    Clock, CheckCircle2, AlertTriangle,
     Calendar, BarChart3, PieChart, TrendingUp,
     Users, ArrowRight,
 } from 'lucide-react';
@@ -424,7 +424,7 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                                         metrics.recent_tickets.slice(0, 10).map((ticket) => (
                                             <tr key={ticket.id} className="border-b border-gray-100 hover:bg-gray-50/80">
                                                 <td className="px-5 py-4 text-sm font-medium text-primary">
-                                                    <Link href={route('it-support.admin.tickets.edit', ticket.id)}>
+                                                    <Link href={route('it-support.admin.tickets.edit', { ticket: ticket.id })}>
                                                         {ticket.ticket_number}
                                                     </Link>
                                                 </td>

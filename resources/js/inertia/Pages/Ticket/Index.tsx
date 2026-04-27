@@ -109,7 +109,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
         setAssignDialogOpen(true);
     };
 
-    const { post, processing: isAssigning } = useForm({
+    const { post, setData, processing: isAssigning } = useForm({
         assigned_user_id: 0,
     });
 
@@ -117,8 +117,9 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
         e.preventDefault();
         if (!selectedTicketId || !assigneeId) return;
 
+        setData('assigned_user_id', parseInt(assigneeId));
+
         post(route('it-support.admin.tickets.assign', { ticket: selectedTicketId }), {
-            assigned_user_id: parseInt(assigneeId),
             onSuccess: () => {
                 toast.success('Ticket berhasil ditugaskan');
                 setAssignDialogOpen(false);
@@ -136,7 +137,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
             accessorKey: 'ticket_number',
             header: 'Ticket Number',
             cell: ({ row }) => (
-                <Link href={route('it-support.admin.tickets.edit', row.original.id)}>
+                <Link href={route('it-support.admin.tickets.edit', { ticket: row.original.id })}>
                     <span className="font-medium text-primary hover:underline">
                         {row.original.ticket_number}
                     </span>
@@ -162,7 +163,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
             header: 'Category',
             cell: ({ row }) => (
                 row.original.category ? (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="default" className="text-xs">
                         {row.original.category.name}
                     </Badge>
                 ) : '-'
@@ -202,22 +203,19 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                 </span>
             ),
         },
-        {
-            id: 'actions',
+        {id: 'actions',
             header: '',
             cell: ({ row }) => (
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                            <Link href={route('it-support.admin.tickets.edit', row.original.id)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                View
-                            </Link>
+                        <DropdownMenuItem onClick={() => window.location.href = route('it-support.admin.tickets.edit', { ticket: row.original.id })}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleAssignClick(row.original.id)}>
                             <UserPlus className="w-4 h-4 mr-2" />
@@ -256,8 +254,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                     <div className="flex items-center gap-2">
                         <Button
                             size="sm"
-                            onClick={() => router.reload({ preserveScroll: true })}
-                            variant="outline"
+                            onClick={() => window.location.reload()}
                         >
                             <RefreshCw className="w-4 h-4 mr-2" />
                             Refresh
@@ -306,21 +303,21 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                         <div className="flex items-center gap-2 flex-wrap">
                             <Select
                                 value={priority}
-                                onChange={handlePriorityChange}
+                                onChange={(val: string | number) => handlePriorityChange(String(val))}
                                 options={priorityOptions}
                                 placeholder="Priority"
                                 className="w-32"
                             />
                             <Select
                                 value={categoryId}
-                                onChange={handleCategoryChange}
+                                onChange={(val: string | number) => handleCategoryChange(String(val))}
                                 options={categoryOptions}
                                 placeholder="Category"
                                 className="w-40"
                             />
                             <Select
                                 value={assignedUserId}
-                                onChange={handleAssignedChange}
+                                onChange={(val: string | number) => handleAssignedChange(String(val))}
                                 options={staffOptions}
                                 placeholder="Assigned"
                                 className="w-40"
@@ -345,7 +342,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                 </Card>
 
                 {/* ── Assign Dialog ────────────────────────────────────── */}
-                <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+                <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)}>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Assign Ticket</DialogTitle>
@@ -354,7 +351,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                             <div className="py-4">
                                 <Select
                                     value={assigneeId}
-                                    onChange={setAssigneeId}
+                                    onChange={(val: string | number) => setAssigneeId(String(val))}
                                     options={staffOptions}
                                     placeholder="Select staff..."
                                 />

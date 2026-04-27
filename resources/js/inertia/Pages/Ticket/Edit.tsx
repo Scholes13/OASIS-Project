@@ -50,7 +50,7 @@ const defaultPriorities: TicketPriority[] = ['low', 'medium', 'high', 'critical'
 const defaultStatuses: TicketStatus[] = ['waiting', 'in_progress', 'done', 'cancelled'];
 
 export default function TicketEdit({ ticket, categories, departments, priority = defaultPriorities, status = defaultStatuses }: EditProps) {
-    const { flash } = usePage<PageProps().props;
+    const { flash } = usePage<PageProps>().props;
 
     // Form for editing ticket
     const { data, setData, put, processing, errors } = useForm({
@@ -64,7 +64,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
 
     // Status form (separate for quick status change)
     const [currentStatus, setCurrentStatus] = useState<TicketStatus>(ticket.status);
-    const { post: statusPost, processing: statusProcessing } = useForm({
+    const { post: statusPost, setData: setStatusData, processing: statusProcessing } = useForm({
         status: ticket.status,
     });
 
@@ -72,7 +72,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        put(route('it-support.admin.tickets.update', ticket.id), {
+        put(route('it-support.admin.tickets.update', { ticket: ticket.id }), {
             onSuccess: () => {
                 toast.success('Ticket updated successfully');
             },
@@ -85,9 +85,9 @@ export default function TicketEdit({ ticket, categories, departments, priority =
     const handleStatusChange = (newStatus: string) => {
         const statusVal = newStatus as TicketStatus;
         setCurrentStatus(statusVal);
+        setStatusData('status', statusVal);
 
-        statusPost(route('it-support.admin.tickets.update-status', ticket.id), {
-            status: statusVal,
+        statusPost(route('it-support.admin.tickets.update-status', { ticket: ticket.id }), {
             onSuccess: () => {
                 toast.success('Status updated successfully');
             },
@@ -156,7 +156,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                         {/* Quick Status Change */}
                         <Select
                             value={currentStatus}
-                            onChange={handleStatusChange}
+                            onChange={(val: string | number) => handleStatusChange(String(val))}
                             options={statusOptions}
                         />
                         <Button
@@ -210,7 +210,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                                             <Label>Priority</Label>
                                             <Select
                                                 value={data.priority}
-                                                onChange={(value) => setData('priority', value as TicketPriority)}
+                                                onChange={(val: string | number) => setData('priority', String(val) as TicketPriority)}
                                                 options={priorityOptions}
                                                 error={errors.priority}
                                             />
@@ -219,7 +219,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                                             <Label>Category</Label>
                                             <Select
                                                 value={data.category_id?.toString() || ''}
-                                                onChange={(value) => setData('category_id', value ? parseInt(value.toString()) : null)}
+                                                onChange={(val: string | number) => setData('category_id', val ? parseInt(String(val)) : null)}
                                                 options={categoryOptions}
                                                 error={errors.category_id}
                                             />
@@ -232,7 +232,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                                             <Label>Department</Label>
                                             <Select
                                                 value={data.department_id?.toString() || ''}
-                                                onChange={(value) => setData('department_id', value ? parseInt(value.toString()) : null)}
+                                                onChange={(val: string | number) => setData('department_id', val ? parseInt(String(val)) : null)}
                                                 options={departmentOptions}
                                                 error={errors.department_id}
                                             />
@@ -261,7 +261,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <CommentSection ticket={ticket} />
+                                <CommentSection comments={ticket.comments} ticketId={ticket.id} />
                             </CardContent>
                         </Card>
 
@@ -274,7 +274,7 @@ export default function TicketEdit({ ticket, categories, departments, priority =
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <AttachmentList ticket={ticket} />
+                                <AttachmentList attachments={ticket.attachments} />
                             </CardContent>
                         </Card>
                     </div>

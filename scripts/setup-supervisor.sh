@@ -27,6 +27,8 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+INFO="${CYAN}[INFO]${NC}"
+
 # --- Defaults ---
 WORKER_USER=""
 NUM_PROCS=2
@@ -298,6 +300,37 @@ if [ "$DRY_RUN" = true ]; then
     echo -e "Lalu jalankan:"
     echo -e "  ${CYAN}supervisorctl reread && supervisorctl update${NC}"
     exit 0
+fi
+
+# =============================================================================
+# Clean up conflicting cron jobs
+# =============================================================================
+
+CRON_MARKER="# OASIS-CRON"
+CRONTAB_CONTENT=$(crontab -l 2>/dev/null)
+
+if [ -n "$CRONTAB_CONTENT" ]; then
+    # Count cron entries that conflict with Supervisor (scheduler, queue, queue-restart)
+    CRON_CONFLICTS=$(echo "$CRONTAB_CONTENT" | grep -c -E "${CRON_MARKER}-(scheduler|queue)" || true)
+
+    if [ "$CRON_CONFLICTS" -gt 0 ]; then
+        echo -e "${YELLOW}Cron scheduler/queue terdeteksi (${CRON_CONFLICTS} entries) — menghapus untuk hindari double execution...${NC}"
+
+        # Remove all scheduler/queue cron entries (matches -scheduler, -queue, -queue-restart)
+        CLEANED_CRON=$(echo "$CRONTAB_CONTENT" | grep -v -E "${CRON_MARKER}-(scheduler|queue)")
+
+        echo "$CLEANED_CRON" | crontab - 2>/dev/null
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}Removed ${CRON_CONFLICTS} conflicting cron entries${NC}"
+            echo -e "  ${INFO} Cron log-cleanup dan cache-warm tetap aktif"
+        else
+            echo -e "${YELLOW}Gagal hapus cron otomatis. Jalankan manual:${NC}"
+            echo -e "  ${CYAN}bash scripts/setup-cron.sh --remove${NC}"
+            echo -e "  ${CYAN}bash scripts/setup-cron.sh${NC}  (reinstall tanpa scheduler/queue)"
+        fi
+        echo ""
+    fi
 fi
 
 # =============================================================================

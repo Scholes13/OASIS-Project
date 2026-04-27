@@ -31,6 +31,40 @@
 
 ## Active Tasks
 
+### 2026-04-27 - IT Support module (WGTicket migration)
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - migrate WGTicket standalone ticketing system into OASIS as a first-class IT Support module,
+  - follow the exact Activity Admin / Purchasing Admin pattern: `is_it_support_admin` and `is_it_support_report_access` flags on `user_business_units` with BU ancestor cascade,
+  - all OASIS users can submit tickets and track their own tickets via sidebar menu,
+  - IT Support admins get extended menu: dashboard, all tickets management, reporting with Excel/PDF export, SLA settings, ticket categories, knowledge base management,
+  - ticket number format: `IT.{BU_CODE}/YYYYMM/###` integrated with OASIS NumberSequence,
+  - SLA tracking per BU per priority (low=48h, medium=24h, high=8h, critical=2h),
+  - knowledge base with categories, articles, search, view tracking, article-ticket linking,
+  - notifications via OASIS notification center (category: `it_support`),
+  - 9 new database tables + 2 new columns on `user_business_units`,
+  - 8 Eloquent models, 5 services, 9 form requests, 7 controllers, 5 notification classes,
+  - 47 routes (9 user + 38 admin), ITSupportAccess middleware, 2 authorization gates,
+  - full Inertia/React frontend: admin assignment page, dashboard, ticket CRUD, reporting, SLA settings, categories, knowledge base (admin + browse),
+  - shared components: TicketStatusBadge, TicketPriorityBadge, SlaBadge, TicketForm, CommentSection, AttachmentList.
+- Risks:
+  - notification dispatch wiring not yet connected from services/controllers to notification classes (classes exist but dispatch calls need to be added),
+  - PDF export view references Browsershot which requires Chrome/Chromium on the server,
+  - data migration from WGTicket deferred to a future task.
+- Verification:
+  - focused PHPUnit coverage: 39 tests, 111 assertions — all passed,
+  - focused Vitest coverage: 26 tests — all passed,
+  - `php vendor/bin/pint --dirty` passed,
+  - `npx tsc --noEmit --pretty false` — 0 Ticket errors (only pre-existing echo.ts errors),
+  - `npm run build` passed.
+- Notes:
+  - design doc at `docs/plans/2026-04-27-it-support-module-design.md`,
+  - implementation plan at `docs/plans/2026-04-27-wgticket-migration-plan.md`,
+  - reviewer sub-agent validated design against repo state before implementation — 0 conflicts, 8 gaps addressed in plan,
+  - `SalesCrm` remains deprecated and untouched.
+
 ### 2026-04-24 - Cross-module audit hardening (28 findings)
 - Status: implemented
 - Owner: PM Agent

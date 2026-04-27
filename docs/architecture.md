@@ -83,7 +83,7 @@ This repository uses a Harness Engineering structure so the Product Owner can op
 ### Module namespace convention
 The codebase uses a hybrid module-namespaced organization:
 - **`Core/`** — shared models, services, and utilities used across modules (e.g., `User`, `BusinessUnit`, `UserBusinessUnit`, `NavigationService`)
-- **`Modules/<Module>/`** — domain-specific code scoped to a single module (e.g., `Modules/Activity/`, `Modules/Purchasing/`, `Modules/CashflowProjection/`, `Modules/SalesCrm/`)
+- **`Modules/<Module>/`** — domain-specific code scoped to a single module (e.g., `Modules/Activity/`, `Modules/Purchasing/`, `Modules/CashflowProjection/`, `Modules/SalesCrm/`, `Modules/Ticket/`)
 - **Flat (no namespace)** — cross-cutting controllers that serve global features (e.g., `NotificationCenterController`, `DashboardController`, `DocsHelpController`)
 
 This pattern applies consistently across controllers, models, services, notifications, migrations, and tests.

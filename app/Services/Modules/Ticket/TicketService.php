@@ -1,0 +1,288 @@
+<?php
+
+namespace App\Services\Modules\Ticket;
+
+use App\Models\Core\User;
+use App\Models\Modules\Ticket\Ticket;
+use App\Models\Modules\Ticket\TicketAttachment;
+use App\Models\Modules\Ticket\TicketComment;
+use Exception;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+
+class TicketService
+{
+    /**
+     * Allowed status transitions.
+     *
+     * Terminal statuses (done, cancelled) have no outgoing transitions.
+     *
+     * @var array<string, list<string>>
+     */
+    protected const STATUS_TRANSITIONS = [
+        'waiting' => ['in_progress', 'cancelled'],
+        'in_progress' => ['done', 'cancelled'],
+        'done' => [],
+        'cancelled' => [],
+    ];
+
+    public function __construct(
+        protected TicketNumberService $ticketNumberService,
+        protected SlaService $slaService
+    ) {}
+
+    /**
+     * Create a new ticket with number generation and duplicate prevention.
+     *
+     * @throws Exception
+     */
+    public function createTicket(array $data, User $creator, int $buId): Ticket
+    {
+        // Duplicate prevention via form_token + cache
+        if (isset($data['form_token'])) {
+            $cacheKey = "ticket_form_token:{$buId}:{$data['form_token']}";
+
+            if (Cache::has($cacheKey)) {
+                $existingId = Cache::get($cacheKey);
+                $existing = Ticket::find($existingId);
+
+                if ($existing) {
+                    return $existing;
+                }
+            }
+        }
+
+        return DB::transaction(function () use ($data, $creator, $buId) {
+            $ticketNumber = $this->ticketNumberService->generateTicketNumber($buId);
+
+            $ticket = Ticket::create([
+                'business_unit_id' => $buId,
+                'ticket_number' => $ticketNumber,
+                'title' => $data['title'],
+                'description' => $data['description'] ?? null,
+                'requester_id' => $data['requester_id'] ?? $creator->id,
+                'department_id' => $data['department_id'] ?? null,
+                'status' => 'waiting',
+                'priority' => $data['priority'] ?? 'medium',
+                'category_id' => $data['category_id'] ?? null,
+                'assigned_to' => $data['assigned_to'] ?? null,
+                'created_by' => $creator->id,
+                'follow_up_at' => $data['follow_up_at'] ?? null,
+                'form_token' => $data['form_token'] ?? null,
+            ]);
+
+            // Cache the form_token to prevent duplicate submissions (TTL: 10 minutes)
+            if (isset($data['form_token'])) {
+                $cacheKey = "ticket_form_token:{$buId}:{$data['form_token']}";
+                Cache::put($cacheKey, $ticket->id, now()->addMinutes(10));
+            }
+
+            return $ticket;
+        });
+    }
+
+    /**
+     * Update ticket fields.
+     *
+     * @throws Exception
+     */
+    public function updateTicket(Ticket $ticket, array $data): Ticket
+    {
+        $ticket->update([
+            'title' => $data['title'] ?? $ticket->title,
+            'description' => $data['description'] ?? $ticket->description,
+            'priority' => $data['priority'] ?? $ticket->priority,
+            'category_id' => $data['category_id'] ?? $ticket->category_id,
+            'department_id' => $data['department_id'] ?? $ticket->department_id,
+            'follow_up_at' => $data['follow_up_at'] ?? $ticket->follow_up_at,
+        ]);
+
+        return $ticket->fresh();
+    }
+
+    /**
+     * Change ticket status with transition validation.
+     *
+     * @throws Exception
+     */
+    public function changeStatus(Ticket $ticket, string $newStatus, ?User $user = null): Ticket
+    {
+        $currentStatus = $ticket->status;
+        $allowed = self::STATUS_TRANSITIONS[$currentStatus] ?? [];
+
+        if (! in_array($newStatus, $allowed, true)) {
+            throw new Exception(
+                "Invalid status transition from '{$currentStatus}' to '{$newStatus}'."
+            );
+        }
+
+        $updateData = ['status' => $newStatus];
+
+        // Set resolved_at when ticket is marked as done
+        if ($newStatus === 'done') {
+            $updateData['resolved_at'] = now();
+        }
+
+        $ticket->update($updateData);
+
+        return $ticket->fresh();
+    }
+
+    /**
+     * Assign a ticket to a user.
+     *
+     * Validates that the target user has the IT Support admin role
+     * within the ticket's business unit scope.
+     *
+     * @throws Exception
+     */
+    public function assignTicket(Ticket $ticket, int $userId): Ticket
+    {
+        $assignee = User::findOrFail($userId);
+
+        // Validate user is IT Support admin in BU scope
+        $hasAccess = $assignee->global_role === 'super_admin'
+            || $assignee->businessUnits()
+                ->where('business_unit_id', $ticket->business_unit_id)
+                ->where('is_active', true)
+                ->exists();
+
+        if (! $hasAccess) {
+            throw new Exception(
+                'User does not have IT Support access in this business unit.'
+            );
+        }
+
+        $ticket->update(['assigned_to' => $userId]);
+
+        return $ticket->fresh();
+    }
+
+    /**
+     * Add a comment to a ticket.
+     */
+    public function addComment(
+        Ticket $ticket,
+        User $user,
+        string $content,
+        bool $isPrivate = false
+    ): TicketComment {
+        return TicketComment::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => $user->id,
+            'content' => $content,
+            'is_private' => $isPrivate,
+        ]);
+    }
+
+    /**
+     * Add an attachment to a ticket.
+     *
+     * @throws Exception
+     */
+    public function addAttachment(
+        Ticket $ticket,
+        UploadedFile $file,
+        ?User $uploader = null,
+        ?int $commentId = null
+    ): TicketAttachment {
+        $path = $file->store('ticket-attachments/'.$ticket->id, 'public');
+
+        return TicketAttachment::create([
+            'ticket_id' => $ticket->id,
+            'comment_id' => $commentId,
+            'filename' => basename($path),
+            'original_filename' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_type' => $file->getMimeType(),
+            'file_size' => $file->getSize(),
+            'uploaded_by' => $uploader?->id,
+        ]);
+    }
+
+    /**
+     * Get dashboard metrics for the given business units and optional date range.
+     *
+     * @return array<string, mixed>
+     */
+    public function getDashboardMetrics(
+        array $buIds,
+        ?string $dateFrom = null,
+        ?string $dateTo = null
+    ): array {
+        $query = Ticket::forBusinessUnits($buIds);
+
+        if ($dateFrom) {
+            $query->where('created_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->where('created_at', '<=', $dateTo.' 23:59:59');
+        }
+
+        $tickets = $query->get();
+
+        // Summary cards
+        $total = $tickets->count();
+        $byStatus = $tickets->groupBy('status')->map->count();
+        $byPriority = $tickets->groupBy('priority')->map->count();
+
+        // By category
+        $byCategory = $tickets->groupBy('category_id')
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'category_id' => $first->category_id,
+                    'count' => $group->count(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        // By assigned staff
+        $byStaff = $tickets->whereNotNull('assigned_to')
+            ->groupBy('assigned_to')
+            ->map(function ($group) {
+                return [
+                    'user_id' => $group->first()->assigned_to,
+                    'count' => $group->count(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        // SLA breach count
+        $slaBreachCount = $tickets
+            ->filter(fn (Ticket $ticket): bool => $ticket->isSlaBreach())
+            ->count();
+
+        // Recent tickets (last 10)
+        $recentTickets = Ticket::forBusinessUnits($buIds)
+            ->with(['requester', 'assignedUser', 'category'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        return [
+            'total' => $total,
+            'by_status' => [
+                'waiting' => $byStatus->get('waiting', 0),
+                'in_progress' => $byStatus->get('in_progress', 0),
+                'done' => $byStatus->get('done', 0),
+                'cancelled' => $byStatus->get('cancelled', 0),
+            ],
+            'by_priority' => [
+                'low' => $byPriority->get('low', 0),
+                'medium' => $byPriority->get('medium', 0),
+                'high' => $byPriority->get('high', 0),
+                'critical' => $byPriority->get('critical', 0),
+            ],
+            'by_category' => $byCategory,
+            'by_staff' => $byStaff,
+            'sla_breach_count' => $slaBreachCount,
+            'recent_tickets' => $recentTickets,
+        ];
+    }
+}

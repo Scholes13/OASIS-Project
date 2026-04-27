@@ -63,7 +63,6 @@ class PrItem extends Model
         'total_price' => 'decimal:2',
     ];
 
-
     /**
      * Get the purchase request
      */
@@ -118,7 +117,7 @@ class PrItem extends Model
             if ($item->purchaseRequest) {
                 $item->purchaseRequest->updateTotalAmount();
             }
-            
+
             // Auto-delete image when item is deleted
             $item->deleteImage();
         });
@@ -169,10 +168,10 @@ class PrItem extends Model
      */
     public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image_path) {
+        if (! $this->image_path) {
             return null;
         }
-        
+
         return \Storage::url($this->image_path);
     }
 
@@ -181,7 +180,7 @@ class PrItem extends Model
      */
     public function hasImage(): bool
     {
-        return !empty($this->image_path) && \Storage::exists($this->image_path);
+        return ! empty($this->image_path) && \Storage::exists($this->image_path);
     }
 
     /**
@@ -192,7 +191,7 @@ class PrItem extends Model
         if ($this->image_path && \Storage::exists($this->image_path)) {
             return \Storage::delete($this->image_path);
         }
-        
+
         return false;
     }
 

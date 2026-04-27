@@ -21,6 +21,15 @@ class EmployeeTask extends Model
 
     protected $table = 'employee_tasks';
 
+    protected static function booted(): void
+    {
+        static::deleting(function (EmployeeTask $task): void {
+            // Comments use SoftDeletes — force-delete on task removal
+            // Participants and attachments are handled by DB-level cascade
+            $task->comments()->forceDelete();
+        });
+    }
+
     protected $fillable = [
         'business_unit_id',
         'department_id',
@@ -38,6 +47,8 @@ class EmployeeTask extends Model
         'completed_at',
         'completed_by',
         'duration_minutes',
+        'edited_at',
+        'edited_by',
         'source',
         'source_reference_id',
         'validation_status',
@@ -49,6 +60,7 @@ class EmployeeTask extends Model
         'due_date' => 'date',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'edited_at' => 'datetime',
         'duration_minutes' => 'integer',
     ];
 
@@ -95,6 +107,14 @@ class EmployeeTask extends Model
     public function completedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    /**
+     * Get the user who last edited this task
+     */
+    public function editedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'edited_by');
     }
 
     /**

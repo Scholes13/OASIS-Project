@@ -234,10 +234,11 @@ class TaskUpdateValidationTest extends TestCase
     }
 
     #[Test]
-    public function it_auto_shifts_started_at_date_when_task_date_changes_on_in_progress_task(): void
+    public function it_preserves_started_at_when_task_date_changes_without_explicit_start_time(): void
     {
+        $originalDate = now()->format('Y-m-d');
         $startedAt = now()->setTime(9, 0);
-        $task = $this->createTask(['status' => 'in_progress', 'task_date' => now()->format('Y-m-d'), 'started_at' => $startedAt]);
+        $task = $this->createTask(['status' => 'in_progress', 'task_date' => $originalDate, 'started_at' => $startedAt]);
         $newTaskDate = now()->addDay()->format('Y-m-d');
 
         $response = $this->actingAs($this->user)
@@ -248,7 +249,7 @@ class TaskUpdateValidationTest extends TestCase
 
         $task->refresh();
         $this->assertEquals($newTaskDate, $task->task_date->format('Y-m-d'));
-        $this->assertEquals($newTaskDate, $task->started_at?->format('Y-m-d'));
+        $this->assertEquals($originalDate, $task->started_at?->format('Y-m-d'));
         $this->assertEquals($startedAt->format('H:i:s'), $task->started_at?->format('H:i:s'));
     }
 
@@ -266,15 +267,17 @@ class TaskUpdateValidationTest extends TestCase
     }
 
     #[Test]
-    public function it_blocks_quick_start_for_backdate_task(): void
+    public function it_allows_quick_start_for_backdate_task(): void
     {
         $task = $this->createTask(['status' => 'planned', 'task_date' => now()->subDay()->format('Y-m-d')]);
 
         $response = $this->actingAs($this->user)->put(route('activity.task.update', $task), ['status' => 'in_progress']);
 
-        $response->assertSessionHasErrors();
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
         $task->refresh();
-        $this->assertEquals('planned', $task->status);
+        $this->assertEquals('in_progress', $task->status);
+        $this->assertNotNull($task->started_at);
     }
 
     #[Test]
@@ -306,15 +309,17 @@ class TaskUpdateValidationTest extends TestCase
     }
 
     #[Test]
-    public function it_blocks_quick_complete_for_historical_task(): void
+    public function it_allows_quick_complete_for_historical_task_with_started_at(): void
     {
         $task = $this->createTask(['status' => 'in_progress', 'task_date' => now()->subDay()->format('Y-m-d'), 'started_at' => now()->subDay()->setTime(9, 0)]);
 
         $response = $this->actingAs($this->user)->put(route('activity.task.update', $task), ['status' => 'completed']);
 
-        $response->assertSessionHasErrors();
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
         $task->refresh();
-        $this->assertEquals('in_progress', $task->status);
+        $this->assertEquals('completed', $task->status);
+        $this->assertNotNull($task->completed_at);
     }
 
     #[Test]

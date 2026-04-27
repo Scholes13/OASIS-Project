@@ -203,7 +203,10 @@ export function TaskFormModal({
     const isEditing = !!task;
     const [showBackdateModal, setShowBackdateModal] = useState(false);
     const [createAnother, setCreateAnother] = useState(false);
-    const todayLocal = getTodayLocalDate();
+
+    // Get server date from shared Inertia props to avoid timezone mismatch
+    const { serverDate } = usePage().props as { serverDate?: string };
+    const todayLocal = serverDate || getTodayLocalDate();
     const defaultTaskDate = initialTaskDate || todayLocal;
     const originalStartedDate = getDatePart(task?.started_at);
     const originalCompletedDate = getDatePart(task?.completed_at);

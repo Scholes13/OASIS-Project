@@ -20,6 +20,11 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+
+        if ($user->isSuperAdmin()) {
+            return $this->superAdminDashboard($user);
+        }
+
         $currentBusinessUnitId = session('current_business_unit_id');
 
         // Get quick stats
@@ -38,6 +43,110 @@ class DashboardController extends Controller
             'stats' => $stats,
             'recentActivities' => $recentActivities,
             'pendingApprovalsCount' => $pendingApprovalsCount,
+            'quickActions' => $quickActions,
+        ]);
+    }
+
+    /**
+     * Display the super admin control-tower dashboard.
+     *
+     * Shows cross-BU aggregates and admin-oriented quick actions
+     * instead of personal operational metrics.
+     */
+    protected function superAdminDashboard($user): Response
+    {
+        $stats = [
+            'my_purchase_requests' => \App\Models\Core\User::where('is_active', true)->count(),
+            'my_stock_requests' => \App\Models\Core\BusinessUnit::where('is_active', true)->count(),
+            'pending_approvals' => \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval::query()
+                ->where('status', 'pending')
+                ->whereHas('purchaseRequest', fn ($q) => $q->where('status', 'in_approval'))
+                ->count()
+                + \App\Models\Modules\Purchasing\StockRequest\StockApproval::query()
+                    ->where('status', 'pending')
+                    ->whereHas('stockRequest', fn ($q) => $q->where('status', 'in_approval'))
+                    ->count(),
+            'my_tasks' => \App\Models\Modules\Activity\EmployeeTask::where('status', 'in_progress')->count(),
+        ];
+
+        $recentActivities = \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::query()
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(fn ($pr) => [
+                'type' => 'purchase_request',
+                'title' => $pr->pr_number,
+                'status' => $pr->status,
+                'date' => $pr->created_at->format('Y-m-d H:i'),
+                'url' => route('purchase-requests.show', $pr->id),
+            ])
+            ->concat(
+                \App\Models\Modules\Purchasing\StockRequest\StockRequest::query()
+                    ->latest()
+                    ->take(5)
+                    ->get()
+                    ->map(fn ($st) => [
+                        'type' => 'stock_request',
+                        'title' => $st->st_number,
+                        'status' => $st->status,
+                        'date' => $st->created_at->format('Y-m-d H:i'),
+                        'url' => route('stock-requests.show', $st->id),
+                    ])
+            )
+            ->sortByDesc('date')
+            ->take(10)
+            ->values()
+            ->toArray();
+
+        $quickActions = [
+            [
+                'title' => 'User Management',
+                'description' => 'Manage users and access',
+                'icon' => 'users',
+                'url' => route('admin.users.index'),
+                'color' => 'indigo',
+            ],
+            [
+                'title' => 'Business Units',
+                'description' => 'Manage organization structure',
+                'icon' => 'briefcase',
+                'url' => route('admin.business-units.index'),
+                'color' => 'blue',
+            ],
+            [
+                'title' => 'Activity Admin',
+                'description' => 'Activity admin dashboard',
+                'icon' => 'shield-check',
+                'url' => route('activity.admin.dashboard'),
+                'color' => 'emerald',
+            ],
+            [
+                'title' => 'Purchasing Admin',
+                'description' => 'Manage procurement tasks',
+                'icon' => 'clipboard-list',
+                'url' => route('purchasing.admin.dashboard'),
+                'color' => 'purple',
+            ],
+            [
+                'title' => 'Activity Admins',
+                'description' => 'Assign activity admin roles',
+                'icon' => 'shield-check',
+                'url' => route('admin.activity-admins.index'),
+                'color' => 'amber',
+            ],
+            [
+                'title' => 'Purchasing Admins',
+                'description' => 'Assign purchasing admin roles',
+                'icon' => 'shopping-cart',
+                'url' => route('admin.purchasing-admins.index'),
+                'color' => 'rose',
+            ],
+        ];
+
+        return Inertia::render('Dashboard', [
+            'stats' => $stats,
+            'recentActivities' => $recentActivities,
+            'pendingApprovalsCount' => $stats['pending_approvals'],
             'quickActions' => $quickActions,
         ]);
     }

@@ -147,6 +147,12 @@ class StockApprovalController extends Controller
      */
     protected function processStockApproval(StockApproval $approval, string $action, ?string $notes): void
     {
+        // Check if the assigned approver is still active
+        $approver = \App\Models\Core\User::find($approval->approver_id);
+        if (! $approver || ! ($approver->is_active ?? true)) {
+            throw new \Exception('The assigned approver is no longer active. Please contact an administrator to reassign the approval.');
+        }
+
         // Update approval status
         $approval->update([
             'status' => $action,

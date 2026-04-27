@@ -5,11 +5,10 @@ namespace App\Http\Controllers\Modules\Activity;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * Activity Reporting Controller
- * 
+ *
  * Handles API endpoints for activity reporting dashboard and metrics.
  */
 class ActivityReportingController extends Controller

@@ -295,4 +295,3 @@ class ActivityReportAggregationService
         ];
     }
 }
-

@@ -13,7 +13,7 @@ Start here, then follow the referenced files instead of adding new monolithic in
 - The main agent acts as `PM Agent` and orchestrates work.
 - Delegate work to specialized sub-agents:
   - `@viewer` for read-only repository mapping, contract tracing, impact analysis, and evidence gathering before implementation or review.
-  - `@coder_backend` for database, Laravel domain logic, controllers, requests, jobs, policies, and server-side integrations.
+  - `@coder_backend` for database, Laravel domain logic, controllers, requests, middleware, notifications, providers, and server-side integrations.
   - `@coder_frontend` for Inertia/React pages, components, client state, forms, and UI behavior. When the work changes user-facing UI, this lane must also follow the `frontend-skill` guidance so outputs stay aligned with the product brand and visual standards.
   - `@qa` for browser-based QA, smoke and regression checks, request/response inspection, console and network validation, and screenshot evidence when runtime proof is needed.
   - `@reviewer` for architectural drift checks, security review, linting, and standards validation.

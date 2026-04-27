@@ -144,9 +144,35 @@ class ActivityInertiaController extends Controller
             // Apply additional filters
             $query->when($filters['activity_type_id'], fn ($q, $v) => $q->where('activity_type_id', $v))
                 ->when($filters['status'], fn ($q, $v) => $q->where('status', $v))
-                ->when($filters['search'], fn ($q, $v) => $q->where('task_title', 'like', "%{$v}%"))
-                ->when($filters['date_from'], fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
-                ->when($filters['date_to'], fn ($q, $v) => $q->whereDate('created_at', '<=', $v));
+                ->when($filters['search'], fn ($q, $v) => $q->where('task_title', 'like', "%{$v}%"));
+
+            // Date range filter: match tasks whose visible calendar date falls within the range.
+            // Planned/In Progress tasks appear at task_date; Completed tasks appear at completed_at.
+            if ($filters['date_from'] || $filters['date_to']) {
+                $query->where(function ($q) use ($filters): void {
+                    // Non-completed tasks: filter by task_date
+                    $q->where(function ($sub) use ($filters): void {
+                        $sub->where('status', '!=', 'completed');
+                        if ($filters['date_from']) {
+                            $sub->whereDate('task_date', '>=', $filters['date_from']);
+                        }
+                        if ($filters['date_to']) {
+                            $sub->whereDate('task_date', '<=', $filters['date_to']);
+                        }
+                    });
+                    // Completed tasks: filter by completed_at date
+                    $q->orWhere(function ($sub) use ($filters): void {
+                        $sub->where('status', 'completed')
+                            ->whereNotNull('completed_at');
+                        if ($filters['date_from']) {
+                            $sub->whereDate('completed_at', '>=', $filters['date_from']);
+                        }
+                        if ($filters['date_to']) {
+                            $sub->whereDate('completed_at', '<=', $filters['date_to']);
+                        }
+                    });
+                });
+            }
 
             // Calculate stats based on current scope (not cached, for accuracy)
             $stats = $this->getStatsForScope($buId, $user->id, $departmentId, $scope, $sanitizedMemberUserId);
@@ -392,17 +418,37 @@ class ActivityInertiaController extends Controller
             }
 
             if (isset($validated['status'])) {
-                $updateData['status'] = $validated['status'];
+                // Guard: only allow valid status transitions in quick-update
+                $hasResetConfirmation = ! empty($validated['confirm_reset_execution']);
+                $allowedTransitions = [
+                    'planned' => ['in_progress', 'completed', 'cancelled'],
+                    'in_progress' => ['completed', 'cancelled', 'planned'],
+                    'completed' => $hasResetConfirmation ? ['planned'] : [],  // terminal unless reset confirmed
+                    'cancelled' => $hasResetConfirmation ? ['planned'] : [],  // terminal unless reset confirmed
+                ];
+
+                $currentStatus = $task->status;
+                $newStatus = $validated['status'];
+
+                if ($currentStatus === $newStatus || ! in_array($newStatus, $allowedTransitions[$currentStatus] ?? [], true)) {
+                    return back()->with('error', 'Invalid status transition.');
+                }
+
+                $updateData['status'] = $newStatus;
 
                 if ($validated['status'] === 'in_progress' && ! $task->started_at) {
                     $updateData['started_at'] = now();
                 }
 
                 if ($validated['status'] === 'completed') {
-                    $updateData['completed_at'] = now();
+                    $completedAt = now();
+                    $updateData['completed_at'] = $completedAt;
                     $updateData['completed_by'] = $user->id;
-                    if ($task->started_at) {
-                        $updateData['duration_minutes'] = $task->started_at->diffInMinutes(now());
+
+                    // Use existing started_at or the one we just set in this request
+                    $effectiveStartedAt = $task->started_at ?? ($updateData['started_at'] ?? null);
+                    if ($effectiveStartedAt) {
+                        $updateData['duration_minutes'] = Carbon::parse($effectiveStartedAt)->diffInMinutes($completedAt);
                     }
                 }
 
@@ -413,6 +459,9 @@ class ActivityInertiaController extends Controller
                     $updateData['duration_minutes'] = null;
                 }
             }
+
+            $updateData['edited_at'] = now();
+            $updateData['edited_by'] = $user->id;
 
             $task->update($updateData);
             $this->clearCache($buId, $user->id);
@@ -448,8 +497,12 @@ class ActivityInertiaController extends Controller
         $completedBy = $task->completed_by;
 
         if ($status === 'in_progress') {
-            if ($task->started_at) {
-                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$task->started_at->format('H:i:s'));
+            if ($task->started_at && ! empty($validated['start_time'])) {
+                // User explicitly provided a new start_time — re-base to submitted task_date
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
+            } elseif ($task->started_at) {
+                // Task already has started_at but no explicit start_time — preserve original
+                $startedAt = $task->started_at;
             } elseif ($requiresStartCorrection && ! empty($validated['start_time'])) {
                 $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
             } elseif (! $task->started_at && $submittedTaskDate->isSameDay(now())) {
@@ -490,6 +543,8 @@ class ActivityInertiaController extends Controller
                 'completed_at' => $completedAt,
                 'completed_by' => $completedBy,
                 'duration_minutes' => $durationMinutes,
+                'edited_at' => now(),
+                'edited_by' => $user->id,
             ]);
 
             $ownerId = $task->participants()->wherePivot('is_owner', true)->first()?->id;
@@ -542,6 +597,8 @@ class ActivityInertiaController extends Controller
     {
         $user = Auth::user();
         $buId = session('current_business_unit_id');
+
+        abort_unless($this->canEditTask($task, $user, $buId), 403);
 
         try {
             $task->delete();

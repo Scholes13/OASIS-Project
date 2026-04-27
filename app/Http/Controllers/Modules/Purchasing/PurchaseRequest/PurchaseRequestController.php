@@ -888,7 +888,7 @@ class PurchaseRequestController extends Controller
 
         $currentApproval = $purchaseRequest->currentApproval();
         if (! $currentApproval || $currentApproval->status !== 'pending') {
-            return back()->with('error', 'No active pending approver found for this purchase request.');
+            return back()->with('error', 'No active approval step found. The approval workflow may need to be rebuilt. Please contact a purchasing administrator.');
         }
 
         try {
@@ -1170,7 +1170,7 @@ class PurchaseRequestController extends Controller
     /**
      * Stream the supporting document for a purchase request.
      */
-    public function supportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    public function supportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
     {
         return $this->serveSupportingDocument($purchaseRequest, false);
     }
@@ -1178,7 +1178,7 @@ class PurchaseRequestController extends Controller
     /**
      * Download the supporting document for a purchase request.
      */
-    public function downloadSupportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    public function downloadSupportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
     {
         return $this->serveSupportingDocument($purchaseRequest, true);
     }
@@ -1186,7 +1186,7 @@ class PurchaseRequestController extends Controller
     /**
      * Stream the offline approval document for an approved PR.
      */
-    public function offlineApprovalDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse
+    public function offlineApprovalDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
     {
         if ($purchaseRequest->business_unit_id !== (int) session('current_business_unit_id')) {
             abort(403, 'You do not have access to this purchase request.');
@@ -1194,7 +1194,7 @@ class PurchaseRequestController extends Controller
 
         $documentPath = $purchaseRequest->offline_approval_document_path;
         if (! $documentPath || ! Storage::disk('public')->exists($documentPath)) {
-            abort(404);
+            return back()->with('error', 'The requested document file is no longer available. Please contact the request creator to re-upload.');
         }
 
         return response()->file(Storage::disk('public')->path($documentPath));
@@ -1297,7 +1297,7 @@ class PurchaseRequestController extends Controller
     /**
      * Serve a supporting document using inline or attachment disposition.
      */
-    private function serveSupportingDocument(PurchaseRequest $purchaseRequest, bool $download): BinaryFileResponse
+    private function serveSupportingDocument(PurchaseRequest $purchaseRequest, bool $download): BinaryFileResponse|\Illuminate\Http\RedirectResponse
     {
         $user = Auth::user();
         $currentBusinessUnitId = (int) session('current_business_unit_id');
@@ -1308,7 +1308,7 @@ class PurchaseRequestController extends Controller
 
         $documentPath = $purchaseRequest->supporting_document_path;
         if (! $documentPath || ! Storage::disk('public')->exists($documentPath)) {
-            abort(404);
+            return back()->with('error', 'The requested document file is no longer available. Please contact the request creator to re-upload.');
         }
 
         $documentName = $purchaseRequest->supporting_document_name ?? basename($documentPath);

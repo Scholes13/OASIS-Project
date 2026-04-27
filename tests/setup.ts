@@ -56,6 +56,7 @@ vi.mock('@inertiajs/react', async () => {
         },
         flash: {},
         appName: 'Oasis',
+        serverDate: '2026-04-23',
       },
     })),
   };

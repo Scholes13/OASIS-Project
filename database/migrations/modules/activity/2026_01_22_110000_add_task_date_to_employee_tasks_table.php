@@ -15,7 +15,7 @@ return new class extends Migration
             // Add task_date column - the actual date when the task was performed
             // This is different from created_at (when record was created) and due_date (deadline)
             $table->date('task_date')->after('task_title')->default(now()->toDateString());
-            
+
             // Add index for task_date queries
             $table->index(['task_date', 'status'], 'idx_emp_tasks_task_date_status');
         });

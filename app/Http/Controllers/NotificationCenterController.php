@@ -11,6 +11,8 @@ use Inertia\Response;
 
 class NotificationCenterController extends Controller
 {
+    public const NOTIFICATION_CATEGORIES = ['activity', 'purchasing', 'backdate', 'system'];
+
     public function index(Request $request): Response
     {
         $filter = (string) $request->query('filter', 'all');
@@ -24,7 +26,7 @@ class NotificationCenterController extends Controller
                 ->notifications()
                 ->latest();
 
-            if (in_array($filter, ['activity', 'purchasing', 'backdate', 'system'], true)) {
+            if (in_array($filter, self::NOTIFICATION_CATEGORIES, true)) {
                 $query->whereRaw("json_extract(data, '$.category') = ?", [$filter]);
             }
         }

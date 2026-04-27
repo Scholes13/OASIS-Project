@@ -110,7 +110,7 @@ class PrCategoryController extends Controller
     {
         // Check if category is being used
         $usageCount = $prCategory->purchaseRequests()->count();
-        
+
         if ($usageCount > 0) {
             return redirect()->route('admin.pr-categories.index')
                 ->withErrors(['delete' => "Cannot delete category that is being used by {$usageCount} purchase request(s)."]);

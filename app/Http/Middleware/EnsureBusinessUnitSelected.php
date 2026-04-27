@@ -23,22 +23,20 @@ class EnsureBusinessUnitSelected
 
         // Super admins can bypass business unit requirement
         if ($user->global_role === 'super_admin') {
-            // Ensure super admin session context exists (check both code AND id)
-            // Also check if the logo session key is missing and add it.
-            // A selected BU may legitimately have a null logo, so use key existence
-            // instead of a truthy check to avoid resetting context to the primary BU.
-            $needsLogoUpdate = session('current_business_unit_id') && ! $request->session()->exists('current_business_unit_logo');
+            $hasValidContext = session('current_business_unit_id') && session('current_business_unit_code');
+            $needsLogoRestore = $hasValidContext && ! $request->session()->exists('current_business_unit_logo');
 
-            if (! session('current_business_unit_code') || ! session('current_business_unit_id') || $needsLogoUpdate) {
-                // For super admins, use their primary business unit (usually WG)
+            if ($needsLogoRestore) {
+                // Only logo is missing — restore it for the current BU without changing selection
+                $currentBu = \App\Models\Core\BusinessUnit::find(session('current_business_unit_id'));
+                if ($currentBu) {
+                    session(['current_business_unit_logo' => $currentBu->logo]);
+                }
+            } elseif (! $hasValidContext) {
+                // Full context missing — initialize from primary BU
                 $primaryBu = null;
                 if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
                     $primaryBu = $user->primaryDepartment->businessUnit;
-                }
-
-                // If only logo is missing, fetch current BU
-                if ($needsLogoUpdate && ! $primaryBu) {
-                    $primaryBu = \App\Models\Core\BusinessUnit::find(session('current_business_unit_id'));
                 }
 
                 if ($primaryBu) {
@@ -63,6 +61,15 @@ class EnsureBusinessUnitSelected
                             'current_department_id' => null,
                         ]);
                     }
+                }
+            }
+
+            // Ensure department context is valid for the active BU
+            $activeBuId = (int) session('current_business_unit_id');
+            if ($activeBuId) {
+                $resolvedDeptId = $user->resolveDepartmentForBusinessUnit($activeBuId);
+                if (session('current_department_id') !== $resolvedDeptId) {
+                    session(['current_department_id' => $resolvedDeptId]);
                 }
             }
 

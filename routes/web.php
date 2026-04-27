@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityConfigurationController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
@@ -323,8 +324,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             // Task Comment Routes
             Route::prefix('{task}/comments')->name('comments.')->whereNumber('task')->group(function () {
                 Route::post('/', [TaskCommentController::class, 'store'])->name('store')->middleware('throttle:10,1');
-                Route::put('/{comment}', [TaskCommentController::class, 'update'])->name('update')->whereNumber('comment');
-                Route::delete('/{comment}', [TaskCommentController::class, 'destroy'])->name('destroy')->whereNumber('comment');
+                Route::put('/{comment}', [TaskCommentController::class, 'update'])->name('update')->middleware('throttle:10,1')->whereNumber('comment');
+                Route::delete('/{comment}', [TaskCommentController::class, 'destroy'])->name('destroy')->middleware('throttle:10,1')->whereNumber('comment');
             });
         });
 
@@ -396,10 +397,25 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // PR Category Management
         Route::resource('pr-categories', \App\Http\Controllers\Admin\PrCategoryController::class);
 
+        // Unified Activity Configuration page
+        Route::get('/activity-configuration', [ActivityConfigurationController::class, 'index'])
+            ->name('activity-configuration.index');
+
         // Activity Type & Sub-Activity Management
-        Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class);
+        // Legacy index redirects — point old index URLs to the unified page
+        Route::get('activity-types', fn () => redirect()->route('admin.activity-configuration.index'))
+            ->name('activity-types.index');
+        Route::get('sub-activities', fn () => redirect()->route('admin.activity-configuration.index'))
+            ->name('sub-activities.index');
+
+        // Activity Types CRUD (excluding index, which is redirected above)
+        Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class)
+            ->except(['index']);
         Route::post('activity-types/{activity_type}/assign-departments', [\App\Http\Controllers\Admin\ActivityTypeController::class, 'assignDepartments'])->name('activity-types.assign-departments');
-        Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class);
+
+        // Sub-Activities CRUD (excluding index, which is redirected above)
+        Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class)
+            ->except(['index']);
         Route::prefix('activity-admins')->name('activity-admins.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'index'])->name('index');
             Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');

@@ -63,7 +63,7 @@ class NotificationSetting extends Model
      */
     public function getSmtpPasswordAttribute($value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -74,6 +74,7 @@ class NotificationSetting extends Model
                 'error' => $e->getMessage(),
                 'setting_id' => $this->id,
             ]);
+
             return null;
         }
     }

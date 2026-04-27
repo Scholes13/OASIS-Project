@@ -19,7 +19,7 @@ This repository uses a Harness Engineering structure so the Product Owner can op
 - `@viewer`
   - Owns read-only repository mapping, contract tracing, impact analysis, and evidence gathering before implementation or review.
 - `@coder_backend`
-  - Owns schema, Eloquent models, services, controllers, form requests, policies, jobs, console commands, and backend tests.
+  - Owns schema, Eloquent models, services, controllers, form requests, middleware, notifications, providers, console commands, and backend tests.
 - `@coder_frontend`
   - Owns Inertia pages, React components, TypeScript types, client-side form behavior, navigation behavior, and frontend tests.
 - `@qa`
@@ -54,23 +54,24 @@ This repository uses a Harness Engineering structure so the Product Owner can op
 ## Directory Boundaries
 
 ### Backend-owned areas
-- `app/Http/Controllers/`
+- `app/Http/Controllers/` — organized under `Modules/<Module>/` for domain controllers and flat for cross-cutting controllers
 - `app/Http/Requests/`
-- `app/Models/`
-- `app/Policies/`
-- `app/Services/`
-- `app/Jobs/`
+- `app/Http/Middleware/` — includes authorization middleware (`ActivityAdminAccess`, `PurchasingAdminAccess`, `EnsureBusinessUnitSelected`, etc.)
+- `app/Models/` — organized under `Core/` for shared models and `Modules/<Module>/` for domain models
+- `app/Services/` — organized under `Core/` for shared services and `Modules/<Module>/` for domain services
+- `app/Notifications/` — organized under `Activity/` and `Purchasing/` for domain notification classes
+- `app/Providers/` — includes `AppServiceProvider` (gates, authorization) and `EventServiceProvider`
 - `app/Console/`
 - `bootstrap/`
 - `config/`
-- `database/`
+- `database/` — migrations organized under `modules/<module>/` for domain migrations
 - `routes/`
-- `tests/Feature/`
+- `tests/Feature/` — organized under `Modules/<Module>/` for domain tests and flat for core tests
 - `tests/Unit/`
 
 ### Frontend-owned areas
-- `resources/js/inertia/`
-- `resources/js/app.tsx`
+- `resources/js/inertia/` — Pages, components, hooks, and layouts
+- `resources/js/inertia/app.tsx`
 - `resources/css/`
 - `tests/React/`
 
@@ -78,6 +79,14 @@ This repository uses a Harness Engineering structure so the Product Owner can op
 - `docs/`
 - `AGENTS.md`
 - route names, request/response contracts, shared TypeScript types, and Inertia props
+
+### Module namespace convention
+The codebase uses a hybrid module-namespaced organization:
+- **`Core/`** — shared models, services, and utilities used across modules (e.g., `User`, `BusinessUnit`, `UserBusinessUnit`, `NavigationService`)
+- **`Modules/<Module>/`** — domain-specific code scoped to a single module (e.g., `Modules/Activity/`, `Modules/Purchasing/`, `Modules/CashflowProjection/`, `Modules/SalesCrm/`)
+- **Flat (no namespace)** — cross-cutting controllers that serve global features (e.g., `NotificationCenterController`, `DashboardController`, `DocsHelpController`)
+
+This pattern applies consistently across controllers, models, services, notifications, migrations, and tests.
 
 ## Repo-specific Rules
 - This app uses a custom Inertia layout under `resources/js/inertia/`; do not assume the default Laravel `resources/js/Pages` layout.

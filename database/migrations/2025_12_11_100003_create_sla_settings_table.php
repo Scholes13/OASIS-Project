@@ -18,10 +18,10 @@ return new class extends Migration
             $table->integer('completion_sla_hours')->default(72);
             $table->boolean('email_alerts_enabled')->default(true);
             $table->timestamps();
-            
+
             // Foreign key
             $table->foreign('business_unit_id')->references('id')->on('business_units')->onDelete('cascade');
-            
+
             // Unique constraint - one setting per business unit (or one global)
             $table->unique('business_unit_id', 'unique_sla_per_bu');
         });

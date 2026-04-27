@@ -89,7 +89,8 @@ class StockRequestOfflineApprovalDocumentAccessTest extends TestCase
             ])
             ->get(route('stock-requests.offline-approval-document', $stockRequest));
 
-        $response->assertNotFound();
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
     }
 
     /**

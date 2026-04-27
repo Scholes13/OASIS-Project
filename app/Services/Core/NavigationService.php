@@ -216,20 +216,15 @@ class NavigationService
             ];
         }
 
-        // Activity Types & Sub-Activities (Super Admin only)
+        // Activity Configuration (Super Admin only) — unified page for types + sub-activities
         if ($user->isSuperAdmin()) {
             $items[] = [
-                'name' => 'Activity Types',
-                'href' => route('admin.activity-types.index'),
-                'icon' => 'list',
-                'active' => request()->routeIs('admin.activity-types.*'),
-            ];
-
-            $items[] = [
-                'name' => 'Sub-Activities',
-                'href' => route('admin.sub-activities.index'),
-                'icon' => 'list',
-                'active' => request()->routeIs('admin.sub-activities.*'),
+                'name' => 'Activity Configuration',
+                'href' => route('admin.activity-configuration.index'),
+                'icon' => 'settings',
+                'active' => request()->routeIs('admin.activity-configuration.*')
+                         || request()->routeIs('admin.activity-types.*')
+                         || request()->routeIs('admin.sub-activities.*'),
             ];
         }
 
@@ -270,37 +265,16 @@ class NavigationService
     {
         $items = [];
 
-        // Only Super Admin can access administration
         if (! $user->isSuperAdmin()) {
             return [];
         }
 
+        // User & Access
         $items[] = [
             'name' => 'Users',
             'href' => route('admin.users.index'),
             'icon' => 'user',
             'active' => request()->routeIs('admin.users.*'),
-        ];
-
-        $items[] = [
-            'name' => 'Departments',
-            'href' => route('admin.departments.index'),
-            'icon' => 'office-building',
-            'active' => request()->routeIs('admin.departments.*'),
-        ];
-
-        $items[] = [
-            'name' => 'Business Units',
-            'href' => route('admin.business-units.index'),
-            'icon' => 'briefcase',
-            'active' => request()->routeIs('admin.business-units.*'),
-        ];
-
-        $items[] = [
-            'name' => 'Email Notifications',
-            'href' => route('admin.notification-settings.index'),
-            'icon' => 'mail',
-            'active' => request()->routeIs('admin.notification-settings.*'),
         ];
 
         $items[] = [
@@ -315,6 +289,29 @@ class NavigationService
             'href' => route('admin.purchasing-admins.index'),
             'icon' => 'shopping-cart',
             'active' => request()->routeIs('admin.purchasing-admins.*'),
+        ];
+
+        // Organization
+        $items[] = [
+            'name' => 'Business Units',
+            'href' => route('admin.business-units.index'),
+            'icon' => 'briefcase',
+            'active' => request()->routeIs('admin.business-units.*'),
+        ];
+
+        $items[] = [
+            'name' => 'Departments',
+            'href' => route('admin.departments.index'),
+            'icon' => 'office-building',
+            'active' => request()->routeIs('admin.departments.*'),
+        ];
+
+        // Settings
+        $items[] = [
+            'name' => 'Email Notifications',
+            'href' => route('admin.notification-settings.index'),
+            'icon' => 'mail',
+            'active' => request()->routeIs('admin.notification-settings.*'),
         ];
 
         return [

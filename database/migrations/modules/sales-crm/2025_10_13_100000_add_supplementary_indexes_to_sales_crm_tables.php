@@ -8,7 +8,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * 
+     *
      * Performance optimization indexes for Sales CRM module.
      * Following best practices from v.2.2 optimization.
      */
@@ -69,7 +69,7 @@ return new class extends Migration
         Schema::table('activities', function (Blueprint $table) {
             $table->dropIndex('idx_activities_bu_status_dates');
             $table->dropIndex('idx_activities_user_bu_filters');
-            
+
             if (DB::connection()->getDriverName() === 'mysql') {
                 DB::statement('ALTER TABLE activities DROP INDEX idx_activities_search');
             }
@@ -79,7 +79,7 @@ return new class extends Migration
             $table->dropIndex('idx_contacts_bu_assigned_filters');
             $table->dropIndex('idx_contacts_bu_category_filters');
             $table->dropIndex('idx_contacts_bu_company');
-            
+
             if (DB::connection()->getDriverName() === 'mysql') {
                 DB::statement('ALTER TABLE contacts DROP INDEX idx_contacts_search');
             }

@@ -60,6 +60,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->getRoleNames()->first(),
+                    'global_role' => $user->global_role,
                     'avatar_url' => $user->avatar_url ?? null,
                     'primary_department_id' => $user->primary_department_id,
                     'current_department_id' => $user->getCurrentDepartmentId(),
@@ -69,7 +70,7 @@ class HandleInertiaRequests extends Middleware
             'currentDepartment' => fn () => $this->getCurrentDepartment($currentDepartmentId),
             'availableBusinessUnits' => fn () => $this->getCachedBusinessUnits($user),
             'availableDepartments' => fn () => $this->getAvailableDepartments($user),
-            'navigation' => fn () => $this->getCachedNavigation($user, $currentBusinessUnitId),
+            'navigation' => $this->getCachedNavigation($user, $currentBusinessUnitId),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -83,6 +84,7 @@ class HandleInertiaRequests extends Middleware
                 'unread_count' => fn () => $user ? $user->unreadNotifications()->count() : 0,
             ],
             'appName' => config('app.name'),
+            'serverDate' => now()->format('Y-m-d'),
         ]);
     }
 

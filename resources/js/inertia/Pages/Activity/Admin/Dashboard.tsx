@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    BarChart3, Building2, CheckCircle, Clock, Download, ListTodo,
-    TrendingUp, Timer, ArrowRight, Trophy, Filter, Calendar as CalendarIcon,
-    Users, Flame, Activity, Zap,
+    BarChart3, Building2, Clock, Download,
+    Timer, ArrowRight, Calendar as CalendarIcon,
+    Users, Flame, Activity, Zap, TrendingUp,
 } from 'lucide-react';
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -53,27 +53,18 @@ interface DashboardProps extends PageProps {
     filters: { date_from: string; date_to: string; department_id: number | null };
 }
 
-// ── Static Tailwind-safe color maps ────────────────────────────────────
-const metricStyles: Record<string, { bg: string; text: string; ring: string }> = {
-    indigo:  { bg: 'bg-indigo-50',  text: 'text-indigo-600',  ring: 'ring-indigo-500/20' },
-    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-500/20' },
-    blue:    { bg: 'bg-blue-50',    text: 'text-blue-600',    ring: 'ring-blue-500/20' },
-    amber:   { bg: 'bg-amber-50',   text: 'text-amber-600',   ring: 'ring-amber-500/20' },
-    red:     { bg: 'bg-red-50',     text: 'text-red-600',     ring: 'ring-red-500/20' },
-    purple:  { bg: 'bg-purple-50',  text: 'text-purple-600',  ring: 'ring-purple-500/20' },
-};
-
+// ── Fade animations ──────────────────────────────────────────────────
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
 const stagger = { show: { transition: { staggerChildren: 0.06 } } };
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 // ── Period presets ─────────────────────────────────────────────────────
 const periodPresets = [
-    { label: 'Hari Ini', getRange: () => ({ from: format(new Date(), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
-    { label: 'Minggu Ini', getRange: () => ({ from: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'), to: format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd') }) },
-    { label: 'Bulan Ini', getRange: () => ({ from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
-    { label: '30 Hari', getRange: () => ({ from: format(subDays(new Date(), 30), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
-    { label: '90 Hari', getRange: () => ({ from: format(subDays(new Date(), 90), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
+    { label: 'Today', getRange: () => ({ from: format(new Date(), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
+    { label: 'This Week', getRange: () => ({ from: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'), to: format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd') }) },
+    { label: 'This Month', getRange: () => ({ from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
+    { label: '30 Days', getRange: () => ({ from: format(subDays(new Date(), 30), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
+    { label: '90 Days', getRange: () => ({ from: format(subDays(new Date(), 90), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
 ];
 
 // ── Busyness level helper ──────────────────────────────────────────────
@@ -87,7 +78,7 @@ function getBusynessLevel(total: number, completionRate: number): { label: strin
     if (total >= 3) {
         return { label: 'Normal', color: '#10b981', icon: Activity, bgClass: 'bg-emerald-50', textClass: 'text-emerald-700', dotClass: 'bg-emerald-500' };
     }
-    return { label: 'Rendah', color: '#94a3b8', icon: Clock, bgClass: 'bg-slate-50', textClass: 'text-slate-600', dotClass: 'bg-slate-400' };
+    return { label: 'Rendah', color: '#94a3b8', icon: Clock, bgClass: 'bg-gray-50', textClass: 'text-gray-600', dotClass: 'bg-gray-400' };
 }
 
 // ── Enhanced chart tooltip ─────────────────────────────────────────────
@@ -95,18 +86,18 @@ function ChartTooltip({ active, payload, label }: any) {
     if (!active || !payload?.length) return null;
     const total = payload.reduce((sum: number, p: any) => sum + (p.value || 0), 0);
     return (
-        <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 shadow-xl">
-            <p className="text-xs font-semibold text-slate-700 mb-1.5 border-b border-slate-100 pb-1.5">{label}</p>
+        <div className="rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 shadow-xl">
+            <p className="text-xs font-semibold text-gray-700 mb-1.5 border-b border-gray-100 pb-1.5">{label}</p>
             {payload.map((p: any, i: number) => (
                 <div key={i} className="flex items-center justify-between gap-6 py-0.5">
                     <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                        <span className="text-xs text-slate-600">{p.name}</span>
+                        <span className="text-xs text-gray-600">{p.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900 tabular-nums">{p.value}</span>
+                        <span className="text-xs font-bold text-gray-900 tabular-nums">{p.value}</span>
                         {total > 0 && (
-                            <span className="text-[10px] text-slate-400 tabular-nums">
+                            <span className="text-[10px] text-gray-400 tabular-nums">
                                 ({Math.round((p.value / total) * 100)}%)
                             </span>
                         )}
@@ -123,17 +114,17 @@ function DashboardLoadingSkeleton() {
         <div className="w-full px-6 py-6 lg:px-8 space-y-6 animate-in fade-in duration-300">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-2">
-                    <div className="h-8 w-48 bg-slate-200 rounded-md animate-pulse" />
-                    <div className="h-4 w-72 bg-slate-100 rounded-md animate-pulse" />
+                    <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse" />
+                    <div className="h-4 w-72 bg-gray-100 rounded-md animate-pulse" />
                 </div>
-                <div className="h-10 w-80 bg-slate-100 rounded-xl animate-pulse" />
+                <div className="h-10 w-80 bg-gray-100 rounded-xl animate-pulse" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => <StatsCardSkeleton key={i} />)}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <ChartSkeleton type="pie" className="lg:col-span-2 border border-slate-200 rounded-xl" />
-                <ChartSkeleton type="line" className="lg:col-span-3 border border-slate-200 rounded-xl" />
+                <ChartSkeleton type="pie" className="lg:col-span-2 border border-gray-200 rounded-xl" />
+                <ChartSkeleton type="line" className="lg:col-span-3 border border-gray-200 rounded-xl" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
@@ -226,20 +217,19 @@ export default function Dashboard({
 
     // Department select options
     const deptOptions = useMemo(() => [
-        { value: '', label: 'Semua Department' },
+        { value: '', label: 'All Departments' },
         ...departments.map(d => ({ value: String(d.id), label: `${d.code} — ${d.name}` })),
     ], [departments]);
 
     // Metric cards config — static Tailwind classes only
     const metricCards = useMemo(() => {
-        const completionColor = buSummary.completion_rate >= 70 ? 'emerald' : buSummary.completion_rate >= 40 ? 'amber' : 'red';
         return [
-            { label: 'Total Aktivitas', value: buSummary.total, icon: ListTodo, color: 'indigo' as const },
-            { label: 'Selesai', value: buSummary.completed, icon: CheckCircle, color: 'emerald' as const },
-            { label: 'Berjalan', value: buSummary.in_progress, icon: Clock, color: 'blue' as const },
-            { label: 'Direncanakan', value: buSummary.planned, icon: BarChart3, color: 'amber' as const },
-            { label: 'Completion', value: `${buSummary.completion_rate}%`, icon: TrendingUp, color: completionColor as keyof typeof metricStyles },
-            { label: 'Total Jam', value: buSummary.total_hours, icon: Timer, color: 'purple' as const },
+            { label: 'Total Activities', value: buSummary.total, valueClass: 'text-gray-900', bgClass: 'bg-slate-50/80' },
+            { label: 'Completed', value: buSummary.completed, valueClass: 'text-gray-900', bgClass: 'bg-emerald-50/60' },
+            { label: 'In Progress', value: buSummary.in_progress, valueClass: 'text-gray-900', bgClass: 'bg-blue-50/60' },
+            { label: 'Planned', value: buSummary.planned, valueClass: 'text-gray-900', bgClass: 'bg-amber-50/60' },
+            { label: 'Completion Rate', value: `${buSummary.completion_rate}%`, valueClass: 'text-primary', bgClass: 'bg-sky-50/60' },
+            { label: 'Total Hours', value: buSummary.total_hours, valueClass: 'text-gray-900', bgClass: 'bg-violet-50/50' },
         ];
     }, [buSummary]);
 
@@ -257,13 +247,13 @@ export default function Dashboard({
                 {/* ── Header ────────────────────────────────────────── */}
                 <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
                     <div className="flex flex-col gap-1.5">
-                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Activity Admin</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Activity Admin</h1>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <Badge variant="default" size="sm" className="bg-white border border-slate-200 shadow-sm text-slate-600">
+                            <Badge variant="default" size="sm" className="bg-white border border-gray-200 shadow-sm text-gray-600">
                                 <Building2 className="w-3 h-3 mr-1" strokeWidth={2} />
                                 {currentBusinessUnit?.name || 'Business Unit'}
                             </Badge>
-                            <span className="text-sm text-slate-500">Ringkasan kesibukan semua department</span>
+                            <span className="text-sm text-gray-500">Summary of all department activity</span>
                         </div>
                     </div>
 
@@ -288,7 +278,7 @@ export default function Dashboard({
                 </div>
 
                 {/* ── Filter Bar ─────────────────────────────────────── */}
-                <Card className="p-3 shadow-sm border-slate-200/80">
+                <Card className="p-3 shadow-sm border-gray-200/80">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-3">
                         {/* Period Presets */}
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -300,7 +290,7 @@ export default function Dashboard({
                                         'h-7 px-3 text-xs font-medium rounded-md border transition-all cursor-pointer',
                                         activePreset === preset.label
                                             ? 'bg-primary text-white border-primary shadow-sm'
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                     )}
                                 >
                                     {preset.label}
@@ -308,30 +298,30 @@ export default function Dashboard({
                             ))}
                         </div>
 
-                        <div className="w-px h-7 bg-slate-200 hidden lg:block" />
+                        <div className="w-px h-7 bg-gray-200 hidden lg:block" />
 
                         {/* Date Range */}
                         <div className="flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4 text-slate-400 flex-shrink-0" strokeWidth={1.5} />
+                            <CalendarIcon className="w-4 h-4 text-gray-400 flex-shrink-0" strokeWidth={1.5} />
                             <input
                                 type="date"
                                 value={dateFrom}
                                 onChange={e => { setDateFrom(e.target.value); setActivePreset(null); }}
-                                className="w-[130px] text-xs h-8 rounded-md border border-slate-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+                                className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
                             />
-                            <span className="text-xs text-slate-300 font-medium">—</span>
+                            <span className="text-xs text-gray-300 font-medium">—</span>
                             <input
                                 type="date"
                                 value={dateTo}
                                 onChange={e => { setDateTo(e.target.value); setActivePreset(null); }}
-                                className="w-[130px] text-xs h-8 rounded-md border border-slate-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+                                className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
                             />
                             <Button size="sm" variant="outline" onClick={handleDateApply} className="h-8 text-xs">
-                                Terapkan
+                                Apply
                             </Button>
                         </div>
 
-                        <div className="w-px h-7 bg-slate-200 hidden lg:block" />
+                        <div className="w-px h-7 bg-gray-200 hidden lg:block" />
 
                         {/* Department Filter */}
                         <div className="w-56">
@@ -339,7 +329,7 @@ export default function Dashboard({
                                 value={departmentId}
                                 onChange={handleDepartmentChange}
                                 options={deptOptions}
-                                placeholder="Semua Department"
+                                placeholder="All Departments"
                                 className="text-xs"
                             />
                         </div>
@@ -357,21 +347,12 @@ export default function Dashboard({
                         <motion.div key="data" variants={stagger} initial="hidden" animate="show"
                             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                             {metricCards.map((m) => {
-                                const Icon = m.icon;
-                                const style = metricStyles[m.color] || metricStyles.indigo;
                                 return (
                                     <motion.div key={m.label} variants={fadeUp}>
-                                        <Card className="p-4 hover:shadow-md transition-all group">
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{m.label}</p>
-                                                    <p className="text-2xl font-bold text-slate-900 mt-1.5 tabular-nums">{m.value}</p>
-                                                </div>
-                                                <div className={cn('p-2 rounded-lg ring-1 transition-transform group-hover:scale-110', style.bg, style.ring)}>
-                                                    <Icon className={cn('w-5 h-5', style.text)} strokeWidth={1.5} />
-                                                </div>
-                                            </div>
-                                        </Card>
+                                        <div className={cn("border border-gray-200/80 rounded-lg p-4", m.bgClass)}>
+                                            <p className="text-[13px] font-medium text-gray-500">{m.label}</p>
+                                            <p className={cn("mt-1 text-3xl font-bold tabular-nums", m.valueClass)}>{m.value}</p>
+                                        </div>
                                     </motion.div>
                                 );
                             })}
@@ -381,17 +362,17 @@ export default function Dashboard({
 
                 {/* ── Charts Row 1: Distribution + Daily Trend ────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    {/* Donut: Distribusi Aktivitas */}
-                    <Card className="lg:col-span-2 flex flex-col shadow-sm border-slate-200/60">
+                    {/* Donut: Activity Distribution */}
+                    <Card className="lg:col-span-2 flex flex-col border border-gray-200 rounded-lg">
                         <CardHeader className="pb-0">
-                            <CardTitle className="text-base font-semibold text-slate-800">Distribusi Aktivitas</CardTitle>
+                            <CardTitle className="text-base font-semibold text-gray-900">Activity Distribution</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 flex flex-col justify-center mt-4">
                             {buActivityTypes.length === 0 ? (
                                 <EmptyState
                                     icon={<BarChart3 className="w-10 h-10" />}
-                                    title="Belum ada data aktivitas"
-                                    description="Data akan muncul setelah ada aktivitas di periode yang dipilih."
+                                    title="No activity data"
+                                    description="Activity data will appear once activities are logged for the selected period."
                                     variant="compact"
                                 />
                             ) : (
@@ -415,17 +396,17 @@ export default function Dashboard({
                                                 <div className="flex items-center gap-2.5 min-w-0">
                                                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                                                         style={{ backgroundColor: at.color || COLORS[i % COLORS.length] }} />
-                                                    <span className="text-sm text-slate-600 font-medium truncate group-hover:text-slate-900 transition-colors">{at.name}</span>
+                                                    <span className="text-sm text-gray-600 font-medium truncate group-hover:text-gray-900 transition-colors">{at.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <span className="text-sm font-semibold text-slate-900 tabular-nums">{at.count}</span>
-                                                    <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded tabular-nums">{at.percentage}%</span>
+                                                    <span className="text-sm font-semibold text-gray-900 tabular-nums">{at.count}</span>
+                                                    <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded tabular-nums">{at.percentage}%</span>
                                                 </div>
                                             </div>
                                         ))}
                                         {buActivityTypes.length > 6 && (
-                                            <p className="text-xs text-slate-400 text-center pt-1 font-medium">
-                                                +{buActivityTypes.length - 6} lainnya
+                                            <p className="text-xs text-gray-400 text-center pt-1 font-medium">
+                                                +{buActivityTypes.length - 6} more
                                             </p>
                                         )}
                                     </div>
@@ -435,16 +416,16 @@ export default function Dashboard({
                     </Card>
 
                     {/* Area: Daily Trend */}
-                    <Card className="lg:col-span-3 flex flex-col shadow-sm border-slate-200/60">
+                    <Card className="lg:col-span-3 flex flex-col border border-gray-200 rounded-lg">
                         <CardHeader className="pb-4">
-                            <CardTitle className="text-base font-semibold text-slate-800">Tren Harian</CardTitle>
+                            <CardTitle className="text-base font-semibold text-gray-900">Daily Trend</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 flex items-center">
                             {dailyTrend.length === 0 ? (
                                 <EmptyState
                                     icon={<TrendingUp className="w-10 h-10" />}
-                                    title="Belum ada data tren"
-                                    description="Data tren akan muncul saat ada aktivitas harian."
+                                    title="No trend data"
+                                    description="Trend data will appear once daily activities are logged."
                                     variant="compact"
                                     className="w-full"
                                 />
@@ -466,7 +447,7 @@ export default function Dashboard({
                                         <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" allowDecimals={false} axisLine={false} tickLine={false} dx={-10} />
                                         <Tooltip content={<ChartTooltip />} />
                                         <Area type="monotone" dataKey="total" name="Total" stroke="#6366f1" fill="url(#gT)" strokeWidth={2} />
-                                        <Area type="monotone" dataKey="completed" name="Selesai" stroke="#10b981" fill="url(#gD)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="completed" name="Completed" stroke="#10b981" fill="url(#gD)" strokeWidth={2} />
                                         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
                                     </AreaChart>
                                 </ResponsiveContainer>
@@ -477,16 +458,16 @@ export default function Dashboard({
 
                 {/* ── Charts Row 2: Dept Bar + Top Contributors ──── */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    <Card className="lg:col-span-3 shadow-sm border-slate-200/60 flex flex-col">
+                    <Card className="lg:col-span-3 border border-gray-200 rounded-lg flex flex-col">
                         <CardHeader className="pb-4">
-                            <CardTitle className="text-base font-semibold text-slate-800">Aktivitas per Department</CardTitle>
+                            <CardTitle className="text-base font-semibold text-gray-900">Activities by Department</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1">
                             {deptChartData.length === 0 ? (
                                 <EmptyState
                                     icon={<BarChart3 className="w-10 h-10" />}
-                                    title="Belum ada data department"
-                                    description="Data akan muncul setelah department memiliki aktivitas."
+                                    title="No department data"
+                                    description="Data will appear once departments have activities."
                                     variant="compact"
                                 />
                             ) : (
@@ -497,19 +478,18 @@ export default function Dashboard({
                                         <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" allowDecimals={false} axisLine={false} tickLine={false} dx={-10} />
                                         <Tooltip cursor={{ fill: '#f8fafc' }} content={<ChartTooltip />} />
                                         <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 16, fontWeight: 500, color: '#475569' }} />
-                                        <Bar dataKey="completed" name="Selesai" stackId="a" fill="#10b981" />
-                                        <Bar dataKey="in_progress" name="Berjalan" stackId="a" fill="#3b82f6" />
-                                        <Bar dataKey="planned" name="Direncanakan" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="completed" name="Completed" stackId="a" fill="#10b981" />
+                                        <Bar dataKey="in_progress" name="In Progress" stackId="a" fill="#3b82f6" />
+                                        <Bar dataKey="planned" name="Planned" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
                         </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2 shadow-sm border-slate-200/60 flex flex-col">
-                        <CardHeader className="pb-4 border-b border-slate-100">
-                            <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                                <Trophy className="w-5 h-5 text-amber-500" strokeWidth={2} />
+                    <Card className="lg:col-span-2 border border-gray-200 rounded-lg flex flex-col">
+                        <CardHeader className="pb-4 border-b border-gray-100">
+                            <CardTitle className="text-base font-semibold text-gray-900">
                                 Top Contributors
                             </CardTitle>
                         </CardHeader>
@@ -517,8 +497,8 @@ export default function Dashboard({
                             {topContributors.length === 0 ? (
                                 <EmptyState
                                     icon={<Users className="w-10 h-10" />}
-                                    title="Belum ada kontributor"
-                                    description="Data akan muncul saat ada aktivitas karyawan."
+                                    title="No contributors"
+                                    description="Data will appear once employees log activities."
                                     variant="compact"
                                 />
                             ) : (
@@ -526,7 +506,7 @@ export default function Dashboard({
                                     {topContributors.map((c, i) => {
                                         const rate = c.total > 0 ? Math.round((c.completed / c.total) * 100) : 0;
                                         return (
-                                            <div key={c.created_by} className="flex items-center gap-3.5 group py-1 hover:bg-slate-50/50 -mx-2 px-2 rounded-lg transition-colors">
+                                            <div key={c.created_by} className="flex items-center gap-3.5 group py-1 hover:bg-gray-50/50 -mx-2 px-2 rounded-lg transition-colors">
                                                 <div className="relative flex-shrink-0">
                                                     <div className="w-9 h-9 rounded-full bg-primary/90 flex items-center justify-center text-sm font-bold text-white shadow-sm">
                                                         {c.name.charAt(0).toUpperCase()}
@@ -534,23 +514,23 @@ export default function Dashboard({
                                                     {i < 3 && (
                                                         <div className={cn(
                                                             'absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-2 ring-white',
-                                                            i === 0 ? 'bg-amber-400' : i === 1 ? 'bg-slate-400' : 'bg-orange-400'
+                                                            i === 0 ? 'bg-amber-400' : i === 1 ? 'bg-gray-400' : 'bg-orange-400'
                                                         )}>
                                                             {i + 1}
                                                         </div>
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-primary transition-colors">{c.name}</p>
-                                                    <p className="text-[11px] text-slate-500 truncate">{c.dept_name}</p>
+                                                    <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-primary transition-colors">{c.name}</p>
+                                                    <p className="text-[11px] text-gray-500 truncate">{c.dept_name}</p>
                                                 </div>
                                                 <div className="text-right flex-shrink-0">
-                                                    <p className="text-sm font-bold text-slate-900 tabular-nums">
-                                                        {c.completed}<span className="text-[11px] font-medium text-slate-400">/{c.total}</span>
+                                                    <p className="text-sm font-bold text-gray-900 tabular-nums">
+                                                        {c.completed}<span className="text-[11px] font-medium text-gray-400">/{c.total}</span>
                                                     </p>
                                                     <div className="flex items-center justify-end gap-1.5 mt-1">
-                                                        <span className="text-[10px] font-medium text-slate-500 tabular-nums">{rate}%</span>
-                                                        <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <span className="text-[10px] font-medium text-gray-500 tabular-nums">{rate}%</span>
+                                                        <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                                             <div
                                                                 className={cn(
                                                                     'h-full rounded-full transition-all',
@@ -572,7 +552,7 @@ export default function Dashboard({
 
                 {/* ── Department Cards with Busyness Indicator ────── */}
                 <div>
-                    <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                    <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-4">
                         <Building2 className="w-5 h-5 text-primary" strokeWidth={1.5} />
                         Detail per Department
                         {departmentStats.length > 0 && (
@@ -583,8 +563,8 @@ export default function Dashboard({
                     {departmentStats.length === 0 ? (
                         <EmptyState
                             icon={<Building2 className="w-12 h-12" />}
-                            title="Tidak ada department aktif"
-                            description="Belum ada department aktif di business unit ini."
+                            title="No active departments"
+                            description="There are no active departments in this business unit."
                         />
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -602,10 +582,10 @@ export default function Dashboard({
                                                 {/* Header: Name + Busyness badge */}
                                                 <div className="flex items-start justify-between mb-3">
                                                     <div className="min-w-0 flex-1">
-                                                        <h3 className="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors truncate">
+                                                        <h3 className="text-sm font-semibold text-gray-900 group-hover:text-primary transition-colors truncate">
                                                             {ds.department.name}
                                                         </h3>
-                                                        <p className="text-[11px] text-slate-400 mt-0.5">{ds.department.code}</p>
+                                                        <p className="text-[11px] text-gray-400 mt-0.5">{ds.department.code}</p>
                                                     </div>
                                                     <span className={cn(
                                                         'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0',
@@ -618,7 +598,7 @@ export default function Dashboard({
 
                                                 {/* Completion bar */}
                                                 <div className="flex items-center gap-2 mb-3">
-                                                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                                                         <motion.div
                                                             initial={{ width: 0 }}
                                                             animate={{ width: `${Math.min(ds.completion_rate, 100)}%` }}
@@ -630,32 +610,32 @@ export default function Dashboard({
                                                             )}
                                                         />
                                                     </div>
-                                                    <span className="text-xs font-bold text-slate-700 tabular-nums w-10 text-right">{ds.completion_rate}%</span>
+                                                    <span className="text-xs font-bold text-gray-700 tabular-nums w-10 text-right">{ds.completion_rate}%</span>
                                                 </div>
 
                                                 {/* Stats grid */}
                                                 <div className="grid grid-cols-4 gap-1 text-center mb-3">
                                                     <div>
                                                         <p className="text-base font-bold tabular-nums text-emerald-600">{ds.completed}</p>
-                                                        <p className="text-[10px] text-slate-400">Done</p>
+                                                        <p className="text-[10px] text-gray-400">Done</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-base font-bold tabular-nums text-blue-600">{ds.in_progress}</p>
-                                                        <p className="text-[10px] text-slate-400">Progress</p>
+                                                        <p className="text-[10px] text-gray-400">Progress</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-base font-bold tabular-nums text-amber-600">{ds.planned}</p>
-                                                        <p className="text-[10px] text-slate-400">Planned</p>
+                                                        <p className="text-[10px] text-gray-400">Planned</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-base font-bold tabular-nums text-red-400">{ds.cancelled}</p>
-                                                        <p className="text-[10px] text-slate-400">Cancel</p>
+                                                        <p className="text-[10px] text-gray-400">Cancel</p>
                                                     </div>
                                                 </div>
 
                                                 {/* Footer: hours + avg */}
-                                                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                                    <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                                                    <div className="flex items-center gap-3 text-[11px] text-gray-500">
                                                         <span className="flex items-center gap-1">
                                                             <Timer className="w-3 h-3" strokeWidth={1.5} />
                                                             {ds.total_hours}h logged
@@ -665,7 +645,7 @@ export default function Dashboard({
                                                             ~{avgHoursPerTask}h/task
                                                         </span>
                                                     </div>
-                                                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" strokeWidth={1.5} />
+                                                    <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" strokeWidth={1.5} />
                                                 </div>
                                             </Card>
                                         </motion.div>

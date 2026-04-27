@@ -31,13 +31,15 @@
     },
     "coder_backend": {
       "owns": [
-        "database schema",
+        "database schema and migrations",
         "eloquent models and relationships",
         "form requests",
         "controllers",
         "services",
-        "jobs",
-        "policies",
+        "middleware and authorization gates",
+        "notifications",
+        "providers",
+        "console commands",
         "api and inertia server-side payloads",
         "backend tests"
       ],

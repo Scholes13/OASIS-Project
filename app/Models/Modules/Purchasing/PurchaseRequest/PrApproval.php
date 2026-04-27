@@ -74,7 +74,6 @@ class PrApproval extends Model
         'metadata' => 'array',
     ];
 
-
     /**
      * Get the purchase request
      */

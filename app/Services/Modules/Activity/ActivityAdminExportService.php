@@ -28,7 +28,7 @@ class ActivityAdminExportService
             ->when($dateTo, fn ($q) => $q->whereDate('task_date', '<=', $dateTo))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->when($activityTypeId, fn ($q) => $q->where('activity_type_id', $activityTypeId))
-            ->with(['activityType', 'subActivity', 'creator', 'department'])
+            ->with(['activityType', 'subActivity', 'creator', 'department', 'participants'])
             ->orderBy('department_id')
             ->orderBy('task_date', 'desc')
             ->get();
@@ -56,7 +56,7 @@ class ActivityAdminExportService
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Detail');
 
-        $headers = ['No', 'Department', 'Tanggal', 'Judul', 'Tipe Aktivitas', 'Sub Aktivitas', 'Status', 'Prioritas', 'Pembuat', 'Due Date', 'Mulai', 'Selesai', 'Durasi (menit)'];
+        $headers = ['No', 'Department', 'Tanggal', 'Judul', 'Tipe Aktivitas', 'Sub Aktivitas', 'Status', 'Prioritas', 'Pembuat', 'Due Date', 'Mulai', 'Selesai', 'Durasi (menit)', 'Jumlah Peserta', 'Peserta'];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -87,6 +87,8 @@ class ActivityAdminExportService
             $sheet->setCellValue('K'.$row, $task->started_at?->format('Y-m-d H:i'));
             $sheet->setCellValue('L'.$row, $task->completed_at?->format('Y-m-d H:i'));
             $sheet->setCellValue('M'.$row, $task->duration_minutes ?? '-');
+            $sheet->setCellValue('N'.$row, $task->participants->count());
+            $sheet->setCellValue('O'.$row, $task->participants->pluck('name')->sort()->implode(', ') ?: '-');
 
             $statusColor = match ($task->status) {
                 'completed' => 'D1FAE5', 'in_progress' => 'DBEAFE',

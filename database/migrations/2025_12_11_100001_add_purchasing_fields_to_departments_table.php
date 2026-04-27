@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('departments', function (Blueprint $table) {
             $table->boolean('is_purchasing_department')->default(false)->after('is_active');
             $table->unsignedBigInteger('default_purchasing_admin_id')->nullable()->after('is_purchasing_department');
-            
+
             // Foreign key
             $table->foreign('default_purchasing_admin_id')->references('id')->on('users')->onDelete('set null');
         });

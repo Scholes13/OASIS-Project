@@ -308,12 +308,14 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         $this->assertStringContainsString('<Worksheet ss:Name="Finance Inputs">', $content);
         $this->assertStringContainsString('Selected Period', $content);
         $this->assertStringContainsString('Mar 2026', $content);
-        $this->assertStringContainsString('Saldo Proyeksi', $content);
+        // Daily Movement has Date/Inflow/Outflow/Net columns
         $this->assertStringContainsString('2026-03-05', $content);
+        // Raw Entries sheet includes ALL line items (unfiltered)
         $this->assertStringContainsString('2026-01-10', $content);
         $this->assertStringContainsString('January income', $content);
         $this->assertStringContainsString('March revenue', $content);
-        $this->assertStringContainsString('1600', $content);
+        // Balance Snapshot in Summary sheet
+        $this->assertStringContainsString('<Data ss:Type="Number">1580</Data>', $content);
     }
 
     public function test_dashboard_export_finance_scope_includes_other_departments_in_active_business_unit(): void
@@ -374,7 +376,7 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         $this->assertStringContainsString('<Data ss:Type="Number">640</Data>', $content);
     }
 
-    public function test_dashboard_export_range_filter_resets_projected_balance_when_month_changes(): void
+    public function test_dashboard_export_range_filter_includes_daily_movement_for_range(): void
     {
         $response = $this->actingAsFinanceUser()->get(route('cashflow-projection.export', [
             'filter' => 'range',
@@ -387,13 +389,15 @@ class CashflowProjectionDashboardFilterTest extends TestCase
 
         $content = $response->streamedContent();
 
-        $this->assertStringContainsString('Saldo Proyeksi', $content);
-        $this->assertStringContainsString('1070', $content);
-        $this->assertStringContainsString('0', $content);
-        $this->assertStringContainsString('1600', $content);
+        // Daily Movement sheet covers the requested range
+        $this->assertStringContainsString('<Worksheet ss:Name="Daily Movement">', $content);
+        $this->assertStringContainsString('2026-01-15', $content);
+        $this->assertStringContainsString('2026-03-05', $content);
+        // Summary sheet has Balance Snapshot
+        $this->assertStringContainsString('Balance Snapshot', $content);
     }
 
-    public function test_dashboard_export_year_filter_keeps_month_reset_projected_balance_behavior(): void
+    public function test_dashboard_export_year_filter_includes_full_year_daily_movement(): void
     {
         $response = $this->actingAsFinanceUser()->get(route('cashflow-projection.export', [
             'filter' => 'year',
@@ -404,13 +408,16 @@ class CashflowProjectionDashboardFilterTest extends TestCase
 
         $content = $response->streamedContent();
 
-        $this->assertStringContainsString('Saldo Proyeksi', $content);
+        // Daily Movement sheet covers the full year
+        $this->assertStringContainsString('<Worksheet ss:Name="Daily Movement">', $content);
         $this->assertStringContainsString('2026-01-10', $content);
-        $this->assertStringContainsString('2026-02-01', $content);
         $this->assertStringContainsString('2026-03-05', $content);
-        $this->assertStringContainsString('1450', $content);
-        $this->assertStringContainsString('0', $content);
-        $this->assertStringContainsString('1600', $content);
+        // Raw Entries sheet includes all line items
+        $this->assertStringContainsString('January income', $content);
+        $this->assertStringContainsString('March revenue', $content);
+        // Summary sheet has monthly breakdown
+        $this->assertStringContainsString('Balance Snapshot', $content);
+        $this->assertStringContainsString('<Data ss:Type="Number">1580</Data>', $content);
     }
 
     public function test_finance_user_keeps_access_to_dashboard_export_settings_and_linked_unit_management(): void

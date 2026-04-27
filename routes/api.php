@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\BusinessUnitController;
 use App\Http\Controllers\Modules\Activity\ActivityReportingController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\Api\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\Api\PurchaseRequestController;
@@ -96,7 +95,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('activity')->name('api.activity.')->middleware('activity.reporting.access')->group(function () {
             // Dashboard - Role-based data returned by controller
             Route::get('/dashboard', [ActivityReportingController::class, 'dashboard'])->name('dashboard');
-            
+
             // BOD-Only Metrics Routes (requires view-reports permission)
             // These routes provide aggregated data across all business units
             // Only accessible by top management (General Manager, Director, CEO, Finance Manager, Super Admin)
@@ -106,11 +105,11 @@ Route::prefix('v1')->group(function () {
                 Route::get('/metrics/strategic-focus', [ActivityReportingController::class, 'strategicFocus'])
                     ->name('metrics.strategic-focus');
             });
-            
+
             // Manager/Team Metrics Routes (accessible by managers and above)
             Route::get('/metrics/workload-heatmap', [ActivityReportingController::class, 'workloadHeatmap'])
                 ->name('metrics.workload-heatmap');
-            
+
             // Validation Queue Routes (for managers to review flagged tasks)
             Route::get('/validations', [ActivityReportingController::class, 'validationQueue'])->name('validations.index');
             Route::post('/validations/{id}/approve', [ActivityReportingController::class, 'approveValidation'])->name('validations.approve');

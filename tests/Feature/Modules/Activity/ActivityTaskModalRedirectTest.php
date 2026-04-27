@@ -374,6 +374,7 @@ class ActivityTaskModalRedirectTest extends TestCase
                 'sub_activity_id' => null,
                 'status' => 'planned',
                 'priority' => 'medium',
+                'task_date' => $this->task->task_date->format('Y-m-d'),
                 'due_date' => $this->task->due_date->format('Y-m-d'),
                 'participant_ids' => [$this->user->id],
             ]);

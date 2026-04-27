@@ -232,7 +232,8 @@ class PurchaseRequestSupportingDocumentAccessTest extends TestCase
             ])
             ->get(route('purchase-requests.supporting-document', $purchaseRequest));
 
-        $response->assertNotFound();
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
     }
 
     public static function approverAccessProvider(): array

@@ -203,7 +203,7 @@ class QrCodeService
      */
     public function generateStockRequestorQrCode(StockRequest $stockRequest): string
     {
-        if (!$stockRequest->submitted_at) {
+        if (! $stockRequest->submitted_at) {
             return $this->generatePlaceholderQr();
         }
 

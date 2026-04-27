@@ -299,7 +299,7 @@ class EmployeeTaskSeeder extends Seeder
             }
         }
 
-        $this->command->info('Employee tasks seeded successfully! Created ' . count($tasks) . ' tasks.');
+        $this->command->info('Employee tasks seeded successfully! Created '.count($tasks).' tasks.');
         $this->command->info('- 3 overdue tasks');
         $this->command->info('- 3 in progress tasks');
         $this->command->info('- 9 planned tasks (spread across calendar)');

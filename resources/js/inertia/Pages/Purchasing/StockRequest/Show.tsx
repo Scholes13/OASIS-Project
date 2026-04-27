@@ -184,6 +184,9 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
 
     // Handle resubmit
     const handleResubmit = () => {
+        if (!window.confirm('Resubmitting will reset the approval workflow. All previous approval decisions will be cleared. Continue?')) {
+            return;
+        }
         router.post(
             route('stock-requests.resubmit', { stockRequest: stockRequest.id }),
             {},

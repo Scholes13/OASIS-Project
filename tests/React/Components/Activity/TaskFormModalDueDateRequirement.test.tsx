@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { TaskFormModal } from '@/components/activity/TaskFormModal';
 import type { Task } from '@/types';
@@ -72,7 +72,7 @@ describe('TaskFormModal due date requirement', () => {
     });
 
     describe('execution timestamp display and correction', () => {
-        it('derives start time from started_at when editing in_progress task', async () => {
+        it('shows editable start time pre-filled from started_at when editing in_progress task', async () => {
             const task: Task = {
                 id: 1,
                 task_title: 'Test Task',
@@ -107,11 +107,13 @@ describe('TaskFormModal due date requirement', () => {
                 );
             });
 
-            expect(screen.queryByText(/Started At/i)).toBeInTheDocument();
-            expect(screen.queryByLabelText(/Start Time/i)).not.toBeInTheDocument();
+            // Start Time input is always shown for in_progress tasks with started_at
+            const startTimeInput = screen.getByLabelText(/Start Time/i) as HTMLInputElement;
+            expect(startTimeInput).toBeInTheDocument();
+            expect(startTimeInput.value).toBe('08:30');
         });
 
-        it('keeps started task read only and previews shifted date when task_date changes', async () => {
+        it('keeps start time editable when task_date changes for in_progress task', async () => {
             const task: Task = {
                 id: 1,
                 task_title: 'Test Task',
@@ -151,9 +153,10 @@ describe('TaskFormModal due date requirement', () => {
                 fireEvent.change(taskDateInput, { target: { value: '2026-04-14' } });
             });
 
-            expect(screen.queryByLabelText(/Start Time/i)).not.toBeInTheDocument();
-            expect(screen.queryByText(/Task date changed/i)).not.toBeInTheDocument();
-            expect(screen.getByText('2026-04-14 08:30')).toBeInTheDocument();
+            // Start Time input remains visible and editable after task_date change
+            const startTimeInput = screen.getByLabelText(/Start Time/i) as HTMLInputElement;
+            expect(startTimeInput).toBeInTheDocument();
+            expect(startTimeInput.value).toBe('08:30');
         });
 
         it('normalizes iso task and due dates so edit modal shows initial values', async () => {
@@ -194,8 +197,10 @@ describe('TaskFormModal due date requirement', () => {
             expect(screen.getByDisplayValue('2026-04-13')).toBeInTheDocument();
             expect(screen.getByDisplayValue('2026-04-14')).toBeInTheDocument();
             expect(screen.queryByText(/Task date changed/i)).not.toBeInTheDocument();
-            expect(screen.queryByLabelText(/Start Time/i)).not.toBeInTheDocument();
-            expect(screen.getByText(/Started At/i)).toBeInTheDocument();
+            // Start Time input is shown (editable) for in_progress tasks with started_at
+            const startTimeInput = screen.getByLabelText(/Start Time/i) as HTMLInputElement;
+            expect(startTimeInput).toBeInTheDocument();
+            expect(startTimeInput.value).toBe('08:30');
         });
 
         it('requires start time when creating a future dated in_progress task', async () => {
@@ -222,7 +227,7 @@ describe('TaskFormModal due date requirement', () => {
             expect(screen.getByLabelText(/Start Time/i)).toBeInTheDocument();
         });
 
-        it('shows read-only execution summary for completed task without date changes', async () => {
+        it('shows editable execution inputs for completed task', async () => {
             const task: Task = {
                 id: 1,
                 task_title: 'Test Task',
@@ -258,15 +263,19 @@ describe('TaskFormModal due date requirement', () => {
                 );
             });
 
-            expect(screen.queryByText(/Started At/i)).toBeInTheDocument();
-            expect(screen.queryByText(/Completed At/i)).toBeInTheDocument();
-            expect(screen.queryByText(/Duration/i)).toBeInTheDocument();
-            
-            expect(screen.queryByLabelText(/Start Time/i)).not.toBeInTheDocument();
-            expect(screen.queryByLabelText(/End Time/i)).not.toBeInTheDocument();
+            // Completed tasks always show editable Start Time, End Time, and Completed Date
+            const startTimeInput = screen.getByLabelText(/Start Time/i) as HTMLInputElement;
+            expect(startTimeInput).toBeInTheDocument();
+            expect(startTimeInput.value).toBe('08:30');
+
+            const endTimeInput = screen.getByLabelText(/End Time/i) as HTMLInputElement;
+            expect(endTimeInput).toBeInTheDocument();
+            expect(endTimeInput.value).toBe('10:45');
+
+            expect(screen.getByLabelText(/Completed Date/i)).toBeInTheDocument();
         });
 
-        it('keeps completed task start time read only when task_date matches stored started_at date', async () => {
+        it('keeps execution inputs editable for completed task even when task_date matches started_at date', async () => {
             const task: Task = {
                 id: 1,
                 task_title: 'Test Task',
@@ -302,16 +311,20 @@ describe('TaskFormModal due date requirement', () => {
                 );
             });
 
+            // Task date and Completed Date both show '2026-04-13'; target the task_date input (first match)
+            const dateInputs = screen.getAllByDisplayValue('2026-04-13');
+            const taskDateInput = dateInputs[0];
             await act(async () => {
-                fireEvent.change(screen.getByDisplayValue('2026-04-13'), { target: { value: '2026-04-12' } });
+                fireEvent.change(taskDateInput, { target: { value: '2026-04-12' } });
             });
 
-            expect(screen.queryByLabelText(/Start Time/i)).not.toBeInTheDocument();
-            expect(screen.queryByLabelText(/End Time/i)).not.toBeInTheDocument();
-            expect(screen.getByText(/Started At/i)).toBeInTheDocument();
+            // Completed tasks always show editable Start Time and End Time
+            expect(screen.getByLabelText(/Start Time/i)).toBeInTheDocument();
+            expect(screen.getByLabelText(/End Time/i)).toBeInTheDocument();
+            expect(screen.getByLabelText(/Completed Date/i)).toBeInTheDocument();
         });
 
-        it('requires only completion fields when finishing an in_progress task with existing started_at', async () => {
+        it('shows all execution fields when finishing an in_progress task with existing started_at', async () => {
             const task: Task = {
                 id: 1,
                 task_title: 'Test Task',
@@ -350,10 +363,12 @@ describe('TaskFormModal due date requirement', () => {
                 fireEvent.change(screen.getByDisplayValue('In Progress'), { target: { value: 'completed' } });
             });
 
-            expect(screen.queryByLabelText(/Start Time/i)).not.toBeInTheDocument();
+            // Completed status always shows all editable execution fields
+            const startTimeInput = screen.getByLabelText(/Start Time/i) as HTMLInputElement;
+            expect(startTimeInput).toBeInTheDocument();
+            expect(startTimeInput.value).toBe('08:30');
             expect(screen.getByLabelText(/Completed Date/i)).toBeInTheDocument();
             expect(screen.getByLabelText(/End Time/i)).toBeInTheDocument();
-            expect(screen.getByText(/Started At/i)).toBeInTheDocument();
         });
     });
 });

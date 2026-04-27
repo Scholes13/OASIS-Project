@@ -727,6 +727,45 @@ class User extends Authenticatable
     }
 
     /**
+     * Resolve the best department ID for the given business unit.
+     *
+     * Priority: 1) current session dept if valid for BU,
+     *           2) user's assignment in the BU,
+     *           3) first active department in BU (last resort for super admin).
+     */
+    public function resolveDepartmentForBusinessUnit(int $businessUnitId): ?int
+    {
+        // 1. Current session department if it belongs to this BU
+        $currentDeptId = session('current_department_id');
+        if ($currentDeptId) {
+            $valid = \App\Models\Core\Department::where('id', $currentDeptId)
+                ->where('business_unit_id', $businessUnitId)
+                ->where('is_active', true)
+                ->exists();
+            if ($valid) {
+                return (int) $currentDeptId;
+            }
+        }
+
+        // 2. User's own assignment in this BU
+        $userAssignment = $this->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->whereNotNull('department_id')
+            ->first();
+        if ($userAssignment) {
+            return (int) $userAssignment->department_id;
+        }
+
+        // 3. First active department in BU (last resort for super admin)
+        $fallback = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->first();
+
+        return $fallback?->id;
+    }
+
+    /**
      * Get all departments user belongs to in current business unit
      */
     public function getDepartmentsInCurrentBusinessUnit(): \Illuminate\Support\Collection

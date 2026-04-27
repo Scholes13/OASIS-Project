@@ -551,6 +551,14 @@ class StockRequestController extends Controller
             abort(403, 'You do not have access to this stock request.');
         }
 
+        $user = Auth::user();
+        $isOwner = (int) $stockRequest->user_id === $user->id;
+        $isAdmin = $user->isAdminInBuOrAncestor('is_purchasing_admin', (int) session('current_business_unit_id'));
+
+        if (! $isOwner && ! $isAdmin) {
+            abort(403, 'Only the request creator or a purchasing admin can void this request.');
+        }
+
         if (! $stockRequest->canBeVoided()) {
             return back()->with('error', 'This stock request cannot be voided.');
         }
@@ -661,6 +669,11 @@ class StockRequestController extends Controller
             abort(403, 'You do not have access to this stock request.');
         }
 
+        // Verify ownership — only the creator can resubmit
+        if ((int) $stockRequest->user_id !== Auth::id()) {
+            abort(403, 'Only the request creator can resubmit.');
+        }
+
         // Check if stock request can be resubmitted (must be rejected)
         if ($stockRequest->status !== 'rejected') {
             return back()->with('error', 'Only rejected stock requests can be resubmitted.');
@@ -713,7 +726,7 @@ class StockRequestController extends Controller
         /** @var \App\Models\Modules\Purchasing\StockRequest\StockApproval|null $currentApproval */
         $currentApproval = $stockRequest->currentApproval();
         if (! $currentApproval || $currentApproval->status !== 'pending') {
-            return back()->with('error', 'No active pending approver found for this stock request.');
+            return back()->with('error', 'No active approval step found. The approval workflow may need to be rebuilt. Please contact a purchasing administrator.');
         }
 
         try {
@@ -832,7 +845,7 @@ class StockRequestController extends Controller
     /**
      * Stream the offline approval evidence for a stock request.
      */
-    public function offlineApprovalDocument(StockRequest $stockRequest): BinaryFileResponse
+    public function offlineApprovalDocument(StockRequest $stockRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
     {
         $user = Auth::user();
         $currentBusinessUnitId = (int) session('current_business_unit_id');
@@ -843,7 +856,7 @@ class StockRequestController extends Controller
 
         $documentPath = $stockRequest->offline_approval_document_path;
         if (! $documentPath || ! Storage::disk('public')->exists($documentPath)) {
-            abort(404);
+            return back()->with('error', 'The requested document file is no longer available. Please contact the request creator to re-upload.');
         }
 
         $documentName = $stockRequest->offline_approval_document_name ?? basename($documentPath);
@@ -1037,6 +1050,11 @@ class StockRequestController extends Controller
     private function createWorkflowFromRequest(StockRequest $stockRequest, array $approvalWorkflow, ?string $notes): void
     {
         foreach ($approvalWorkflow as $index => $step) {
+            // Block self-approval
+            if ((int) $step['approver_id'] === (int) $stockRequest->user_id) {
+                throw new \Exception('Request creator cannot be assigned as an approver.');
+            }
+
             \App\Models\Modules\Purchasing\StockRequest\StockApproval::create([
                 'stock_request_id' => $stockRequest->id,
                 'approver_id' => $step['approver_id'],

@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class ErrorLogController extends Controller
 {
     /**
      * Log a frontend error to the Laravel backend.
-     * 
+     *
      * This endpoint receives error details from the React frontend and logs them
      * with user context for debugging and monitoring purposes.
      */
@@ -79,7 +78,7 @@ class ErrorLogController extends Controller
 
     /**
      * Log multiple frontend errors in batch.
-     * 
+     *
      * Useful for logging multiple errors that occurred during a session.
      */
     public function storeBatch(Request $request): JsonResponse
@@ -140,4 +139,3 @@ class ErrorLogController extends Controller
         ], 200);
     }
 }
-

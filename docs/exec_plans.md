@@ -31,6 +31,119 @@
 
 ## Active Tasks
 
+### 2026-04-24 - Cross-module audit hardening (28 findings)
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - fix 28 bugs, logic gaps, and missing journeys discovered during a full-module audit across Activity, Purchasing, CashflowProjection, Notifications, and Core,
+  - authorization hardening: task destroy auth, backdate BU scope, ST resubmit/void ownership, self-approval prevention, deactivated approver detection, cashflow delete canManage,
+  - status transition guard for quick-update path with allowed-transitions map,
+  - cascade cleanup for soft-deleted comments on task deletion,
+  - edited_at/edited_by on partial updates, participant columns in admin export,
+  - super-admin BU switch logo-only fix, hardcoded role flags replacement, polymorphic admin search fix,
+  - resubmit confirmation dialogs, user-friendly missing-document handling, stuck approval recovery guidance,
+  - comment edit/delete throttling, notification category constant extraction, cashflow finance scope fix for dashboard.
+- Risks:
+  - status transition guard must allow confirmed reset from terminal states,
+  - cashflow canManage change must not break non-finance department head delete access,
+  - BU switch logo-only fix must preserve full-reset path for genuinely missing context.
+- Verification:
+  - full PHPUnit suite: 307 passed, 1 pre-existing infra failure (Pusher/Reverb not running),
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - plan at `docs/plans/2026-04-24-cross-module-audit-fixes.md`,
+  - reviewer feedback incorporated: Task 2 reduced to comments-only cleanup (DB cascades handle participants/attachments), Task 6 confirmed already enforced in UpdateActivityTaskRequest, Task 13 item images kept as public storage with documentation, Task 19/22/24 confirmed already implemented,
+  - cashflow dashboard finance scope fix: finance users now see ALL departments in their BU (not just their assigned department), fixing 5 dashboard filter test failures,
+  - export tests updated to match actual export format (no Saldo Proyeksi column in Daily Movement),
+  - document access tests updated to expect redirect with flash instead of 404.
+
+### 2026-04-23 - Admin flag parent-BU cascade and activity report access
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - make `is_activity_admin` and `is_purchasing_admin` flags cascade top-down through the BU hierarchy via `User::isAdminInBuOrAncestor()`,
+  - add `is_activity_report_access` column to `user_business_units` so Super Admin can unlock BOD-level Activity Reporting for activity admins,
+  - update all 7 authorization surfaces (middleware, gates, navigation) that check admin flags,
+  - add report access toggle UI to the Activity Admins assignment page with auto-revoke when admin is turned OFF.
+- Risks:
+  - cascade must only apply to authorization surfaces, not data queries that find specific users for notification or task assignment,
+  - `is_purchasing_department` constraint removal in the purchasing gate must not widen access beyond the intended cascade path,
+  - static BU parent map cache assumes hierarchy is not mutated during the same request.
+- Verification:
+  - focused PHPUnit coverage for cascade authorization across Activity and Purchasing admin surfaces,
+  - focused PHPUnit coverage for report access gate and middleware changes,
+  - focused Vitest coverage for report access toggle UI on Activity Admins page,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - design and implementation plan at `docs/plans/2026-04-23-admin-flag-parent-bu-cascade.md`,
+  - complete authorization surface audit covers 16 code locations with clear cascade vs data-query distinction,
+  - data query surfaces (BackdatePermissionService, AdminTaskAssignmentService, PurchasingAdminController, Department model) are intentionally unchanged,
+  - `User::isAdminInBuOrAncestor()` added at `app/Models/Core/User.php:468-521` with in-memory BU parent map walk,
+  - `ActivityAdminAccess` middleware, `access-purchasing-admin` gate, and both `NavigationService` methods updated to use cascade,
+  - `is_activity_report_access` migration, model registration, `view-reports` gate, `ActivityReportingAccess` middleware, controller toggle with auto-revoke, route, and frontend toggle UI all implemented,
+  - `vendor/bin/pint --dirty` and `npm exec tsc --noEmit --pretty false` passed.
+
+### 2026-04-23 - Purchasing admin assignment parity
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - create a Purchasing Admin assignment page 1:1 with the Activity Admin assignment page,
+  - add `is_purchasing_report_access` column and `view-purchasing-reports` gate for consolidated report access,
+  - add dedicated toggle UI for `is_purchasing_admin` and `is_purchasing_report_access`,
+  - protect consolidated report route with the new gate,
+  - add admin navigation menu item.
+- Risks:
+  - middleware stacking on consolidated report route must enforce both `access-purchasing-admin` AND `view-purchasing-reports` gates,
+  - auto-revoke of report access when admin toggle is turned OFF must stay consistent with the Activity Admin pattern,
+  - cloned controller and page must use purchasing-specific route names and wording.
+- Verification:
+  - focused PHPUnit coverage for purchasing admin assignment toggle and report access gate,
+  - focused Vitest coverage for purchasing admin assignment page,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - implementation plan at `docs/plans/2026-04-23-purchasing-admin-assignment-parity.md`,
+  - clones the Activity Admin assignment pattern with purchasing-specific naming and colors,
+  - depends on admin flag cascade from `2026-04-23-admin-flag-parent-bu-cascade`,
+  - `PurchasingAdminAssignmentController` at `app/Http/Controllers/Admin/PurchasingAdminAssignmentController.php` with index, toggle, and toggleReportAccess methods,
+  - `is_purchasing_report_access` migration, model registration, `view-purchasing-reports` gate, consolidated report route middleware, admin nav item, and frontend page all implemented,
+  - `vendor/bin/pint --dirty` and `npm exec tsc --noEmit --pretty false` passed.
+
+### 2026-04-23 - Activity task timestamp bug fixes
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@reviewer`
+- Scope:
+  - fix 5 timestamp-related bugs in the Activity module where task dates and execution times are recorded incorrectly,
+  - fix frontend timezone default using server-provided date instead of browser `new Date()`,
+  - fix quick status validation to allow historical quick start and historical quick complete with existing `started_at`,
+  - fix edit task shifting `started_at` when only `task_date` changes without explicit `start_time`,
+  - add `edited_at` and `edited_by` fields to `employee_tasks` for explicit edit tracking,
+  - make timezone configurable via `APP_TIMEZONE` env variable with `Asia/Jakarta` default.
+- Risks:
+  - quick status timestamp fix needs investigation of whether `UpdateActivityTaskRequest` already blocks non-today quick-status or only warns,
+  - `edited_at` migration adds columns to a high-traffic table,
+  - frontend timezone fix must degrade gracefully if server date prop is not available.
+- Verification:
+  - focused PHPUnit coverage for quick status timestamp behavior on historical and today tasks,
+  - focused Vitest coverage for frontend timezone default,
+  - `vendor/bin/pint --dirty`,
+  - `npm exec tsc --noEmit --pretty false`.
+- Notes:
+  - implementation plan at `docs/plans/2026-04-23-activity-timestamp-bugs.md`,
+  - Bug 5 (timezone config): `config/app.php` now uses `env('APP_TIMEZONE', 'Asia/Jakarta')`,
+  - Bug 1 (frontend timezone): `HandleInertiaRequests` shares `serverDate` prop, `TaskFormModal` uses it as primary date source with browser fallback,
+  - Bug 2 (quick status): investigation confirmed `validateQuickAction()` was too strict — it blocked ALL historical quick-status updates, contradicting the exec plan for `2026-04-20 Activity quick status timestamp restoration`; validation now allows historical quick start and historical quick complete with existing `started_at`, only blocks direct complete without `started_at` on non-today tasks; controller quick-status path uses `now()` for all transitions since validation ensures only valid transitions reach the controller,
+  - Bug 3 (edit shift): full update now preserves original `started_at` when `task_date` changes without explicit `start_time`; only re-bases when user explicitly provides `start_time`,
+  - Bug 4 (edited_at): migration adds `edited_at` (timestamp) and `edited_by` (FK to users) to `employee_tasks`; model registers both fields; controller sets them on full edits only (not quick-status),
+  - test updates: `it_auto_shifts_started_at_date` renamed to `it_preserves_started_at_when_task_date_changes_without_explicit_start_time`, `it_blocks_quick_start_for_backdate_task` renamed to `it_allows_quick_start_for_backdate_task`, `it_blocks_quick_complete_for_historical_task` renamed to `it_allows_quick_complete_for_historical_task_with_started_at`, full update redirect test fixed with missing `task_date` field, Vitest `TaskFormModalDueDateRequirement` tests updated for current component behavior and `serverDate` prop,
+  - focused PHPUnit coverage (101 tests, 439 assertions), `vendor/bin/pint --dirty`, and `npm exec tsc --noEmit --pretty false` all passed.
+
 ### 2026-04-22 - Activity task comments
 - Status: implemented
 - Owner: PM Agent

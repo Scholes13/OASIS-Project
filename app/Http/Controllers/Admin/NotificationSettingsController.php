@@ -22,7 +22,7 @@ class NotificationSettingsController extends Controller
      */
     public function index()
     {
-        if (!Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()->isSuperAdmin()) {
             abort(403, 'Only Super Administrators can access notification settings.');
         }
 
@@ -53,7 +53,7 @@ class NotificationSettingsController extends Controller
      */
     public function update(Request $request)
     {
-        if (!Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()->isSuperAdmin()) {
             abort(403, 'Only Super Administrators can modify notification settings.');
         }
 
@@ -91,7 +91,7 @@ class NotificationSettingsController extends Controller
      */
     public function sendTest(Request $request)
     {
-        if (!Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()->isSuperAdmin()) {
             abort(403);
         }
 
@@ -99,7 +99,7 @@ class NotificationSettingsController extends Controller
             'test_email' => 'required|email',
         ]);
 
-        $emailService = new EmailNotificationService();
+        $emailService = new EmailNotificationService;
         $result = $emailService->sendTestEmail($validated['test_email'], Auth::user()->name);
 
         if ($result['success']) {
@@ -114,7 +114,7 @@ class NotificationSettingsController extends Controller
      */
     public function statistics()
     {
-        if (!Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()->isSuperAdmin()) {
             abort(403);
         }
 

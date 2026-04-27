@@ -160,8 +160,8 @@ class PurchasingAdminController extends Controller
                 'to' => $dateTo,
             ],
             'userRole' => [
-                'is_purchasing_admin' => true, // TODO: Check actual role/permission
-                'is_management' => false,
+                'is_purchasing_admin' => $user->isAdminInBuOrAncestor('is_purchasing_admin', (int) session('current_business_unit_id')),
+                'is_management' => $user->hasTopManagementAccess() || $user->isSuperAdmin(),
             ],
         ]);
     }
@@ -231,35 +231,14 @@ class PurchasingAdminController extends Controller
             }
         }
 
-        // Apply Search
+        // Apply Search — type-safe morphed queries to avoid cross-table column errors
         if (! empty($filters['search'])) {
-            $searchTerm = $filters['search'];
-            $query->whereHas('taskable', function ($q) use ($searchTerm) {
-                // Check if taskable has pr_number or st_number
-                // polymorphic inner query is tricky if columns differ, but usually we check one or the other
-                // simpler is to check if model has column before querying, but in whereHas we are inside builder
-                // Assuming taskable interface or similar columns.
-                // Based on TaskList.php:
-                $q->where(function ($sub) use ($searchTerm) {
-                    // We need to know which table we are querying or use specific logic
-                    // Livewire TaskList uses:
-                    // $q->where('pr_number', 'like', "%{$searchTerm}%")->orWhere('st_number', 'like', "%{$searchTerm}%");
-                    // This assumes the underlying model has these columns.
-                    // Since taskable connects to PR or ST, and both might not have both columns, this can fail if not careful.
-                    // But Laravel's whereHas handles the type check implicitly on the relationship? No.
-                    // WhereHas iterates the relationship.
-                    // Safe way: try-catch or assume models are consistent.
-                    // Let's stick to TaskList.php logic for now.
-                    try {
-                        $sub->where('pr_number', 'like', "%{$searchTerm}%");
-                    } catch (\Exception $e) {
-                        // ignore
-                    }
-                    try {
-                        $sub->orWhere('st_number', 'like', "%{$searchTerm}%");
-                    } catch (\Exception $e) {
-                        // ignore
-                    }
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->whereHasMorph('taskable', [\App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::class], function ($sub) use ($search) {
+                    $sub->where('pr_number', 'like', "%{$search}%");
+                })->orWhereHasMorph('taskable', [\App\Models\Modules\Purchasing\StockRequest\StockRequest::class], function ($sub) use ($search) {
+                    $sub->where('st_number', 'like', "%{$search}%");
                 });
             });
         }

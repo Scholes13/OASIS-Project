@@ -80,7 +80,8 @@ class PurchasingAdminAssignmentController extends Controller
 
         $status = $newAdminState ? 'assigned as' : 'removed from';
 
-        return back()->with('success', "{$ubu->user?->name} {$status} Purchasing Admin.");
+        return redirect()->route('admin.purchasing-admins.index', request()->query())
+            ->with('success', "{$ubu->user?->name} {$status} Purchasing Admin.");
     }
 
     /**
@@ -96,12 +97,14 @@ class PurchasingAdminAssignmentController extends Controller
             return back()->with('error', 'User must be a Purchasing Admin first.');
         }
 
-        $ubu->update(['is_purchasing_report_access' => ! $ubu->is_purchasing_report_access]);
+        $newState = ! $ubu->is_purchasing_report_access;
+        $ubu->update(['is_purchasing_report_access' => $newState]);
 
         cache()->forget("bu_list:{$ubu->user_id}");
 
-        $status = $ubu->is_purchasing_report_access ? 'granted' : 'revoked';
+        $status = $newState ? 'granted' : 'revoked';
 
-        return back()->with('success', "Purchasing Report access {$status} for {$ubu->user?->name}.");
+        return redirect()->route('admin.purchasing-admins.index', request()->query())
+            ->with('success', "Purchasing Report access {$status} for {$ubu->user?->name}.");
     }
 }

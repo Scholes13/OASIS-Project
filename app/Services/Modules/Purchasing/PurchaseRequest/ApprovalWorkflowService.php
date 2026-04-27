@@ -83,6 +83,11 @@ class ApprovalWorkflowService
                     throw new \Exception("Approver with ID {$step['approver_id']} not found");
                 }
 
+                // Block self-approval
+                if ((int) $step['approver_id'] === (int) $purchaseRequest->user_id) {
+                    throw new \Exception('Request creator cannot be assigned as an approver.');
+                }
+
                 $stepOrder = $index + 1;
                 $taskType = $step['task_type'] ?? 'approval';
 
@@ -465,6 +470,12 @@ class ApprovalWorkflowService
             throw new \InvalidArgumentException(
                 "Invalid approval action: {$action}. Must be one of: ".implode(', ', $validActions)
             );
+        }
+
+        // Check if the assigned approver is still active
+        $approver = User::find($approval->approver_id);
+        if (! $approver || ! ($approver->is_active ?? true)) {
+            throw new \Exception('The assigned approver is no longer active. Please contact an administrator to reassign the approval.');
         }
 
         $purchaseRequest = DB::transaction(function () use ($approval, $action, $notes) {

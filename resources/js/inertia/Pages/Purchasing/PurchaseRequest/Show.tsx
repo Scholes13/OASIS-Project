@@ -123,6 +123,9 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
 
     // Handle resubmit
     const handleResubmit = () => {
+        if (!window.confirm('Resubmitting will reset the approval workflow. All previous approval decisions will be cleared. Continue?')) {
+            return;
+        }
         router.post(
             route('purchase-requests.resubmit', { purchaseRequest: purchaseRequest.id }),
             {},

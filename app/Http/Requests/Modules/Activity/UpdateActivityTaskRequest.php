@@ -202,21 +202,14 @@ class UpdateActivityTaskRequest extends FormRequest
         $today = now()->startOfDay();
         $taskDate = Carbon::parse($task->task_date)->startOfDay();
 
-        if ($status === 'in_progress' && ! $task->started_at) {
-            // Block quick start for non-today tasks
-            if (! $taskDate->isSameDay($today)) {
-                $validator->errors()->add('status', 'Task uses a historical or future date. Please confirm actual execution time.');
-            }
+        // Block quick start for future tasks (historical quick start is allowed)
+        if ($status === 'in_progress' && ! $task->started_at && $taskDate->isAfter($today)) {
+            $validator->errors()->add('status', 'Task uses a historical or future date. Please confirm actual execution time.');
         }
 
-        if ($status === 'completed') {
-            // Block quick complete for historical scenarios
-            $isTaskDateToday = $taskDate->isSameDay($today);
-            $isStartedToday = $task->started_at && Carbon::parse($task->started_at)->startOfDay()->isSameDay($today);
-
-            if (! $isTaskDateToday || ($task->started_at && ! $isStartedToday)) {
-                $validator->errors()->add('status', 'Task uses a historical date. Please confirm actual execution time.');
-            }
+        // Block direct complete (planned -> completed) for non-today tasks without started_at
+        if ($status === 'completed' && ! $task->started_at && ! $taskDate->isSameDay($today)) {
+            $validator->errors()->add('status', 'Task uses a historical date. Please confirm actual execution time.');
         }
     }
 

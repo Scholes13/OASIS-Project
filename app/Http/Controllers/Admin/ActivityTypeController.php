@@ -185,7 +185,7 @@ class ActivityTypeController extends Controller
         // Validation rules differ based on user role
         $rules = [
             'name' => 'required|string|max:100',
-            'color' => 'required|string|max:20',
+            'color' => 'nullable|string|max:20',
         ];
 
         // Non-super admin still requires department_id for backward compatibility
@@ -217,7 +217,7 @@ class ActivityTypeController extends Controller
             $activityType = ActivityType::create([
                 'code' => $code,
                 'name' => $validated['name'],
-                'color' => $validated['color'],
+                'color' => $validated['color'] ?? 'blue',
                 'is_active' => true,
             ]);
 
@@ -239,7 +239,7 @@ class ActivityTypeController extends Controller
             $redirectParams['department_id'] = $validated['department_id'];
         }
 
-        return redirect()->route('admin.activity-types.index', $redirectParams)
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Activity type created successfully.');
     }
 
@@ -351,7 +351,7 @@ class ActivityTypeController extends Controller
 
         $activityType->update($validated);
 
-        return redirect()->route('admin.activity-types.index')
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Activity type updated successfully.');
     }
 
@@ -364,7 +364,7 @@ class ActivityTypeController extends Controller
         $user = Auth::user();
 
         if (! $user->isSuperAdmin()) {
-            return redirect()->route('admin.activity-types.index')
+            return redirect()->route('admin.activity-configuration.index')
                 ->with('error', 'Only super admin can assign activity types to departments.');
         }
 
@@ -406,7 +406,7 @@ class ActivityTypeController extends Controller
 
         $count = count($validated['department_ids']);
 
-        return redirect()->route('admin.activity-types.index')
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', "Activity type assigned to {$count} department(s) successfully.");
     }
 
@@ -419,7 +419,7 @@ class ActivityTypeController extends Controller
         $user = Auth::user();
 
         if (! $user->isSuperAdmin()) {
-            return redirect()->route('admin.activity-types.index')
+            return redirect()->route('admin.activity-configuration.index')
                 ->with('error', 'Only super admin can remove activity type assignments.');
         }
 
@@ -456,19 +456,19 @@ class ActivityTypeController extends Controller
     {
         // Check if activity type has sub-activities
         if ($activityType->subActivities()->exists()) {
-            return redirect()->route('admin.activity-types.index')
+            return redirect()->route('admin.activity-configuration.index')
                 ->with('error', 'Cannot delete activity type with sub-activities. Delete sub-activities first.');
         }
 
         // Check if activity type is being used by tasks
         if ($activityType->employeeTasks()->exists()) {
-            return redirect()->route('admin.activity-types.index')
+            return redirect()->route('admin.activity-configuration.index')
                 ->with('error', 'Cannot delete activity type that is being used by tasks.');
         }
 
         $activityType->delete();
 
-        return redirect()->route('admin.activity-types.index')
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Activity type deleted successfully.');
     }
 }

@@ -60,18 +60,27 @@ class CashflowProjectionController extends Controller
         $selectedMonth = $dashboardFilters['month'];
         $cycle = $this->findOrCreateCycle($businessUnitId, $year, $user->id);
 
-        $assignments = $user->activeBusinessUnits()
-            ->with(['department.businessUnit', 'position'])
-            ->where('business_unit_id', $businessUnitId)
-            ->get();
-
-        $departments = $assignments
-            ->pluck('department')
-            ->filter(fn ($department) => $department instanceof Department && $department->is_active)
-            ->unique('id')
-            ->values();
-
         $canManageFinance = $this->userHasFinanceAssignment($user, $businessUnitId);
+
+        // Finance users see ALL departments in their BU; others see only their own
+        if ($canManageFinance) {
+            $departments = Department::query()
+                ->with('businessUnit')
+                ->where('business_unit_id', $businessUnitId)
+                ->where('is_active', true)
+                ->get();
+        } else {
+            $assignments = $user->activeBusinessUnits()
+                ->with(['department.businessUnit', 'position'])
+                ->where('business_unit_id', $businessUnitId)
+                ->get();
+
+            $departments = $assignments
+                ->pluck('department')
+                ->filter(fn ($department) => $department instanceof Department && $department->is_active)
+                ->unique('id')
+                ->values();
+        }
 
         // For finance users, also load departments from linked BUs
         $linkedBuIds = $canManageFinance ? $this->getLinkedBusinessUnitIds($businessUnitId) : [];
@@ -498,7 +507,7 @@ class CashflowProjectionController extends Controller
         $user = $request->user();
         $businessUnitId = (int) session('current_business_unit_id');
 
-        abort_unless($this->accessService->canAccess($user, $businessUnitId), 403);
+        abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
 
         $lineItem->loadMissing('department', 'cycle');
         $department = $lineItem->department;
@@ -635,18 +644,28 @@ class CashflowProjectionController extends Controller
         $year = $dashboardFilters['year'];
         $cycle = $this->findOrCreateCycle($businessUnitId, $year, $user->id);
 
-        $assignments = $user->activeBusinessUnits()
-            ->with(['department.businessUnit', 'position'])
-            ->where('business_unit_id', $businessUnitId)
-            ->get();
-
-        $departments = $assignments
-            ->pluck('department')
-            ->filter(fn ($department) => $department instanceof Department && $department->is_active)
-            ->unique('id')
-            ->values();
-
         $canManageFinance = $this->userHasFinanceAssignment($user, $businessUnitId);
+
+        // Finance users see ALL departments in their BU; others see only their own
+        if ($canManageFinance) {
+            $departments = Department::query()
+                ->with('businessUnit')
+                ->where('business_unit_id', $businessUnitId)
+                ->where('is_active', true)
+                ->get();
+        } else {
+            $assignments = $user->activeBusinessUnits()
+                ->with(['department.businessUnit', 'position'])
+                ->where('business_unit_id', $businessUnitId)
+                ->get();
+
+            $departments = $assignments
+                ->pluck('department')
+                ->filter(fn ($department) => $department instanceof Department && $department->is_active)
+                ->unique('id')
+                ->values();
+        }
+
         $linkedBuIds = $canManageFinance ? $this->getLinkedBusinessUnitIds($businessUnitId) : [];
 
         if ($canManageFinance && count($linkedBuIds) > 0) {
@@ -887,6 +906,9 @@ class CashflowProjectionController extends Controller
             ];
         }
 
+        // Export produces 4 sheets: Summary, Daily Movement, Raw Entries, and Finance Inputs.
+        // Finance Inputs is an additional operational sheet for finance teams to review
+        // their manual input entries separately from the consolidated raw data.
         $workbook = $this->buildExportWorkbookXml([
             'Summary' => $summaryRows,
             'Daily Movement' => $dailyRows,

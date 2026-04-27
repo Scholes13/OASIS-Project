@@ -14,6 +14,10 @@ import {
     ShoppingCart,
     Box,
     Calculator,
+    Users2,
+    Briefcase,
+    Building2,
+    Shield,
 } from 'lucide-react';
 import { PageProps } from '@/types';
 
@@ -75,6 +79,8 @@ const statusToneMap: Record<string, string> = {
 export default function Dashboard({ stats, recentActivities, pendingApprovalsCount, quickActions }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
 
+    const isSuperAdmin = (auth.user as any)?.global_role === 'super_admin';
+
     const firstName = auth.user?.name?.split(' ')[0] ?? 'there';
     const currentHour = new Date().getHours();
 
@@ -82,7 +88,36 @@ export default function Dashboard({ stats, recentActivities, pendingApprovalsCou
     if (currentHour < 12) greetLabel = 'Good Morning';
     else if (currentHour < 17) greetLabel = 'Good Afternoon';
 
-    const overviewCards = [
+    const overviewCards = isSuperAdmin ? [
+        {
+            title: 'Active Users',
+            value: stats.my_purchase_requests,
+            helper: `${stats.my_purchase_requests} active user(s) across all BUs`,
+            icon: Users2,
+            iconBox: 'bg-[#dbeafe] text-[#1e40af]',
+        },
+        {
+            title: 'Business Units',
+            value: stats.my_stock_requests,
+            helper: `${stats.my_stock_requests} active business unit(s)`,
+            icon: Briefcase,
+            iconBox: 'bg-[#e0f2fe] text-[#0369a1]',
+        },
+        {
+            title: 'Pending Approvals',
+            value: stats.pending_approvals,
+            helper: pendingApprovalsCount > 0 ? `${pendingApprovalsCount} across all BUs` : 'No pending approvals',
+            icon: FileClock,
+            iconBox: 'bg-[#ecfdf5] text-[#047857]',
+        },
+        {
+            title: 'Active Tasks',
+            value: stats.my_tasks,
+            helper: `${stats.my_tasks} in-progress task(s) across all BUs`,
+            icon: CheckCircle2,
+            iconBox: 'bg-slate-100 text-slate-600',
+        },
+    ] : [
         {
             title: 'Pending Approvals',
             value: stats.pending_approvals,
@@ -125,7 +160,11 @@ export default function Dashboard({ stats, recentActivities, pendingApprovalsCou
                     <div className="space-y-1">
                         <p className="text-sm font-semibold text-slate-700">Dashboard Overview</p>
                         <h1 className="text-[2rem] font-bold text-foreground">{greetLabel}, {firstName}!</h1>
-                        <p className="text-sm text-muted-foreground">Here's what's happening across your modules today.</p>
+                        <p className="text-sm text-muted-foreground">
+                            {isSuperAdmin
+                                ? "Here's a system-wide overview across all business units."
+                                : "Here's what's happening across your modules today."}
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -159,16 +198,18 @@ export default function Dashboard({ stats, recentActivities, pendingApprovalsCou
                                 className="rounded-2xl border border-border bg-card p-6"
                             >
                                 <div className="mb-4 flex items-center justify-between">
-                                    <h2 className="text-xl font-semibold text-foreground">My Priority Tasks</h2>
-                                    <Link href="/activity/tasks" className="text-sm font-semibold text-primary hover:opacity-80">
-                                        View All Tasks
+                                    <h2 className="text-xl font-semibold text-foreground">
+                                        {isSuperAdmin ? 'Recent Requests' : 'My Priority Tasks'}
+                                    </h2>
+                                    <Link href={isSuperAdmin ? "/purchasing/admin" : "/activity/tasks"} className="text-sm font-semibold text-primary hover:opacity-80">
+                                        {isSuperAdmin ? 'View All' : 'View All Tasks'}
                                     </Link>
                                 </div>
 
                                 <div className="space-y-1">
                                     {priorityTasks.length === 0 ? (
                                         <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
-                                            No priority items right now.
+                                            {isSuperAdmin ? 'No recent requests across business units.' : 'No priority items right now.'}
                                         </div>
                                     ) : (
                                         priorityTasks.map((task) => (
@@ -203,11 +244,13 @@ export default function Dashboard({ stats, recentActivities, pendingApprovalsCou
                                 transition={{ duration: 0.25, delay: 0.32 }}
                                 className="rounded-2xl border border-border bg-card p-6"
                             >
-                                <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Activity</h2>
+                                <h2 className="mb-4 text-xl font-semibold text-foreground">
+                                    {isSuperAdmin ? 'System Activity' : 'Recent Activity'}
+                                </h2>
 
                                 {activityTimeline.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-border bg-slate-50 p-4 text-sm text-muted-foreground">
-                                        Activity feed is empty.
+                                        {isSuperAdmin ? 'No system activity recorded.' : 'Activity feed is empty.'}
                                     </div>
                                 ) : (
                                     <div className="relative pl-3">

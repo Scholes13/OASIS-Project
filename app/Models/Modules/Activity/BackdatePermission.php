@@ -101,26 +101,26 @@ class BackdatePermission extends Model
     // Helper Methods
     public function isActive(): bool
     {
-        return $this->status === 'approved' 
-            && $this->granted_until !== null 
+        return $this->status === 'approved'
+            && $this->granted_until !== null
             && $this->granted_until->isFuture();
     }
 
     public function isExpired(): bool
     {
-        return $this->status === 'approved' 
-            && $this->granted_until !== null 
+        return $this->status === 'approved'
+            && $this->granted_until !== null
             && $this->granted_until->isPast();
     }
 
     public function canBackdateTo(\DateTime|string $date): bool
     {
-        if (!$this->isActive()) {
+        if (! $this->isActive()) {
             return false;
         }
 
         $checkDate = is_string($date) ? \Carbon\Carbon::parse($date) : \Carbon\Carbon::instance($date);
-        
+
         // Can backdate if the date is between requested_date and today
         return $checkDate->greaterThanOrEqualTo($this->requested_date)
             && $checkDate->lessThanOrEqualTo(now());

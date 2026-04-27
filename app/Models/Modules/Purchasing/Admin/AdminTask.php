@@ -254,7 +254,7 @@ class AdminTask extends Model
      */
     public function isOfflineApproved(): bool
     {
-        if (!$this->taskable) {
+        if (! $this->taskable) {
             return false;
         }
 
@@ -266,7 +266,7 @@ class AdminTask extends Model
      */
     public function getOfflineApprovalDocumentPath(): ?string
     {
-        if (!$this->taskable) {
+        if (! $this->taskable) {
             return null;
         }
 
@@ -278,7 +278,7 @@ class AdminTask extends Model
      */
     public function getOfflineApprovedAt(): ?\Illuminate\Support\Carbon
     {
-        if (!$this->taskable || !$this->taskable->offline_approved_at) {
+        if (! $this->taskable || ! $this->taskable->offline_approved_at) {
             return null;
         }
 
@@ -290,7 +290,7 @@ class AdminTask extends Model
      */
     public function getOfflineApprovalNotes(): ?string
     {
-        if (!$this->taskable) {
+        if (! $this->taskable) {
             return null;
         }
 

@@ -275,13 +275,21 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
         return tasks.filter((task) => task.status !== "cancelled")
     }, [tasks])
 
-    // Convert tasks to calendar events using task_date (activity date)
-    // Calendar shows "what the team is doing on each day", not deadlines
+    // Convert tasks to calendar events with status-aware date positioning:
+    // - Planned / In Progress: show at task_date (when the work is scheduled)
+    // - Completed: show at completed_at date (when the work was actually finished)
     const events = React.useMemo(() => {
         return filteredTasks
             .filter((task) => !!(task.task_date || task.due_date))
             .map((task) => {
-            const activityDate = task.task_date || task.due_date!
+            let activityDate: string
+            if (task.status === "completed" && task.completed_at) {
+                // Completed tasks appear on the day they were finished
+                activityDate = task.completed_at.substring(0, 10)
+            } else {
+                // Planned and In Progress tasks appear on their scheduled date
+                activityDate = task.task_date || task.due_date!
+            }
             return {
                 id: String(task.id),
                 title: task.task_title,

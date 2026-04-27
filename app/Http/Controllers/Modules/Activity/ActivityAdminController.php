@@ -336,6 +336,11 @@ class ActivityAdminController extends Controller
         abort_unless(config('features.backdate_approval'), 404);
 
         $permission = BackdatePermission::findOrFail($id);
+
+        // Verify the permission belongs to the admin's BU scope
+        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+        abort_unless(in_array((int) $permission->business_unit_id, $scopedBuIds, true), 403);
+
         $this->backdateService->approveRequest($permission, Auth::user());
 
         return back()->with('success', 'Backdate request approved.');
@@ -351,6 +356,10 @@ class ActivityAdminController extends Controller
         $request->validate(['reason' => 'required|string|max:500']);
 
         $permission = BackdatePermission::findOrFail($id);
+
+        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+        abort_unless(in_array((int) $permission->business_unit_id, $scopedBuIds, true), 403);
+
         $this->backdateService->rejectRequest($permission, Auth::user(), $request->input('reason'));
 
         return back()->with('success', 'Backdate request rejected.');

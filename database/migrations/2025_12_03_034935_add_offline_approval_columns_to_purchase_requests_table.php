@@ -8,7 +8,7 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * 
+     *
      * Adds columns to track offline/manual approval:
      * - offline_approved_at: Timestamp when PR was marked as offline approved
      * - offline_approved_by: User ID who marked it as offline approved
@@ -19,7 +19,7 @@ return new class extends Migration
         Schema::table('purchase_requests', function (Blueprint $table) {
             $table->timestamp('offline_approved_at')->nullable()->after('voided_at');
             $table->foreignId('offline_approved_by')->nullable()->after('offline_approved_at')
-                  ->constrained('users')->nullOnDelete();
+                ->constrained('users')->nullOnDelete();
             $table->text('offline_approval_notes')->nullable()->after('offline_approved_by');
         });
     }

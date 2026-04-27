@@ -40,6 +40,9 @@ class NavigationService
             $sections[] = $this->getSalesCrmSection($user, $businessUnitId);
         }
 
+        // IT Support section (visible to all authenticated users)
+        $sections[] = $this->getItSupportSection($user, $businessUnitId);
+
         // Cashflow Projection section
         if ($this->canAccessCashflowProjection($user, $businessUnitId)) {
             $sections[] = $this->getCashflowProjectionSection($user, $businessUnitId);
@@ -426,6 +429,113 @@ class NavigationService
     protected function canAccessAdministration(User $user): bool
     {
         return $user->isSuperAdmin();
+    }
+
+    /**
+     * Get IT Support section.
+     * All users see ticket submission and knowledge base.
+     * IT Support admins additionally see admin tools.
+     */
+    protected function getItSupportSection(User $user, int $businessUnitId): array
+    {
+        $isAdmin = $this->canAccessItSupportAdmin($user, $businessUnitId);
+
+        $children = [
+            [
+                'name' => 'Submit Ticket',
+                'href' => route('it-support.submit'),
+                'icon' => 'plus-circle',
+                'active' => request()->routeIs('it-support.submit'),
+            ],
+            [
+                'name' => 'My Tickets',
+                'href' => route('it-support.my-tickets'),
+                'icon' => 'ticket',
+                'active' => request()->routeIs('it-support.my-tickets*'),
+            ],
+            [
+                'name' => 'Knowledge Base',
+                'href' => route('it-support.knowledge'),
+                'icon' => 'book-open',
+                'active' => request()->routeIs('it-support.knowledge*')
+                         && ! request()->routeIs('it-support.admin.knowledge.*'),
+            ],
+        ];
+
+        if ($isAdmin) {
+            $children[] = ['separator' => true];
+
+            $children[] = [
+                'name' => 'Dashboard',
+                'href' => route('it-support.admin.dashboard'),
+                'icon' => 'chart-pie',
+                'active' => request()->routeIs('it-support.admin.dashboard'),
+            ];
+
+            $children[] = [
+                'name' => 'All Tickets',
+                'href' => route('it-support.admin.tickets.index'),
+                'icon' => 'list',
+                'active' => request()->routeIs('it-support.admin.tickets.*'),
+            ];
+
+            $children[] = [
+                'name' => 'Reporting',
+                'href' => route('it-support.admin.reporting'),
+                'icon' => 'bar-chart',
+                'active' => request()->routeIs('it-support.admin.reporting'),
+            ];
+
+            $children[] = [
+                'name' => 'Categories',
+                'href' => route('it-support.admin.categories.index'),
+                'icon' => 'tag',
+                'active' => request()->routeIs('it-support.admin.categories.*'),
+            ];
+
+            $children[] = [
+                'name' => 'Manage Knowledge',
+                'href' => route('it-support.admin.knowledge.index'),
+                'icon' => 'library',
+                'active' => request()->routeIs('it-support.admin.knowledge.*'),
+            ];
+
+            $children[] = [
+                'name' => 'SLA Settings',
+                'href' => route('it-support.admin.sla-settings'),
+                'icon' => 'clock',
+                'active' => request()->routeIs('it-support.admin.sla-settings'),
+            ];
+        }
+
+        return [
+            'name' => 'IT Support',
+            'items' => [
+                [
+                    'name' => 'IT Support',
+                    'href' => route('it-support.my-tickets'),
+                    'icon' => 'headphones',
+                    'active' => request()->routeIs('it-support.*'),
+                    'children' => $children,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Check if user can access IT Support admin features.
+     */
+    protected function canAccessItSupportAdmin(User $user, int $businessUnitId): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasTopManagementAccess()) {
+            return true;
+        }
+
+        return $user->isAdminInBuOrAncestor('is_it_support_admin', $businessUnitId);
     }
 
     /**

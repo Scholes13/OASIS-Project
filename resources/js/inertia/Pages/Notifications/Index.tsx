@@ -4,7 +4,15 @@ import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
 import type { NotificationsPageProps, NotificationsPaginationShape } from '@/types/notifications';
 
-const FILTERS = ['All', 'Unread', 'Activity', 'Purchasing', 'Backdate', 'System'] as const;
+const FILTERS = [
+    { label: 'All', value: 'all' },
+    { label: 'Unread', value: 'unread' },
+    { label: 'Activity', value: 'activity' },
+    { label: 'Purchasing', value: 'purchasing' },
+    { label: 'Backdate', value: 'backdate' },
+    { label: 'IT Support', value: 'it_support' },
+    { label: 'System', value: 'system' },
+] as const;
 
 export default function NotificationsIndex({ notifications, filters }: NotificationsPageProps) {
     const pagination = notifications as NotificationsPageProps['notifications'] & NotificationsPaginationShape;
@@ -30,24 +38,20 @@ export default function NotificationsIndex({ notifications, filters }: Notificat
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        {FILTERS.map((filter) => {
-                            const value = filter.toLowerCase();
-
-                            return (
-                                <Link
-                                    key={filter}
-                                    href={route('notifications.index', { filter: value })}
-                                    className={cn(
-                                        'inline-flex rounded-full px-3 py-1.5 text-xs font-medium',
-                                        filters.active === value
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 text-gray-600'
-                                    )}
-                                >
-                                    {filter}
-                                </Link>
-                            );
-                        })}
+                        {FILTERS.map((filter) => (
+                            <Link
+                                key={filter.value}
+                                href={route('notifications.index', { filter: filter.value })}
+                                className={cn(
+                                    'inline-flex rounded-full px-3 py-1.5 text-xs font-medium',
+                                    filters.active === filter.value
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-600'
+                                )}
+                            >
+                                {filter.label}
+                            </Link>
+                        ))}
                     </div>
 
                     <div>

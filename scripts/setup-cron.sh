@@ -189,6 +189,58 @@ CRON_ENTRIES+=("0 4 * * 0 find ${LOG_DIR} -name '*.log' -mtime +30 -delete ${CRO
 CRON_ENTRIES+=("5 0 * * * cd ${APP_DIR} && ${PHP_BIN} artisan config:cache >> /dev/null 2>&1 && ${PHP_BIN} artisan route:cache >> /dev/null 2>&1 && ${PHP_BIN} artisan view:cache >> /dev/null 2>&1 ${CRON_MARKER}-cache-warm")
 
 # =============================================================================
+# Check Supervisor conflict
+# =============================================================================
+
+SUPERVISOR_RUNNING=false
+if pgrep -x supervisord &> /dev/null; then
+    SUPERVISOR_RUNNING=true
+fi
+
+if [ "$SUPERVISOR_RUNNING" = true ]; then
+    # Check if Supervisor already handles OASIS workers
+    SUP_HAS_OASIS=false
+    if command -v supervisorctl &> /dev/null; then
+        if supervisorctl status 2>/dev/null | grep -qi "oasis"; then
+            SUP_HAS_OASIS=true
+        fi
+    fi
+
+    if [ "$SUP_HAS_OASIS" = true ]; then
+        echo -e "${YELLOW}${BOLD}WARNING: Supervisor sudah menjalankan OASIS workers!${NC}"
+        echo ""
+        echo -e "  Supervisor sudah handle scheduler dan queue worker."
+        echo -e "  Menambah cron untuk scheduler/queue akan menyebabkan ${RED}double execution${NC}."
+        echo ""
+        echo -e "  ${BOLD}Yang aman di-install via cron jika Supervisor aktif:${NC}"
+        echo -e "    - Log Cleanup (tidak conflict)"
+        echo -e "    - Cache Warm (tidak conflict)"
+        echo ""
+        echo -e "  ${BOLD}Yang TIDAK boleh di-install:${NC}"
+        echo -e "    - Laravel Scheduler (sudah di Supervisor)"
+        echo -e "    - Queue Worker (sudah di Supervisor)"
+        echo ""
+        echo -e "  Lanjutkan? Cron scheduler & queue akan di-SKIP."
+        echo -e "  Hanya log cleanup dan cache warm yang akan di-install."
+        echo ""
+
+        # Remove scheduler and queue entries, keep only safe ones
+        SAFE_ENTRIES=()
+        for entry in "${CRON_ENTRIES[@]}"; do
+            if echo "$entry" | grep -q "scheduler\|queue"; then
+                continue
+            fi
+            SAFE_ENTRIES+=("$entry")
+        done
+        CRON_ENTRIES=("${SAFE_ENTRIES[@]}")
+    else
+        echo -e "${YELLOW}Supervisor jalan tapi tidak ada OASIS worker config.${NC}"
+        echo -e "${INFO} Pertimbangkan pakai Supervisor: bash scripts/setup-supervisor.sh"
+        echo ""
+    fi
+fi
+
+# =============================================================================
 # Display what will be installed
 # =============================================================================
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ActivityConfigurationController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\ITSupportAssignmentController;
 use App\Http\Controllers\Api\DepartmentController as ApiDepartmentController;
 use App\Http\Controllers\Modules\Activity\TaskCommentController;
 use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
@@ -426,6 +427,12 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'index'])->name('index');
             Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
             Route::post('/{id}/toggle-report', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
+        });
+
+        Route::prefix('it-support-admins')->name('it-support-admins.')->group(function () {
+            Route::get('/', [ITSupportAssignmentController::class, 'index'])->name('index');
+            Route::post('/{id}/toggle', [ITSupportAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
+            Route::post('/{id}/toggle-report', [ITSupportAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
         });
 
         // Notification Settings (Super Admin Only)

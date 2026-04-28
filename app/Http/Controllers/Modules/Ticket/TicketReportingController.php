@@ -84,8 +84,10 @@ class TicketReportingController extends Controller
             'SLA Breached',
         ];
 
+        $columns = range('A', 'M');
+
         foreach ($headers as $col => $header) {
-            $sheet->setCellValueByColumnAndRow($col + 1, 1, $header);
+            $sheet->setCellValue($columns[$col].'1', $header);
         }
 
         // Style header row
@@ -101,10 +103,10 @@ class TicketReportingController extends Controller
         // Data rows
         foreach ($data as $rowIndex => $row) {
             $rowNum = $rowIndex + 2;
-            $colIndex = 1;
+            $colIndex = 0;
 
             foreach ($row as $value) {
-                $sheet->setCellValueByColumnAndRow($colIndex, $rowNum, $value);
+                $sheet->setCellValue($columns[$colIndex].$rowNum, $value);
                 $colIndex++;
             }
         }

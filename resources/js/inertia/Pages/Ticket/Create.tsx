@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LifeBuoy } from 'lucide-react';
@@ -11,11 +10,6 @@ interface CreatePageProps extends PageProps {
 }
 
 export default function Create({ categories }: CreatePageProps) {
-    // Filter active categories
-    const activeCategories = useMemo(() => 
-        categories.filter(c => c.is_active),
-        [categories]
-    );
 
     const handleSuccess = () => {
         router.visit(route('it-support.my-tickets'));
@@ -67,7 +61,7 @@ export default function Create({ categories }: CreatePageProps) {
                     {/* Form */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <TicketForm
-                            categories={activeCategories}
+                            categories={categories}
                             onSuccess={handleSuccess}
                             onCancel={handleCancel}
                             submitLabel="Kirim Tiket"

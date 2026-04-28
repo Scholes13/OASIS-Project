@@ -344,6 +344,13 @@ class NavigationService
                     'icon' => 'book-open',
                     'active' => request()->routeIs('docs-help'),
                 ],
+                [
+                    'name' => 'Knowledge Base',
+                    'href' => route('it-support.knowledge'),
+                    'icon' => 'library',
+                    'active' => request()->routeIs('it-support.knowledge')
+                             || request()->routeIs('it-support.knowledge.*'),
+                ],
             ],
         ];
     }
@@ -459,13 +466,6 @@ class NavigationService
                 'href' => route('it-support.my-tickets'),
                 'icon' => 'ticket',
                 'active' => request()->routeIs('it-support.my-tickets*'),
-            ],
-            [
-                'name' => 'Knowledge Base',
-                'href' => route('it-support.knowledge'),
-                'icon' => 'book-open',
-                'active' => request()->routeIs('it-support.knowledge*')
-                         && ! request()->routeIs('it-support.admin.knowledge.*'),
             ],
         ];
 

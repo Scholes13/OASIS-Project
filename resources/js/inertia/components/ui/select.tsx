@@ -75,15 +75,15 @@ export function Select({
                   className={({ active, selected }) =>
                     cn(
                       "relative cursor-pointer select-none py-2 pl-10 pr-4",
-                      active && "bg-blue-50 text-blue-800",
-                      selected && "bg-blue-500",
+                      active && !selected && "bg-gray-50",
+                      selected && "bg-primary/5 text-primary font-medium",
                       option.disabled && "cursor-not-allowed opacity-50"
                     )
                   }
                 >
                   {({ selected }) => (
                     <>
-                      <span className={cn("block truncate", selected && "font-medium")}>
+                      <span className={cn("block truncate", selected ? "font-medium text-primary" : "text-gray-900")}>
                         {option.label}
                       </span>
                       {selected && (
@@ -177,15 +177,15 @@ export function MultiSelect({
                   className={({ active, selected }) =>
                     cn(
                       "relative cursor-pointer select-none py-2 pl-10 pr-4",
-                      active && "bg-blue-50 text-blue-800",
-                      selected && "bg-blue-500",
+                      active && !selected && "bg-gray-50",
+                      selected && "bg-primary/5 text-primary font-medium",
                       option.disabled && "cursor-not-allowed opacity-50"
                     )
                   }
                 >
                   {({ selected }) => (
                     <>
-                      <span className={cn("block truncate", selected && "font-medium")}>
+                      <span className={cn("block truncate", selected ? "font-medium text-primary" : "text-gray-900")}>
                         {option.label}
                       </span>
                       {selected && (

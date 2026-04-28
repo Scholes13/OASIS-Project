@@ -3,6 +3,7 @@
 namespace App\Services\Modules\Ticket;
 
 use App\Models\Modules\Ticket\Ticket;
+use App\Models\Modules\Ticket\TicketSlaSettings;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -42,6 +43,7 @@ class TicketReportingService
             'by_category' => $this->getMetricsByCategory($buIds, $from, $to),
             'by_staff' => $this->getMetricsByStaff($buIds, $from, $to),
             'daily_trend' => $this->getTicketTrend($buIds, $from, $to),
+            'sla_compliance' => $this->getSlaCompliance($buIds, $from, $to),
         ];
     }
 
@@ -201,6 +203,128 @@ class TicketReportingService
         });
 
         return round($totalHours / $tickets->count(), 2);
+    }
+
+    /**
+     * Get SLA compliance metrics for resolved tickets.
+     *
+     * @param  array<int>  $buIds
+     * @return array{rate: float, total_resolved: int, within_sla: int, breached: int, by_priority: array}
+     */
+    public function getSlaCompliance(array $buIds, Carbon $from, Carbon $to): array
+    {
+        // Get all resolved tickets in the period
+        $resolvedTickets = Ticket::forBusinessUnits($buIds)
+            ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->whereNotNull('resolved_at')
+            ->select('id', 'business_unit_id', 'priority', 'created_at', 'resolved_at')
+            ->get();
+
+        if ($resolvedTickets->isEmpty()) {
+            return [
+                'rate' => 0.0,
+                'total_resolved' => 0,
+                'within_sla' => 0,
+                'breached' => 0,
+                'by_priority' => $this->getEmptySlaPriorityBreakdown(),
+            ];
+        }
+
+        // Load SLA settings for all relevant BUs
+        $slaMap = TicketSlaSettings::whereIn('business_unit_id', $buIds)
+            ->get()
+            ->groupBy('business_unit_id')
+            ->map(fn ($settings) => $settings->keyBy('priority'));
+
+        // Default SLA hours if no settings exist
+        $defaultSla = ['low' => 48, 'medium' => 24, 'high' => 8, 'critical' => 2];
+
+        $withinSla = 0;
+        $breached = 0;
+        $byPriority = [
+            'low' => ['total' => 0, 'within_sla' => 0, 'breached' => 0, 'avg_hours' => 0, 'sla_hours' => 0, 'total_hours' => 0],
+            'medium' => ['total' => 0, 'within_sla' => 0, 'breached' => 0, 'avg_hours' => 0, 'sla_hours' => 0, 'total_hours' => 0],
+            'high' => ['total' => 0, 'within_sla' => 0, 'breached' => 0, 'avg_hours' => 0, 'sla_hours' => 0, 'total_hours' => 0],
+            'critical' => ['total' => 0, 'within_sla' => 0, 'breached' => 0, 'avg_hours' => 0, 'sla_hours' => 0, 'total_hours' => 0],
+        ];
+
+        foreach ($resolvedTickets as $ticket) {
+            $priority = $ticket->priority;
+            $buSla = $slaMap->get($ticket->business_unit_id);
+            $slaHours = $buSla?->get($priority)?->resolution_hours ?? ($defaultSla[$priority] ?? 24);
+            $actualHours = $ticket->created_at->diffInMinutes($ticket->resolved_at) / 60;
+
+            $isWithinSla = $actualHours <= $slaHours;
+
+            if ($isWithinSla) {
+                $withinSla++;
+            } else {
+                $breached++;
+            }
+
+            if (isset($byPriority[$priority])) {
+                $byPriority[$priority]['total']++;
+                $byPriority[$priority]['sla_hours'] = $slaHours;
+                $byPriority[$priority]['total_hours'] += $actualHours;
+
+                if ($isWithinSla) {
+                    $byPriority[$priority]['within_sla']++;
+                } else {
+                    $byPriority[$priority]['breached']++;
+                }
+            }
+        }
+
+        $totalResolved = $resolvedTickets->count();
+        $rate = $totalResolved > 0 ? round(($withinSla / $totalResolved) * 100, 1) : 0.0;
+
+        // Calculate avg hours per priority
+        $byPriorityOutput = [];
+        $priorityLabels = ['critical' => 'Kritis', 'high' => 'Tinggi', 'medium' => 'Sedang', 'low' => 'Rendah'];
+
+        foreach (['critical', 'high', 'medium', 'low'] as $p) {
+            $data = $byPriority[$p];
+            $avgHours = $data['total'] > 0 ? round($data['total_hours'] / $data['total'], 1) : 0;
+            $complianceRate = $data['total'] > 0 ? round(($data['within_sla'] / $data['total']) * 100, 1) : 0;
+
+            $byPriorityOutput[] = [
+                'priority' => $p,
+                'label' => $priorityLabels[$p],
+                'total' => $data['total'],
+                'within_sla' => $data['within_sla'],
+                'breached' => $data['breached'],
+                'sla_hours' => $data['sla_hours'],
+                'avg_hours' => $avgHours,
+                'compliance_rate' => $complianceRate,
+            ];
+        }
+
+        return [
+            'rate' => $rate,
+            'total_resolved' => $totalResolved,
+            'within_sla' => $withinSla,
+            'breached' => $breached,
+            'by_priority' => $byPriorityOutput,
+        ];
+    }
+
+    /**
+     * Get empty SLA priority breakdown for zero-data state.
+     */
+    private function getEmptySlaPriorityBreakdown(): array
+    {
+        $labels = ['critical' => 'Kritis', 'high' => 'Tinggi', 'medium' => 'Sedang', 'low' => 'Rendah'];
+
+        return collect(['critical', 'high', 'medium', 'low'])->map(fn (string $p): array => [
+            'priority' => $p,
+            'label' => $labels[$p],
+            'total' => 0,
+            'within_sla' => 0,
+            'breached' => 0,
+            'sla_hours' => 0,
+            'avg_hours' => 0,
+            'compliance_rate' => 0,
+        ])->all();
     }
 
     /**

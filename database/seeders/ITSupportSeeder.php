@@ -98,6 +98,13 @@ class ITSupportSeeder extends Seeder
                         'updated_at' => $now,
                     ]);
                     $inserted++;
+                } else {
+                    // Fix existing rows if resolution_hours is wrong
+                    DB::table('ticket_sla_settings')
+                        ->where('business_unit_id', $businessUnit->id)
+                        ->where('priority', $priority)
+                        ->where('resolution_hours', '!=', $hours)
+                        ->update(['resolution_hours' => $hours, 'updated_at' => $now]);
                 }
             }
         }

@@ -189,12 +189,12 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
 
                 const nextStatuses = ticket.status === 'waiting'
                     ? [
-                        { value: 'in_progress', label: '▶ Proses' },
-                        { value: 'cancelled', label: '✕ Batalkan' },
+                        { value: 'in_progress', label: 'Mulai Proses' },
+                        { value: 'cancelled', label: 'Batalkan' },
                       ]
                     : [
-                        { value: 'done', label: '✓ Selesai' },
-                        { value: 'cancelled', label: '✕ Batalkan' },
+                        { value: 'done', label: 'Tandai Selesai' },
+                        { value: 'cancelled', label: 'Batalkan' },
                       ];
 
                 return (
@@ -211,14 +211,14 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                             leaveFrom="transform opacity-100 scale-100"
                             leaveTo="transform opacity-0 scale-95"
                         >
-                            <Menu.Items className="absolute left-0 z-50 mt-1 w-40 origin-top-left rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
+                            <Menu.Items className="fixed z-[9999] mt-1 w-44 rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
                                 {nextStatuses.map((ns) => (
                                     <Menu.Item key={ns.value}>
                                         {({ active }) => (
                                             <button
                                                 type="button"
                                                 className={cn(
-                                                    'w-full text-left px-3 py-2 text-sm',
+                                                    'w-full text-left px-4 py-2 text-sm',
                                                     active ? 'bg-gray-50 text-gray-900' : 'text-gray-700',
                                                 )}
                                                 onClick={() => {
@@ -292,7 +292,7 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
             header: '',
             cell: ({ row }) => (
                 <Menu as="div" className="relative inline-block text-left">
-                    <Menu.Button as={Button} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Menu.Button className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors">
                         <MoreHorizontal className="h-4 w-4" />
                     </Menu.Button>
                     <Transition
@@ -303,15 +303,15 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                         leaveFrom="transform opacity-100 scale-100"
                         leaveTo="transform opacity-0 scale-95"
                     >
-                        <Menu.Items className="absolute right-0 z-50 mt-1 w-44 origin-top-right rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
+                        <Menu.Items className="fixed z-[9999] mt-1 w-44 rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
                             <Menu.Item>
                                 {({ active }) => (
                                     <button
                                         type="button"
-                                        className={cn('w-full flex items-center px-3 py-2 text-sm', active ? 'bg-gray-50' : 'text-gray-700')}
+                                        className={cn('w-full text-left px-4 py-2 text-sm', active ? 'bg-gray-50 text-gray-900' : 'text-gray-700')}
                                         onClick={() => router.visit(route('it-support.admin.tickets.show', { ticket: row.original.id }))}
                                     >
-                                        <Eye className="w-4 h-4 mr-2" /> Lihat Detail
+                                        Lihat Detail
                                     </button>
                                 )}
                             </Menu.Item>
@@ -319,10 +319,10 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                                 {({ active }) => (
                                     <button
                                         type="button"
-                                        className={cn('w-full flex items-center px-3 py-2 text-sm', active ? 'bg-gray-50' : 'text-gray-700')}
+                                        className={cn('w-full text-left px-4 py-2 text-sm', active ? 'bg-gray-50 text-gray-900' : 'text-gray-700')}
                                         onClick={() => handleAssignClick(row.original.id)}
                                     >
-                                        <UserPlus className="w-4 h-4 mr-2" /> Assign
+                                        Tugaskan ke Staff
                                     </button>
                                 )}
                             </Menu.Item>

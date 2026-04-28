@@ -48,7 +48,8 @@ const priorityOptions: { value: TicketPriority | ''; label: string }[] = [
 ];
 
 export default function TicketIndex({ tickets, categories, staff, filters }: IndexProps) {
-    const { flash } = usePage<PageProps>().props;
+    const { flash, auth } = usePage<PageProps>().props;
+    const currentUserId = (auth as any)?.user?.id;
 
     // Filters state
     const [search, setSearch] = useState(filters.search);
@@ -182,7 +183,29 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
         {
             accessorKey: 'assigned_user',
             header: 'Assigned To',
-            cell: ({ row }) => row.original.assigned_user?.name || '-',
+            cell: ({ row }) => {
+                if (row.original.assigned_user) {
+                    return <span className="text-gray-900">{row.original.assigned_user.name}</span>;
+                }
+                return (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.post(route('it-support.admin.tickets.assign', { ticket: row.original.id }), {
+                                assigned_to: currentUserId,
+                            }, {
+                                preserveScroll: true,
+                                onSuccess: () => toast.success('Ticket berhasil di-claim'),
+                                onError: () => toast.error('Gagal claim ticket'),
+                            });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-primary bg-primary/5 border border-primary/20 rounded-md hover:bg-primary/10 transition-colors"
+                    >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Claim
+                    </button>
+                );
+            },
         },
         {
             accessorKey: 'sla_deadline',

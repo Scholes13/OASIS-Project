@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Modules\Ticket;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\StoreCategoryRequest;
-use App\Models\Core\BusinessUnit;
 use App\Models\Modules\Ticket\TicketCategory;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -19,9 +18,9 @@ class TicketCategoryController extends Controller
      */
     public function index(): Response
     {
-        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+        $buId = (int) session('current_business_unit_id');
 
-        $categories = TicketCategory::whereIn('business_unit_id', $scopedBuIds)
+        $categories = TicketCategory::where('business_unit_id', $buId)
             ->withCount('tickets')
             ->orderBy('name')
             ->get();
@@ -69,8 +68,8 @@ class TicketCategoryController extends Controller
      */
     public function edit(TicketCategory $category): Response
     {
-        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
-        abort_unless(in_array((int) $category->business_unit_id, $scopedBuIds, true), 403);
+        $buId = (int) session('current_business_unit_id');
+        abort_unless((int) $category->business_unit_id === $buId, 403);
 
         return Inertia::render('Ticket/Categories/Edit', [
             'category' => $category,
@@ -84,8 +83,8 @@ class TicketCategoryController extends Controller
      */
     public function update(StoreCategoryRequest $request, TicketCategory $category): RedirectResponse
     {
-        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
-        abort_unless(in_array((int) $category->business_unit_id, $scopedBuIds, true), 403);
+        $buId = (int) session('current_business_unit_id');
+        abort_unless((int) $category->business_unit_id === $buId, 403);
 
         $category->update($request->validated());
 
@@ -100,8 +99,8 @@ class TicketCategoryController extends Controller
      */
     public function destroy(TicketCategory $category): RedirectResponse
     {
-        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
-        abort_unless(in_array((int) $category->business_unit_id, $scopedBuIds, true), 403);
+        $buId = (int) session('current_business_unit_id');
+        abort_unless((int) $category->business_unit_id === $buId, 403);
 
         // Prevent deletion if category has tickets
         if ($category->tickets()->exists()) {
@@ -114,26 +113,4 @@ class TicketCategoryController extends Controller
             ->with('success', 'Kategori berhasil dihapus.');
     }
 
-    /**
-     * Resolve the active BU scope for IT Support admin.
-     * Parent or holding BUs include all descendants for roll-up views.
-     *
-     * @return array<int>
-     */
-    private function resolveScopedBusinessUnitIds(): array
-    {
-        $currentBusinessUnitId = (int) session('current_business_unit_id');
-
-        if ($currentBusinessUnitId <= 0) {
-            return [];
-        }
-
-        $currentBusinessUnit = BusinessUnit::with('descendants')->find($currentBusinessUnitId);
-
-        if (! $currentBusinessUnit) {
-            return [$currentBusinessUnitId];
-        }
-
-        return $currentBusinessUnit->getAccessibleBusinessUnits();
-    }
 }

@@ -24,9 +24,9 @@ class TicketCategoryController extends Controller
         $categories = TicketCategory::whereIn('business_unit_id', $scopedBuIds)
             ->withCount('tickets')
             ->orderBy('name')
-            ->paginate(20);
+            ->get();
 
-        return Inertia::render('Ticket/Category/Index', [
+        return Inertia::render('Ticket/Categories/Index', [
             'categories' => $categories,
         ]);
     }
@@ -38,7 +38,7 @@ class TicketCategoryController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Ticket/Category/Create');
+        return Inertia::render('Ticket/Categories/Create');
     }
 
     /**
@@ -72,7 +72,7 @@ class TicketCategoryController extends Controller
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
         abort_unless(in_array((int) $category->business_unit_id, $scopedBuIds, true), 403);
 
-        return Inertia::render('Ticket/Category/Edit', [
+        return Inertia::render('Ticket/Categories/Edit', [
             'category' => $category,
         ]);
     }

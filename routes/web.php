@@ -418,7 +418,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
 
             // Categories
-            Route::resource('/categories', TicketCategoryController::class)->names('categories');
+            Route::resource('/categories', TicketCategoryController::class)->names('categories')->except(['show']);
 
             // Knowledge base admin
             Route::get('/knowledge/manage', [KnowledgeBaseController::class, 'adminIndex'])->name('knowledge.index');

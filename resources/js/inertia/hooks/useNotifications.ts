@@ -49,7 +49,7 @@ export function useNotifications(initialItems: NotificationListItem[] = []): Use
 
     // Subscribe to private broadcast channel
     useEffect(() => {
-        if (!userId) {
+        if (!userId || !echo) {
             return;
         }
 

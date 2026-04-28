@@ -10,7 +10,6 @@ import {
     ChevronRight,
     X
 } from 'lucide-react';
-import AppLayout from '@/layouts/AppLayout';
 import { Input } from '@/components/ui/input';
 import { PageProps, PaginatedData } from '@/types';
 import type { KnowledgeArticle } from '@/types';
@@ -81,7 +80,7 @@ export default function Search({ articles, query }: SearchPageProps) {
     };
 
     return (
-        <AppLayout title={`Hasil Pencarian: ${query}`}>
+        <>
             <Head title={`Hasil Pencarian: ${query}`} />
 
             <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
@@ -276,6 +275,6 @@ export default function Search({ articles, query }: SearchPageProps) {
                     </div>
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

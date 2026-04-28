@@ -29,7 +29,7 @@ class KnowledgeCategoryController extends Controller
             ->orderBy('name')
             ->paginate(20);
 
-        return Inertia::render('Ticket/KnowledgeCategory/Index', [
+        return Inertia::render('Ticket/Knowledge/Categories/Index', [
             'categories' => $categories,
         ]);
     }
@@ -48,7 +48,7 @@ class KnowledgeCategoryController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Ticket/KnowledgeCategory/Create', [
+        return Inertia::render('Ticket/Knowledge/Categories/Create', [
             'parentCategories' => $parentCategories,
         ]);
     }
@@ -80,7 +80,7 @@ class KnowledgeCategoryController extends Controller
             'order' => $validated['order'] ?? 0,
         ]);
 
-        return redirect()->route('it-support.knowledge-categories.index')
+        return redirect()->route('it-support.admin.knowledge.categories.index')
             ->with('success', 'Kategori knowledge base berhasil dibuat.');
     }
 
@@ -100,7 +100,7 @@ class KnowledgeCategoryController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Ticket/KnowledgeCategory/Edit', [
+        return Inertia::render('Ticket/Knowledge/Categories/Edit', [
             'knowledgeCategory' => $knowledgeCategory,
             'parentCategories' => $parentCategories,
         ]);
@@ -144,7 +144,7 @@ class KnowledgeCategoryController extends Controller
 
         $knowledgeCategory->update($updateData);
 
-        return redirect()->route('it-support.knowledge-categories.index')
+        return redirect()->route('it-support.admin.knowledge.categories.index')
             ->with('success', 'Kategori knowledge base berhasil diperbarui.');
     }
 
@@ -170,7 +170,7 @@ class KnowledgeCategoryController extends Controller
 
         $knowledgeCategory->delete();
 
-        return redirect()->route('it-support.knowledge-categories.index')
+        return redirect()->route('it-support.admin.knowledge.categories.index')
             ->with('success', 'Kategori knowledge base berhasil dihapus.');
     }
 

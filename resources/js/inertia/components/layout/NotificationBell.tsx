@@ -90,13 +90,23 @@ export default function NotificationBell({
                         )}
                     </div>
 
-                    <div className="border-t border-gray-100 px-4 py-3">
+                    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
                         <Link
                             href={route('notifications.index')}
                             className="text-sm font-medium text-blue-600 hover:text-blue-700"
                         >
                             View all notifications
                         </Link>
+                        {items.length > 0 && (
+                            <Link
+                                as="button"
+                                method="post"
+                                href={route('notifications.mark-all-read')}
+                                className="text-sm font-medium text-gray-500 hover:text-gray-700"
+                            >
+                                Mark all read
+                            </Link>
+                        )}
                     </div>
                 </div>
             ) : null}

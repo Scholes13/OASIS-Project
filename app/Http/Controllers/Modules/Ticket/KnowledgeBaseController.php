@@ -50,7 +50,7 @@ class KnowledgeBaseController extends Controller
             ->limit(10)
             ->get();
 
-        return Inertia::render('Ticket/KnowledgeBase/Browse', [
+        return Inertia::render('Ticket/Knowledge/Browse', [
             'categories' => $categoryTree,
             'popularArticles' => $popularArticles,
             'recentArticles' => $recentArticles,
@@ -71,7 +71,7 @@ class KnowledgeBaseController extends Controller
             ? $this->knowledgeBaseService->searchArticles($buId, $query)
             : collect();
 
-        return Inertia::render('Ticket/KnowledgeBase/Search', [
+        return Inertia::render('Ticket/Knowledge/Search', [
             'articles' => $articles,
             'query' => $query,
         ]);
@@ -107,7 +107,7 @@ class KnowledgeBaseController extends Controller
                 ->get(['id', 'title', 'slug', 'views_count']);
         }
 
-        return Inertia::render('Ticket/KnowledgeBase/Article', [
+        return Inertia::render('Ticket/Knowledge/Article', [
             'article' => $article,
             'relatedArticles' => $relatedArticles,
         ]);
@@ -181,7 +181,7 @@ class KnowledgeBaseController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Ticket/KnowledgeBase/Admin/Index', [
+        return Inertia::render('Ticket/Knowledge/Index', [
             'articles' => $articles,
             'categories' => $categories,
             'filters' => $filters,
@@ -201,7 +201,7 @@ class KnowledgeBaseController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Ticket/KnowledgeBase/Admin/Create', [
+        return Inertia::render('Ticket/Knowledge/Create', [
             'categories' => $categories,
         ]);
     }
@@ -222,7 +222,7 @@ class KnowledgeBaseController extends Controller
                 $buId
             );
 
-            return redirect()->route('it-support.knowledge-base.admin.index')
+            return redirect()->route('it-support.admin.knowledge.index')
                 ->with('success', 'Artikel berhasil dibuat.');
         } catch (\Exception $e) {
             Log::error('Failed to create knowledge article', [
@@ -250,7 +250,7 @@ class KnowledgeBaseController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('Ticket/KnowledgeBase/Admin/Edit', [
+        return Inertia::render('Ticket/Knowledge/Edit', [
             'article' => $article,
             'categories' => $categories,
         ]);
@@ -269,7 +269,7 @@ class KnowledgeBaseController extends Controller
         try {
             $this->knowledgeBaseService->updateArticle($article, $request->validated());
 
-            return redirect()->route('it-support.knowledge-base.admin.index')
+            return redirect()->route('it-support.admin.knowledge.index')
                 ->with('success', 'Artikel berhasil diperbarui.');
         } catch (\Exception $e) {
             Log::error('Failed to update knowledge article', [
@@ -295,7 +295,7 @@ class KnowledgeBaseController extends Controller
         try {
             $this->knowledgeBaseService->deleteArticle($article);
 
-            return redirect()->route('it-support.knowledge-base.admin.index')
+            return redirect()->route('it-support.admin.knowledge.index')
                 ->with('success', 'Artikel berhasil dihapus.');
         } catch (\Exception $e) {
             Log::error('Failed to delete knowledge article', [

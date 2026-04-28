@@ -13,7 +13,6 @@ import {
     Loader2,
     Send
 } from 'lucide-react';
-import AppLayout from '@/layouts/AppLayout';
 import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
 import { SlaBadge } from '@/components/Ticket/SlaBadge';
@@ -124,7 +123,7 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
     };
 
     return (
-        <AppLayout title={`${ticket.ticket_number} - ${ticket.title}`}>
+        <>
             <Head title={`${ticket.ticket_number} - ${ticket.title}`} />
 
             <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
@@ -433,6 +432,6 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                     </div>
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

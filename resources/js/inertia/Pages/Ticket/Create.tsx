@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LifeBuoy } from 'lucide-react';
-import AppLayout from '@/layouts/AppLayout';
 import { TicketForm } from '@/components/Ticket/TicketForm';
 import { PageProps } from '@/types';
 import type { TicketCategory } from '@/types';
@@ -27,7 +26,7 @@ export default function Create({ categories }: CreatePageProps) {
     };
 
     return (
-        <AppLayout title="Submit Ticket">
+        <>
             <Head title="Submit Ticket" />
 
             <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -89,6 +88,6 @@ export default function Create({ categories }: CreatePageProps) {
                     </div>
                 </motion.div>
             </div>
-        </AppLayout>
+        </>
     );
 }

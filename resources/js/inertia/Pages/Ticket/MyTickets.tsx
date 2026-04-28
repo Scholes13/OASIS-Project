@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { Plus, Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
-import AppLayout from '@/layouts/AppLayout';
 import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
 import { Button } from '@/components/ui/button';
@@ -117,7 +116,7 @@ export default function MyTickets({
     };
 
     return (
-        <AppLayout title="Tiket Saya">
+        <>
             <Head title="Tiket Saya" />
 
             <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
@@ -351,6 +350,6 @@ export default function MyTickets({
                     )}
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

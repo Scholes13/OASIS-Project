@@ -19,10 +19,8 @@ return new class extends Migration
             ->first();
 
         if (! $sourceSSdept) {
-            if (app()->runningUnitTests()) {
-                return;
-            }
-            throw new \Exception('Source Strategic Sourcing department not found in WNS');
+            // Skip on fresh database or test environment – seeder will handle this
+            return;
         }
 
         // Get ALL SS members from WNS with their positions
@@ -32,10 +30,8 @@ return new class extends Migration
             ->get();
 
         if ($ssMembers->isEmpty()) {
-            if (app()->runningUnitTests()) {
-                return;
-            }
-            throw new \Exception('No SS members found in WNS');
+            // Skip on fresh database or test environment – seeder will handle this
+            return;
         }
 
         // Step 1: Set all SS members in WNS as Purchasing Admin

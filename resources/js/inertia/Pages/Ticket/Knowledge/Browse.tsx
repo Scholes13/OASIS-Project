@@ -11,7 +11,6 @@ import {
     Zap,
     Star
 } from 'lucide-react';
-import AppLayout from '@/layouts/AppLayout';
 import { Input } from '@/components/ui/input';
 import { PageProps } from '@/types';
 import type { KnowledgeCategory, KnowledgeArticle } from '@/types';
@@ -51,7 +50,7 @@ export default function Browse({ categories, popularArticles, recentArticles }: 
     };
 
     return (
-        <AppLayout title="Knowledge Base">
+        <>
             <Head title="Knowledge Base" />
 
             <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
@@ -251,6 +250,6 @@ export default function Browse({ categories, popularArticles, recentArticles }: 
                     </motion.div>
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

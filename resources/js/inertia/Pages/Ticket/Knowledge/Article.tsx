@@ -10,7 +10,6 @@ import {
     ChevronRight,
     Clock
 } from 'lucide-react';
-import AppLayout from '@/layouts/AppLayout';
 import { PageProps } from '@/types';
 import type { KnowledgeArticle } from '@/types';
 
@@ -31,7 +30,7 @@ export default function Article({ article, relatedArticles }: ArticlePageProps) 
     };
 
     return (
-        <AppLayout title={article.title}>
+        <>
             <Head title={article.title} />
 
             <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
@@ -186,6 +185,6 @@ export default function Article({ article, relatedArticles }: ArticlePageProps) 
                     </div>
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

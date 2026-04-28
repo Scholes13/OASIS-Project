@@ -294,6 +294,13 @@ class NavigationService
             'active' => request()->routeIs('admin.purchasing-admins.*'),
         ];
 
+        $items[] = [
+            'name' => 'IT Support Admin Assignment',
+            'href' => route('admin.it-support-admins.index'),
+            'icon' => 'headphones',
+            'active' => request()->routeIs('admin.it-support-admins.*'),
+        ];
+
         // Organization
         $items[] = [
             'name' => 'Business Units',

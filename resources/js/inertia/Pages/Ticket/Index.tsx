@@ -16,7 +16,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
 import { SlaBadge } from '@/components/Ticket/SlaBadge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Menu, Transition } from '@headlessui/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
@@ -183,49 +183,62 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                 const isDone = ticket.status === 'done';
                 const isCancelled = ticket.status === 'cancelled';
 
-                // Terminal states — no transitions allowed
                 if (isDone || isCancelled) {
                     return <TicketStatusBadge status={ticket.status} />;
                 }
 
-                // Allowed next statuses based on current
-                const nextStatuses: { value: string; label: string }[] = ticket.status === 'waiting'
+                const nextStatuses = ticket.status === 'waiting'
                     ? [
-                        { value: 'in_progress', label: 'Dalam Proses' },
-                        { value: 'cancelled', label: 'Batalkan' },
+                        { value: 'in_progress', label: '▶ Proses' },
+                        { value: 'cancelled', label: '✕ Batalkan' },
                       ]
-                    : [ // in_progress
-                        { value: 'done', label: 'Selesai' },
-                        { value: 'cancelled', label: 'Batalkan' },
+                    : [
+                        { value: 'done', label: '✓ Selesai' },
+                        { value: 'cancelled', label: '✕ Batalkan' },
                       ];
 
                 return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger className="cursor-pointer focus:outline-none">
-                            <div className="inline-flex items-center gap-1">
-                                <TicketStatusBadge status={ticket.status} />
-                                <ChevronDown className="w-3 h-3 text-gray-400" />
-                            </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                            {nextStatuses.map((ns) => (
-                                <DropdownMenuItem
-                                    key={ns.value}
-                                    onClick={() => {
-                                        router.put(route('it-support.admin.tickets.changeStatus', { ticket: ticket.id }), {
-                                            status: ns.value,
-                                        }, {
-                                            preserveScroll: true,
-                                            onSuccess: () => toast.success(`Status diubah ke "${ns.label}"`),
-                                            onError: () => toast.error('Gagal mengubah status'),
-                                        });
-                                    }}
-                                >
-                                    {ns.label}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Menu as="div" className="relative inline-block text-left">
+                        <Menu.Button className="cursor-pointer focus:outline-none inline-flex items-center gap-1">
+                            <TicketStatusBadge status={ticket.status} />
+                            <ChevronDown className="w-3 h-3 text-gray-400" />
+                        </Menu.Button>
+                        <Transition
+                            enter="transition ease-out duration-100"
+                            enterFrom="transform opacity-0 scale-95"
+                            enterTo="transform opacity-100 scale-100"
+                            leave="transition ease-in duration-75"
+                            leaveFrom="transform opacity-100 scale-100"
+                            leaveTo="transform opacity-0 scale-95"
+                        >
+                            <Menu.Items className="absolute left-0 z-50 mt-1 w-40 origin-top-left rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
+                                {nextStatuses.map((ns) => (
+                                    <Menu.Item key={ns.value}>
+                                        {({ active }) => (
+                                            <button
+                                                type="button"
+                                                className={cn(
+                                                    'w-full text-left px-3 py-2 text-sm',
+                                                    active ? 'bg-gray-50 text-gray-900' : 'text-gray-700',
+                                                )}
+                                                onClick={() => {
+                                                    router.put(route('it-support.admin.tickets.changeStatus', { ticket: ticket.id }), {
+                                                        status: ns.value,
+                                                    }, {
+                                                        preserveScroll: true,
+                                                        onSuccess: () => toast.success(`Status diubah ke "${ns.label}"`),
+                                                        onError: () => toast.error('Gagal mengubah status'),
+                                                    });
+                                                }}
+                                            >
+                                                {ns.label}
+                                            </button>
+                                        )}
+                                    </Menu.Item>
+                                ))}
+                            </Menu.Items>
+                        </Transition>
+                    </Menu>
                 );
             },
         },
@@ -278,23 +291,44 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
         {id: 'actions',
             header: '',
             cell: ({ row }) => (
-                <DropdownMenu>
-                    <DropdownMenuTrigger>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => window.location.href = route('it-support.admin.tickets.show', { ticket: row.original.id })}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAssignClick(row.original.id)}>
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Assign
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <Menu as="div" className="relative inline-block text-left">
+                    <Menu.Button as={Button} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Menu.Button>
+                    <Transition
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
+                    >
+                        <Menu.Items className="absolute right-0 z-50 mt-1 w-44 origin-top-right rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
+                            <Menu.Item>
+                                {({ active }) => (
+                                    <button
+                                        type="button"
+                                        className={cn('w-full flex items-center px-3 py-2 text-sm', active ? 'bg-gray-50' : 'text-gray-700')}
+                                        onClick={() => router.visit(route('it-support.admin.tickets.show', { ticket: row.original.id }))}
+                                    >
+                                        <Eye className="w-4 h-4 mr-2" /> Lihat Detail
+                                    </button>
+                                )}
+                            </Menu.Item>
+                            <Menu.Item>
+                                {({ active }) => (
+                                    <button
+                                        type="button"
+                                        className={cn('w-full flex items-center px-3 py-2 text-sm', active ? 'bg-gray-50' : 'text-gray-700')}
+                                        onClick={() => handleAssignClick(row.original.id)}
+                                    >
+                                        <UserPlus className="w-4 h-4 mr-2" /> Assign
+                                    </button>
+                                )}
+                            </Menu.Item>
+                        </Menu.Items>
+                    </Transition>
+                </Menu>
             ),
         },
     ], []);

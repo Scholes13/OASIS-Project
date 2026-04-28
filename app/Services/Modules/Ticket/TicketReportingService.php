@@ -133,8 +133,8 @@ class TicketReportingService
      */
     public function getMetricsByCategory(array $buIds, Carbon $from, Carbon $to): array
     {
-        return Ticket::forBusinessUnits($buIds)
-            ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
+        return Ticket::whereIn('tickets.business_unit_id', $buIds)
+            ->whereBetween('tickets.created_at', [$from->startOfDay(), $to->endOfDay()])
             ->leftJoin('ticket_categories', 'tickets.category_id', '=', 'ticket_categories.id')
             ->select(
                 'tickets.category_id',
@@ -160,9 +160,9 @@ class TicketReportingService
      */
     public function getMetricsByStaff(array $buIds, Carbon $from, Carbon $to): array
     {
-        return Ticket::forBusinessUnits($buIds)
-            ->whereBetween('created_at', [$from->startOfDay(), $to->endOfDay()])
-            ->whereNotNull('assigned_to')
+        return Ticket::whereIn('tickets.business_unit_id', $buIds)
+            ->whereBetween('tickets.created_at', [$from->startOfDay(), $to->endOfDay()])
+            ->whereNotNull('tickets.assigned_to')
             ->leftJoin('users', 'tickets.assigned_to', '=', 'users.id')
             ->select(
                 'tickets.assigned_to',

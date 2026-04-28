@@ -4,7 +4,7 @@ import { useForm } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 import {
     Search, Filter, Plus, Download, RefreshCw,
-    Eye, UserPlus, MoreHorizontal,
+    Eye, UserPlus, MoreHorizontal, ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -178,7 +178,56 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
         {
             accessorKey: 'status',
             header: 'Status',
-            cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
+            cell: ({ row }) => {
+                const ticket = row.original;
+                const isDone = ticket.status === 'done';
+                const isCancelled = ticket.status === 'cancelled';
+
+                // Terminal states — no transitions allowed
+                if (isDone || isCancelled) {
+                    return <TicketStatusBadge status={ticket.status} />;
+                }
+
+                // Allowed next statuses based on current
+                const nextStatuses: { value: string; label: string }[] = ticket.status === 'waiting'
+                    ? [
+                        { value: 'in_progress', label: 'Dalam Proses' },
+                        { value: 'cancelled', label: 'Batalkan' },
+                      ]
+                    : [ // in_progress
+                        { value: 'done', label: 'Selesai' },
+                        { value: 'cancelled', label: 'Batalkan' },
+                      ];
+
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger className="cursor-pointer focus:outline-none">
+                            <div className="inline-flex items-center gap-1">
+                                <TicketStatusBadge status={ticket.status} />
+                                <ChevronDown className="w-3 h-3 text-gray-400" />
+                            </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            {nextStatuses.map((ns) => (
+                                <DropdownMenuItem
+                                    key={ns.value}
+                                    onClick={() => {
+                                        router.put(route('it-support.admin.tickets.changeStatus', { ticket: ticket.id }), {
+                                            status: ns.value,
+                                        }, {
+                                            preserveScroll: true,
+                                            onSuccess: () => toast.success(`Status diubah ke "${ns.label}"`),
+                                            onError: () => toast.error('Gagal mengubah status'),
+                                        });
+                                    }}
+                                >
+                                    {ns.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
         },
         {
             accessorKey: 'assigned_user',

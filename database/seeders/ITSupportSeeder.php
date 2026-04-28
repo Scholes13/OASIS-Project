@@ -20,12 +20,26 @@ class ITSupportSeeder extends Seeder
     ];
 
     /**
+     * Default ticket categories with colors.
+     */
+    private const CATEGORY_DEFAULTS = [
+        ['name' => 'Account Access', 'description' => 'Masalah login, reset password, akses akun', 'color' => '#3b82f6'],
+        ['name' => 'Email Issue', 'description' => 'Masalah email, konfigurasi, spam', 'color' => '#8b5cf6'],
+        ['name' => 'Hardware Issue', 'description' => 'Kerusakan laptop, printer, monitor, perangkat keras lainnya', 'color' => '#ef4444'],
+        ['name' => 'Network Issue', 'description' => 'Masalah WiFi, LAN, VPN, koneksi internet', 'color' => '#f59e0b'],
+        ['name' => 'Software Issue', 'description' => 'Instalasi, update, error aplikasi, lisensi', 'color' => '#10b981'],
+        ['name' => 'Service Request', 'description' => 'Permintaan layanan IT baru, setup perangkat, akses sistem', 'color' => '#06b6d4'],
+        ['name' => 'Other', 'description' => 'Permintaan atau masalah IT lainnya', 'color' => '#6b7280'],
+    ];
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
     {
         $this->seedNumberingModule();
         $this->seedSlaSettings();
+        $this->seedTicketCategories();
     }
 
     /**
@@ -89,5 +103,39 @@ class ITSupportSeeder extends Seeder
         }
 
         $this->command->info("SLA settings seeded: {$inserted} row(s) inserted for {$businessUnits->count()} business unit(s).");
+    }
+
+    /**
+     * Seed default ticket categories for every business unit.
+     */
+    private function seedTicketCategories(): void
+    {
+        $businessUnits = BusinessUnit::all();
+        $now = now();
+        $inserted = 0;
+
+        foreach ($businessUnits as $businessUnit) {
+            foreach (self::CATEGORY_DEFAULTS as $category) {
+                $exists = DB::table('ticket_categories')
+                    ->where('business_unit_id', $businessUnit->id)
+                    ->where('name', $category['name'])
+                    ->exists();
+
+                if (! $exists) {
+                    DB::table('ticket_categories')->insert([
+                        'business_unit_id' => $businessUnit->id,
+                        'name' => $category['name'],
+                        'description' => $category['description'],
+                        'color' => $category['color'],
+                        'is_active' => true,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                    $inserted++;
+                }
+            }
+        }
+
+        $this->command->info("Ticket categories seeded: {$inserted} row(s) inserted for {$businessUnits->count()} business unit(s).");
     }
 }

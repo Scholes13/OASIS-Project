@@ -463,8 +463,6 @@ class NavigationService
         ];
 
         if ($isAdmin) {
-            $children[] = ['separator' => true];
-
             $children[] = [
                 'name' => 'Dashboard',
                 'href' => route('it-support.admin.dashboard'),

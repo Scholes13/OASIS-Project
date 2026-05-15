@@ -310,6 +310,11 @@ class KnowledgeBaseController extends Controller
     /**
      * Link a knowledge article to a ticket.
      *
+     * Both the ticket AND the article must be inside the admin's BU
+     * scope.  Without the article check, an IT Support admin in BU-A
+     * could attach an article from BU-B (which they cannot otherwise
+     * access) onto one of their own tickets.
+     *
      * POST /it-support/tickets/{ticket}/link-article
      */
     public function linkArticle(Request $request, Ticket $ticket): RedirectResponse
@@ -321,8 +326,15 @@ class KnowledgeBaseController extends Controller
             'article_id' => ['required', 'integer', 'exists:ticket_knowledge_articles,id'],
         ]);
 
+        $articleId = $request->integer('article_id');
+        $article = KnowledgeArticle::find($articleId);
+        abort_unless(
+            $article !== null && in_array((int) $article->business_unit_id, $scopedBuIds, true),
+            403
+        );
+
         try {
-            $this->knowledgeBaseService->linkArticleToTicket($ticket, $request->integer('article_id'));
+            $this->knowledgeBaseService->linkArticleToTicket($ticket, $articleId);
 
             return back()->with('success', 'Artikel berhasil ditautkan ke ticket.');
         } catch (\Exception $e) {

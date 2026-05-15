@@ -134,7 +134,7 @@ class UserTicketController extends Controller
             'category',
             'assignedUser',
             'requester',
-            'comments' => fn ($q) => $q->where('is_private', false)->with('user')->latest(),
+            'comments' => fn ($q) => $q->withoutTrashed()->where('is_private', false)->with('user')->latest(),
             'attachments',
             'knowledgeArticles',
         ]);

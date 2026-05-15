@@ -284,6 +284,7 @@ export function TaskFormModal({
     }, [data.status, data.task_date, isEditing, task?.started_at]);
 
     const flatActivityTypes = useMemo(() => {
+        if (!activityTypes) return [];
         if (Array.isArray(activityTypes)) {
             return activityTypes;
         }

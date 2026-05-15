@@ -8,6 +8,7 @@ use App\Models\Modules\Ticket\KnowledgeCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -60,20 +61,26 @@ class KnowledgeCategoryController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $buId = (int) session('current_business_unit_id');
+        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'parent_id' => ['nullable', 'integer', 'exists:ticket_knowledge_categories,id'],
+            'parent_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('ticket_knowledge_categories', 'id')
+                    ->whereIn('business_unit_id', $scopedBuIds),
+            ],
             'icon' => ['nullable', 'string', 'max:50'],
             'order' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $buId = (int) session('current_business_unit_id');
-
         KnowledgeCategory::create([
             'business_unit_id' => $buId,
             'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']),
+            'slug' => $this->generateUniqueSlug($validated['name'], $buId),
             'description' => $validated['description'] ?? null,
             'parent_id' => $validated['parent_id'] ?? null,
             'icon' => $validated['icon'] ?? null,
@@ -119,7 +126,12 @@ class KnowledgeCategoryController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'parent_id' => ['nullable', 'integer', 'exists:ticket_knowledge_categories,id'],
+            'parent_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('ticket_knowledge_categories', 'id')
+                    ->where('business_unit_id', $knowledgeCategory->business_unit_id),
+            ],
             'icon' => ['nullable', 'string', 'max:50'],
             'order' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -134,7 +146,11 @@ class KnowledgeCategoryController extends Controller
 
         // Regenerate slug if name changed
         if ($validated['name'] !== $knowledgeCategory->name) {
-            $updateData['slug'] = Str::slug($validated['name']);
+            $updateData['slug'] = $this->generateUniqueSlug(
+                $validated['name'],
+                (int) $knowledgeCategory->business_unit_id,
+                $knowledgeCategory->id,
+            );
         }
 
         // Prevent self-referencing parent
@@ -195,5 +211,36 @@ class KnowledgeCategoryController extends Controller
         }
 
         return $currentBusinessUnit->getAccessibleBusinessUnits();
+    }
+
+    /**
+     * Generate a slug that is unique within the given business unit.
+     *
+     * The underlying table currently has a global unique index on `slug`,
+     * which would cause cross-BU slug collisions to surface as duplicate
+     * key errors.  Until the index is widened to (business_unit_id, slug)
+     * we keep slugs unique globally so the create/update path stays
+     * transactional and predictable.
+     */
+    private function generateUniqueSlug(string $name, int $buId, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($name);
+        if ($base === '') {
+            $base = 'kategori';
+        }
+
+        $slug = $base;
+        $counter = 1;
+
+        while (
+            KnowledgeCategory::where('slug', $slug)
+                ->when($ignoreId, fn ($q, $id) => $q->where('id', '!=', $id))
+                ->exists()
+        ) {
+            $slug = $base.'-'.$counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 }

@@ -17,19 +17,70 @@
 ## Harness Assignment Rules
 - Conceptual roles are mapped onto harness sub-agent types when work starts; they are not permanently connected agents.
 - Default mapping:
-  - `@viewer` => `explorer`
-  - `@coder_backend` => `worker`
-  - `@coder_frontend` => `worker`
+  - `@viewer` => `viewer`
+  - broad repository discovery => `explore`
+  - `@coder_backend` => `coder-backend`
+  - `@coder_frontend` => `coder-frontend`
+  - unclear root-cause bugs => `debugger`
   - `@qa` => `qa`
-  - `@reviewer` => `@viewer` by default
-  - escalated `@reviewer` => `default`
-  - repo discovery or impact analysis => `@viewer`
+  - `@reviewer` => `reviewer`
+  - general research or synthesis => `general`
 - The `PM Agent` should spawn agents per task, define ownership clearly, and close them after completion.
-- Use parallel workers only when their write scopes are meaningfully separate.
+- Use parallel coder agents only when their write scopes are meaningfully separate.
 - For small, obvious, low-risk work, the `PM Agent` should stay in the main lane instead of spawning a read-only or review sub-agent by default.
 - Avoid chaining `@viewer`, `@qa`, and `@reviewer` together unless the task complexity or risk justifies distinct value from each gate.
 
 ## Active Tasks
+
+### 2026-05-15 - Cross-module bug hunter sweep (18 findings)
+- Status: implemented
+- Owner: PM Agent
+- Delegates: `@reviewer` (parallel sweep across Activity, Ticket, Purchasing/Cashflow, Core)
+- Scope:
+  - hunt bugs across the whole codebase by spawning four parallel `@reviewer` lanes (Activity, Ticket/IT Support, Purchasing + CashflowProjection, Core/shared),
+  - manually verify findings against source before treating them as bugs and discard false positives,
+  - implement end-to-end fixes for 4 CRITICAL, 5 HIGH, 7 MEDIUM, and 2 LOW issues without expanding scope into pre-existing test debt.
+- Risks:
+  - touching shared surfaces (NotificationCenter, HandleInertiaRequests, EnsureBusinessUnitSelected, User cascade) can drift cross-module behaviour if not verified end-to-end,
+  - Octane-style static cache changes need to keep request-scope behaviour for non-Octane runtimes,
+  - moving ticket attachments to the private `local` disk requires a download endpoint that respects requester + IT Support admin scopes without breaking historical rows still on the `public` disk,
+  - cashflow xlsx validation needs to retain compatibility with browsers that mis-label MIME for OOXML uploads while blocking renamed binaries,
+  - SQLite test runs cannot use MySQL-only SQL constructs in migrations.
+- Verification:
+  - `php artisan test` — 349 passed, 0 failed,
+  - focused PHPUnit on Activity (47), Ticket (39), Purchasing PR/ST (56), Notification + Backdate (12), CashflowProjection import (7),
+  - `npm exec vitest run` for changed Activity, Notification, and Cashflow Entries surfaces,
+  - `vendor/bin/pint --dirty` and `npm exec tsc --noEmit --pretty false` (only the two pre-existing `echo.ts` warnings),
+  - `npm run build` — built in 11.90s.
+- Notes:
+  - CRITICAL fixes:
+    - PR offline approval IDOR: `PurchaseRequestController::offlineApprovalDocument` now mirrors the ST approver/owner gate via a private `canAccessOfflineApprovalDocument` helper,
+    - Cashflow xlsx import: `ImportCashflowProjectionEntriesRequest` combines `extensions:xlsx` with `mimetypes:[xlsx,zip,octet-stream,x-zip-compressed]` so renamed binaries fail while browser MIME quirks still pass,
+    - Knowledge base linkArticle cross-BU leak: `KnowledgeBaseController::linkArticle` now requires the article's `business_unit_id` to be inside the admin scope before linking,
+    - Ticket attachments served through an authenticated download endpoint: new `TicketAttachmentController` + `it-support.tickets.attachments.download` route, files now stored on the private `local` disk via `TicketService::addAttachment`, model accessor `download_url` exposes the route, migration adds `disk` column for backward compatibility with historical public-disk rows.
+  - HIGH fixes:
+    - Activity timezone parsing: every `Carbon::parse(date.time)` in `ActivityInertiaController` now passes `config('app.timezone')` to lock parsing to the configured zone (default `Asia/Jakarta`),
+    - Backdate granted_until: `BackdatePermissionService::approveRequest` extends the window to `now()->addDays(config('features.backdate_grant_days', 7))->endOfDay()` so late-evening approvals are still usable, with `config/features.php` exposing the new key,
+    - ArticleView dedup: new migration `2026_05_15_000002_replace_article_views_unique_with_dedup_key` adds a synthetic non-null `dedup_key` (`user:{id}` or `anon:{fingerprint}`) plus unique `(article_id, dedup_key)`, `KnowledgeBaseService::trackView` writes the key and treats unique-violation as a duplicate to keep the counter race-safe,
+    - N+1 SLA preload: `Ticket::preloadSlaSettings()` plus `clearPreloadedSlaSettings()` cache the BU-scoped resolution map in memory, `TicketService::getDashboardMetrics` calls preload before the breach loop,
+    - Backend contract for participants/activityTypes: TS types verified non-null, frontend defensive guards retained as belt-and-braces.
+  - MEDIUM fixes:
+    - Cashflow finance scope: `CashflowProjectionAccessService::isFinanceInBusinessUnit` drops the fuzzy `name LIKE '%Finance%'` clause and keeps the strict `code IN ('CFC','FIN')` whitelist,
+    - Admin cascade cache: `User::isAdminInBuOrAncestor` now uses `Cache::remember(self::BU_PARENT_MAP_CACHE_KEY, 15min)` plus a new `BusinessUnitObserver` that forgets the key on parent_id change, create, delete, and restore, registered through `AppServiceProvider::registerObservers`,
+    - Targeted session forget: `EnsureBusinessUnitSelected` replaces `session()->flush()` with `forget(['current_business_unit_*', 'current_user_role', 'current_department_id'])` before logout so CSRF/flash state stays usable,
+    - Notification badge cache: `HandleInertiaRequests` caches the per-user unread count for 60s with a public `unreadNotificationsCacheKey()` helper, `NotificationCenterController::markAllRead` and `open` invalidate it, `TicketService::forgetUnreadNotificationCacheFor` invalidates after dispatch,
+    - TicketController: explicit `withoutTrashed()` on `comments` eager-load in admin show, admin edit, and `UserTicketController::show`,
+    - Knowledge category integrity: `KnowledgeCategoryController::store` and `update` validate `parent_id` with `Rule::exists('…')->whereIn('business_unit_id', $scopedBuIds)` and run `generateUniqueSlug()` against the global slug index until it is widened,
+    - Ticket notifications wired: `TicketService::changeStatus` dispatches `TicketStatusChangedNotification`, `assignTicket(actor)` dispatches `TicketAssignedNotification` (skips self-assign), `addComment` dispatches `TicketCommentNotification` (private comments exclude the requester); each path invalidates the bell cache.
+  - LOW fixes:
+    - `ActivityInertiaController` participant-attach loop now compares with strict `(int) !== (int)`,
+    - `EmployeeTask::isOverdue()` now uses `due_date->copy()->endOfDay()->isPast()` so a task is overdue from the next day, not from `00:00:01` of the due day.
+  - Skipped/explicit deferrals:
+    - SLA business hours: skipped because business-hours/holiday data is not yet defined per BU; current SLA stays 24/7 calendar — recorded as future tech debt,
+    - reviewer-flagged "PR auto-workflow self-approval" tagged SUSPECTED — exec plan 2026-04-24 already claimed this surface was hardened; no concrete reproducing path was found during follow-up verification, leave for a targeted reviewer pass when reopened,
+    - frontend null-guards on Activity participants/activityTypes retained as defensive code; backend contract verified non-null.
+  - New files: `app/Http/Controllers/Modules/Ticket/TicketAttachmentController.php`, `app/Observers/BusinessUnitObserver.php`, `database/migrations/modules/ticket/2026_05_15_000001_add_disk_to_ticket_attachments.php`, `database/migrations/modules/ticket/2026_05_15_000002_replace_article_views_unique_with_dedup_key.php`.
+  - Untracked dev scratch: `/tmp/` and `/skills/` added to `.gitignore` to stop them surfacing in `git status` (not from this fix, but already drifting in the workspace).
 
 ### 2026-04-27 - IT Support module (WGTicket migration)
 - Status: implemented

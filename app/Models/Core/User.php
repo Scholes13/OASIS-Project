@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
@@ -465,14 +466,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Cache key for the BU id => parent_id map used by the admin cascade.
+     */
+    public const BU_PARENT_MAP_CACHE_KEY = 'core.bu_parent_map.v1';
+
+    /**
      * Check if user has an admin flag in the given BU or any of its ancestor BUs.
      *
      * Enables top-down cascade: admin in parent BU = admin in all descendant BUs.
      * Does NOT change user position or access level.
      *
      * Performance: 2 queries max — one for user's admin BU IDs, one for the
-     * target BU's ancestor chain. Ancestor walk is in-memory using a pre-loaded
-     * parent_id map to avoid N+1.
+     * target BU's ancestor chain.  The ancestor walk runs in-memory using a
+     * pre-loaded parent_id map cached via {@see Cache} so concurrent BU
+     * structural changes (parent reassignment) are picked up on the next
+     * request after the BusinessUnit observer invalidates the key.  We
+     * deliberately avoid a method-level static so long-running workers
+     * (Octane/Swoole) cannot serve stale ancestor decisions across
+     * unrelated requests.
      *
      * @param  string  $flag  Column name: 'is_activity_admin' or 'is_purchasing_admin'
      * @param  int  $buId  The business unit to check access for
@@ -494,11 +505,12 @@ class User extends Authenticatable
             return true;
         }
 
-        // Query 2: Load all BUs as id=>parent_id map (cached per request via static)
-        static $buParentMap = null;
-        if ($buParentMap === null) {
-            $buParentMap = \App\Models\Core\BusinessUnit::pluck('parent_id', 'id')->toArray();
-        }
+        // Query 2 (cached): id => parent_id map for the BU tree.
+        $buParentMap = Cache::remember(
+            self::BU_PARENT_MAP_CACHE_KEY,
+            now()->addMinutes(15),
+            fn () => BusinessUnit::pluck('parent_id', 'id')->toArray()
+        );
 
         // Walk up ancestor chain entirely in-memory
         $visited = [$buId];

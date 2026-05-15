@@ -110,12 +110,16 @@ class BackdatePermissionService
                 ->active()
                 ->update(['status' => 'expired']);
 
-            // Approve the request with granted_until = end of today
+            // Approve the request.  granted_until extends a configurable
+            // number of days past approval so an approval close to midnight
+            // does not silently expire by the time the user opens the form.
+            $grantDays = max(1, (int) config('features.backdate_grant_days', 7));
+
             $permission->update([
                 'status' => 'approved',
                 'approved_by' => $approver->id,
                 'approved_at' => now(),
-                'granted_until' => now()->endOfDay(),
+                'granted_until' => now()->addDays($grantDays)->endOfDay(),
             ]);
 
             // Notify the requester

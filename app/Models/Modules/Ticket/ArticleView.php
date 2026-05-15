@@ -17,6 +17,7 @@ class ArticleView extends Model
         'visitor_fingerprint',
         'session_id',
         'user_id',
+        'dedup_key',
         'viewed_at',
     ];
 

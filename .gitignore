@@ -71,6 +71,8 @@ tests/e2e/screenshots/
 test-results/
 tmp-*
 tmp_*
+/tmp/
+/skills/
 
 # EnvSitter local state
 .envsitter/

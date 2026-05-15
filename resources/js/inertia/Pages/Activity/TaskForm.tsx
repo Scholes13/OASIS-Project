@@ -133,14 +133,15 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
 
     // Normalize activity types - handle both grouped and flat array formats
     const flatActivityTypes = useMemo(() => {
+        if (!activityTypes) return [];
         if (Array.isArray(activityTypes)) {
             return activityTypes;
         }
         // Grouped format from prioritization service
         return [
-            ...activityTypes.favorites,
-            ...activityTypes.department,
-            ...activityTypes.others,
+            ...(activityTypes.favorites || []),
+            ...(activityTypes.department || []),
+            ...(activityTypes.others || []),
         ];
     }, [activityTypes]);
 

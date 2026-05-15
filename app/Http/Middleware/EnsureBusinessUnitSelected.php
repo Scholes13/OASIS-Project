@@ -144,8 +144,20 @@ class EnsureBusinessUnitSelected
             $hasAccess = $user->canAccessBusinessUnit($currentBusinessUnitId);
 
             if (! $hasAccess) {
-                // Remove invalid business unit from session and logout
-                session()->flush();
+                // Forget only the BU-scoped session entries before logging out.
+                // session()->flush() previously cleared CSRF, flash, and any
+                // other unrelated state, which made the redirect lose the
+                // intended error message and forced the next request to start
+                // from a completely empty session.
+                $request->session()->forget([
+                    'current_business_unit_id',
+                    'current_business_unit_code',
+                    'current_business_unit_name',
+                    'current_business_unit_logo',
+                    'current_user_role',
+                    'current_department_id',
+                ]);
+
                 Auth::logout();
 
                 return redirect()->route('login')

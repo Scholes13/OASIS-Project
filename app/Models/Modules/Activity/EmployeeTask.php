@@ -229,7 +229,13 @@ class EmployeeTask extends Model
     // ==================== HELPER METHODS ====================
 
     /**
-     * Check if task is overdue
+     * Check if task is overdue.
+     *
+     * `due_date` is a date-only column.  We treat the deadline as the end
+     * of the due day so a task with `due_date = 2024-01-15` only flips
+     * to "overdue" once we're already inside 2024-01-16.  Without this
+     * the dashboard previously marked everything due today as overdue
+     * the moment the clock crossed midnight.
      */
     public function isOverdue(): bool
     {
@@ -237,7 +243,7 @@ class EmployeeTask extends Model
             return false;
         }
 
-        return $this->due_date && $this->due_date->isPast();
+        return $this->due_date && $this->due_date->copy()->endOfDay()->isPast();
     }
 
     /**

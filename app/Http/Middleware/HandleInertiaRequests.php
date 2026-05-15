@@ -23,6 +23,24 @@ class HandleInertiaRequests extends Middleware
      */
     protected const BUSINESS_UNITS_CACHE_TTL = 1800;
 
+    /**
+     * Cache TTL for the per-user unread notification count (60 seconds).
+     *
+     * The Inertia bell renders this on every authenticated request, so a
+     * short cache absorbs request bursts without making the badge feel
+     * stale.  Notification dispatch and mark-read paths invalidate the
+     * key explicitly to keep the badge interactive.
+     */
+    protected const UNREAD_NOTIFICATIONS_CACHE_TTL = 60;
+
+    /**
+     * Build the cache key for a user's unread notification count.
+     */
+    public static function unreadNotificationsCacheKey(int $userId): string
+    {
+        return "notifications.unread_count.{$userId}";
+    }
+
     public function __construct(
         protected NavigationService $navigationService
     ) {}
@@ -81,7 +99,13 @@ class HandleInertiaRequests extends Middleware
                 'created_task_id' => fn () => $request->session()->get('created_task_id'),
             ],
             'notifications' => [
-                'unread_count' => fn () => $user ? $user->unreadNotifications()->count() : 0,
+                'unread_count' => fn () => $user
+                    ? Cache::remember(
+                        self::unreadNotificationsCacheKey((int) $user->id),
+                        self::UNREAD_NOTIFICATIONS_CACHE_TTL,
+                        fn () => $user->unreadNotifications()->count(),
+                    )
+                    : 0,
             ],
             'appName' => config('app.name'),
             'serverDate' => now()->format('Y-m-d'),

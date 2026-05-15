@@ -1185,10 +1185,18 @@ class PurchaseRequestController extends Controller
 
     /**
      * Stream the offline approval document for an approved PR.
+     *
+     * Authorization: only the PR creator or an assigned approver can
+     * download the offline approval evidence.  BU scope alone is not
+     * enough because the evidence may contain confidential approver
+     * signatures and supporting documents.
      */
     public function offlineApprovalDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
     {
-        if ($purchaseRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+        $user = Auth::user();
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
+
+        if (! $this->canAccessOfflineApprovalDocument($purchaseRequest, $user, $currentBusinessUnitId)) {
             abort(403, 'You do not have access to this purchase request.');
         }
 
@@ -1198,6 +1206,25 @@ class PurchaseRequestController extends Controller
         }
 
         return response()->file(Storage::disk('public')->path($documentPath));
+    }
+
+    /**
+     * Determine whether the authenticated user may access the offline
+     * approval evidence for a purchase request.  Mirrors the stock
+     * request behaviour at StockRequestController::canAccessOfflineApprovalDocument.
+     */
+    private function canAccessOfflineApprovalDocument(PurchaseRequest $purchaseRequest, \App\Models\Core\User $user, int $currentBusinessUnitId): bool
+    {
+        $isAssignedApprover = $purchaseRequest->approvals()
+            ->where('approver_id', $user->id)
+            ->exists();
+
+        if ($isAssignedApprover) {
+            return true;
+        }
+
+        return $purchaseRequest->business_unit_id === $currentBusinessUnitId
+            && $purchaseRequest->user_id === $user->id;
     }
 
     // ============================================

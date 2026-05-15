@@ -72,6 +72,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Observers\UserBusinessUnitObserver::class
         );
 
+        \App\Models\Core\BusinessUnit::observe(
+            \App\Observers\BusinessUnitObserver::class
+        );
+
         \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::observe(
             \App\Observers\PurchaseRequestObserver::class
         );

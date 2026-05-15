@@ -57,8 +57,12 @@ class CashflowProjectionAccessService
         return $user->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->whereHas('department', function ($query) {
-                $query->whereIn('code', ['CFC', 'FIN'])
-                    ->orWhere('name', 'like', '%Finance%');
+                // Strict whitelist on department `code`.  We previously also
+                // matched on a fuzzy `name LIKE '%Finance%'` clause, which
+                // accidentally granted finance access to any department
+                // whose display name happened to contain the word
+                // "Finance" (e.g. "Project Finance Reporting").
+                $query->whereIn('code', ['CFC', 'FIN']);
             })
             ->exists();
     }

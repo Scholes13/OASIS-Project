@@ -186,13 +186,13 @@ export default function TaskDetail({ task, departmentUsers = [], backdatePermiss
                                         <h3 className="text-lg font-semibold text-gray-900">Participants</h3>
                                     </div>
                                     <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                                        {task.participants.length} Members
+                                        {(task.participants ?? []).length} Members
                                     </span>
                                 </div>
                                 <div className="p-6">
-                                    {task.participants.length > 0 ? (
+                                    {(task.participants ?? []).length > 0 ? (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {task.participants.map((participant) => (
+                                            {(task.participants ?? []).map((participant) => (
                                                 <div
                                                     key={participant.id}
                                                     className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all duration-200 group"

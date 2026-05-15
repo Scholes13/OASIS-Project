@@ -165,6 +165,72 @@ class Ticket extends Model
     // ==================== SLA HELPERS ====================
 
     /**
+     * In-memory SLA settings cache used by isSlaBreach() and the
+     * sla_deadline accessor.  When a caller preloads a list of tickets
+     * through {@see Ticket::preloadSlaSettings()} we can avoid running
+     * one TicketSlaSettings query per ticket.
+     *
+     * Keyed first by business_unit_id, then by priority.
+     *
+     * @var array<int, array<string, int>>|null
+     */
+    protected static ?array $preloadedSlaSettings = null;
+
+    /**
+     * Preload SLA settings for the given business units so subsequent
+     * calls to isSlaBreach()/sla_deadline can resolve resolution hours
+     * without hitting the database per ticket.
+     *
+     * @param  iterable<int>  $buIds
+     */
+    public static function preloadSlaSettings(iterable $buIds): void
+    {
+        $ids = array_values(array_unique(array_map('intval', is_array($buIds) ? $buIds : iterator_to_array($buIds))));
+
+        if (empty($ids)) {
+            self::$preloadedSlaSettings = [];
+
+            return;
+        }
+
+        $rows = TicketSlaSettings::whereIn('business_unit_id', $ids)
+            ->get(['business_unit_id', 'priority', 'resolution_hours']);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row->business_unit_id][$row->priority] = (int) $row->resolution_hours;
+        }
+
+        self::$preloadedSlaSettings = $map;
+    }
+
+    /**
+     * Reset the preloaded SLA settings map.  Useful for tests that mutate
+     * SLA settings between assertions.
+     */
+    public static function clearPreloadedSlaSettings(): void
+    {
+        self::$preloadedSlaSettings = null;
+    }
+
+    /**
+     * Resolve resolution hours from the preload cache when available,
+     * falling back to a single targeted query so production paths that
+     * skip the preload still behave correctly.
+     */
+    protected function resolveResolutionHours(): ?int
+    {
+        if (self::$preloadedSlaSettings !== null) {
+            return self::$preloadedSlaSettings[(int) $this->business_unit_id][$this->priority] ?? null;
+        }
+
+        return TicketSlaSettings::getResolutionHours(
+            (int) $this->business_unit_id,
+            $this->priority
+        );
+    }
+
+    /**
      * Check if this ticket has breached its SLA deadline.
      */
     public function isSlaBreach(): bool
@@ -190,10 +256,7 @@ class Ticket extends Model
             return null;
         }
 
-        $resolutionHours = TicketSlaSettings::getResolutionHours(
-            $this->business_unit_id,
-            $this->priority
-        );
+        $resolutionHours = $this->resolveResolutionHours();
 
         if ($resolutionHours === null) {
             return null;

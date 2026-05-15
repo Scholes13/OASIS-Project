@@ -155,8 +155,13 @@ class KnowledgeBaseService
     /**
      * Track a unique view for an article.
      *
-     * Uses a fingerprint composed of IP + user agent to prevent
-     * duplicate view counts within a 24-hour window.
+     * Deduplication uses a synthetic `dedup_key` that is always non-null:
+     *   - `user:{id}` for authenticated viewers
+     *   - `anon:{fingerprint}` for anonymous viewers
+     *
+     * The (article_id, dedup_key) unique index makes the insert race-safe
+     * — duplicates fail at the database layer, and we treat that as a
+     * "not first view" signal so the denormalized counter stays accurate.
      */
     public function trackView(KnowledgeArticle $article, Request $request, ?User $user = null): void
     {
@@ -164,9 +169,16 @@ class KnowledgeBaseService
         $userAgent = $request->userAgent() ?? '';
         $fingerprint = md5($ip.$userAgent);
 
-        // Check if this visitor already viewed within the last 24 hours
+        $dedupKey = $user
+            ? 'user:'.$user->id
+            : 'anon:'.$fingerprint;
+
+        // Skip when this viewer already has a view for the article within
+        // the last 24 hours.  We still rely on the unique index below as
+        // the source of truth for older rows that pre-date the dedup_key
+        // backfill.
         $recentView = ArticleView::where('article_id', $article->id)
-            ->where('visitor_fingerprint', $fingerprint)
+            ->where('dedup_key', $dedupKey)
             ->where('viewed_at', '>=', now()->subDay())
             ->exists();
 
@@ -174,15 +186,23 @@ class KnowledgeBaseService
             return;
         }
 
-        ArticleView::create([
-            'article_id' => $article->id,
-            'ip_address' => $ip,
-            'user_agent' => Str::limit($userAgent, 255),
-            'visitor_fingerprint' => $fingerprint,
-            'session_id' => $request->session()->getId(),
-            'user_id' => $user?->id,
-            'viewed_at' => now(),
-        ]);
+        try {
+            ArticleView::create([
+                'article_id' => $article->id,
+                'ip_address' => $ip,
+                'user_agent' => Str::limit($userAgent, 255),
+                'visitor_fingerprint' => $fingerprint,
+                'session_id' => $request->session()->getId(),
+                'user_id' => $user?->id,
+                'dedup_key' => $dedupKey,
+                'viewed_at' => now(),
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Another request already inserted the dedup row in parallel.
+            // Treat as "not first view" and skip the counter increment so
+            // we never double-count a single visit.
+            return;
+        }
 
         // Increment the denormalized counter
         $article->increment('views_count');

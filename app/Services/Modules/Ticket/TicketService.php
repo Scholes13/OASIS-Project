@@ -2,14 +2,19 @@
 
 namespace App\Services\Modules\Ticket;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\User;
 use App\Models\Modules\Ticket\Ticket;
 use App\Models\Modules\Ticket\TicketAttachment;
 use App\Models\Modules\Ticket\TicketComment;
+use App\Notifications\Ticket\TicketAssignedNotification;
+use App\Notifications\Ticket\TicketCommentNotification;
+use App\Notifications\Ticket\TicketStatusChangedNotification;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class TicketService
 {
@@ -104,6 +109,10 @@ class TicketService
     /**
      * Change ticket status with transition validation.
      *
+     * Notifies the requester (and the assigned staff member if any other
+     * than the actor) so the people watching the ticket actually see the
+     * progress.  Self-actions are skipped to avoid noisy badges.
+     *
      * @throws Exception
      */
     public function changeStatus(Ticket $ticket, string $newStatus, ?User $user = null): Ticket
@@ -125,19 +134,40 @@ class TicketService
         }
 
         $ticket->update($updateData);
+        $fresh = $ticket->fresh();
 
-        return $ticket->fresh();
+        $this->notifyTicketStatusChange($fresh, $newStatus, $user);
+
+        return $fresh;
+    }
+
+    /**
+     * Send the status change notification to the watchers (requester +
+     * assignee), excluding the user that triggered the change.
+     */
+    protected function notifyTicketStatusChange(Ticket $ticket, string $newStatus, ?User $actor): void
+    {
+        $recipients = $this->collectTicketWatchers($ticket, $actor);
+
+        if (empty($recipients)) {
+            return;
+        }
+
+        Notification::send($recipients, new TicketStatusChangedNotification($ticket, $newStatus));
+        $this->forgetUnreadNotificationCacheFor($recipients);
     }
 
     /**
      * Assign a ticket to a user.
      *
      * Validates that the target user has the IT Support admin role
-     * within the ticket's business unit scope.
+     * within the ticket's business unit scope.  Sends an assignment
+     * notification to the new assignee (skipped when the actor assigns
+     * the ticket to themselves).
      *
      * @throws Exception
      */
-    public function assignTicket(Ticket $ticket, int $userId): Ticket
+    public function assignTicket(Ticket $ticket, int $userId, ?User $actor = null): Ticket
     {
         $assignee = User::findOrFail($userId);
 
@@ -155,13 +185,37 @@ class TicketService
             );
         }
 
+        $previousAssigneeId = $ticket->assigned_to;
         $ticket->update(['assigned_to' => $userId]);
+        $fresh = $ticket->fresh();
 
-        return $ticket->fresh();
+        if ((int) $previousAssigneeId !== (int) $userId) {
+            $this->notifyTicketAssigned($fresh, $assignee, $actor);
+        }
+
+        return $fresh;
+    }
+
+    /**
+     * Send an assignment notification to the assignee.  Skipped when the
+     * actor assigns to themselves to avoid self-notify noise.
+     */
+    protected function notifyTicketAssigned(Ticket $ticket, User $assignee, ?User $actor): void
+    {
+        if ($actor !== null && (int) $actor->id === (int) $assignee->id) {
+            return;
+        }
+
+        $assignee->notify(new TicketAssignedNotification($ticket));
+        $this->forgetUnreadNotificationCacheFor([$assignee]);
     }
 
     /**
      * Add a comment to a ticket.
+     *
+     * Notifies the requester and assignee (excluding the commenter).
+     * Private comments only fan out to IT Support recipients — the
+     * requester never sees them.
      */
     public function addComment(
         Ticket $ticket,
@@ -169,16 +223,87 @@ class TicketService
         string $content,
         bool $isPrivate = false
     ): TicketComment {
-        return TicketComment::create([
+        $comment = TicketComment::create([
             'ticket_id' => $ticket->id,
             'user_id' => $user->id,
             'content' => $content,
             'is_private' => $isPrivate,
         ]);
+
+        $this->notifyTicketComment($ticket, $comment, $user, $isPrivate);
+
+        return $comment;
+    }
+
+    /**
+     * Build the recipient list for a ticket comment and dispatch the
+     * notification.  The requester is excluded from private comments so
+     * IT staff can keep internal context inside the ticket.
+     */
+    protected function notifyTicketComment(Ticket $ticket, TicketComment $comment, User $commenter, bool $isPrivate): void
+    {
+        $recipients = $this->collectTicketWatchers($ticket, $commenter, includeRequester: ! $isPrivate);
+
+        if (empty($recipients)) {
+            return;
+        }
+
+        Notification::send($recipients, new TicketCommentNotification($comment, $commenter, $ticket));
+        $this->forgetUnreadNotificationCacheFor($recipients);
+    }
+
+    /**
+     * Collect the users that should be notified about ticket activity.
+     *
+     * Currently the requester and the assigned IT Support staff member.
+     * The actor is always excluded to avoid self-notify noise.
+     *
+     * @return list<User>
+     */
+    protected function collectTicketWatchers(Ticket $ticket, ?User $actor = null, bool $includeRequester = true): array
+    {
+        $userIds = [];
+
+        if ($includeRequester && $ticket->requester_id) {
+            $userIds[(int) $ticket->requester_id] = (int) $ticket->requester_id;
+        }
+
+        if ($ticket->assigned_to) {
+            $userIds[(int) $ticket->assigned_to] = (int) $ticket->assigned_to;
+        }
+
+        if ($actor !== null) {
+            unset($userIds[(int) $actor->id]);
+        }
+
+        if (empty($userIds)) {
+            return [];
+        }
+
+        return User::whereIn('id', array_values($userIds))->get()->all();
+    }
+
+    /**
+     * Forget the cached unread badge for the given recipients so the
+     * Inertia bell reflects the new notification on the next render.
+     *
+     * @param  iterable<User>  $recipients
+     */
+    protected function forgetUnreadNotificationCacheFor(iterable $recipients): void
+    {
+        foreach ($recipients as $recipient) {
+            if ($recipient instanceof User && $recipient->id) {
+                Cache::forget(HandleInertiaRequests::unreadNotificationsCacheKey((int) $recipient->id));
+            }
+        }
     }
 
     /**
      * Add an attachment to a ticket.
+     *
+     * Files are stored on the private `local` disk so they can only be
+     * served through the authenticated download endpoint.  This avoids
+     * exposing potentially sensitive ticket evidence under public URLs.
      *
      * @throws Exception
      */
@@ -188,7 +313,8 @@ class TicketService
         ?User $uploader = null,
         ?int $commentId = null
     ): TicketAttachment {
-        $path = $file->store('ticket-attachments/'.$ticket->id, 'public');
+        $disk = 'local';
+        $path = $file->store('ticket-attachments/'.$ticket->id, $disk);
 
         return TicketAttachment::create([
             'ticket_id' => $ticket->id,
@@ -196,6 +322,7 @@ class TicketService
             'filename' => basename($path),
             'original_filename' => $file->getClientOriginalName(),
             'file_path' => $path,
+            'disk' => $disk,
             'file_type' => $file->getMimeType(),
             'file_size' => $file->getSize(),
             'uploaded_by' => $uploader?->id,
@@ -223,6 +350,10 @@ class TicketService
         }
 
         $tickets = $query->get();
+
+        // Preload SLA settings once for the BU scope so the breach loop
+        // below does not run a TicketSlaSettings lookup per ticket.
+        Ticket::preloadSlaSettings($buIds);
 
         // Summary cards
         $total = $tickets->count();

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,6 +63,10 @@ class NotificationCenterController extends Controller
     {
         $request->user()->unreadNotifications()->update(['read_at' => now()]);
 
+        // Invalidate the cached unread badge so the next render reflects
+        // the mark-read immediately instead of waiting for the TTL.
+        Cache::forget(HandleInertiaRequests::unreadNotificationsCacheKey((int) $request->user()->id));
+
         return redirect()
             ->route('notifications.index', ['filter' => $request->query('filter', 'all')])
             ->with('success', 'All notifications marked as read.');
@@ -76,6 +82,7 @@ class NotificationCenterController extends Controller
 
         if ($notification->read_at === null) {
             $notification->markAsRead();
+            Cache::forget(HandleInertiaRequests::unreadNotificationsCacheKey((int) $request->user()->id));
         }
 
         $actionUrl = $notification->data['action_url'] ?? null;

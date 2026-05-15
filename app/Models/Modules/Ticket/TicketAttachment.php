@@ -16,6 +16,7 @@ class TicketAttachment extends Model
         'filename',
         'original_filename',
         'file_path',
+        'disk',
         'file_type',
         'file_size',
         'uploaded_by',
@@ -24,6 +25,15 @@ class TicketAttachment extends Model
     protected $casts = [
         'file_size' => 'integer',
     ];
+
+    /**
+     * Append a signed download URL when the attachment is serialized for
+     * the frontend.  The URL points at the authenticated download endpoint
+     * so we never expose raw storage paths.
+     *
+     * @var list<string>
+     */
+    protected $appends = ['download_url'];
 
     // ==================== RELATIONSHIPS ====================
 
@@ -49,5 +59,17 @@ class TicketAttachment extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    // ==================== ACCESSORS ====================
+
+    /**
+     * Build the authenticated download URL for this attachment.
+     */
+    public function getDownloadUrlAttribute(): string
+    {
+        return route('it-support.tickets.attachments.download', [
+            'attachment' => $this->getKey(),
+        ]);
     }
 }

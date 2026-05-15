@@ -337,7 +337,7 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
                             <div className="flex flex-col gap-2">
                                 <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Assignees</div>
                                 <div className="flex flex-wrap gap-2">
-                                    {task.participants && task.participants.length > 0 ? (
+                                    {Array.isArray(task.participants) && task.participants.length > 0 ? (
                                         task.participants.map((participant) => (
                                             <div key={participant.id} className="flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1.5 text-[13px] font-medium text-foreground">
                                                 <div className="flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#bfd6ef] text-[10px] font-bold uppercase text-[#205180]">

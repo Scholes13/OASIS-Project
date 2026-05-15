@@ -109,7 +109,13 @@ class TicketController extends Controller
             'creator',
             'department',
             'businessUnit',
-            'comments' => fn ($q) => $q->with('user')->latest(),
+            // Eager-loading via a closure replaces the default model query
+            // builder, so SoftDeletes' global scope still applies but our
+            // explicit ->latest() ordering used to pair with `with('user')`
+            // alone could surface trashed rows on engines where
+            // SoftDeletes is opted-out.  Tighten the contract by being
+            // explicit here.
+            'comments' => fn ($q) => $q->withoutTrashed()->with('user')->latest(),
             'attachments',
             'knowledgeArticles',
         ]);
@@ -139,7 +145,14 @@ class TicketController extends Controller
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
         abort_unless(in_array((int) $ticket->business_unit_id, $scopedBuIds, true), 403);
 
-        $ticket->load(['category', 'assignedUser', 'requester', 'department', 'comments.user', 'attachments']);
+        $ticket->load([
+            'category',
+            'assignedUser',
+            'requester',
+            'department',
+            'comments' => fn ($q) => $q->withoutTrashed()->with('user'),
+            'attachments',
+        ]);
 
         $categories = TicketCategory::whereIn('business_unit_id', $scopedBuIds)
             ->where('is_active', true)
@@ -266,7 +279,11 @@ class TicketController extends Controller
         abort_unless(in_array((int) $ticket->business_unit_id, $scopedBuIds, true), 403);
 
         try {
-            $this->ticketService->assignTicket($ticket, $request->validated()['assigned_to']);
+            $this->ticketService->assignTicket(
+                $ticket,
+                $request->validated()['assigned_to'],
+                $request->user(),
+            );
 
             return back()->with('success', 'Ticket berhasil di-assign.');
         } catch (\Exception $e) {

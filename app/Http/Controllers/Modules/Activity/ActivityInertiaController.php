@@ -318,13 +318,13 @@ class ActivityInertiaController extends Controller
 
         if ($status === 'in_progress') {
             if (! $isTodayTask && ! empty($validated['start_time'])) {
-                $startedAt = Carbon::parse($validated['task_date'].' '.$validated['start_time']);
+                $startedAt = Carbon::parse($validated['task_date'].' '.$validated['start_time'], config('app.timezone'));
             } else {
                 $startedAt = now();
             }
         } elseif ($status === 'completed') {
-            $startedAt = Carbon::parse($validated['task_date'].' '.$validated['start_time']);
-            $completedAt = Carbon::parse($completedDate.' '.$validated['end_time']);
+            $startedAt = Carbon::parse($validated['task_date'].' '.$validated['start_time'], config('app.timezone'));
+            $completedAt = Carbon::parse($completedDate.' '.$validated['end_time'], config('app.timezone'));
             $durationMinutes = $startedAt->diffInMinutes($completedAt);
         }
 
@@ -355,7 +355,7 @@ class ActivityInertiaController extends Controller
 
             if (! empty($validated['participant_ids'])) {
                 foreach ($validated['participant_ids'] as $participantId) {
-                    if ($participantId != $user->id) {
+                    if ((int) $participantId !== (int) $user->id) {
                         $task->participants()->attach($participantId, [
                             'is_owner' => false,
                             'joined_at' => now(),
@@ -499,22 +499,22 @@ class ActivityInertiaController extends Controller
         if ($status === 'in_progress') {
             if ($task->started_at && ! empty($validated['start_time'])) {
                 // User explicitly provided a new start_time — re-base to submitted task_date
-                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time'], config('app.timezone'));
             } elseif ($task->started_at) {
                 // Task already has started_at but no explicit start_time — preserve original
                 $startedAt = $task->started_at;
             } elseif ($requiresStartCorrection && ! empty($validated['start_time'])) {
-                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time'], config('app.timezone'));
             } elseif (! $task->started_at && $submittedTaskDate->isSameDay(now())) {
                 $startedAt = now();
             }
         } elseif ($status === 'completed') {
             if (($requiresStartCorrection || ! $task->started_at) && ! empty($validated['start_time'])) {
-                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time']);
+                $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time'], config('app.timezone'));
             }
 
             if (($requiresCompletionCorrection || ! $task->completed_at) && ! empty($validated['end_time'])) {
-                $completedAt = Carbon::parse($completedDate.' '.$validated['end_time']);
+                $completedAt = Carbon::parse($completedDate.' '.$validated['end_time'], config('app.timezone'));
             }
 
             if ($startedAt && $completedAt) {

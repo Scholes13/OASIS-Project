@@ -290,6 +290,79 @@ class CashflowProjectionEntriesImportTest extends TestCase
         Log::shouldHaveReceived('info')->once();
     }
 
+    public function test_import_accepts_valid_xlsx_even_when_browser_reports_zip_mime_type(): void
+    {
+        Log::spy();
+
+        $file = $this->makeWorkbookUpload([
+            [
+                '',
+                2026,
+                'WNS',
+                'HR',
+                'OUT_HR_GAJI_BENEFIT',
+                '2026-04-18',
+                '',
+                'FALSE',
+                2500000,
+                'Imported create row with zip mime',
+                '',
+            ],
+        ], mimeType: 'application/zip');
+
+        $response = $this->actingAsFinanceUser()->post(route('cashflow-projection.entries.import'), [
+            'file' => $file,
+            'context_year' => 2026,
+            'context_month' => 4,
+        ]);
+
+        $response->assertRedirect(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 4,
+        ]));
+
+        $response->assertSessionHas('cashflow_import', function (array $payload): bool {
+            return ($payload['status'] ?? null) === 'success'
+                && ($payload['created_rows'] ?? null) === 1
+                && ($payload['failed_rows'] ?? null) === 0;
+        });
+
+        $this->assertDatabaseHas('cashflow_projection_line_items', [
+            'department_id' => $this->hrDepartment->id,
+            'action_code' => 'OUT_HR_GAJI_BENEFIT',
+            'description' => 'Imported create row with zip mime',
+            'source_type' => 'import',
+        ]);
+    }
+
+    public function test_import_uses_extension_validation_before_workbook_parsing(): void
+    {
+        Log::spy();
+
+        $file = UploadedFile::fake()->create(
+            'cashflow_entries_import.xlsx',
+            10,
+            'application/octet-stream'
+        );
+
+        $response = $this->actingAsFinanceUser()->post(route('cashflow-projection.entries.import'), [
+            'file' => $file,
+            'context_year' => 2026,
+            'context_month' => 4,
+        ]);
+
+        $response->assertRedirect(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 4,
+        ]));
+
+        $response->assertSessionDoesntHaveErrors('file');
+        $response->assertSessionHas('cashflow_import', function (array $payload): bool {
+            return ($payload['status'] ?? null) === 'failed'
+                && ($payload['summary'] ?? null) === 'Import gagal. Perbaiki file lalu coba lagi.';
+        });
+    }
+
     public function test_import_rejects_duplicate_line_item_ids_before_mutation(): void
     {
         Log::spy();
@@ -471,7 +544,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
      * @param  array<int, array<int, mixed>>  $rows
      * @param  array<int, string>|null  $headers
      */
-    private function makeWorkbookUpload(array $rows, ?array $headers = null): UploadedFile
+    private function makeWorkbookUpload(array $rows, ?array $headers = null, string $mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'): UploadedFile
     {
         $spreadsheet = new Spreadsheet;
         $templateSheet = $spreadsheet->getActiveSheet();
@@ -498,7 +571,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
         return new UploadedFile(
             $path,
             'cashflow_entries_import.xlsx',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            $mimeType,
             null,
             true
         );

@@ -380,6 +380,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/my-tickets/{ticket}', [UserTicketController::class, 'show'])->name('my-tickets.show');
         Route::post('/my-tickets/{ticket}/comment', [UserTicketController::class, 'addComment'])->name('my-tickets.comment');
 
+        // Authenticated attachment download (requester or IT Support admin in scope)
+        Route::get('/tickets/attachments/{attachment}/download', [\App\Http\Controllers\Modules\Ticket\TicketAttachmentController::class, 'download'])
+            ->name('tickets.attachments.download');
+
         // Knowledge base browse (all users)
         Route::get('/knowledge', [KnowledgeBaseController::class, 'browse'])->name('knowledge');
         Route::get('/knowledge/search', [KnowledgeBaseController::class, 'search'])->name('knowledge.search');

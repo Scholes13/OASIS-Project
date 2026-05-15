@@ -206,6 +206,58 @@ describe('Activity Dashboard calendar click behavior', () => {
         });
     });
 
+    it('initializes the board view from the URL before the first render', async () => {
+        window.history.pushState({}, '', '/activity/task?scope=my&view=board');
+
+        render(
+            <Dashboard
+                stats={stats}
+                tasks={makeTasks(makeTask())}
+                activityTypes={[]}
+                filters={filters}
+                departmentUsers={[]}
+                backdatePermission={null}
+                allowedDateRange={{ from: '', to: '' }}
+                backdateEnabled={false}
+                prioritizedActivityTypes={[]}
+            />
+        );
+
+        expect(screen.queryByTestId('activity-data-table')).not.toBeInTheDocument();
+        expect(await screen.findByTestId('kanban-board')).toBeInTheDocument();
+    });
+
+    it('reloads board tasks when localStorage view differs from server view', async () => {
+        // Saved view says board, URL has no view => server rendered list payload.
+        window.history.pushState({}, '', '/activity/task?scope=my');
+        window.localStorage.setItem('activity-view', 'board');
+
+        const getSpy = vi.spyOn(router, 'get').mockImplementation(() => undefined);
+
+        render(
+            <Dashboard
+                stats={stats}
+                tasks={makeTasks(makeTask())}
+                activityTypes={[]}
+                filters={filters}
+                departmentUsers={[]}
+                backdatePermission={null}
+                allowedDateRange={{ from: '', to: '' }}
+                backdateEnabled={false}
+                prioritizedActivityTypes={[]}
+            />
+        );
+
+        await waitFor(() => {
+            const boardCall = getSpy.mock.calls.find(call =>
+                typeof call[1] === 'object' && (call[1] as Record<string, string>)?.view === 'board'
+            );
+            expect(boardCall).toBeTruthy();
+        });
+
+        getSpy.mockRestore();
+    });
+
     it('opens the modal flow from calendar events instead of navigating to the legacy page', async () => {
         render(
             <Dashboard

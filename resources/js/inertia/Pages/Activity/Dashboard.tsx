@@ -172,9 +172,32 @@ export default function Dashboard({
 
         if (urlView && validViews.includes(urlView)) {
             setView(urlView);
+            return;
+        }
+
+        if (savedView && validViews.includes(savedView) && savedView !== 'list') {
+            setView(savedView);
+            setIsFiltering(true);
+            router.get(
+                route('activity.task.index'),
+                {
+                    ...Object.fromEntries(
+                        Object.entries(filters).filter(([_, v]) => v !== '')
+                    ),
+                    view: savedView,
+                },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                    only: ['stats', 'tasks', 'filters'],
+                    onFinish: () => setIsFiltering(false),
+                }
+            );
         } else if (savedView && validViews.includes(savedView)) {
             setView(savedView);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -473,8 +496,8 @@ export default function Dashboard({
                 open={showTaskModal} 
                 onClose={closeTaskModal}
                 task={editingTask}
-                activityTypes={prioritizedActivityTypes || activityTypes}
-                departmentUsers={departmentUsers}
+                activityTypes={prioritizedActivityTypes ?? activityTypes ?? []}
+                departmentUsers={departmentUsers ?? []}
                 backdatePermission={backdatePermission}
                 allowedDateRange={allowedDateRange || { from: '', to: '' }}
                 backdateEnabled={backdateEnabled}

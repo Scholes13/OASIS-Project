@@ -13,15 +13,22 @@ use Illuminate\Support\Facades\Log;
 
 class ApprovalWorkflowService
 {
-    protected ApprovalAuthorityResolver $authorityResolver;
+    protected ApprovalRuleEngine $ruleEngine;
 
-    public function __construct(?ApprovalAuthorityResolver $authorityResolver = null)
-    {
+    protected ApprovalNotificationDispatcher $notifications;
+
+    public function __construct(
+        ?ApprovalRuleEngine $ruleEngine = null,
+        ?ApprovalNotificationDispatcher $notifications = null,
+        ?ApprovalAuthorityResolver $authorityResolver = null,
+    ) {
         // Allow direct `new ApprovalWorkflowService()` instantiation
         // (used by tests and legacy callers) while still supporting
-        // container-resolved DI.  Lazy-default to a fresh resolver so
+        // container-resolved DI.  Lazy-default both collaborators so
         // we never depend on the container being booted.
-        $this->authorityResolver = $authorityResolver ?? new ApprovalAuthorityResolver;
+        $this->ruleEngine = $ruleEngine
+            ?? new ApprovalRuleEngine($authorityResolver ?? new ApprovalAuthorityResolver);
+        $this->notifications = $notifications ?? new ApprovalNotificationDispatcher;
     }
 
     /**
@@ -39,18 +46,22 @@ class ApprovalWorkflowService
             }
 
             // Otherwise, determine approvers based on business rules (automatic workflow)
-            $approvers = $this->determineApprovers($purchaseRequest);
+            $approvers = $this->ruleEngine->resolveApproversForAmount(
+                $purchaseRequest,
+                (int) $purchaseRequest->total_amount,
+                $purchaseRequest->businessUnit,
+            );
 
             if ($approvers->isEmpty()) {
                 throw new \Exception('No approvers found for this request');
             }
 
             // Create approval steps
-            $this->createApprovalSteps($purchaseRequest, $approvers);
+            $this->ruleEngine->createApprovalSteps($purchaseRequest, $approvers);
 
             // Update PR workflow information
             $purchaseRequest->update([
-                'approval_workflow' => $this->buildWorkflowStructure($approvers),
+                'approval_workflow' => $this->ruleEngine->buildWorkflowStructure($approvers),
                 'is_sequential_approval' => true,
                 'status' => 'in_approval',
             ]);
@@ -61,7 +72,7 @@ class ApprovalWorkflowService
         // This prevents transaction rollback if notification fails
         // TODO: Consider queueing this for better performance
         try {
-            $this->notifyNextApprover($purchaseRequest);
+            $this->notifications->notifyNextApprover($purchaseRequest);
         } catch (\Exception $e) {
             // Log notification failure but don't fail the workflow
             Log::warning('Failed to send approval notification', [
@@ -108,7 +119,7 @@ class ApprovalWorkflowService
                     'step_order' => $stepOrder,
                     'approval_type' => $taskType,
                     'reason' => $notes ?? 'Custom approval workflow',
-                    'due_date' => $this->calculateDueDate($taskType)->toISOString(),
+                    'due_date' => $this->ruleEngine->calculateDueDate($taskType)->toISOString(),
                 ];
 
                 // Create approval record
@@ -119,7 +130,7 @@ class ApprovalWorkflowService
                     'approval_type' => $taskType,
                     'status' => 'pending',
                     'assigned_at' => now(),
-                    'due_date' => $this->calculateDueDate($taskType),
+                    'due_date' => $this->ruleEngine->calculateDueDate($taskType),
                     'notes' => null,
                     'responded_at' => null,
                 ]);
@@ -135,7 +146,7 @@ class ApprovalWorkflowService
 
         // Send notification to first approver AFTER transaction commits
         try {
-            $this->notifyNextApprover($purchaseRequest);
+            $this->notifications->notifyNextApprover($purchaseRequest);
         } catch (\Exception $e) {
             Log::warning('Failed to send approval notification', [
                 'pr_id' => $purchaseRequest->id,
@@ -168,7 +179,7 @@ class ApprovalWorkflowService
                 'approval_type' => $stepData['approval_type'] ?? 'custom',
                 'status' => 'pending',
                 'assigned_at' => now(),
-                'due_date' => isset($stepData['due_date']) ? Carbon::parse($stepData['due_date']) : $this->calculateDueDate('custom'),
+                'due_date' => isset($stepData['due_date']) ? Carbon::parse($stepData['due_date']) : $this->ruleEngine->calculateDueDate('custom'),
                 'notes' => $stepData['reason'] ?? null,
                 'responded_at' => null,
             ]);
@@ -183,241 +194,6 @@ class ApprovalWorkflowService
         // Notification will be sent by parent after transaction commits
 
         return true;
-    }
-
-    /**
-     * Determine approvers based on business rules
-     */
-    protected function determineApprovers(PurchaseRequest $purchaseRequest): Collection
-    {
-        $approvers = collect();
-        $amount = $purchaseRequest->total_amount;
-        $department = $purchaseRequest->department;
-
-        if (! $department) {
-            throw new \RuntimeException(
-                "Purchase request #{$purchaseRequest->id} has no associated department"
-            );
-        }
-
-        // Get thresholds from config for maintainability
-        $thresholds = config('approval.thresholds', [
-            'department_head' => 500000,
-            'finance_manager' => 1000000,
-            'general_manager' => 5000000,
-            'director' => 10000000,
-        ]);
-
-        // Rule 1: Department Head approval (if amount > threshold)
-        if ($amount > $thresholds['department_head']) {
-            $deptHead = $this->authorityResolver->findDepartmentHead(
-                (int) $purchaseRequest->business_unit_id,
-                (int) $department->id,
-            );
-            if ($deptHead) {
-                $approvers->push([
-                    'user' => $deptHead,
-                    'step_order' => 1,
-                    'approval_type' => 'department_head',
-                    'reason' => 'Department Head approval required for amount > IDR '.number_format($thresholds['department_head'], 0, ',', '.'),
-                ]);
-            }
-        }
-
-        // Rule 2: Finance Manager approval (if amount > threshold)
-        if ($amount > $thresholds['finance_manager']) {
-            $financeManager = $this->authorityResolver->findFinanceManager(
-                (int) $purchaseRequest->businessUnit->id,
-            );
-            if ($financeManager) {
-                $approvers->push([
-                    'user' => $financeManager,
-                    'step_order' => $approvers->count() + 1,
-                    'approval_type' => 'finance_manager',
-                    'reason' => 'Finance Manager approval required for amount > IDR '.number_format($thresholds['finance_manager'], 0, ',', '.'),
-                ]);
-            }
-        }
-
-        // Rule 3: General Manager approval (if amount > threshold)
-        if ($amount > $thresholds['general_manager']) {
-            $generalManager = $this->authorityResolver->findGeneralManager(
-                (int) $purchaseRequest->businessUnit->id,
-            );
-            if ($generalManager) {
-                $approvers->push([
-                    'user' => $generalManager,
-                    'step_order' => $approvers->count() + 1,
-                    'approval_type' => 'general_manager',
-                    'reason' => 'General Manager approval required for amount > IDR '.number_format($thresholds['general_manager'], 0, ',', '.'),
-                ]);
-            }
-        }
-
-        // Rule 4: Director approval (if amount > threshold)
-        if ($amount > $thresholds['director']) {
-            $director = $this->authorityResolver->findDirector(
-                (int) $purchaseRequest->businessUnit->id,
-            );
-            if ($director) {
-                $approvers->push([
-                    'user' => $director,
-                    'step_order' => $approvers->count() + 1,
-                    'approval_type' => 'director',
-                    'reason' => 'Director approval required for amount > IDR '.number_format($thresholds['director'], 0, ',', '.'),
-                ]);
-            }
-        }
-
-        // Rule 5: Special approval for specific item categories
-        $specialApprover = $this->getSpecialCategoryApprover($purchaseRequest);
-        if ($specialApprover) {
-            $approvers->push([
-                'user' => $specialApprover,
-                'step_order' => $approvers->count() + 1,
-                'approval_type' => 'special_category',
-                'reason' => 'Special category approval required',
-            ]);
-        }
-
-        // If no approvers found based on rules, assign department head as default
-        if ($approvers->isEmpty()) {
-            $deptHead = $this->authorityResolver->findDepartmentHead(
-                (int) $purchaseRequest->business_unit_id,
-                (int) $department->id,
-            );
-            if ($deptHead) {
-                $approvers->push([
-                    'user' => $deptHead,
-                    'step_order' => 1,
-                    'approval_type' => 'default',
-                    'reason' => 'Default department head approval',
-                ]);
-            }
-        }
-
-        return $approvers->sortBy('step_order')->values();
-    }
-
-    /**
-     * Create approval steps for the workflow
-     */
-    protected function createApprovalSteps(PurchaseRequest $purchaseRequest, Collection $approvers): void
-    {
-        foreach ($approvers as $approverData) {
-            PrApproval::create([
-                'purchase_request_id' => $purchaseRequest->id,
-                'approver_id' => $approverData['user']->id,
-                'step_order' => $approverData['step_order'],
-                'approval_type' => $approverData['approval_type'],
-                'status' => 'pending',
-                'assigned_at' => now(),
-                'due_date' => $this->calculateDueDate($approverData['approval_type']),
-                'notes' => null,
-                'responded_at' => null,
-            ]);
-        }
-    }
-
-    /**
-     * Build workflow structure for storage
-     */
-    protected function buildWorkflowStructure(Collection $approvers): array
-    {
-        return $approvers->map(function ($approverData) {
-            return [
-                'approver_id' => $approverData['user']->id,
-                'approver_name' => $approverData['user']->name,
-                'approver_email' => $approverData['user']->email,
-                'step_order' => $approverData['step_order'],
-                'approval_type' => $approverData['approval_type'],
-                'reason' => $approverData['reason'],
-                'due_date' => $this->calculateDueDate($approverData['approval_type'])->toISOString(),
-            ];
-        })->toArray();
-    }
-
-    /**
-     * Calculate due date based on approval type
-     */
-    protected function calculateDueDate(string $approvalType): Carbon
-    {
-        $businessDays = match ($approvalType) {
-            'department_head' => 2,
-            'finance_manager' => 3,
-            'general_manager' => 5,
-            'director' => 7,
-            'special_category' => 3,
-            default => 2,
-        };
-
-        return $this->addBusinessDays(now(), $businessDays);
-    }
-
-    /**
-     * Add business days (excluding weekends)
-     */
-    protected function addBusinessDays(Carbon $date, int $days): Carbon
-    {
-        $result = $date->copy();
-
-        while ($days > 0) {
-            $result->addDay();
-
-            // Skip weekends
-            if ($result->isWeekday()) {
-                $days--;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get special category approver based on item categories
-     * Uses config-driven approach for maintainability
-     */
-    protected function getSpecialCategoryApprover(PurchaseRequest $purchaseRequest): ?User
-    {
-        // Get special category keywords from config
-        $categoryKeywords = config('approval.special_categories', [
-            'it' => ['computer', 'laptop', 'server', 'software', 'hardware'],
-            'vehicle' => ['vehicle', 'car', 'truck', 'motorcycle'],
-        ]);
-
-        $hasSpecialItems = false;
-        $categoryType = null;
-
-        // Check if any item matches special categories
-        foreach ($categoryKeywords as $type => $keywords) {
-            $hasMatch = false;
-
-            // Use database-agnostic LIKE queries instead of MySQL REGEXP
-            $matchingItems = $purchaseRequest->items()->where(function ($query) use ($keywords) {
-                foreach ($keywords as $keyword) {
-                    $query->orWhereRaw('LOWER(item_name) LIKE ?', ['%'.strtolower($keyword).'%']);
-                }
-            })->exists();
-
-            if ($matchingItems) {
-                $hasSpecialItems = true;
-                $categoryType = $type;
-                break;
-            }
-        }
-
-        if ($hasSpecialItems && $categoryType) {
-            // Get approver role from config based on category type
-            $approverRole = config("approval.special_category_approvers.{$categoryType}", 'it_manager');
-
-            return User::whereHas('roles', function ($query) use ($approverRole) {
-                $query->where('name', $approverRole);
-            })
-                ->where('is_active', true)
-                ->first();
-        }
-
-        return null;
     }
 
     /**
@@ -492,11 +268,11 @@ class ApprovalWorkflowService
                 'approved_at' => now(),
             ]);
 
-            $this->notifyCompletion($purchaseRequest);
+            $this->notifications->notifyCompletion($purchaseRequest);
         } else {
             // More approvals needed
             $purchaseRequest->update(['status' => 'in_approval']);
-            $this->notifyNextApprover($purchaseRequest);
+            $this->notifications->notifyNextApprover($purchaseRequest);
         }
     }
 
@@ -510,128 +286,7 @@ class ApprovalWorkflowService
             'rejected_at' => now(),
         ]);
 
-        $this->notifyRejection($purchaseRequest);
-    }
-
-    /**
-     * Send notification to next approver
-     */
-    protected function notifyNextApprover(PurchaseRequest $purchaseRequest): void
-    {
-        $nextApproval = $purchaseRequest->currentApproval();
-
-        if ($nextApproval) {
-            try {
-                $emailService = app(\App\Services\Core\EmailNotificationService::class);
-
-                // Dispatch to queue untuk tidak blocking response
-                dispatch(function () use ($emailService, $nextApproval, $purchaseRequest) {
-                    try {
-                        $emailService->sendApprovalRequested($nextApproval);
-
-                        Log::info('Approval notification sent successfully', [
-                            'pr_number' => $purchaseRequest->pr_number,
-                            'approver_id' => $nextApproval->approver_id,
-                            'approver_email' => $nextApproval->approver?->email,
-                            'step_order' => $nextApproval->step_order,
-                            'due_date' => $nextApproval->due_date,
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to send approval notification', [
-                            'pr_number' => $purchaseRequest->pr_number,
-                            'approver_email' => $nextApproval->approver?->email,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                })->afterResponse(); // Send after HTTP response
-
-            } catch (\Exception $e) {
-                Log::warning('Failed to queue approval notification', [
-                    'pr_number' => $purchaseRequest->pr_number,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-    }
-
-    /**
-     * Notify completion of all approvals
-     */
-    protected function notifyCompletion(PurchaseRequest $purchaseRequest): void
-    {
-        try {
-            $emailService = app(\App\Services\Core\EmailNotificationService::class);
-
-            // Dispatch to queue untuk tidak blocking response
-            dispatch(function () use ($emailService, $purchaseRequest) {
-                try {
-                    $emailService->sendApprovalCompleted($purchaseRequest);
-
-                    Log::info('PR approval completion notification sent successfully', [
-                        'pr_number' => $purchaseRequest->pr_number,
-                        'requestor_id' => $purchaseRequest->user_id,
-                        'requestor_email' => $purchaseRequest->user?->email,
-                        'approved_at' => $purchaseRequest->approved_at,
-                        'total_amount' => $purchaseRequest->total_amount,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to send completion notification', [
-                        'pr_number' => $purchaseRequest->pr_number,
-                        'requestor_email' => $purchaseRequest->user?->email,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            })->afterResponse(); // Send after HTTP response
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to queue completion notification', [
-                'pr_number' => $purchaseRequest->pr_number,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Notify rejection
-     */
-    protected function notifyRejection(PurchaseRequest $purchaseRequest): void
-    {
-        $rejectedApproval = $purchaseRequest->approvals()
-            ->where('status', 'rejected')
-            ->orderBy('responded_at', 'desc')
-            ->first();
-
-        if ($rejectedApproval) {
-            try {
-                $emailService = app(\App\Services\Core\EmailNotificationService::class);
-
-                // Dispatch to queue untuk tidak blocking response
-                dispatch(function () use ($emailService, $rejectedApproval, $purchaseRequest) {
-                    try {
-                        $emailService->sendApprovalRejected($rejectedApproval);
-
-                        Log::info('PR rejection notification sent successfully', [
-                            'pr_number' => $purchaseRequest->pr_number,
-                            'requestor_id' => $purchaseRequest->user_id,
-                            'requestor_email' => $purchaseRequest->user?->email,
-                            'rejected_by' => $rejectedApproval->approver?->email,
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to send rejection notification', [
-                            'pr_number' => $purchaseRequest->pr_number,
-                            'requestor_email' => $purchaseRequest->user?->email,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                })->afterResponse(); // Send after HTTP response
-
-            } catch (\Exception $e) {
-                Log::warning('Failed to queue rejection notification', [
-                    'pr_number' => $purchaseRequest->pr_number,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        $this->notifications->notifyRejection($purchaseRequest);
     }
 
     /**

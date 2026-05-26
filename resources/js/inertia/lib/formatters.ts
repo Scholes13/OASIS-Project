@@ -1,5 +1,5 @@
 /**
- * Formatting utilities for dates, currency, and other data
+ * Formatting utilities for dates, currency, and other data.
  */
 
 /**
@@ -8,23 +8,26 @@
  * @param decimalsOrCurrency - Number of decimal places (default: 0) or currency code (ignored, for backward compatibility)
  * @returns Formatted currency string
  */
-export function formatCurrency(amount: number | string, decimalsOrCurrency: number | string = 0): string {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    
-    if (isNaN(num)) {
-        return '0';
-    }
-    
-    // Handle case where currency code is passed instead of decimals
-    const decimals = typeof decimalsOrCurrency === 'number' ? decimalsOrCurrency : 0;
-    
-    // Ensure decimals is within valid range (0-20)
-    const safeDecimals = Math.max(0, Math.min(20, Math.floor(decimals)));
-    
-    return num.toLocaleString('id-ID', {
-        minimumFractionDigits: safeDecimals,
-        maximumFractionDigits: safeDecimals,
-    });
+export function formatCurrency(
+    amount: number | string | null | undefined,
+    options: { currency?: string; locale?: string } | number | string = {}
+): string {
+    if (amount === null || amount === undefined || amount === '') return '0';
+
+    const numericAmount = typeof amount === 'string' ? Number(amount) : amount;
+
+    if (!Number.isFinite(numericAmount)) return '0';
+
+    const legacyDecimals = typeof options === 'number' ? options : 0;
+    const locale = typeof options === 'object' ? options.locale ?? 'id-ID' : 'id-ID';
+    const currency = typeof options === 'object' ? options.currency ?? 'IDR' : options;
+
+    return new Intl.NumberFormat(locale, {
+        style: 'decimal',
+        minimumFractionDigits: Math.max(0, Math.min(20, legacyDecimals)),
+        maximumFractionDigits: Math.max(0, Math.min(20, legacyDecimals)),
+        currency: typeof currency === 'string' ? currency : 'IDR',
+    }).format(numericAmount);
 }
 
 /**
@@ -32,7 +35,7 @@ export function formatCurrency(amount: number | string, decimalsOrCurrency: numb
  * @param date - Date string or Date object
  * @returns Formatted date string
  */
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined, options: { locale?: string; format?: 'short' | 'medium' | 'long' } = {}): string {
     if (!date) return '-';
     
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -41,12 +44,13 @@ export function formatDate(date: string | Date): string {
         return '-';
     }
     
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = months[d.getMonth()];
-    const year = d.getFullYear();
-    
-    return `${day} ${month} ${year}`;
+    const monthFormat: 'numeric' | '2-digit' | 'long' | 'short' | 'narrow' = options.format === 'short' ? 'short' : 'long';
+
+    return new Intl.DateTimeFormat(options.locale ?? 'id-ID', {
+        day: '2-digit',
+        month: monthFormat,
+        year: 'numeric',
+    }).format(d);
 }
 
 /**
@@ -74,10 +78,19 @@ export function formatTime(datetime: string | Date): string {
  * @param datetime - Datetime string or Date object
  * @returns Formatted datetime string
  */
-export function formatDateTime(datetime: string | Date): string {
+export function formatDateTime(datetime: string | Date | null | undefined, options: { locale?: string } = {}): string {
     if (!datetime) return '-';
-    
-    return `${formatDate(datetime)} ${formatTime(datetime)}`;
+
+    const d = typeof datetime === 'string' ? new Date(datetime) : datetime;
+    if (isNaN(d.getTime())) return '-';
+
+    return new Intl.DateTimeFormat(options.locale ?? 'id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(d);
 }
 
 /**
@@ -85,7 +98,7 @@ export function formatDateTime(datetime: string | Date): string {
  * @param datetime - Datetime string or Date object
  * @returns Relative time string
  */
-export function formatRelativeTime(datetime: string | Date): string {
+export function formatRelativeTime(datetime: string | Date | null | undefined): string {
     if (!datetime) return '-';
     
     const d = typeof datetime === 'string' ? new Date(datetime) : datetime;
@@ -95,23 +108,39 @@ export function formatRelativeTime(datetime: string | Date): string {
     }
     
     const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffSecs = Math.floor(diffMs / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffSecs < 60) {
-        return 'just now';
-    } else if (diffMins < 60) {
-        return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    } else if (diffHours < 24) {
-        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    } else if (diffDays < 7) {
-        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    } else {
-        return formatDate(d);
+    const diffSeconds = Math.round((d.getTime() - now.getTime()) / 1000);
+    const divisions: Array<{ amount: number; unit: Intl.RelativeTimeFormatUnit }> = [
+        { amount: 60, unit: 'second' },
+        { amount: 60, unit: 'minute' },
+        { amount: 24, unit: 'hour' },
+        { amount: 7, unit: 'day' },
+        { amount: 4.34524, unit: 'week' },
+        { amount: 12, unit: 'month' },
+        { amount: Number.POSITIVE_INFINITY, unit: 'year' },
+    ];
+    const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    let duration = diffSeconds;
+
+    for (const division of divisions) {
+        if (Math.abs(duration) < division.amount) {
+            return formatter.format(Math.round(duration), division.unit);
+        }
+        duration /= division.amount;
     }
+
+    return formatter.format(Math.round(duration), 'year');
+}
+
+export function formatPercent(value: number | null | undefined, options: { fractionDigits?: number } = {}): string {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '0%';
+
+    const fractionDigits = options.fractionDigits ?? 0;
+
+    return new Intl.NumberFormat('id-ID', {
+        style: 'percent',
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+    }).format(value / 100);
 }
 
 /**
@@ -135,8 +164,8 @@ export function truncate(text: string, length: number = 50): string {
  * @param bytes - File size in bytes
  * @returns Formatted file size string
  */
-export function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+export function formatFileSize(bytes: number | null | undefined): string {
+    if (!bytes || bytes < 0) return '0 Bytes';
     
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];

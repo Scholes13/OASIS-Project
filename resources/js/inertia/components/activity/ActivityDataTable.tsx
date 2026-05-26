@@ -14,7 +14,6 @@ import {
     endOfWeek,
     startOfMonth,
     endOfMonth,
-    isWithinInterval,
     parseISO
 } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
@@ -27,11 +26,9 @@ import {
     User,
     Users,
     ChevronDown,
-    Circle,
     Check,
-    PlayCircle,
     CheckCircle2,
-    XCircle,
+    PlayCircle,
     ListTodo,
     Calendar,
     X,
@@ -40,6 +37,8 @@ import {
 import { DataTable, SortableHeader } from "../ui/data-table"
 import { openDownloadInSameTab } from "@/lib/download"
 import { cn } from "@/lib/utils"
+import { ACTIVITY_STATUS_CONFIG, ACTIVITY_TYPE_COLORS, AVATAR_COLORS } from "@/lib/activityConstants"
+import { formatDueDate, isOverdue, isWithinDateFilter, type DateFilter } from "@/lib/dateFilters"
 import { TaskDetailModal } from "./TaskDetailModal"
 import { showToast } from "../ui/toast"
 import { handleExecutionTimeGuidance } from "./quick-status-guidance"
@@ -69,17 +68,6 @@ interface ActivityDataTableProps {
 // HELPER FUNCTIONS
 // ============================================================================
 
-function isOverdue(dueDate: string | null, status: string): boolean {
-    if (!dueDate) return false
-    if (status === "completed" || status === "cancelled") return false
-    return isPast(new Date(dueDate)) && !isToday(new Date(dueDate))
-}
-
-function formatDueDate(dateString: string | null) {
-    if (!dateString) return '-'
-    return format(new Date(dateString), "dd MMM yyyy", { locale: idLocale })
-}
-
 function canEditTask(task: Task, currentUserId: number | undefined): boolean {
     if (!currentUserId) return false
     const isParticipant = task.participants?.some(p =>
@@ -87,34 +75,6 @@ function canEditTask(task: Task, currentUserId: number | undefined): boolean {
     )
     const isCreator = task.created_by === currentUserId
     return isParticipant || isCreator
-}
-
-// Check if task due date is within date range
-function isWithinDateFilter(dueDate: string | null, filterType: DateFilterType, customRange: DateRange): boolean {
-    if (filterType === "all") return true
-    if (!dueDate) return false
-
-    const taskDate = parseISO(dueDate)
-    const today = new Date()
-
-    switch (filterType) {
-        case "today":
-            return isToday(taskDate)
-        case "week":
-            return isThisWeek(taskDate, { locale: idLocale, weekStartsOn: 1 })
-        case "month":
-            return isThisMonth(taskDate)
-        case "custom":
-            if (customRange.start && customRange.end) {
-                return isWithinInterval(taskDate, {
-                    start: startOfDay(customRange.start),
-                    end: endOfDay(customRange.end)
-                })
-            }
-            return true
-        default:
-            return true
-    }
 }
 
 // ============================================================================
@@ -455,42 +415,7 @@ function MetricCards({ stats, filteredCount, activeFilter, onFilterChange }: Met
 // SUBTLE STATUS BADGE - Modern Enterprise Style
 // ============================================================================
 
-const statusConfig: Record<string, {
-    label: string
-    icon: React.ReactNode
-    bg: string
-    text: string
-    ring: string
-}> = {
-    planned: {
-        label: "Planned",
-        icon: <Circle className="h-3.5 w-3.5" />,
-        bg: "bg-slate-50",
-        text: "text-slate-600",
-        ring: "ring-slate-200",
-    },
-    in_progress: {
-        label: "In Progress",
-        icon: <PlayCircle className="h-3.5 w-3.5" />,
-        bg: "bg-blue-50",
-        text: "text-blue-700",
-        ring: "ring-blue-200",
-    },
-    completed: {
-        label: "Completed",
-        icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-        bg: "bg-emerald-50",
-        text: "text-emerald-700",
-        ring: "ring-emerald-200",
-    },
-    cancelled: {
-        label: "Cancelled",
-        icon: <XCircle className="h-3.5 w-3.5" />,
-        bg: "bg-gray-50",
-        text: "text-gray-500",
-        ring: "ring-gray-200",
-    },
-}
+const statusConfig = ACTIVITY_STATUS_CONFIG
 
 function StatusDropdown({ task, isReadOnly = false, onEditTask }: { task: Task; isReadOnly?: boolean; onEditTask?: (task: Task) => void }) {
     const [isUpdating, setIsUpdating] = React.useState(false)
@@ -628,13 +553,7 @@ function StatusDropdown({ task, isReadOnly = false, onEditTask }: { task: Task; 
 // AVATAR STACK - Overlapping Avatars
 // ============================================================================
 
-const avatarColors = [
-    "bg-blue-50 text-blue-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-amber-100 text-amber-700",
-    "bg-rose-100 text-rose-700",
-    "bg-violet-100 text-violet-700",
-]
+const avatarColors = AVATAR_COLORS
 
 function AvatarStack({ participants, max = 2 }: { participants: any[]; max?: number }) {
     if (!participants || participants.length === 0) {
@@ -680,29 +599,14 @@ function AvatarStack({ participants, max = 2 }: { participants: any[]; max?: num
 // ACTIVITY TYPE BADGE - Subtle Style
 // ============================================================================
 
-const typeColors: Record<string, string> = {
-    blue: "bg-blue-50 text-blue-700 ring-blue-200",
-    indigo: "bg-blue-50 text-blue-700 ring-primary",
-    purple: "bg-purple-50 text-purple-700 ring-purple-200",
-    pink: "bg-pink-50 text-pink-700 ring-pink-200",
-    red: "bg-red-50 text-red-700 ring-red-200",
-    orange: "bg-orange-50 text-orange-700 ring-orange-200",
-    amber: "bg-amber-50 text-amber-700 ring-amber-200",
-    yellow: "bg-yellow-50 text-yellow-700 ring-yellow-200",
-    lime: "bg-lime-50 text-lime-700 ring-lime-200",
-    green: "bg-green-50 text-green-700 ring-green-200",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    teal: "bg-teal-50 text-teal-700 ring-teal-200",
-    cyan: "bg-cyan-50 text-cyan-700 ring-cyan-200",
-    gray: "bg-gray-50 text-gray-600 ring-gray-200",
-}
+const typeColors = ACTIVITY_TYPE_COLORS
 
 function TypeBadge({ name, color }: { name: string; color?: string }) {
     const colorClass = typeColors[color || "gray"] || typeColors.gray
     return (
         <span className={cn(
             "inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ring-1 ring-inset",
-            colorClass
+            colorClass.bg, colorClass.text
         )}>
             {name}
         </span>
@@ -813,7 +717,7 @@ const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
             header: ({ column }) => <SortableHeader column={column} title="Activity" />,
             cell: ({ row, table }) => {
                 const task = row.original
-                const overdue = isOverdue(task.due_date, task.status)
+                const overdue = isOverdue(task.due_date, task.status === "completed" || task.status === "cancelled" ? task.updated_at : null)
                 const meta = table.options.meta as ColumnMeta | undefined
                 const showDeptBadge = meta?.hasMultipleDepartments && task.department?.code
                 return (
@@ -852,7 +756,7 @@ const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
             header: ({ column }) => <SortableHeader column={column} title="Due Date" />,
             cell: ({ row }) => {
                 const task = row.original
-                const overdue = isOverdue(task.due_date, task.status)
+                const overdue = isOverdue(task.due_date, task.status === "completed" || task.status === "cancelled" ? task.updated_at : null)
                 return (
                     <span className={cn(
                         "text-base",
@@ -943,14 +847,14 @@ export function ActivityDataTable({
         // Filter by date range
         if (dateFilter !== "all") {
             filtered = filtered.filter((task) =>
-                isWithinDateFilter(task.due_date, dateFilter, customRange)
+                isWithinDateFilter(task.due_date, dateFilter === "custom" ? { from: customRange.start?.toISOString() || '', to: customRange.end?.toISOString() || '' } : dateFilter as DateFilter)
             )
         }
 
         // Filter by status (from stats cards)
         if (statusFilter !== "all") {
             if (statusFilter === "overdue") {
-                filtered = filtered.filter((task) => isOverdue(task.due_date, task.status))
+                filtered = filtered.filter((task) => isOverdue(task.due_date, task.status === "completed" || task.status === "cancelled" ? task.updated_at : null))
             } else {
                 filtered = filtered.filter((task) => task.status === statusFilter)
             }

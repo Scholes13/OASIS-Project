@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useCallback } from 'react';
+import { ReactNode, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
@@ -6,6 +6,8 @@ import BuTransitionOverlay from '../components/layout/BuTransitionOverlay';
 import LogoutOverlay from '../components/layout/LogoutOverlay';
 import { Toaster } from '../components/ui/toast';
 import { cn } from '../lib/utils';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { NotificationListItem, PageProps } from '@/types';
 
@@ -19,6 +21,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     const [sidebarMinimized, setSidebarMinimized] = useState(false);
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
+    const notificationRef = useRef<HTMLDivElement>(null);
 
     const recentNotifications = (page.props.recentNotifications ?? []) as NotificationListItem[];
     const {
@@ -37,21 +40,19 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         }
     }, []);
 
-    // Close mobile sidebar or notification dropdown on Escape key
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                if (notifOpen) {
-                    setNotifOpen(false);
-                } else if (mobileSidebarOpen) {
-                    setMobileSidebarOpen(false);
-                }
+    const escapeShortcuts = useMemo(() => [{
+        key: 'Escape',
+        action: () => {
+            if (notifOpen) {
+                setNotifOpen(false);
+            } else if (mobileSidebarOpen) {
+                setMobileSidebarOpen(false);
             }
-        };
+        },
+        description: 'Close open navigation overlays',
+    }], [mobileSidebarOpen, notifOpen]);
 
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [mobileSidebarOpen, notifOpen]);
+    useKeyboardShortcuts(escapeShortcuts);
 
     // Close notification dropdown on route change
     useEffect(() => {
@@ -60,28 +61,9 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         });
     }, []);
 
-    // Close notification dropdown on outside click
-    useEffect(() => {
-        if (!notifOpen) return;
-
-        const handleClickOutside = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            // If click is outside the notification bell area, close it
-            if (!target.closest('[aria-label="Open notifications"]') && !target.closest('.absolute.right-0.z-30')) {
-                setNotifOpen(false);
-            }
-        };
-
-        // Delay to avoid closing immediately on the same click that opened it
-        const timer = setTimeout(() => {
-            document.addEventListener('click', handleClickOutside);
-        }, 0);
-
-        return () => {
-            clearTimeout(timer);
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, [notifOpen]);
+    useClickOutside(notificationRef, () => {
+        if (notifOpen) setNotifOpen(false);
+    });
 
     // Lock body scroll when mobile sidebar is open
     useEffect(() => {
@@ -159,22 +141,24 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     )}
                 >
                     {/* Navbar */}
-                    <Navbar
-                        onMenuClick={toggleMobileSidebar}
-                        sidebarMinimized={sidebarMinimized}
-                        unreadCount={unreadCount}
-                        notificationItems={recentItems}
-                        hasNewNotification={hasNewNotification}
-                        notificationDropdownOpen={notifOpen}
-                        onNotificationToggle={() => {
-                            setNotifOpen((v) => !v);
-                            if (hasNewNotification) clearNewFlag();
-                        }}
-                        onNotificationOpen={() => {
-                            void refreshNotifications();
-                            if (hasNewNotification) clearNewFlag();
-                        }}
-                    />
+                    <div ref={notificationRef}>
+                        <Navbar
+                            onMenuClick={toggleMobileSidebar}
+                            sidebarMinimized={sidebarMinimized}
+                            unreadCount={unreadCount}
+                            notificationItems={recentItems}
+                            hasNewNotification={hasNewNotification}
+                            notificationDropdownOpen={notifOpen}
+                            onNotificationToggle={() => {
+                                setNotifOpen((v) => !v);
+                                if (hasNewNotification) clearNewFlag();
+                            }}
+                            onNotificationOpen={() => {
+                                void refreshNotifications();
+                                if (hasNewNotification) clearNewFlag();
+                            }}
+                        />
+                    </div>
 
                     {/* Main Content — scrollable area */}
                     <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">

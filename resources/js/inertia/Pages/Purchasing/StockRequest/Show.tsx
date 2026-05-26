@@ -3,14 +3,13 @@ import { Head, Link, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, 
-    Edit, 
+    Edit,
     Download, 
-    Ban, 
+    Ban,
     RotateCcw,
     Shield,
     Check,
     X,
-    Clock,
     FileText,
     Eye,
     AlertTriangle,
@@ -19,6 +18,8 @@ import {
 } from 'lucide-react';
 import { PageProps } from '@/types';
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/formatters';
+import { APPROVAL_BADGE_COLORS, ST_STATUS_CONFIG } from '@/lib/purchasingConstants';
 import { toast } from 'sonner';
 
 interface StockItem {
@@ -98,16 +99,6 @@ interface ShowPageProps extends PageProps {
     approvalContext?: ApprovalContext;
 }
 
-// Status styling configuration
-const statusConfig: Record<string, { bg: string; text: string; icon: any; label: string }> = {
-    draft: { bg: 'bg-gray-100', text: 'text-gray-700', icon: Edit, label: 'Draft' },
-    submitted: { bg: 'bg-blue-100', text: 'text-blue-700', icon: Clock, label: 'Submitted' },
-    in_approval: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'In Approval' },
-    approved: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: Check, label: 'Approved' },
-    rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: X, label: 'Rejected' },
-    voided: { bg: 'bg-gray-100', text: 'text-gray-500', icon: Ban, label: 'Voided' },
-};
-
 export default function Show({ stockRequest, can, approvalContext }: ShowPageProps) {
     const [showVoidModal, setShowVoidModal] = useState(false);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
@@ -119,20 +110,10 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResendingEmail, setIsResendingEmail] = useState(false);
 
-    const currentStatus = statusConfig[stockRequest.status] || statusConfig.draft;
-    const StatusIcon = currentStatus.icon;
+    const currentStatus = ST_STATUS_CONFIG[stockRequest.status as keyof typeof ST_STATUS_CONFIG] || ST_STATUS_CONFIG.draft;
+    const StatusIcon = currentStatus.icon || Edit;
     const permissions = can || stockRequest.can || {} as STPermissions;
     const isApprovalView = Boolean(approvalContext?.approvalId);
-
-    // Format date
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        });
-    };
 
     // Handle void action
     const handleVoid = (e: React.FormEvent) => {
@@ -595,9 +576,9 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                             {stockRequest.approvals.map((approval, index) => (
                                                 <div key={approval.id} className="flex items-start space-x-3">
                                                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                                                        approval.status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
-                                                        approval.status === 'rejected' ? 'bg-red-100 text-red-600' :
-                                                        'bg-gray-100 text-gray-600'
+                                                        APPROVAL_BADGE_COLORS[approval.status]?.bg || APPROVAL_BADGE_COLORS.pending.bg
+                                                    } ${
+                                                        APPROVAL_BADGE_COLORS[approval.status]?.text || APPROVAL_BADGE_COLORS.pending.text
                                                     }`}>
                                                         {approval.status === 'approved' ? <Check className="w-4 h-4" /> :
                                                          approval.status === 'rejected' ? <X className="w-4 h-4" /> :

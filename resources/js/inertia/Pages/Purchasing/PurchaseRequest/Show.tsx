@@ -3,9 +3,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ArrowLeft, 
-    Edit, 
+    Edit,
     Download, 
-    Ban, 
+    Ban,
     RotateCcw,
     Shield,
     Check,
@@ -21,6 +21,8 @@ import {
 import { PRShowProps } from '@/types/purchasing';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters';
+import { PR_STATUS_CONFIG } from '@/lib/purchasingConstants';
 import { toast } from 'sonner';
 
 export default function Show({ purchaseRequest, can }: PRShowProps) {
@@ -38,18 +40,8 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     const supportingDocumentRouteName = 'purchase-requests.supporting-document';
     const supportingDocumentDownloadRouteName = 'purchase-requests.supporting-document.download';
 
-    // Status styling configuration
-    const statusConfig = {
-        draft: { bg: 'bg-gray-100', text: 'text-gray-700', icon: Edit, label: 'Draft' },
-        submitted: { bg: 'bg-blue-100', text: 'text-blue-700', icon: Clock, label: 'Submitted' },
-        in_approval: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'In Approval' },
-        approved: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: Check, label: 'Approved' },
-        rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: X, label: 'Rejected' },
-        voided: { bg: 'bg-gray-100', text: 'text-gray-500', icon: Ban, label: 'Voided' },
-    };
-
-    const currentStatus = statusConfig[purchaseRequest.status];
-    const StatusIcon = currentStatus.icon;
+    const currentStatus = PR_STATUS_CONFIG[purchaseRequest.status as keyof typeof PR_STATUS_CONFIG] || PR_STATUS_CONFIG.draft;
+    const StatusIcon = currentStatus.icon || Edit;
 
     // Permissions
     const permissions = can || purchaseRequest.can || {} as {
@@ -201,37 +193,6 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                 onFinish: () => setIsSubmitting(false),
             }
         );
-    };
-
-    // Format currency
-    const formatCurrency = (amount: number, currency: string = 'IDR') => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'decimal',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
-    // Format date
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        });
-    };
-
-    // Format datetime
-    const formatDateTime = (dateString: string | null) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
     };
 
     const getSupportingDocumentUrl = (download: boolean = false) => {

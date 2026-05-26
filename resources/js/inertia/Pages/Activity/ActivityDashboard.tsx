@@ -18,17 +18,10 @@ import {
 import { FocusBreakdownPanel } from '@/components/activity/dashboard';
 import { cn } from '@/lib/utils';
 import { openDownloadInSameTab } from '@/lib/download';
+import { PERIOD_LABELS } from '@/lib/activityConstants';
 import type { PageProps } from '@/types';
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'year' | 'all';
-
-const periodLabels: Record<PeriodFilter, string> = {
-    today: 'Today',
-    week: 'This Week',
-    month: 'This Month',
-    year: 'This Year',
-    all: 'All Time',
-};
 
 interface TaskBasic {
     id: number;
@@ -204,9 +197,9 @@ export default function ActivityDashboard({
     };
 
     const periodQuickFilters: Array<{ key: PeriodFilter; label: string }> = [
-        { key: 'today', label: 'Day' },
-        { key: 'week', label: 'Week' },
-        { key: 'month', label: 'Month' },
+        { key: 'today', label: PERIOD_LABELS.day },
+        { key: 'week', label: PERIOD_LABELS.week },
+        { key: 'month', label: PERIOD_LABELS.month },
     ];
 
     const activeStats = viewMode === 'department' && departmentStats ? departmentStats : personalStats;
@@ -232,12 +225,6 @@ export default function ActivityDashboard({
     const totalMinutes = totalDurationMinutes % 60;
     const activeProjects = activeVisuals?.distribution?.length || 0;
     const activeFocusBreakdown = activeVisuals?.focus_breakdown;
-
-    const statusVerbMap: Record<string, string> = {
-        in_progress: 'Working on',
-        planned: 'Planning',
-        completed: 'Completed',
-    };
 
     // Filter only in_progress tasks for real-time Team Activity display
     const inProgressTasks = useMemo(() =>
@@ -1008,4 +995,3 @@ export default function ActivityDashboard({
         </>
     );
 }
-

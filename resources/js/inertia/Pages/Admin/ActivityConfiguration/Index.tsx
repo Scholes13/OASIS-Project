@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
+import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import {
     Dialog,
     DialogHeader,
@@ -83,7 +84,7 @@ function ActivityConfiguration({
     filters,
 }: Props) {
     // Search and filter state
-    const [search, setSearch] = useState(filters.search || '');
+    const { value: search, debouncedValue: debouncedSearch, setValue: setSearch } = useDebouncedSearch(filters.search || '');
     const [businessUnitId, setBusinessUnitId] = useState(filters.business_unit_id || '');
 
     // Activity Type modal state
@@ -152,19 +153,15 @@ function ActivityConfiguration({
 
     // Debounced search
     React.useEffect(() => {
-        const timer = setTimeout(() => {
-            router.get(
-                route('admin.activity-configuration.index'),
-                {
-                    search: search || undefined,
-                    business_unit_id: businessUnitId || undefined,
-                },
-                { preserveState: true, replace: true }
-            );
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, [search]);
+        router.get(
+            route('admin.activity-configuration.index'),
+            {
+                search: debouncedSearch || undefined,
+                business_unit_id: businessUnitId || undefined,
+            },
+            { preserveState: true, replace: true }
+        );
+    }, [debouncedSearch]);
 
     // Handle business unit filter change
     const handleBusinessUnitChange = (value: string | number) => {

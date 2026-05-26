@@ -10,7 +10,6 @@ import {
     Shield,
     Check,
     X,
-    FileText,
     Eye,
     AlertTriangle,
     Loader2,
@@ -21,6 +20,10 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/formatters';
 import { APPROVAL_BADGE_COLORS, ST_STATUS_CONFIG } from '@/lib/purchasingConstants';
 import { toast } from 'sonner';
+import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
+import { OfflineApprovalUpload } from '@/components/purchasing/OfflineApprovalUpload';
+import { ApprovalDecisionModal } from '@/components/purchasing/modals/ApprovalDecisionModal';
+import { VoidConfirmModal } from '@/components/purchasing/modals/VoidConfirmModal';
 
 interface StockItem {
     id: number;
@@ -102,6 +105,8 @@ interface ShowPageProps extends PageProps {
 export default function Show({ stockRequest, can, approvalContext }: ShowPageProps) {
     const [showVoidModal, setShowVoidModal] = useState(false);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
+    const [showApproveModal, setShowApproveModal] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
     const [voidReason, setVoidReason] = useState('');
     const [offlineNotes, setOfflineNotes] = useState('');
     const [offlineDocument, setOfflineDocument] = useState<File | null>(null);
@@ -116,8 +121,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
     const isApprovalView = Boolean(approvalContext?.approvalId);
 
     // Handle void action
-    const handleVoid = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleVoid = () => {
         if (!voidReason.trim()) {
             toast.error('Please provide a reason for voiding');
             return;
@@ -138,8 +142,8 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
     };
 
     // Handle offline approval
-    const handleOfflineApproval = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleOfflineApproval = (e?: React.FormEvent) => {
+        e?.preventDefault();
         if (!offlineDocument) {
             toast.error('Please upload approval document');
             return;
@@ -212,6 +216,8 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
             {
                 onSuccess: () => {
                     toast.success(action === 'approve' ? 'Stock request approved successfully' : 'Stock request rejected');
+                    setShowApproveModal(false);
+                    setShowRejectModal(false);
                 },
                 onError: () => {
                     toast.error(action === 'approve' ? 'Failed to approve stock request' : 'Failed to reject stock request');
@@ -537,7 +543,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <Button
                                                         type="button"
-                                                        onClick={() => handleApprovalDecision('approve')}
+                                                        onClick={() => setShowApproveModal(true)}
                                                         disabled={isDecisionSubmitting}
                                                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                                     >
@@ -546,7 +552,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                                     </Button>
                                                     <Button
                                                         type="button"
-                                                        onClick={() => handleApprovalDecision('reject')}
+                                                        onClick={() => setShowRejectModal(true)}
                                                         disabled={isDecisionSubmitting}
                                                         className="bg-red-600 hover:bg-red-700 text-white"
                                                     >
@@ -614,23 +620,11 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                         <h3 className="text-base font-semibold text-gray-900">Offline Approval Document</h3>
                                     </div>
                                     <div className="p-5">
-                                        <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
-                                            <div className="flex items-center space-x-3">
-                                                <FileText className="w-5 h-5 text-purple-500" />
-                                                <span className="text-sm text-purple-700 truncate">
-                                                    {stockRequest.offline_approval_document_name || 'Document'}
-                                                </span>
-                                            </div>
-                                            <a
-                                                href={getOfflineApprovalDocumentUrl()}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-purple-600 hover:text-purple-800"
-                                                title="View offline approval document"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </a>
-                                        </div>
+                                        <SupportingDocumentLink
+                                            filename={stockRequest.offline_approval_document_name}
+                                            url={getOfflineApprovalDocumentUrl()}
+                                            className="bg-purple-50 rounded-lg border border-purple-200"
+                                        />
                                     </div>
                                 </motion.div>
                             )}
@@ -639,47 +633,15 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                 </div>
 
 
-                {/* Void Modal */}
-                <AnimatePresence>
-                    {showVoidModal && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                            onClick={() => setShowVoidModal(false)}
-                        >
-                            <motion.div
-                                initial={{ scale: 0.95, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0.95, opacity: 0 }}
-                                className="bg-white rounded-xl p-6 max-w-md w-full mx-4"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Void Stock Request</h3>
-                                <form onSubmit={handleVoid}>
-                                    <textarea
-                                        value={voidReason}
-                                        onChange={(e) => setVoidReason(e.target.value)}
-                                        placeholder="Please provide a reason for voiding this request..."
-                                        rows={4}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
-                                        required
-                                    />
-                                    <div className="flex justify-end space-x-3 mt-4">
-                                        <Button type="button" variant="ghost" onClick={() => setShowVoidModal(false)}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit" disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 text-white">
-                                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                            Void Request
-                                        </Button>
-                                    </div>
-                                </form>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <VoidConfirmModal
+                    open={showVoidModal}
+                    onClose={() => setShowVoidModal(false)}
+                    isSubmitting={isSubmitting}
+                    reason={voidReason}
+                    onReasonChange={setVoidReason}
+                    onSubmit={handleVoid}
+                    itemNumber={stockRequest.st_number}
+                />
 
                 {/* Offline Approval Modal */}
                 <AnimatePresence>
@@ -701,25 +663,12 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Mark as Offline Approved</h3>
                                 <form onSubmit={handleOfflineApproval}>
                                     <div className="mb-4">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Upload Approval Document <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="file"
-                                            accept=".pdf,.jpg,.jpeg,.png"
-                                            onChange={(e) => setOfflineDocument(e.target.files?.[0] || null)}
-                                            className="w-full text-sm"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="mb-4">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                                        <textarea
-                                            value={offlineNotes}
-                                            onChange={(e) => setOfflineNotes(e.target.value)}
-                                            placeholder="Add any notes..."
-                                            rows={3}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                                        <OfflineApprovalUpload
+                                            value={offlineDocument}
+                                            onChange={setOfflineDocument}
+                                            notes={offlineNotes}
+                                            onNotesChange={setOfflineNotes}
+                                            isSubmitting={isSubmitting}
                                         />
                                     </div>
                                     <div className="flex justify-end space-x-3">
@@ -736,6 +685,28 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                         </motion.div>
                     )}
                 </AnimatePresence>
+                <ApprovalDecisionModal
+                    open={showApproveModal}
+                    onClose={() => setShowApproveModal(false)}
+                    mode="approve"
+                    isSubmitting={isDecisionSubmitting}
+                    notes={approvalNotes}
+                    onNotesChange={setApprovalNotes}
+                    onSubmit={() => handleApprovalDecision('approve')}
+                    itemNumber={stockRequest.st_number}
+                />
+
+                <ApprovalDecisionModal
+                    open={showRejectModal}
+                    onClose={() => setShowRejectModal(false)}
+                    mode="reject"
+                    isSubmitting={isDecisionSubmitting}
+                    notes={approvalNotes}
+                    onNotesChange={setApprovalNotes}
+                    onSubmit={() => handleApprovalDecision('reject')}
+                    itemNumber={stockRequest.st_number}
+                    notesRequired
+                />
             </div>
         </>
     );

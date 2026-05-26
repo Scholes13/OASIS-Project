@@ -4,8 +4,8 @@ import { Plus, Save, Send, Loader2, Upload, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { PRItemRow } from './PRItemRow';
+import { ApprovalWorkflowBuilder } from './ApprovalWorkflowBuilder';
 import { PRFormData, PRItemFormData, PRCategory, Department, BusinessUnit, Approver, CustomApprovalStep } from '../../types/purchasing';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 interface PurchaseRequestFormProps {
@@ -422,73 +422,14 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                 </div>
             </div>
 
-            {/* Approval Workflow */}
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                        <h3 className="text-base font-semibold text-gray-900">Approval Workflow</h3>
-                        <p className="text-sm text-gray-500 mt-1">Select approvers in sequential order</p>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddApprovalStep}
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Step
-                    </Button>
-                </div>
-                <div className="p-6 space-y-3">
-                    {customApprovalList.map((step, index) => (
-                        <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-3"
-                        >
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                {index + 1}
-                            </div>
-                            <div className="flex-1">
-                                <select
-                                    value={step.approver_id}
-                                    onChange={(e) => handleUpdateApprovalStep(index, 'approver_id', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                                >
-                                    <option value="">Select Approver</option>
-                                    {availableApprovers.map((approver) => (
-                                        <option key={approver.id} value={approver.id}>
-                                            {approver.name} {approver.position ? `- ${approver.position}` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex-shrink-0 w-32">
-                                <select
-                                    value={step.task_type}
-                                    onChange={(e) => handleUpdateApprovalStep(index, 'task_type', e.target.value as 'approval' | 'paraf')}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                                >
-                                    <option value="approval">Approval</option>
-                                    <option value="paraf">Paraf</option>
-                                </select>
-                            </div>
-                            {customApprovalList.length > 1 && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRemoveApprovalStep(index)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            )}
-                        </motion.div>
-                    ))}
-                </div>
-            </div>
+            <ApprovalWorkflowBuilder
+                approvers={customApprovalList}
+                availableApprovers={availableApprovers}
+                onAdd={handleAddApprovalStep}
+                onRemove={handleRemoveApprovalStep}
+                onUpdate={(index, field, value) => handleUpdateApprovalStep(index, field, value as 'approval' | 'paraf')}
+                disabled={processing}
+            />
 
             {/* Form Actions */}
             <div className="flex items-center justify-end gap-3">

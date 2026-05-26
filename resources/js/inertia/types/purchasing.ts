@@ -212,6 +212,21 @@ export interface CustomApprovalStep {
     task_type: 'approval' | 'paraf';
 }
 
+export type ApprovalEntry = {
+    user_id?: number;
+    approver_id?: string;
+    name?: string;
+    level?: string;
+    task_type?: 'approval' | 'paraf';
+};
+
+export type AvailableApprover = {
+    id: number;
+    name: string;
+    position?: string;
+    level?: string;
+};
+
 // PR Create Page Props
 export interface PRCreateProps {
     categories: PRCategory[];

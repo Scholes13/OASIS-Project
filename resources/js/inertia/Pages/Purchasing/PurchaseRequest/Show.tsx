@@ -11,9 +11,6 @@ import {
     Check,
     X,
     Clock,
-    FileText,
-    Eye,
-    Upload,
     AlertTriangle,
     Loader2,
     Send
@@ -24,6 +21,10 @@ import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters';
 import { PR_STATUS_CONFIG } from '@/lib/purchasingConstants';
 import { toast } from 'sonner';
+import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
+import { OfflineApprovalUpload } from '@/components/purchasing/OfflineApprovalUpload';
+import { ApprovalDecisionModal } from '@/components/purchasing/modals/ApprovalDecisionModal';
+import { VoidConfirmModal } from '@/components/purchasing/modals/VoidConfirmModal';
 
 export default function Show({ purchaseRequest, can }: PRShowProps) {
     const [showVoidModal, setShowVoidModal] = useState(false);
@@ -58,8 +59,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
 
 
     // Handle void action
-    const handleVoid = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleVoid = () => {
         if (!voidReason.trim()) {
             toast.error('Please provide a reason for voiding');
             return;
@@ -83,8 +83,8 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     };
 
     // Handle offline approval
-    const handleOfflineApproval = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleOfflineApproval = (e?: React.FormEvent) => {
+        e?.preventDefault();
         if (!offlineDocument) {
             toast.error('Please upload approval document');
             return;
@@ -152,8 +152,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     };
 
     // Handle approve
-    const handleApprove = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleApprove = () => {
         setIsSubmitting(true);
         router.post(
             route('purchase-requests.approve', { purchaseRequest: purchaseRequest.id }),
@@ -172,8 +171,7 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
     };
 
     // Handle reject
-    const handleReject = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleReject = () => {
         if (!rejectionNotes.trim()) {
             toast.error('Please provide a reason for rejection');
             return;
@@ -446,40 +444,11 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                         <h3 className="text-base font-semibold text-gray-900">Supporting Document</h3>
                                     </div>
                                     <div className="p-5">
-                                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                                    <FileText className="w-5 h-5 text-gray-500" />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                                        {purchaseRequest.supporting_document_name || 'Document'}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">Document</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <a
-                                                    href={getSupportingDocumentUrl()}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
-                                                    title="View document"
-                                                >
-                                                    <Eye className="w-4 h-4 mr-1.5" />
-                                                    View
-                                                </a>
-                                                <a
-                                                    href={getSupportingDocumentUrl(true)}
-                                                    download={purchaseRequest.supporting_document_name}
-                                                    className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
-                                                    title="Download document"
-                                                >
-                                                    <Download className="w-4 h-4 mr-1.5" />
-                                                    Download
-                                                </a>
-                                            </div>
-                                        </div>
+                                        <SupportingDocumentLink
+                                            filename={purchaseRequest.supporting_document_name}
+                                            url={getSupportingDocumentUrl()}
+                                            downloadUrl={getSupportingDocumentUrl(true)}
+                                        />
                                     </div>
                                 </motion.div>
                             )}
@@ -761,92 +730,15 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
             </div>
 
 
-            {/* Void Modal */}
-            <AnimatePresence>
-                {showVoidModal && (
-                    <>
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
-                            onClick={() => setShowVoidModal(false)}
-                        />
-
-                        {/* Modal */}
-                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white shadow-xl transition-all"
-                            >
-                                <form onSubmit={handleVoid}>
-                                    {/* Body */}
-                                    <div className="bg-white px-5 py-4">
-                                        <div className="flex items-start">
-                                            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-red-100">
-                                                <AlertTriangle className="w-5 h-5 text-red-600" />
-                                            </div>
-                                            <div className="ml-3">
-                                                <h3 className="text-base font-semibold text-gray-900">
-                                                    Void Purchase Request
-                                                </h3>
-                                                <p className="mt-1 text-sm text-gray-500">
-                                                    Are you sure you want to void <strong>{purchaseRequest.pr_number}</strong>? This action cannot be undone.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3">
-                                            <label htmlFor="reason" className="block text-sm font-medium text-gray-700">
-                                                Reason for voiding <span className="text-red-500">*</span>
-                                            </label>
-                                            <textarea
-                                                id="reason"
-                                                rows={2}
-                                                required
-                                                value={voidReason}
-                                                onChange={(e) => setVoidReason(e.target.value)}
-                                                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm"
-                                                placeholder="Please provide a reason for voiding this purchase request..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Footer */}
-                                    <div className="bg-gray-50 px-5 py-3 flex justify-end gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setShowVoidModal(false)}
-                                            disabled={isSubmitting}
-                                            className="disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            variant="destructive"
-                                            disabled={isSubmitting}
-                                            className="disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {isSubmitting ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Voiding...
-                                                </>
-                                            ) : (
-                                                'Void Purchase Request'
-                                            )}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </motion.div>
-                        </div>
-                    </>
-                )}
-            </AnimatePresence>
+            <VoidConfirmModal
+                open={showVoidModal}
+                onClose={() => setShowVoidModal(false)}
+                isSubmitting={isSubmitting}
+                reason={voidReason}
+                onReasonChange={setVoidReason}
+                onSubmit={handleVoid}
+                itemNumber={purchaseRequest.pr_number}
+            />
 
 
             {/* Offline Approval Modal */}
@@ -896,62 +788,13 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                                             </div>
                                         </div>
 
-                                        {/* File Upload */}
                                         <div className="mt-3">
-                                            <label htmlFor="offline_approval_document" className="block text-sm font-medium text-gray-700">
-                                                Bukti Approval <span className="text-red-500">*</span>
-                                            </label>
-                                            <p className="text-xs text-gray-500 mb-2">
-                                                Upload foto/scan dokumen yang sudah ditandatangani (JPG, PNG, PDF - max 10MB)
-                                            </p>
-                                            <div className="mt-1">
-                                                <label className="cursor-pointer block">
-                                                    <input
-                                                        type="file"
-                                                        id="offline_approval_document"
-                                                        accept=".jpg,.jpeg,.png,.pdf"
-                                                        required
-                                                        className="hidden"
-                                                        onChange={(e) => setOfflineDocument(e.target.files?.[0] || null)}
-                                                    />
-                                                    <div
-                                                        className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                                                            offlineDocument
-                                                                ? 'border-purple-400 bg-purple-50'
-                                                                : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50'
-                                                        }`}
-                                                    >
-                                                        {!offlineDocument ? (
-                                                            <div>
-                                                                <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                                                                <p className="mt-1 text-sm text-gray-600">
-                                                                    <span className="font-medium text-purple-600">Klik untuk upload</span> atau drag & drop
-                                                                </p>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center justify-center space-x-2">
-                                                                <Check className="h-6 w-6 text-purple-600" />
-                                                                <span className="text-sm text-purple-700 font-medium">
-                                                                    {offlineDocument.name}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-3">
-                                            <label htmlFor="offline_notes" className="block text-sm font-medium text-gray-700">
-                                                Notes (optional)
-                                            </label>
-                                            <textarea
-                                                id="offline_notes"
-                                                rows={2}
-                                                value={offlineNotes}
-                                                onChange={(e) => setOfflineNotes(e.target.value)}
-                                                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm"
-                                                placeholder="Add any notes about the offline approval..."
+                                            <OfflineApprovalUpload
+                                                value={offlineDocument}
+                                                onChange={setOfflineDocument}
+                                                notes={offlineNotes}
+                                                onNotesChange={setOfflineNotes}
+                                                isSubmitting={isSubmitting}
                                             />
                                         </div>
                                     </div>
@@ -989,177 +832,28 @@ export default function Show({ purchaseRequest, can }: PRShowProps) {
                 )}
             </AnimatePresence>
 
-            {/* Approve Modal */}
-            <AnimatePresence>
-                {showApproveModal && (
-                    <>
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
-                            onClick={() => setShowApproveModal(false)}
-                        />
+            <ApprovalDecisionModal
+                open={showApproveModal}
+                onClose={() => setShowApproveModal(false)}
+                mode="approve"
+                isSubmitting={isSubmitting}
+                notes={approvalNotes}
+                onNotesChange={setApprovalNotes}
+                onSubmit={handleApprove}
+                itemNumber={purchaseRequest.pr_number}
+            />
 
-                        {/* Modal */}
-                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white shadow-xl transition-all"
-                            >
-                                <form onSubmit={handleApprove}>
-                                    {/* Body */}
-                                    <div className="bg-white px-5 py-4">
-                                        <div className="flex items-start">
-                                            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-emerald-100">
-                                                <Check className="w-5 h-5 text-emerald-600" />
-                                            </div>
-                                            <div className="ml-3">
-                                                <h3 className="text-base font-semibold text-gray-900">
-                                                    Approve Purchase Request
-                                                </h3>
-                                                <p className="mt-1 text-sm text-gray-500">
-                                                    Are you sure you want to approve <strong>{purchaseRequest.pr_number}</strong>?
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3">
-                                            <label htmlFor="approval_notes" className="block text-sm font-medium text-gray-700">
-                                                Notes (optional)
-                                            </label>
-                                            <textarea
-                                                id="approval_notes"
-                                                rows={2}
-                                                value={approvalNotes}
-                                                onChange={(e) => setApprovalNotes(e.target.value)}
-                                                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm"
-                                                placeholder="Add any notes about your approval..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Footer */}
-                                    <div className="bg-gray-50 px-5 py-3 flex justify-end gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setShowApproveModal(false)}
-                                            disabled={isSubmitting}
-                                            className="disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={isSubmitting}
-                                        >
-                                            {isSubmitting ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Approving...
-                                                </>
-                                            ) : (
-                                                'Approve Purchase Request'
-                                            )}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </motion.div>
-                        </div>
-                    </>
-                )}
-            </AnimatePresence>
-
-            {/* Reject Modal */}
-            <AnimatePresence>
-                {showRejectModal && (
-                    <>
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
-                            onClick={() => setShowRejectModal(false)}
-                        />
-
-                        {/* Modal */}
-                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white shadow-xl transition-all"
-                            >
-                                <form onSubmit={handleReject}>
-                                    {/* Body */}
-                                    <div className="bg-white px-5 py-4">
-                                        <div className="flex items-start">
-                                            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-red-100">
-                                                <X className="w-5 h-5 text-red-600" />
-                                            </div>
-                                            <div className="ml-3">
-                                                <h3 className="text-base font-semibold text-gray-900">
-                                                    Reject Purchase Request
-                                                </h3>
-                                                <p className="mt-1 text-sm text-gray-500">
-                                                    Are you sure you want to reject <strong>{purchaseRequest.pr_number}</strong>?
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3">
-                                            <label htmlFor="rejection_notes" className="block text-sm font-medium text-gray-700">
-                                                Reason for rejection <span className="text-red-500">*</span>
-                                            </label>
-                                            <textarea
-                                                id="rejection_notes"
-                                                rows={3}
-                                                required
-                                                value={rejectionNotes}
-                                                onChange={(e) => setRejectionNotes(e.target.value)}
-                                                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm"
-                                                placeholder="Please provide a reason for rejecting this purchase request..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Footer */}
-                                    <div className="bg-gray-50 px-5 py-3 flex justify-end gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setShowRejectModal(false)}
-                                            disabled={isSubmitting}
-                                            className="disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            variant="destructive"
-                                            disabled={isSubmitting}
-                                            className="disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {isSubmitting ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Rejecting...
-                                                </>
-                                            ) : (
-                                                'Reject Purchase Request'
-                                            )}
-                                        </Button>
-                                    </div>
-                                </form>
-                            </motion.div>
-                        </div>
-                    </>
-                )}
-            </AnimatePresence>
+            <ApprovalDecisionModal
+                open={showRejectModal}
+                onClose={() => setShowRejectModal(false)}
+                mode="reject"
+                isSubmitting={isSubmitting}
+                notes={rejectionNotes}
+                onNotesChange={setRejectionNotes}
+                onSubmit={handleReject}
+                itemNumber={purchaseRequest.pr_number}
+                notesRequired
+            />
         </>
     );
 }

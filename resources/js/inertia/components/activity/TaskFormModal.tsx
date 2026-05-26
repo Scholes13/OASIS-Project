@@ -1,12 +1,13 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
-import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
-import { motion } from 'framer-motion';
+import { useForm, usePage } from '@inertiajs/react';
 import { Dialog } from '@/components/ui/dialog';
-import { X, Calendar as CalendarIcon, Clock, Users as UsersIcon, Check } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Star, Building2, Plus, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/ui/toast';
+import ParticipantSelector from '@/components/activity/form/ParticipantSelector';
+import TaskFormModalFooter from '@/components/activity/form/TaskFormModalFooter';
+import TaskFormModalHeader from '@/components/activity/form/TaskFormModalHeader';
+import TaskFormModalTimeline from '@/components/activity/form/TaskFormModalTimeline';
 import type { PageProps, Task, ActivityType, User, TaskStatus, TaskPriority, TaskParticipantUser } from '@/types';
 
 const getTodayLocalDate = () => {
@@ -110,62 +111,6 @@ interface TaskFormData {
 interface BackdateRequestData {
     requested_date: string;
     reason: string;
-}
-
-interface Time24InputProps {
-    id: string;
-    value: string;
-    onChange: (value: string) => void;
-    hasError?: boolean;
-}
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-
-function Time24Input({ id, value, onChange, hasError = false }: Time24InputProps) {
-    const [hour = '', minute = ''] = value ? value.split(':') : ['', ''];
-
-    const handleHourChange = (nextHour: string) => {
-        if (!nextHour) {
-            onChange('');
-            return;
-        }
-        onChange(`${nextHour}:${minute || '00'}`);
-    };
-
-    const handleMinuteChange = (nextMinute: string) => {
-        if (!hour) {
-            onChange('');
-            return;
-        }
-        onChange(`${hour}:${nextMinute || '00'}`);
-    };
-
-    const baseClass = `w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${hasError ? 'border-red-500' : 'border-gray-200'}`;
-
-    return (
-        <div className="flex gap-1 items-center">
-            <select
-                id={`${id}-hour`}
-                value={hour}
-                onChange={(e) => handleHourChange(e.target.value)}
-                className={baseClass}
-            >
-                <option value="">HH</option>
-                {HOUR_OPTIONS.map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-            <span className="text-slate-400 font-bold">:</span>
-            <select
-                id={`${id}-minute`}
-                value={minute}
-                onChange={(e) => handleMinuteChange(e.target.value)}
-                className={baseClass}
-            >
-                <option value="">MM</option>
-                {MINUTE_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-        </div>
-    );
 }
 
 interface TaskFormModalProps {
@@ -367,19 +312,10 @@ export function TaskFormModal({
         <Dialog open={open} onClose={onClose} className="max-w-[720px] w-full p-0 bg-white rounded-xl shadow-2xl overflow-hidden">
             {/* Wrapper — constrains total height and enables flex layout */}
             <div className="flex flex-col" style={{ maxHeight: 'min(92vh, 800px)' }}>
-                {/* Header — pinned top */}
-                <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 shrink-0">
-                    <h2 className="text-base font-bold text-slate-800 tracking-tight">
-                        {isEditing ? 'Edit Task' : 'Create New Task'}
-                    </h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+                <TaskFormModalHeader
+                    isEditing={isEditing}
+                    onClose={onClose}
+                />
 
                 {/* Body — scrollable middle section */}
                 <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 overscroll-contain">
@@ -491,177 +427,33 @@ export function TaskFormModal({
                         </div>
                     </div>
 
-                    {/* Timeline & Time Log Panel */}
-                    <div className="flex flex-col gap-2">
-                        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Timeline & Time Log</h4>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-5">
-                            
-                            {/* Dates */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[12px] font-medium text-slate-600">Task Date (Start Date)</label>
-                                    <div className="relative">
-                                        <input
-                                            type="date"
-                                            value={data.task_date}
-                                            onChange={(e) => setData('task_date', e.target.value)}
-                                            min={allowedDateRange?.from}
-                                            max={allowedDateRange?.to}
-                                            className={cn("w-full h-10 pl-9 pr-3 border rounded-md text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none bg-white cursor-pointer", errors.task_date ? "border-rose-300" : "border-slate-200")}
-                                        />
-                                        <CalendarIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                                    </div>
-                                    {errors.task_date && <p className="text-[10px] text-rose-500">{errors.task_date}</p>}
-                                    {backdateEnabled && !backdatePermission?.is_active && (
-                                        <button type="button" onClick={() => setShowBackdateModal(true)} className="text-[10px] text-[#16599c] text-left hover:underline mt-0.5 w-fit">Need older date?</button>
-                                    )}
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label htmlFor="task_due_date" className="text-[12px] font-medium text-slate-600">
-                                        Due Date
-                                        {data.status !== 'completed' && <span className="text-rose-500"> *</span>}
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            id="task_due_date"
-                                            type="date"
-                                            value={data.due_date}
-                                            onChange={(e) => setData('due_date', e.target.value)}
-                                            required={data.status !== 'completed'}
-                                            min={data.status === 'completed' ? undefined : (data.task_date || undefined)}
-                                            className="w-full h-10 pl-9 pr-3 border border-slate-200 rounded-md text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none bg-white cursor-pointer"
-                                        />
-                                        <CalendarIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                                    </div>
-                                    {errors.due_date && <p className="text-[10px] text-rose-500">{errors.due_date}</p>}
-                                </div>
-                            </div>
+                    <TaskFormModalTimeline
+                        data={data}
+                        errors={errors}
+                        allowedDateRange={allowedDateRange}
+                        backdateEnabled={backdateEnabled}
+                        backdatePermission={backdatePermission}
+                        isEditing={isEditing}
+                        needsStartCorrection={needsStartCorrection}
+                        needsCompletionCorrection={needsCompletionCorrection}
+                        showReadOnlyStartSummary={showReadOnlyStartSummary}
+                        showReadOnlyCompletionSummary={showReadOnlyCompletionSummary}
+                        showStartTimeInput={showStartTimeInput}
+                        showCompletionInputs={showCompletionInputs}
+                        startedAtDisplayValue={startedAtDisplayValue}
+                        completedAtDisplayValue={task?.completed_at ? `${getDatePart(task.completed_at)} ${getTimePart(task.completed_at)}` : '-'}
+                        onChange={setData}
+                        onRequestBackdate={() => setShowBackdateModal(true)}
+                    />
 
-                            {(showReadOnlyStartSummary || showReadOnlyCompletionSummary || showStartTimeInput || showCompletionInputs) && (
-                                <div className="flex flex-col gap-4 pt-5 border-t border-slate-200/60">
-                                    {(needsStartCorrection || needsCompletionCorrection) && isEditing && (
-                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-                                            Task date changed. Please confirm the actual execution time for this task.
-                                        </div>
-                                    )}
-
-                                    {(showReadOnlyStartSummary || showReadOnlyCompletionSummary) && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            {showReadOnlyStartSummary && (
-                                                <div className="flex flex-col gap-1.5">
-                                                    <label className="text-[12px] font-medium text-slate-600">Started At</label>
-                                                    <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-700 flex items-center">
-                                                        {startedAtDisplayValue}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {showReadOnlyCompletionSummary && (
-                                                <>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[12px] font-medium text-slate-600">Completed At</label>
-                                                        <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-700 flex items-center">
-                                                            {task?.completed_at ? `${getDatePart(task.completed_at)} ${getTimePart(task.completed_at)}` : '-'}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[12px] font-medium text-slate-600">Duration</label>
-                                                        <div className="h-10 px-3 border border-slate-200 bg-white rounded-md text-[14px] text-slate-500 flex items-center">
-                                                            System-managed
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {(showStartTimeInput || showCompletionInputs) && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            {showStartTimeInput && (
-                                                <div className="flex flex-col gap-1.5">
-                                                    <label className="text-[12px] font-medium text-slate-600">Start Time <span className="text-rose-500">*</span></label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="time"
-                                                            aria-label="Start Time"
-                                                            value={data.start_time}
-                                                            onChange={(e) => setData('start_time', e.target.value)}
-                                                            className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.start_time ? "border-rose-300" : "border-slate-200")}
-                                                        />
-                                                        <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                                                    </div>
-                                                    {errors.start_time && <p className="text-[10px] text-rose-500">{errors.start_time}</p>}
-                                                </div>
-                                            )}
-
-                                            {showCompletionInputs && (
-                                                <>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[12px] font-medium text-slate-600">End Time <span className="text-rose-500">*</span></label>
-                                                        <div className="relative">
-                                                            <input
-                                                                type="time"
-                                                                aria-label="End Time"
-                                                                value={data.end_time}
-                                                                onChange={(e) => setData('end_time', e.target.value)}
-                                                                className={cn("w-full h-10 pl-9 pr-2 border rounded-md text-[14px] outline-none bg-white focus:border-[#16599c] cursor-pointer", errors.end_time ? "border-rose-300" : "border-slate-200")}
-                                                            />
-                                                            <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                                                        </div>
-                                                        {errors.end_time && <p className="text-[10px] text-rose-500">{errors.end_time}</p>}
-                                                    </div>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[12px] font-medium text-slate-600">Completed Date <span className="text-rose-500">*</span></label>
-                                                        <div className="relative">
-                                                            <input
-                                                                type="date"
-                                                                aria-label="Completed Date"
-                                                                value={data.completed_date}
-                                                                onChange={(e) => setData('completed_date', e.target.value)}
-                                                                min={data.task_date || undefined}
-                                                                className={cn("w-full h-10 pl-9 pr-3 border rounded-md text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none bg-white cursor-pointer", errors.completed_date ? "border-rose-300" : "border-slate-200")}
-                                                            />
-                                                            <CalendarIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                                                        </div>
-                                                        {errors.completed_date && <p className="text-[10px] text-rose-500">{errors.completed_date}</p>}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Participants */}
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[12px] font-semibold text-slate-700">Participants</label>
-                        <div className="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-lg min-h-[52px]">
-                            {departmentUsers.map((user) => (
-                                <button
-                                    key={user.id}
-                                    type="button"
-                                    onClick={() => toggleParticipant(user.id)}
-                                    className={cn(
-                                        "flex items-center gap-2 px-2.5 py-1.5 rounded-full text-[12px] font-medium transition-all border",
-                                        data.participant_ids.includes(user.id)
-                                            ? "bg-slate-100 text-slate-800 border-slate-200 shadow-sm"
-                                            : "bg-white text-slate-500 border-dashed border-slate-300 hover:bg-slate-50"
-                                    )}
-                                >
-                                    <div className={cn(
-                                        "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white",
-                                        data.participant_ids.includes(user.id) ? "bg-[#16599c]" : "bg-slate-300"
-                                    )}>
-                                        {user.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    {user.name}
-                                </button>
-                            ))}
-                            {departmentUsers.length === 0 && (
-                                <span className="text-sm text-slate-400 py-1">No other team members in department.</span>
-                            )}
-                        </div>
+                        <ParticipantSelector
+                            users={departmentUsers}
+                            selectedIds={data.participant_ids}
+                            onToggle={toggleParticipant}
+                            compact
+                        />
                     </div>
 
                     {/* Description */}
@@ -678,43 +470,15 @@ export function TaskFormModal({
                 </form>
             </div>
 
-            {/* Footer — pinned bottom */}
-            <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-200 rounded-b-xl shrink-0">
-                <div className="flex flex-col gap-2">
-                    <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
-                        {data.status === 'completed' ? (
-                            <><Clock className="w-3.5 h-3.5" /> Time log required for completed task.</>
-                        ) : showReadOnlyStartSummary ? (
-                            <><Clock className="w-3.5 h-3.5" /> Started time is managed by the system for active tasks.</>
-                        ) : null}
-                    </div>
-
-                    {!isEditing ? (
-                        <label className="flex items-center gap-2 text-[12px] font-medium text-slate-600 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={createAnother}
-                                onChange={(e) => setCreateAnother(e.target.checked)}
-                                className="h-4 w-4 rounded border-slate-300 text-[#16599c] focus:ring-[#16599c]/20"
-                            />
-                            <span>Create another task?</span>
-                        </label>
-                    ) : null}
-                </div>
-                <div className="flex items-center gap-3">
-                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-transparent hover:bg-slate-200/50 rounded-md transition-colors">
-                        Cancel
-                    </button>
-                    <button 
-                        type="submit" 
-                        form="task-form" 
-                        disabled={processing}
-                        className="bg-[#16599c] hover:bg-[#124a82] text-white border-none shadow-sm text-sm font-medium px-5 py-2 rounded-md transition-colors disabled:opacity-50"
-                    >
-                        {isEditing ? 'Save Changes' : 'Create Task'}
-                    </button>
-                </div>
-            </div>
+            <TaskFormModalFooter
+                isEditing={isEditing}
+                isCompleted={data.status === 'completed'}
+                showReadOnlyStartSummary={showReadOnlyStartSummary}
+                createAnother={createAnother}
+                processing={processing}
+                onCreateAnotherChange={setCreateAnother}
+                onClose={onClose}
+            />
             </div>{/* end flex wrapper */}
         </Dialog>
     );

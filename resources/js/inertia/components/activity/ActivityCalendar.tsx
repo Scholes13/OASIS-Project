@@ -6,19 +6,14 @@ import interactionPlugin from "@fullcalendar/interaction"
 import listPlugin from "@fullcalendar/list"
 import { router, usePage } from "@inertiajs/react"
 import { format } from "date-fns"
-import { id as idLocale } from "date-fns/locale"
 import {
-    ChevronLeft,
-    ChevronRight,
-    Plus,
-    User,
     Users,
     Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "../ui/button"
-import { showToast } from "../ui/toast"
 import { TaskDetailModal } from "./TaskDetailModal"
+import CalendarHeader from "./calendar/CalendarHeader"
+import CalendarStyles from "./calendar/CalendarStyles"
 import type { Task, PageProps } from "@/types"
 
 interface ActivityCalendarProps {
@@ -374,100 +369,22 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
     return (
         <>
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                {/* Header */}
-                <div className="px-5 py-4 border-b border-gray-100">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        {/* Left: Navigation & Title */}
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={handlePrev}
-                                    className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                                >
-                                    <ChevronLeft className="h-5 w-5" />
-                                </button>
-                                <button
-                                    onClick={handleToday}
-                                    className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                                >
-                                    Today
-                                </button>
-                                <button
-                                    onClick={handleNext}
-                                    className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                                >
-                                    <ChevronRight className="h-5 w-5" />
-                                </button>
-                            </div>
-                            <h2 className="text-lg font-semibold text-gray-900">
-                                {format(
-                                    currentDate,
-                                    currentView === "dayGridMonth" ? "MMMM yyyy" : "d MMMM yyyy",
-                                    { locale: idLocale }
-                                )}
-                            </h2>
-                        </div>
+                <CalendarHeader
+                    currentDate={currentDate}
+                    currentView={currentView}
+                    onPrev={handlePrev}
+                    onNext={handleNext}
+                    onToday={handleToday}
+                    onViewChange={handleViewChange}
+                    onCreateTask={() => {
+                        if (onCreateTask) {
+                            onCreateTask()
+                            return
+                        }
 
-                        {/* Right: View Mode Toggle & Calendar View */}
-                        <div className="flex items-center gap-3">
-
-                            {/* Calendar View Switcher */}
-                            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                                <button
-                                    onClick={() => handleViewChange("dayGridMonth")}
-                                    className={cn(
-                                        "px-3 py-1.5 text-sm font-medium transition-colors",
-                                        currentView === "dayGridMonth"
-                                            ? "bg-primary text-white"
-                                            : "bg-white text-gray-600 hover:bg-gray-50"
-                                    )}
-                                >
-                                    Month
-                                </button>
-                                <button
-                                    onClick={() => handleViewChange("timeGridWeek")}
-                                    className={cn(
-                                        "px-3 py-1.5 text-sm font-medium transition-colors border-x border-gray-200",
-                                        currentView === "timeGridWeek"
-                                            ? "bg-primary text-white"
-                                            : "bg-white text-gray-600 hover:bg-gray-50"
-                                    )}
-                                >
-                                    Week
-                                </button>
-                                <button
-                                    onClick={() => handleViewChange("timeGridDay")}
-                                    className={cn(
-                                        "px-3 py-1.5 text-sm font-medium transition-colors",
-                                        currentView === "timeGridDay"
-                                            ? "bg-primary text-white"
-                                            : "bg-white text-gray-600 hover:bg-gray-50"
-                                    )}
-                                >
-                                    Day
-                                </button>
-                            </div>
-
-                            {/* Add Button */}
-                            <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => {
-                                    if (onCreateTask) {
-                                        onCreateTask()
-                                        return
-                                    }
-
-                                    router.visit(route("activity.task.index", { modal: "create" }))
-                                }}
-                                className="bg-primary hover:bg-blue-600"
-                            >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                        router.visit(route("activity.task.index", { modal: "create" }))
+                    }}
+                />
 
                 {/* Status Legend */}
                 <div className="px-5 py-2.5 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
@@ -567,82 +484,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
                 onEdit={onEditTask}
             />
 
-            {/* Custom styles for FullCalendar */}
-            <style>{`
-                .calendar-container .fc {
-                    font-family: inherit;
-                }
-                .calendar-container .fc-theme-standard td,
-                .calendar-container .fc-theme-standard th {
-                    border-color: #e5e7eb;
-                }
-                .calendar-container .fc-col-header-cell {
-                    padding: 12px 0;
-                    background: #f9fafb;
-                }
-                .calendar-container .fc-col-header-cell-cushion {
-                    font-weight: 600;
-                    color: #374151;
-                    text-transform: uppercase;
-                    font-size: 11px;
-                    letter-spacing: 0.05em;
-                }
-                .calendar-container .fc-daygrid-day-number {
-                    font-weight: 500;
-                    color: #6b7280;
-                    padding: 8px;
-                }
-                .calendar-container .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-                    background: #2563eb;
-                    color: white;
-                    border-radius: 9999px;
-                    width: 28px;
-                    height: 28px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                .calendar-container .fc-daygrid-day-events {
-                    padding: 2px 4px;
-                }
-                .calendar-container .fc-event {
-                    border: none !important;
-                    background: transparent !important;
-                    margin-bottom: 2px;
-                }
-                .calendar-container .fc-event-main {
-                    padding: 0;
-                }
-                .calendar-container .fc-daygrid-event-harness {
-                    margin-top: 1px;
-                }
-                .calendar-container .fc-popover {
-                    border-radius: 12px;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                    border: 1px solid #e5e7eb;
-                    overflow: hidden;
-                }
-                .calendar-container .fc-popover-header {
-                    background: #f9fafb;
-                    padding: 10px 12px;
-                    font-weight: 600;
-                    color: #374151;
-                }
-                .calendar-container .fc-popover-body {
-                    padding: 8px;
-                    max-height: 300px;
-                    overflow-y: auto;
-                }
-                .calendar-container .fc-more-link {
-                    margin-top: 2px;
-                }
-                .calendar-container .fc-daygrid-more-link {
-                    background: transparent !important;
-                }
-                .calendar-container .fc-highlight {
-                    background: #dbeafe !important;
-                }
-            `}</style>
+            <CalendarStyles />
         </>
     )
 }

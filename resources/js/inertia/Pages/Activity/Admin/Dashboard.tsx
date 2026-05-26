@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     BarChart3, Building2, Clock, Download,
-    Timer, ArrowRight, Calendar as CalendarIcon,
-    Users, Flame, Activity, Zap, TrendingUp,
+    Users, TrendingUp,
 } from 'lucide-react';
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -19,6 +18,9 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState, NoDataEmpty } from '@/components/ui/empty-state';
 import { StatsCardSkeleton, ChartSkeleton, CardSkeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
+import AdminMetricCards from '@/components/activity/admin/AdminMetricCards';
+import DepartmentBreakdown from '@/components/activity/admin/DepartmentBreakdown';
+import DashboardFilterBar from '@/components/activity/admin/DashboardFilterBar';
 import { cn } from '@/lib/utils';
 import type { PageProps, Department } from '@/types';
 
@@ -54,8 +56,6 @@ interface DashboardProps extends PageProps {
 }
 
 // ── Fade animations ──────────────────────────────────────────────────
-const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
-const stagger = { show: { transition: { staggerChildren: 0.06 } } };
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 // ── Period presets ─────────────────────────────────────────────────────
@@ -66,20 +66,6 @@ const periodPresets = [
     { label: '30 Days', getRange: () => ({ from: format(subDays(new Date(), 30), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
     { label: '90 Days', getRange: () => ({ from: format(subDays(new Date(), 90), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
 ];
-
-// ── Busyness level helper ──────────────────────────────────────────────
-function getBusynessLevel(total: number, completionRate: number): { label: string; color: string; icon: typeof Flame; bgClass: string; textClass: string; dotClass: string } {
-    if (total >= 20 && completionRate < 50) {
-        return { label: 'Overloaded', color: '#ef4444', icon: Flame, bgClass: 'bg-red-50', textClass: 'text-red-700', dotClass: 'bg-red-500' };
-    }
-    if (total >= 10) {
-        return { label: 'Sibuk', color: '#f59e0b', icon: Zap, bgClass: 'bg-amber-50', textClass: 'text-amber-700', dotClass: 'bg-amber-500' };
-    }
-    if (total >= 3) {
-        return { label: 'Normal', color: '#10b981', icon: Activity, bgClass: 'bg-emerald-50', textClass: 'text-emerald-700', dotClass: 'bg-emerald-500' };
-    }
-    return { label: 'Rendah', color: '#94a3b8', icon: Clock, bgClass: 'bg-gray-50', textClass: 'text-gray-600', dotClass: 'bg-gray-400' };
-}
 
 // ── Enhanced chart tooltip ─────────────────────────────────────────────
 function ChartTooltip({ active, payload, label }: any) {
@@ -277,88 +263,30 @@ export default function Dashboard({
                     </div>
                 </div>
 
-                {/* ── Filter Bar ─────────────────────────────────────── */}
-                <Card className="p-3 shadow-sm border-gray-200/80">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-                        {/* Period Presets */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            {periodPresets.map((preset) => (
-                                <button
-                                    key={preset.label}
-                                    onClick={() => handlePreset(preset)}
-                                    className={cn(
-                                        'h-7 px-3 text-xs font-medium rounded-md border transition-all cursor-pointer',
-                                        activePreset === preset.label
-                                            ? 'bg-primary text-white border-primary shadow-sm'
-                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                    )}
-                                >
-                                    {preset.label}
-                                </button>
-                            ))}
-                        </div>
+                <DashboardFilterBar
+                    periodPresets={periodPresets}
+                    activePreset={activePreset}
+                    dateFrom={dateFrom}
+                    dateTo={dateTo}
+                    departmentId={departmentId}
+                    deptOptions={deptOptions}
+                    onPreset={handlePreset}
+                    onDateFromChange={(value) => {
+                        setDateFrom(value);
+                        setActivePreset(null);
+                    }}
+                    onDateToChange={(value) => {
+                        setDateTo(value);
+                        setActivePreset(null);
+                    }}
+                    onDateApply={handleDateApply}
+                    onDepartmentChange={handleDepartmentChange}
+                />
 
-                        <div className="w-px h-7 bg-gray-200 hidden lg:block" />
-
-                        {/* Date Range */}
-                        <div className="flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4 text-gray-400 flex-shrink-0" strokeWidth={1.5} />
-                            <input
-                                type="date"
-                                value={dateFrom}
-                                onChange={e => { setDateFrom(e.target.value); setActivePreset(null); }}
-                                className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
-                            />
-                            <span className="text-xs text-gray-300 font-medium">—</span>
-                            <input
-                                type="date"
-                                value={dateTo}
-                                onChange={e => { setDateTo(e.target.value); setActivePreset(null); }}
-                                className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
-                            />
-                            <Button size="sm" variant="outline" onClick={handleDateApply} className="h-8 text-xs">
-                                Apply
-                            </Button>
-                        </div>
-
-                        <div className="w-px h-7 bg-gray-200 hidden lg:block" />
-
-                        {/* Department Filter */}
-                        <div className="w-56">
-                            <Select
-                                value={departmentId}
-                                onChange={handleDepartmentChange}
-                                options={deptOptions}
-                                placeholder="All Departments"
-                                className="text-xs"
-                            />
-                        </div>
-                    </div>
-                </Card>
-
-                {/* ── Metric Cards ───────────────────────────────── */}
-                <AnimatePresence mode="wait">
-                    {isFiltering ? (
-                        <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                            {Array.from({ length: 6 }).map((_, i) => <StatsCardSkeleton key={i} />)}
-                        </motion.div>
-                    ) : (
-                        <motion.div key="data" variants={stagger} initial="hidden" animate="show"
-                            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                            {metricCards.map((m) => {
-                                return (
-                                    <motion.div key={m.label} variants={fadeUp}>
-                                        <div className={cn("border border-gray-200/80 rounded-lg p-4", m.bgClass)}>
-                                            <p className="text-[13px] font-medium text-gray-500">{m.label}</p>
-                                            <p className={cn("mt-1 text-3xl font-bold tabular-nums", m.valueClass)}>{m.value}</p>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <AdminMetricCards
+                    isFiltering={isFiltering}
+                    metricCards={metricCards}
+                />
 
                 {/* ── Charts Row 1: Distribution + Daily Trend ────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -550,111 +478,11 @@ export default function Dashboard({
                     </Card>
                 </div>
 
-                {/* ── Department Cards with Busyness Indicator ────── */}
-                <div>
-                    <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                        <Building2 className="w-5 h-5 text-primary" strokeWidth={1.5} />
-                        Detail per Department
-                        {departmentStats.length > 0 && (
-                            <Badge variant="default" size="sm">{departmentStats.length} dept</Badge>
-                        )}
-                    </h2>
-
-                    {departmentStats.length === 0 ? (
-                        <EmptyState
-                            icon={<Building2 className="w-12 h-12" />}
-                            title="No active departments"
-                            description="There are no active departments in this business unit."
-                        />
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {departmentStats.map((ds) => {
-                                const busyness = getBusynessLevel(ds.total, ds.completion_rate);
-                                const BusynessIcon = busyness.icon;
-                                const avgHoursPerTask = ds.total > 0 ? (ds.total_hours / ds.total).toFixed(1) : '0';
-
-                                return (
-                                    <Link key={ds.department.id}
-                                        href={route('activity.admin.department', { department: ds.department.id }) + `?date_from=${dateFrom}&date_to=${dateTo}`}
-                                        className="block group">
-                                        <motion.div whileHover={{ y: -2 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
-                                            <Card className="p-5 hover:border-primary/50 hover:shadow-md transition-all">
-                                                {/* Header: Name + Busyness badge */}
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="min-w-0 flex-1">
-                                                        <h3 className="text-sm font-semibold text-gray-900 group-hover:text-primary transition-colors truncate">
-                                                            {ds.department.name}
-                                                        </h3>
-                                                        <p className="text-[11px] text-gray-400 mt-0.5">{ds.department.code}</p>
-                                                    </div>
-                                                    <span className={cn(
-                                                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0',
-                                                        busyness.bgClass, busyness.textClass
-                                                    )}>
-                                                        <BusynessIcon className="w-3 h-3" strokeWidth={2} />
-                                                        {busyness.label}
-                                                    </span>
-                                                </div>
-
-                                                {/* Completion bar */}
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${Math.min(ds.completion_rate, 100)}%` }}
-                                                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                                                            className={cn(
-                                                                'h-full rounded-full',
-                                                                ds.completion_rate >= 70 ? 'bg-emerald-500' :
-                                                                    ds.completion_rate >= 40 ? 'bg-amber-500' : 'bg-red-400'
-                                                            )}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs font-bold text-gray-700 tabular-nums w-10 text-right">{ds.completion_rate}%</span>
-                                                </div>
-
-                                                {/* Stats grid */}
-                                                <div className="grid grid-cols-4 gap-1 text-center mb-3">
-                                                    <div>
-                                                        <p className="text-base font-bold tabular-nums text-emerald-600">{ds.completed}</p>
-                                                        <p className="text-[10px] text-gray-400">Done</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-base font-bold tabular-nums text-blue-600">{ds.in_progress}</p>
-                                                        <p className="text-[10px] text-gray-400">Progress</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-base font-bold tabular-nums text-amber-600">{ds.planned}</p>
-                                                        <p className="text-[10px] text-gray-400">Planned</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-base font-bold tabular-nums text-red-400">{ds.cancelled}</p>
-                                                        <p className="text-[10px] text-gray-400">Cancel</p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Footer: hours + avg */}
-                                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                                    <div className="flex items-center gap-3 text-[11px] text-gray-500">
-                                                        <span className="flex items-center gap-1">
-                                                            <Timer className="w-3 h-3" strokeWidth={1.5} />
-                                                            {ds.total_hours}h logged
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <Activity className="w-3 h-3" strokeWidth={1.5} />
-                                                            ~{avgHoursPerTask}h/task
-                                                        </span>
-                                                    </div>
-                                                    <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" strokeWidth={1.5} />
-                                                </div>
-                                            </Card>
-                                        </motion.div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                <DepartmentBreakdown
+                    departmentStats={departmentStats}
+                    dateFrom={dateFrom}
+                    dateTo={dateTo}
+                />
             </div>
         </>
     );

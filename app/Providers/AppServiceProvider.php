@@ -171,7 +171,7 @@ class AppServiceProvider extends ServiceProvider
             return $user->primary_department_id !== null;
         });
 
-        // Access Purchasing Admin Gate - For purchasing admins, super admin, and parent BU top management
+        // Access Purchasing Admin Gate - For purchasing admins, super admin, and top management
         Gate::define('access-purchasing-admin', function ($user) {
             $currentBuId = session('current_business_unit_id');
 
@@ -179,8 +179,11 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            // Top management in parent BU can access all child BU purchasing
-            if ($user->hasTopManagementInParentBU()) {
+            // Top management in any active BU can access purchasing admin
+            // (consistent with view-purchasing-reports, access-it-support, etc.).
+            // PO 2026-05-26: Chief of Staff at WNS/EXEC sits at child BU but
+            // still needs executive-tier visibility into Purchasing Admin.
+            if ($user->hasTopManagementAccess()) {
                 return true;
             }
 

@@ -7,6 +7,8 @@ use App\Models\Core\User;
 use App\Models\Modules\Purchasing\StockRequest\StockNumberReservation;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Core\QrCodeService;
+use App\Services\Modules\Purchasing\Shared\PdfGenerationService;
+use App\Services\Modules\Purchasing\Shared\RequestFormDataProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +16,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Browsershot\Browsershot;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class StockRequestController extends Controller
 {
+    public function __construct(
+        protected RequestFormDataProvider $formDataProvider,
+        protected PdfGenerationService $pdfGenerationService,
+    ) {}
+
     /**
      * Display a listing of the user's stock requests.
      * Requirements: 6.1
@@ -107,10 +113,7 @@ class StockRequestController extends Controller
         $departmentId = (int) session('current_department_id');
 
         // Get departments for current business unit
-        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+        $departments = $this->formDataProvider->getAccessibleDepartments($user, $businessUnitId);
 
         // Get business units (for context switching)
         $businessUnits = $user->activeBusinessUnits()
@@ -119,38 +122,11 @@ class StockRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers (users in the same business unit AND all ancestor business units)
-        $approverBusinessUnitIds = [$businessUnitId];
-
-        // Include all ancestor business unit users as potential approvers
-        // Traverse the full parent chain up to the root to include executives from parent groups
-        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
-        $visited = [$businessUnitId]; // Cycle detection
-        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
-            if (in_array($currentBusinessUnit->parent_id, $visited)) {
-                break; // Prevent infinite loop from circular references
-            }
-            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
-            $visited[] = $currentBusinessUnit->parent_id;
-            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
-        }
-
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
-            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
-        })
-            ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
-            ->where('id', '!=', $user->id) // Exclude current user
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
-            ->map(function ($approver) {
-                return [
-                    'id' => $approver->id,
-                    'name' => $approver->name,
-                    'email' => $approver->email,
-                    'position' => $approver->primaryPosition?->name ?? 'N/A',
-                    'department' => $approver->primaryDepartment?->name ?? 'N/A',
-                ];
-            });
+        // Get available approvers (users in the same BU + ancestor BUs).
+        $availableApprovers = $this->formDataProvider->getAvailableApprovers(
+            $user,
+            $businessUnitId,
+        );
 
         return Inertia::render('Purchasing/StockRequest/Form', [
             'mode' => 'create',
@@ -280,10 +256,7 @@ class StockRequestController extends Controller
         ]);
 
         // Get departments for current business unit
-        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+        $departments = $this->formDataProvider->getAccessibleDepartments($user, $businessUnitId);
 
         // Get business units (for context switching)
         $businessUnits = $user->activeBusinessUnits()
@@ -292,38 +265,11 @@ class StockRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers (users in the same business unit AND all ancestor business units)
-        $approverBusinessUnitIds = [$businessUnitId];
-
-        // Include all ancestor business unit users as potential approvers
-        // Traverse the full parent chain up to the root to include executives from parent groups
-        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
-        $visited = [$businessUnitId]; // Cycle detection
-        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
-            if (in_array($currentBusinessUnit->parent_id, $visited)) {
-                break; // Prevent infinite loop from circular references
-            }
-            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
-            $visited[] = $currentBusinessUnit->parent_id;
-            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
-        }
-
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
-            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
-        })
-            ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
-            ->where('id', '!=', $user->id)
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
-            ->map(function ($approver) {
-                return [
-                    'id' => $approver->id,
-                    'name' => $approver->name,
-                    'email' => $approver->email,
-                    'position' => $approver->primaryPosition?->name ?? 'N/A',
-                    'department' => $approver->primaryDepartment?->name ?? 'N/A',
-                ];
-            });
+        // Get available approvers (users in the same BU + ancestor BUs).
+        $availableApprovers = $this->formDataProvider->getAvailableApprovers(
+            $user,
+            $businessUnitId,
+        );
 
         // Transform approval workflow for form
         $approvalWorkflow = $stockRequest->approvals->map(function ($approval) {
@@ -775,9 +721,6 @@ class StockRequestController extends Controller
      */
     public function downloadPdfPublic(StockRequest $stockRequest)
     {
-        // Increase PHP execution time for PDF generation
-        set_time_limit(300); // 5 minutes
-
         // Load relationships needed for PDF
         $stockRequest->load([
             'user',
@@ -795,42 +738,14 @@ class StockRequestController extends Controller
         $cleanStNumber = preg_replace('/[\/\\\\:*?"<>|]/', '-', $stockRequest->st_number);
         $filename = 'ST-'.$cleanStNumber.'.pdf';
 
-        try {
-            // Generate HTML content directly to avoid URL timeout issues
-            $html = view('purchasing.stock-requests.pdf-browser', compact('stockRequest', 'qrCodes'))->render();
-
-            // Generate PDF directly in memory (no temp file needed)
-            $browsershot = Browsershot::html($html)
-                ->format('A4')
-                ->landscape()
-                ->margins(10, 10, 10, 10)
-                ->timeout(120)
-                ->noSandbox()
-                ->disableWebSecurity()
-                ->setDelay(2000);
-
-            if ($remoteUrl = config('pdf.browsershot.remote_url')) {
-                $parsed = parse_url($remoteUrl);
-                $browsershot->setRemoteInstance($parsed['host'], $parsed['port'] ?? 9222);
-            }
-
-            $pdfContent = $browsershot->pdf();
-
-            // Return PDF content directly as response
-            return response($pdfContent, 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-                'Pragma' => 'no-cache',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
-
-            // Fallback: redirect to PDF view with better print styles
-            return redirect()->route('stock-requests.pdf-public', $stockRequest)
-                ->with('error', 'Automatic PDF generation failed. Please use Ctrl+P to save as PDF.');
-        }
+        return $this->pdfGenerationService->streamPdf(
+            'purchasing.stock-requests.pdf-browser',
+            compact('stockRequest', 'qrCodes'),
+            [
+                'filename' => $filename,
+                'fallback_url' => route('stock-requests.pdf-public', $stockRequest),
+            ],
+        );
     }
 
     /**

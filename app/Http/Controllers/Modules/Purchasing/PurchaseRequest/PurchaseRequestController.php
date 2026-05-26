@@ -11,14 +11,14 @@ use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
 use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
+use App\Services\Modules\Purchasing\Shared\PdfGenerationService;
+use App\Services\Modules\Purchasing\Shared\RequestFormDataProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Browsershot\Browsershot;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PurchaseRequestController extends Controller
@@ -29,14 +29,22 @@ class PurchaseRequestController extends Controller
 
     protected UniversalPRNumberingService $numberingService;
 
+    protected RequestFormDataProvider $formDataProvider;
+
+    protected PdfGenerationService $pdfGenerationService;
+
     public function __construct(
         PurchaseRequestService $purchaseRequestService,
         ApprovalWorkflowService $approvalWorkflowService,
-        UniversalPRNumberingService $numberingService
+        UniversalPRNumberingService $numberingService,
+        RequestFormDataProvider $formDataProvider,
+        PdfGenerationService $pdfGenerationService,
     ) {
         $this->purchaseRequestService = $purchaseRequestService;
         $this->approvalWorkflowService = $approvalWorkflowService;
         $this->numberingService = $numberingService;
+        $this->formDataProvider = $formDataProvider;
+        $this->pdfGenerationService = $pdfGenerationService;
     }
 
     /**
@@ -249,15 +257,10 @@ class PurchaseRequestController extends Controller
         $departmentId = (int) session('current_department_id');
 
         // Get categories
-        $categories = \App\Models\Modules\Purchasing\PurchaseRequest\PrCategory::active()
-            ->ordered()
-            ->get(['id', 'name', 'code', 'color', 'description']);
+        $categories = $this->formDataProvider->getPrCategories($businessUnitId);
 
         // Get departments for current business unit
-        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+        $departments = $this->formDataProvider->getAccessibleDepartments($user, $businessUnitId);
 
         // Get business units (for context switching)
         $businessUnits = $user->activeBusinessUnits()
@@ -266,39 +269,13 @@ class PurchaseRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers (users in the same business unit AND all ancestor business units)
-        $approverBusinessUnitIds = [$businessUnitId];
-
-        // Include all ancestor business unit users as potential approvers
-        // Traverse the full parent chain up to the root to include executives from parent groups
-        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
-        $visited = [$businessUnitId]; // Cycle detection
-        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
-            if (in_array($currentBusinessUnit->parent_id, $visited)) {
-                break; // Prevent infinite loop from circular references
-            }
-            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
-            $visited[] = $currentBusinessUnit->parent_id;
-            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
-        }
-
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
-            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
-        })
-            ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
-            ->where('id', '!=', $user->id) // Exclude current user
-            ->where('global_role', '!=', 'super_admin') // Exclude system admin accounts
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
-            ->map(function ($approver) {
-                return [
-                    'id' => $approver->id,
-                    'name' => $approver->name,
-                    'email' => $approver->email,
-                    'position' => $approver->primaryPosition?->name ?? 'N/A',
-                    'department' => $approver->primaryDepartment?->name ?? 'N/A',
-                ];
-            });
+        // Get available approvers (users in the same BU + ancestor BUs).
+        // PR `create` historically excluded super_admin accounts; preserved here.
+        $availableApprovers = $this->formDataProvider->getAvailableApprovers(
+            $user,
+            $businessUnitId,
+            excludeSuperAdmin: true,
+        );
 
         return Inertia::render('Purchasing/PurchaseRequest/Create', [
             'categories' => $categories,
@@ -451,15 +428,10 @@ class PurchaseRequestController extends Controller
         ]);
 
         // Get categories
-        $categories = \App\Models\Modules\Purchasing\PurchaseRequest\PrCategory::active()
-            ->ordered()
-            ->get(['id', 'name', 'code', 'color', 'description']);
+        $categories = $this->formDataProvider->getPrCategories($businessUnitId);
 
         // Get departments for current business unit
-        $departments = \App\Models\Core\Department::where('business_unit_id', $businessUnitId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+        $departments = $this->formDataProvider->getAccessibleDepartments($user, $businessUnitId);
 
         // Get business units (for context switching)
         $businessUnits = $user->activeBusinessUnits()
@@ -468,38 +440,12 @@ class PurchaseRequestController extends Controller
             ->pluck('businessUnit')
             ->filter();
 
-        // Get available approvers (users in the same business unit AND all ancestor business units)
-        $approverBusinessUnitIds = [$businessUnitId];
-
-        // Include all ancestor business unit users as potential approvers
-        // Traverse the full parent chain up to the root to include executives from parent groups
-        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($businessUnitId);
-        $visited = [$businessUnitId]; // Cycle detection
-        while ($currentBusinessUnit && $currentBusinessUnit->parent_id) {
-            if (in_array($currentBusinessUnit->parent_id, $visited)) {
-                break; // Prevent infinite loop from circular references
-            }
-            $approverBusinessUnitIds[] = $currentBusinessUnit->parent_id;
-            $visited[] = $currentBusinessUnit->parent_id;
-            $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnit->parent_id);
-        }
-
-        $availableApprovers = \App\Models\Core\User::whereHas('activeBusinessUnits', function ($query) use ($approverBusinessUnitIds) {
-            $query->whereIn('business_unit_id', $approverBusinessUnitIds);
-        })
-            ->with(['primaryPosition:id,name', 'primaryDepartment:id,name'])
-            ->where('id', '!=', $user->id)
-            ->orderBy('name')
-            ->get(['id', 'name', 'email', 'primary_position_id', 'primary_department_id'])
-            ->map(function ($approver) {
-                return [
-                    'id' => $approver->id,
-                    'name' => $approver->name,
-                    'email' => $approver->email,
-                    'position' => $approver->primaryPosition?->name ?? 'N/A',
-                    'department' => $approver->primaryDepartment?->name ?? 'N/A',
-                ];
-            });
+        // Get available approvers (users in the same BU + ancestor BUs).
+        // PR `editInertia` historically did NOT exclude super_admin; preserved.
+        $availableApprovers = $this->formDataProvider->getAvailableApprovers(
+            $user,
+            $businessUnitId,
+        );
 
         // Transform approval workflow for form
         $approvalWorkflow = $purchaseRequest->approvals->map(function ($approval) {
@@ -1099,9 +1045,6 @@ class PurchaseRequestController extends Controller
      */
     public function downloadPdfPublic(PurchaseRequest $purchaseRequest)
     {
-        // Increase PHP execution time for PDF generation
-        set_time_limit((int) config('features.purchasing.pdf_generation_timeout', 300));
-
         // Load relationships needed for PDF
         $purchaseRequest->load([
             'user',
@@ -1120,42 +1063,14 @@ class PurchaseRequestController extends Controller
         $cleanPrNumber = preg_replace('/[\/\\\\:*?"<>|]/', '-', $purchaseRequest->pr_number);
         $filename = 'PR-'.$cleanPrNumber.'.pdf';
 
-        try {
-            // Generate HTML content directly to avoid URL timeout issues
-            $html = view('purchasing.purchase-requests.pdf-browser', compact('purchaseRequest', 'qrCodes'))->render();
-
-            // Generate PDF directly in memory (no temp file needed)
-            $browsershot = Browsershot::html($html)
-                ->format('A4')
-                ->landscape()
-                ->margins(10, 10, 10, 10)
-                ->timeout(120)
-                ->noSandbox()
-                ->disableWebSecurity()
-                ->setDelay(2000);
-
-            if ($remoteUrl = config('pdf.browsershot.remote_url')) {
-                $parsed = parse_url($remoteUrl);
-                $browsershot->setRemoteInstance($parsed['host'], $parsed['port'] ?? 9222);
-            }
-
-            $pdfContent = $browsershot->pdf();
-
-            // Return PDF content directly as response
-            return response($pdfContent, 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-                'Pragma' => 'no-cache',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Browsershot PDF generation failed: '.$e->getMessage());
-
-            // Fallback: redirect to PDF view with better print styles
-            return redirect()->route('purchase-requests.pdf-public', $purchaseRequest)
-                ->with('error', 'Automatic PDF generation failed. Please use Ctrl+P to save as PDF.');
-        }
+        return $this->pdfGenerationService->streamPdf(
+            'purchasing.purchase-requests.pdf-browser',
+            compact('purchaseRequest', 'qrCodes'),
+            [
+                'filename' => $filename,
+                'fallback_url' => route('purchase-requests.pdf-public', $purchaseRequest),
+            ],
+        );
     }
 
     /**

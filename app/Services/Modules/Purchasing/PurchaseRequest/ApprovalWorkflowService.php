@@ -2,11 +2,10 @@
 
 namespace App\Services\Modules\Purchasing\PurchaseRequest;
 
-use App\Models\Core\BusinessUnit;
-use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Services\Modules\Purchasing\Shared\ApprovalAuthorityResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +13,17 @@ use Illuminate\Support\Facades\Log;
 
 class ApprovalWorkflowService
 {
+    protected ApprovalAuthorityResolver $authorityResolver;
+
+    public function __construct(?ApprovalAuthorityResolver $authorityResolver = null)
+    {
+        // Allow direct `new ApprovalWorkflowService()` instantiation
+        // (used by tests and legacy callers) while still supporting
+        // container-resolved DI.  Lazy-default to a fresh resolver so
+        // we never depend on the container being booted.
+        $this->authorityResolver = $authorityResolver ?? new ApprovalAuthorityResolver;
+    }
+
     /**
      * Create approval workflow for a purchase request
      */
@@ -200,7 +210,10 @@ class ApprovalWorkflowService
 
         // Rule 1: Department Head approval (if amount > threshold)
         if ($amount > $thresholds['department_head']) {
-            $deptHead = $this->getDepartmentHead($department);
+            $deptHead = $this->authorityResolver->findDepartmentHead(
+                (int) $purchaseRequest->business_unit_id,
+                (int) $department->id,
+            );
             if ($deptHead) {
                 $approvers->push([
                     'user' => $deptHead,
@@ -213,7 +226,9 @@ class ApprovalWorkflowService
 
         // Rule 2: Finance Manager approval (if amount > threshold)
         if ($amount > $thresholds['finance_manager']) {
-            $financeManager = $this->getFinanceManager($purchaseRequest->businessUnit);
+            $financeManager = $this->authorityResolver->findFinanceManager(
+                (int) $purchaseRequest->businessUnit->id,
+            );
             if ($financeManager) {
                 $approvers->push([
                     'user' => $financeManager,
@@ -226,7 +241,9 @@ class ApprovalWorkflowService
 
         // Rule 3: General Manager approval (if amount > threshold)
         if ($amount > $thresholds['general_manager']) {
-            $generalManager = $this->getGeneralManager($purchaseRequest->businessUnit);
+            $generalManager = $this->authorityResolver->findGeneralManager(
+                (int) $purchaseRequest->businessUnit->id,
+            );
             if ($generalManager) {
                 $approvers->push([
                     'user' => $generalManager,
@@ -239,7 +256,9 @@ class ApprovalWorkflowService
 
         // Rule 4: Director approval (if amount > threshold)
         if ($amount > $thresholds['director']) {
-            $director = $this->getDirector($purchaseRequest->businessUnit);
+            $director = $this->authorityResolver->findDirector(
+                (int) $purchaseRequest->businessUnit->id,
+            );
             if ($director) {
                 $approvers->push([
                     'user' => $director,
@@ -263,7 +282,10 @@ class ApprovalWorkflowService
 
         // If no approvers found based on rules, assign department head as default
         if ($approvers->isEmpty()) {
-            $deptHead = $this->getDepartmentHead($department);
+            $deptHead = $this->authorityResolver->findDepartmentHead(
+                (int) $purchaseRequest->business_unit_id,
+                (int) $department->id,
+            );
             if ($deptHead) {
                 $approvers->push([
                     'user' => $deptHead,
@@ -349,67 +371,6 @@ class ApprovalWorkflowService
         }
 
         return $result;
-    }
-
-    /**
-     * Get department head
-     */
-    protected function getDepartmentHead(Department $department): ?User
-    {
-        return User::whereHas('roles', function ($query) {
-            $query->where('name', 'department_head');
-        })
-            ->where('primary_department_id', $department->id)
-            ->where('is_active', true)
-            ->first();
-    }
-
-    /**
-     * Get finance manager
-     */
-    protected function getFinanceManager(BusinessUnit $businessUnit): ?User
-    {
-        return User::whereHas('roles', function ($query) {
-            $query->where('name', 'finance_manager');
-        })
-            ->whereHas('businessUnits', function ($query) use ($businessUnit) {
-                $query->where('business_unit_id', $businessUnit->id)
-                    ->where('is_active', true);
-            })
-            ->where('is_active', true)
-            ->first();
-    }
-
-    /**
-     * Get general manager
-     */
-    protected function getGeneralManager(BusinessUnit $businessUnit): ?User
-    {
-        return User::whereHas('roles', function ($query) {
-            $query->where('name', 'general_manager');
-        })
-            ->whereHas('businessUnits', function ($query) use ($businessUnit) {
-                $query->where('business_unit_id', $businessUnit->id)
-                    ->where('is_active', true);
-            })
-            ->where('is_active', true)
-            ->first();
-    }
-
-    /**
-     * Get director
-     */
-    protected function getDirector(BusinessUnit $businessUnit): ?User
-    {
-        return User::whereHas('roles', function ($query) {
-            $query->where('name', 'director');
-        })
-            ->whereHas('businessUnits', function ($query) use ($businessUnit) {
-                $query->where('business_unit_id', $businessUnit->id)
-                    ->where('is_active', true);
-            })
-            ->where('is_active', true)
-            ->first();
     }
 
     /**

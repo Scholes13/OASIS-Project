@@ -20,9 +20,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('ticket_article_views', function (Blueprint $table) {
-            $table->string('dedup_key', 128)->nullable()->after('user_id');
-        });
+        if (! Schema::hasColumn('ticket_article_views', 'dedup_key')) {
+            Schema::table('ticket_article_views', function (Blueprint $table) {
+                $table->string('dedup_key', 128)->nullable()->after('user_id');
+            });
+        }
 
         // Backfill existing rows so the new index is safe to add.
         // Use the ANSI `||` concatenation operator so the same statement
@@ -52,6 +54,12 @@ return new class extends Migration
 
         Schema::table('ticket_article_views', function (Blueprint $table) {
             $table->string('dedup_key', 128)->nullable(false)->change();
+
+            // The composite unique is the only index covering article_id, which
+            // is required by the article_id FK. Add a dedicated index first so
+            // MySQL still has an index for the FK after the unique is dropped.
+            $table->index('article_id', 'ticket_article_views_article_id_index');
+
             $table->dropUnique('ticket_article_views_unique');
             $table->unique(['article_id', 'dedup_key'], 'ticket_article_views_dedup_unique');
         });
@@ -65,6 +73,7 @@ return new class extends Migration
                 ['article_id', 'visitor_fingerprint', 'user_id'],
                 'ticket_article_views_unique'
             );
+            $table->dropIndex('ticket_article_views_article_id_index');
             $table->dropColumn('dedup_key');
         });
     }

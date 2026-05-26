@@ -138,6 +138,9 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Get the current department data from session.
+     *
+     * Includes parent metadata when the active department is a sub-department
+     * (Division), so the frontend can render breadcrumbs like "S&M / BS".
      */
     protected function getCurrentDepartment(?int $departmentId): ?array
     {
@@ -145,7 +148,7 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
-        $department = Department::find($departmentId);
+        $department = Department::with('parent:id,code,name')->find($departmentId);
 
         if (! $department) {
             return null;
@@ -155,12 +158,25 @@ class HandleInertiaRequests extends Middleware
             'id' => $department->id,
             'code' => $department->code,
             'name' => $department->name,
+            'parent_department_id' => $department->parent_department_id,
+            'parent' => $department->parent ? [
+                'id' => $department->parent->id,
+                'code' => $department->parent->code,
+                'name' => $department->parent->name,
+            ] : null,
         ];
     }
 
     /**
-     * Get available departments for the user in current business unit.
-     * Only returns departments if user has multiple departments.
+     * Get available departments for the user in current business unit,
+     * grouped as a parent-children tree.
+     *
+     * Returns root departments (parent_department_id is null) at the top
+     * level, each with a `children` array of its sub-departments that the
+     * user has access to. Flat departments simply have an empty `children`.
+     *
+     * Returns [] when the user only has access to a single department,
+     * matching the existing switcher visibility rule.
      */
     protected function getAvailableDepartments($user): array
     {
@@ -172,13 +188,37 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        return $user->getDepartmentsInCurrentBusinessUnit()
-            ->map(fn ($department) => [
-                'id' => $department->id,
-                'code' => $department->code,
-                'name' => $department->name,
-            ])
-            ->toArray();
+        $depts = $user->getDepartmentsInCurrentBusinessUnit()
+            ->loadMissing('parent:id,code,name');
+
+        $byParent = $depts->groupBy('parent_department_id');
+
+        // Roots are either depts with parent_department_id=null (true roots)
+        // or depts whose parent is not in the user's accessible list (treat
+        // them as roots too so they don't disappear).
+        $accessibleIds = $depts->pluck('id')->all();
+
+        $roots = $depts->filter(function ($d) use ($accessibleIds) {
+            return $d->parent_department_id === null
+                || ! in_array($d->parent_department_id, $accessibleIds, true);
+        });
+
+        return $roots->map(function ($root) use ($byParent) {
+            $children = $byParent->get($root->id, collect());
+
+            return [
+                'id' => $root->id,
+                'code' => $root->code,
+                'name' => $root->name,
+                'parent_department_id' => $root->parent_department_id,
+                'children' => $children->map(fn ($child) => [
+                    'id' => $child->id,
+                    'code' => $child->code,
+                    'name' => $child->name,
+                    'parent_department_id' => $child->parent_department_id,
+                ])->values()->toArray(),
+            ];
+        })->values()->toArray();
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\CashflowProjection;
 
+use App\Models\Core\Department;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCashflowProjectionLineItemRequest extends FormRequest
@@ -18,7 +19,17 @@ class StoreCashflowProjectionLineItemRequest extends FormRequest
     {
         return [
             'year' => ['required', 'integer', 'between:2000,2100'],
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'department_id' => [
+                'required',
+                'integer',
+                'exists:departments,id',
+                function (string $attribute, $value, \Closure $fail): void {
+                    $dept = Department::find($value);
+                    if ($dept && $dept->children()->where('is_active', true)->exists()) {
+                        $fail('Cashflow line item harus dibuat di sub-department, bukan di root department dengan sub-department aktif.');
+                    }
+                },
+            ],
             'action_code' => ['required', 'string', 'max:100'],
             'transaction_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],

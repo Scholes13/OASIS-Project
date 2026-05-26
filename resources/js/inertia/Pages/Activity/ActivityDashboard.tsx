@@ -136,7 +136,8 @@ interface DashboardProps extends PageProps {
     personalVisuals: PersonalVisuals;
     departmentStats: Stats | null;
     departmentVisuals: DepartmentVisuals | null;
-    departmentMembers?: Array<{ id: number; name: string }>;
+    departmentMembers?: Array<{ id: number; name: string; department_id?: number }>;
+    subDepartments?: Array<{ id: number; code: string; name: string }>;
     canViewReports?: boolean;
     executiveStats?: ExecutiveStats | null;
     queryParams?: {
@@ -147,6 +148,7 @@ interface DashboardProps extends PageProps {
         distribution_period?: PeriodFilter;
         dept_distribution_period?: PeriodFilter;
         member_user_id?: string | null;
+        dept_filter?: string | null;
     };
 }
 
@@ -158,6 +160,7 @@ export default function ActivityDashboard({
     departmentStats,
     departmentVisuals,
     departmentMembers = [],
+    subDepartments = [],
     canViewReports,
     executiveStats,
     queryParams
@@ -173,12 +176,17 @@ export default function ActivityDashboard({
         (queryParams?.dept_distribution_period as PeriodFilter) || 'all'
     );
     const [selectedDepartmentMember, setSelectedDepartmentMember] = useState<string>(queryParams?.member_user_id ?? '');
+    const [selectedSubDepartment, setSelectedSubDepartment] = useState<string>(queryParams?.dept_filter ?? '');
     const [isDistributionLoading, setIsDistributionLoading] = useState(false);
     const [isDeptDistributionLoading, setIsDeptDistributionLoading] = useState(false);
 
     useEffect(() => {
         setSelectedDepartmentMember(queryParams?.member_user_id ?? '');
     }, [queryParams?.member_user_id]);
+
+    useEffect(() => {
+        setSelectedSubDepartment(queryParams?.dept_filter ?? '');
+    }, [queryParams?.dept_filter]);
 
     /** Navigate to admin dashboard for a specific BU, switching context first */
     const navigateToAdminDashboard = (businessUnitId: number, departmentId?: number) => {
@@ -348,12 +356,34 @@ export default function ActivityDashboard({
             route('activity.dashboard'),
             {
                 dept_distribution_period: deptDistributionPeriod,
+                ...(selectedSubDepartment ? { dept_filter: selectedSubDepartment } : {}),
                 ...(memberUserId ? { member_user_id: memberUserId } : {}),
             },
             {
                 preserveState: true,
                 preserveScroll: true,
-                only: ['departmentVisuals', 'departmentStats', 'queryParams', 'departmentMembers'],
+                only: ['departmentVisuals', 'departmentStats', 'queryParams', 'departmentMembers', 'subDepartments'],
+                onFinish: () => setIsDeptDistributionLoading(false),
+            }
+        );
+    };
+
+    const handleSubDepartmentChange = (deptId: string) => {
+        // Switching sub-department resets the member filter, since the
+        // member list is scoped to the chosen sub-dept.
+        setSelectedSubDepartment(deptId);
+        setSelectedDepartmentMember('');
+        setIsDeptDistributionLoading(true);
+        router.get(
+            route('activity.dashboard'),
+            {
+                dept_distribution_period: deptDistributionPeriod,
+                ...(deptId ? { dept_filter: deptId } : {}),
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['departmentVisuals', 'departmentStats', 'queryParams', 'departmentMembers', 'subDepartments'],
                 onFinish: () => setIsDeptDistributionLoading(false),
             }
         );
@@ -474,7 +504,7 @@ export default function ActivityDashboard({
                                     <Popover.Button className="flex items-center justify-center rounded-lg bg-white border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
                                         <Filter className="mr-2 h-4 w-4 text-slate-500" />
                                         Filter
-                                        {selectedDepartmentMember ? (
+                                        {(selectedDepartmentMember || selectedSubDepartment) ? (
                                             <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-500" />
                                         ) : null}
                                     </Popover.Button>
@@ -489,6 +519,26 @@ export default function ActivityDashboard({
                                     >
                                         <Popover.Panel className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
                                             <div className="space-y-3">
+                                                {subDepartments.length > 0 && (
+                                                    <div>
+                                                        <label htmlFor="activity-dashboard-subdept-filter" className="mb-1.5 block text-xs font-medium text-slate-500">
+                                                            Sub-department
+                                                        </label>
+                                                        <select
+                                                            id="activity-dashboard-subdept-filter"
+                                                            value={selectedSubDepartment}
+                                                            onChange={(event) => handleSubDepartmentChange(event.target.value)}
+                                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-[#16599c] focus:ring-2 focus:ring-[#16599c]/20"
+                                                        >
+                                                            <option value="">All sub-departments</option>
+                                                            {subDepartments.map((dept) => (
+                                                                <option key={dept.id} value={String(dept.id)}>
+                                                                    {dept.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <label htmlFor="activity-dashboard-member-filter" className="mb-1.5 block text-xs font-medium text-slate-500">
                                                         Member
@@ -499,7 +549,7 @@ export default function ActivityDashboard({
                                                         onChange={(event) => handleDepartmentMemberChange(event.target.value)}
                                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-[#16599c] focus:ring-2 focus:ring-[#16599c]/20"
                                                     >
-                                                        <option value="">All Department Members</option>
+                                                        <option value="">All members</option>
                                                         {departmentMembers.map((member) => (
                                                             <option key={member.id} value={String(member.id)}>
                                                                 {member.name}

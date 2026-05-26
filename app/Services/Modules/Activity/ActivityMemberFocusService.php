@@ -2,6 +2,7 @@
 
 namespace App\Services\Modules\Activity;
 
+use App\Models\Core\Department;
 use App\Models\Core\UserBusinessUnit;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -11,7 +12,12 @@ class ActivityMemberFocusService
      * Get valid team members from active user_business_units assignments
      * for the given BU + department context.
      *
-     * @return array<int, array{id: int, name: string}>
+     * When the dept is a root department with active children, members from
+     * the descendant departments are included so a manager at a root dept
+     * (e.g. GM at S&M) can drill into any sub-dept member without leaving
+     * the dashboard.
+     *
+     * @return array<int, array{id: int, name: string, department_id: int}>
      */
     public function resolveDepartmentMembers(?int $businessUnitId, ?int $departmentId): array
     {
@@ -19,20 +25,22 @@ class ActivityMemberFocusService
             return [];
         }
 
+        $scopeIds = Department::scopeIdsForId($departmentId);
+
         return UserBusinessUnit::query()
             ->where('business_unit_id', $businessUnitId)
-            ->where('department_id', $departmentId)
+            ->whereIn('department_id', $scopeIds)
             ->where('is_active', true)
             ->whereHas('user', fn (Builder $query) => $query->where('is_active', true))
             ->with('user:id,name,is_active')
             ->get()
-            ->pluck('user')
-            ->filter()
-            ->unique('id')
-            ->sortBy('name')
-            ->map(fn ($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
+            ->filter(fn ($ubu) => $ubu->user !== null)
+            ->unique(fn ($ubu) => $ubu->user->id)
+            ->sortBy(fn ($ubu) => $ubu->user->name)
+            ->map(fn ($ubu) => [
+                'id' => $ubu->user->id,
+                'name' => $ubu->user->name,
+                'department_id' => (int) $ubu->department_id,
             ])
             ->values()
             ->all();

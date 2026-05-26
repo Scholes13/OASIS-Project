@@ -86,10 +86,14 @@ class ActivityAdminController extends Controller
             ? round(($buSummary['completed'] / $buSummary['total']) * 100, 1)
             : 0;
 
-        // Activity type distribution (scoped to department if filtered)
+        // Activity type distribution (scoped to department + descendants if filtered)
+        $selectedDepartmentScopeIds = $selectedDepartmentId
+            ? Department::scopeIdsForId($selectedDepartmentId)
+            : [];
+
         $buActivityTypes = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
-            ->when($selectedDepartmentId, fn ($q) => $q->where('department_id', $selectedDepartmentId))
+            ->when($selectedDepartmentScopeIds, fn ($q, $ids) => $q->whereIn('department_id', $ids))
             ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
             ->select('employee_activity_types.name')
             ->selectRaw('MIN(employee_activity_types.color) as color')
@@ -111,10 +115,10 @@ class ActivityAdminController extends Controller
                 ];
             });
 
-        // Daily trend (scoped to department if filtered)
+        // Daily trend (scoped to department + descendants if filtered)
         $dailyTrend = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
-            ->when($selectedDepartmentId, fn ($q) => $q->where('department_id', $selectedDepartmentId))
+            ->when($selectedDepartmentScopeIds, fn ($q, $ids) => $q->whereIn('department_id', $ids))
             ->select('task_date')
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
@@ -187,9 +191,13 @@ class ActivityAdminController extends Controller
         $department = Department::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->findOrFail($departmentId);
 
+        // Include sub-department ids when this dept is a root with children,
+        // so admin viewing a parent department sees aggregate of its divisions.
+        $scopeDepartmentIds = $department->descendantIds();
+
         // Tasks query with filters
         $query = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
-            ->where('department_id', $departmentId)
+            ->whereIn('department_id', $scopeDepartmentIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
             ->when($status, fn ($q, $v) => $q->where('status', $v))
             ->when($activityTypeId, fn ($q, $v) => $q->where('activity_type_id', $v))
@@ -203,7 +211,7 @@ class ActivityAdminController extends Controller
 
         // Per-user breakdown
         $userBreakdown = EmployeeTask::whereIn('employee_tasks.business_unit_id', $scopedBusinessUnitIds)
-            ->where('employee_tasks.department_id', $departmentId)
+            ->whereIn('employee_tasks.department_id', $scopeDepartmentIds)
             ->whereBetween('employee_tasks.task_date', [$dateFrom, $dateTo])
             ->join('users', 'employee_tasks.created_by', '=', 'users.id')
             ->select('employee_tasks.created_by', 'users.name as created_by_name')
@@ -217,7 +225,7 @@ class ActivityAdminController extends Controller
 
         // Activity type distribution
         $activityTypeDistribution = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
-            ->where('department_id', $departmentId)
+            ->whereIn('department_id', $scopeDepartmentIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
             ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
             ->select('employee_activity_types.name', 'employee_activity_types.color')
@@ -228,7 +236,7 @@ class ActivityAdminController extends Controller
 
         // Department stats
         $statsQuery = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
-            ->where('department_id', $departmentId)
+            ->whereIn('department_id', $scopeDepartmentIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo]);
 
         $stats = [
@@ -432,7 +440,7 @@ class ActivityAdminController extends Controller
         return EmployeeTask::query()
             ->whereKey($taskId)
             ->whereIn('business_unit_id', $scopedBusinessUnitIds)
-            ->where('department_id', $departmentId)
+            ->whereIn('department_id', Department::scopeIdsForId($departmentId))
             ->with([
                 'activityType',
                 'subActivity',

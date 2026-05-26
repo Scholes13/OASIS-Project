@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Modules\Activity\StoreActivityTaskRequest;
 use App\Http\Requests\Modules\Activity\UpdateActivityTaskRequest;
 use App\Models\Core\BusinessUnit;
+use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Notifications\Activity\TaskTaggedNotification;
@@ -65,16 +66,34 @@ class ActivityInertiaController extends Controller
         $departmentStats = null;
         $departmentVisuals = null;
         $departmentMembers = [];
+        $subDepartments = [];
         $sanitizedMemberUserId = null;
+        $sanitizedDeptFilterId = null;
+        $effectiveDepartmentId = $departmentId;
         if ($user->can('view-department-analytics')) {
-            $departmentMembers = $this->memberFocusService->resolveDepartmentMembers($buId, $departmentId);
+            // Sub-departments under current dept (only when current is a root with children).
+            $subDepartments = $this->resolveSubDepartments($departmentId);
+
+            // Allow user to drill into a single sub-dept via ?dept_filter=<id>.
+            $sanitizedDeptFilterId = $this->sanitizeDeptFilter(
+                request()->query('dept_filter'),
+                $subDepartments
+            );
+
+            // When a sub-dept is focused, narrow the scope to that dept only;
+            // otherwise keep root behaviour (descendantIds).
+            if ($sanitizedDeptFilterId !== null) {
+                $effectiveDepartmentId = $sanitizedDeptFilterId;
+            }
+
+            $departmentMembers = $this->memberFocusService->resolveDepartmentMembers($buId, $effectiveDepartmentId);
             $sanitizedMemberUserId = $this->memberFocusService->sanitizeRequestedMember(
                 request()->query('member_user_id'),
                 $departmentMembers
             );
             $deptDistributionPeriod = request()->input('dept_distribution_period', 'all');
-            $departmentStats = $this->getDepartmentStats($departmentId, $buId, $deptDistributionPeriod, $sanitizedMemberUserId);
-            $departmentVisuals = $this->getDepartmentVisuals($departmentId, $buId, $deptDistributionPeriod, $sanitizedMemberUserId);
+            $departmentStats = $this->getDepartmentStats($effectiveDepartmentId, $buId, $deptDistributionPeriod, $sanitizedMemberUserId);
+            $departmentVisuals = $this->getDepartmentVisuals($effectiveDepartmentId, $buId, $deptDistributionPeriod, $sanitizedMemberUserId);
         }
 
         // Executive overview for top management (cross-BU aggregation)
@@ -88,6 +107,7 @@ class ActivityInertiaController extends Controller
 
         $queryParams = request()->query();
         $queryParams['member_user_id'] = $sanitizedMemberUserId ? (string) $sanitizedMemberUserId : null;
+        $queryParams['dept_filter'] = $sanitizedDeptFilterId ? (string) $sanitizedDeptFilterId : null;
 
         return Inertia::render('Activity/ActivityDashboard', [
             'personalStats' => $personalStats,
@@ -95,6 +115,7 @@ class ActivityInertiaController extends Controller
             'departmentStats' => $departmentStats,
             'departmentVisuals' => $departmentVisuals,
             'departmentMembers' => $departmentMembers,
+            'subDepartments' => $subDepartments,
             'executiveStats' => $executiveStats,
             'canViewReports' => $canViewReports,
             'queryParams' => $queryParams,
@@ -903,9 +924,13 @@ class ActivityInertiaController extends Controller
     protected function getDepartmentStats(int $departmentId, int $buId, string $distributionPeriod = 'all', ?int $memberUserId = null): array
     {
         try {
+            // Include sub-departments when current dept is a root with active children
+            // (e.g. GM at S&M sees aggregate across BS/COM/CMC).
+            $scopeIds = Department::scopeIdsForId($departmentId);
+
             $baseQuery = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
-                ->where('department_id', $departmentId);
+                ->whereIn('department_id', $scopeIds);
 
             $baseQuery = $this->memberFocusService->applyMemberFocus($baseQuery, $memberUserId);
 
@@ -971,6 +996,60 @@ class ActivityInertiaController extends Controller
                 'completed_this_month' => 0,
             ];
         }
+    }
+
+    /**
+     * Get sub-departments under the given dept (only when current is a root
+     * with active children). Returns empty array when current dept is flat
+     * (HR, ACC, etc.) so the frontend can hide the sub-dept dropdown.
+     *
+     * @return array<int, array{id: int, name: string, code: string}>
+     */
+    protected function resolveSubDepartments(?int $departmentId): array
+    {
+        if ($departmentId === null) {
+            return [];
+        }
+
+        $dept = Department::with('activeChildren:id,parent_department_id,code,name,is_active')
+            ->find($departmentId);
+
+        if (! $dept || $dept->activeChildren->isEmpty()) {
+            return [];
+        }
+
+        return $dept->activeChildren
+            ->sortBy('name')
+            ->map(fn ($child) => [
+                'id' => $child->id,
+                'code' => $child->code,
+                'name' => $child->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Sanitize requested dept_filter against the list of valid sub-departments.
+     * Returns null when invalid, missing, or refers to a dept outside the
+     * current root scope.
+     *
+     * @param  array<int, array{id: int, name: string, code: string}>  $validSubDepartments
+     */
+    protected function sanitizeDeptFilter(mixed $requestedDeptId, array $validSubDepartments): ?int
+    {
+        if ($requestedDeptId === null || $requestedDeptId === '' || ! is_scalar($requestedDeptId)) {
+            return null;
+        }
+
+        $deptId = filter_var((string) $requestedDeptId, FILTER_VALIDATE_INT);
+        if ($deptId === false) {
+            return null;
+        }
+
+        $validIds = array_column($validSubDepartments, 'id');
+
+        return in_array($deptId, $validIds, true) ? $deptId : null;
     }
 
     /**
@@ -1264,10 +1343,13 @@ class ActivityInertiaController extends Controller
         try {
             $tab = request()->input('dept_tab', 'inprogress');
 
+            // Include sub-departments when current dept is a root with active children.
+            $scopeIds = Department::scopeIdsForId($departmentId);
+
             // Department Task Roadmap (Paginated) - same as personal but for whole department
             $query = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
-                ->where('department_id', $departmentId);
+                ->whereIn('department_id', $scopeIds);
             $query = $this->memberFocusService->applyMemberFocus($query, $memberUserId);
 
             // Tab logic
@@ -1289,7 +1371,7 @@ class ActivityInertiaController extends Controller
             // Upcoming Deadlines (Next 7 days) for department
             $upcoming = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
-                ->where('department_id', $departmentId)
+                ->whereIn('department_id', $scopeIds)
                 ->whereIn('status', ['planned', 'in_progress'])
                 ->whereBetween('due_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
                 ->orderBy('due_date', 'asc')
@@ -1307,7 +1389,7 @@ class ActivityInertiaController extends Controller
             // Distribution by Category for department with period filter
             $distributionQuery = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
-                ->where('department_id', $departmentId);
+                ->whereIn('department_id', $scopeIds);
             $distributionQuery = $this->memberFocusService->applyMemberFocus($distributionQuery, $memberUserId);
 
             // Apply period filter
@@ -1323,7 +1405,7 @@ class ActivityInertiaController extends Controller
             // Bottleneck (Overdue Tasks)
             $bottleneck = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
-                ->where('department_id', $departmentId)
+                ->whereIn('department_id', $scopeIds)
                 ->where('due_date', '<', now()->toDateString())
                 ->whereNotIn('status', ['completed', 'cancelled'])
                 ->tap(fn ($query) => $this->memberFocusService->applyMemberFocus($query, $memberUserId))
@@ -1332,7 +1414,7 @@ class ActivityInertiaController extends Controller
             // Top Category
             $topCategory = EmployeeTask::query()
                 ->where('business_unit_id', $buId)
-                ->where('department_id', $departmentId)
+                ->whereIn('department_id', $scopeIds)
                 ->tap(fn ($query) => $this->memberFocusService->applyMemberFocus($query, $memberUserId))
                 ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
                 ->select('employee_activity_types.name', DB::raw('count(*) as count'))

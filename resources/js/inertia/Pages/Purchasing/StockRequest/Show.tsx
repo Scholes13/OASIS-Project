@@ -1,108 +1,19 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    ArrowLeft, 
-    Edit,
-    Download, 
-    Ban,
-    RotateCcw,
-    Shield,
-    Check,
-    X,
-    Eye,
-    AlertTriangle,
-    Loader2,
-    Send
-} from 'lucide-react';
-import { PageProps } from '@/types';
+import { Head, router } from '@inertiajs/react';
+import { motion } from 'framer-motion';
+import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/formatters';
-import { APPROVAL_BADGE_COLORS, ST_STATUS_CONFIG } from '@/lib/purchasingConstants';
+import { APPROVAL_BADGE_COLORS } from '@/lib/purchasingConstants';
 import { toast } from 'sonner';
 import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
-import { OfflineApprovalUpload } from '@/components/purchasing/OfflineApprovalUpload';
-import { ApprovalDecisionModal } from '@/components/purchasing/modals/ApprovalDecisionModal';
-import { VoidConfirmModal } from '@/components/purchasing/modals/VoidConfirmModal';
+import { StockRequestActionModals } from '@/components/purchasing/show/StockRequestActionModals';
+import { StockRequestHeader } from '@/components/purchasing/show/StockRequestHeader';
+import { StockRequestItemsTable } from '@/components/purchasing/show/StockRequestItemsTable';
+import { StockRequestSummaryPanel } from '@/components/purchasing/show/StockRequestSummaryPanel';
+import type { STPermissions, STShowProps } from '@/types/purchasing';
 
-interface StockItem {
-    id: number;
-    item_name: string;
-    item_description: string | null;
-    quantity: number;
-    unit: string;
-    image_path: string | null;
-}
-
-interface StockApproval {
-    id: number;
-    approver_id: number;
-    step_order: number;
-    status: 'pending' | 'approved' | 'rejected';
-    notes: string | null;
-    responded_at: string | null;
-    approver: {
-        id: number;
-        name: string;
-        email: string;
-    };
-}
-
-interface StockRequest {
-    id: number;
-    st_number: string;
-    business_unit_id: number;
-    department_id: number;
-    user_id: number;
-    purpose: string;
-    date_of_request: string;
-    expected_date: string | null;
-    status: string;
-    submitted_at: string | null;
-    approved_at: string | null;
-    rejected_at: string | null;
-    voided_at: string | null;
-    offline_approved_at: string | null;
-    offline_approval_document_path: string | null;
-    offline_approval_document_name: string | null;
-    created_at: string;
-    updated_at: string;
-    user: { id: number; name: string; email: string };
-    department: { id: number; name: string; code: string };
-    business_unit: { id: number; name: string; code: string };
-    items?: StockItem[];
-    approvals?: StockApproval[];
-    approval_progress?: { approved: number; total: number };
-    can?: STPermissions;
-}
-
-
-interface STPermissions {
-    approve?: boolean;
-    reject?: boolean;
-    edit: boolean;
-    delete: boolean;
-    void: boolean;
-    resubmit: boolean;
-    resendApprovalEmail?: boolean;
-    downloadPdf: boolean;
-    markOfflineApproved: boolean;
-    offlineApprovalDocument?: boolean;
-}
-
-interface ApprovalContext {
-    approvalId: number;
-    canApprove: boolean;
-    approvalStatus: 'pending' | 'approved' | 'rejected' | 'skipped';
-}
-
-interface ShowPageProps extends PageProps {
-    stockRequest: StockRequest;
-    can?: STPermissions;
-    approvalContext?: ApprovalContext;
-}
-
-export default function Show({ stockRequest, can, approvalContext }: ShowPageProps) {
+export default function Show({ stockRequest, can, approvalContext }: STShowProps) {
     const [showVoidModal, setShowVoidModal] = useState(false);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
     const [showApproveModal, setShowApproveModal] = useState(false);
@@ -115,9 +26,7 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResendingEmail, setIsResendingEmail] = useState(false);
 
-    const currentStatus = ST_STATUS_CONFIG[stockRequest.status as keyof typeof ST_STATUS_CONFIG] || ST_STATUS_CONFIG.draft;
-    const StatusIcon = currentStatus.icon || Edit;
-    const permissions = can || stockRequest.can || {} as STPermissions;
+    const permissions: Partial<STPermissions> = can || stockRequest.can || {};
     const isApprovalView = Boolean(approvalContext?.approvalId);
 
     // Handle void action
@@ -256,117 +165,16 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
             <Head title={`ST ${stockRequest.st_number}`} />
 
             <div className="bg-white">
-                {/* Header */}
-                <div className="border-b border-gray-200 px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <Link
-                                href={isApprovalView ? route('stock-approvals.index') : route('stock-requests.index')}
-                                className="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                            <div>
-                                <div className="flex items-center space-x-3">
-                                    <h1 className="text-xl font-semibold text-gray-900">
-                                        {stockRequest.st_number}
-                                    </h1>
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${currentStatus.bg} ${currentStatus.text}`}>
-                                        <StatusIcon className="w-3.5 h-3.5 mr-1" />
-                                        {currentStatus.label}
-                                    </span>
-                                    {stockRequest.offline_approved_at && (
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                                            <Shield className="w-3.5 h-3.5 mr-1" />
-                                            Offline Approved
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-sm text-gray-500 mt-0.5">
-                                    {stockRequest.business_unit?.name || 'N/A'} • {stockRequest.department?.name || 'N/A'}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center space-x-2">
-                            {permissions?.edit && (
-                                <Link
-                                    href={route('stock-requests.edit', { stockRequest: stockRequest.id })}
-                                    className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-                                >
-                                    <Edit className="w-4 h-4 mr-1.5" />
-                                    Edit
-                                </Link>
-                            )}
-
-                            {permissions?.resubmit && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleResubmit}
-                                    className="text-primary hover:text-primary hover:bg-blue-600"
-                                >
-                                    <RotateCcw className="w-4 h-4 mr-1.5" />
-                                    Resubmit
-                                </Button>
-                            )}
-
-                            {permissions?.resendApprovalEmail && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleResendApprovalEmail}
-                                    disabled={isResendingEmail}
-                                    className="text-sky-600 hover:text-sky-900 hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isResendingEmail ? (
-                                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                                    ) : (
-                                        <Send className="w-4 h-4 mr-1.5" />
-                                    )}
-                                    Resend Email
-                                </Button>
-                            )}
-
-                            {permissions?.downloadPdf && (
-                                <a
-                                    href={route('stock-requests.pdf-public', { stockRequest: stockRequest.id })}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-                                >
-                                    <Download className="w-4 h-4 mr-1.5" />
-                                    Download PDF
-                                </a>
-                            )}
-
-                            {permissions?.markOfflineApproved && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowOfflineModal(true)}
-                                    className="text-purple-600 hover:text-purple-900 hover:bg-purple-50"
-                                >
-                                    <Shield className="w-4 h-4 mr-1.5" />
-                                    Mark Offline Approved
-                                </Button>
-                            )}
-
-                            {permissions?.void && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowVoidModal(true)}
-                                    className="text-red-600 hover:text-red-900 hover:bg-red-50"
-                                >
-                                    <Ban className="w-4 h-4 mr-1.5" />
-                                    Void
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                <StockRequestHeader
+                    stockRequest={stockRequest}
+                    permissions={permissions}
+                    isApprovalView={isApprovalView}
+                    isResendingEmail={isResendingEmail}
+                    onResubmit={handleResubmit}
+                    onResendApprovalEmail={handleResendApprovalEmail}
+                    onMarkOfflineApproved={() => setShowOfflineModal(true)}
+                    onVoid={() => setShowVoidModal(true)}
+                />
 
 
                 {/* Alert for Rejected STs */}
@@ -395,115 +203,8 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         {/* Main Content (2/3) */}
                         <div className="xl:col-span-2 space-y-6">
-                            {/* Request Details Card */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                            >
-                                <div className="px-5 py-4 border-b border-gray-100">
-                                    <h3 className="text-base font-semibold text-gray-900">Request Details</h3>
-                                </div>
-                                <div className="p-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-                                        <div className="mb-6">
-                                            <p className="text-sm font-medium text-gray-500">Requested By</p>
-                                            <p className="mt-1 text-sm text-gray-900">{stockRequest.user?.name || 'N/A'}</p>
-                                        </div>
-                                        <div className="mb-6">
-                                            <p className="text-sm font-medium text-gray-500">Department</p>
-                                            <p className="mt-1 text-sm text-gray-900">
-                                                {stockRequest.department?.name || 'N/A'} ({stockRequest.department?.code || 'N/A'})
-                                            </p>
-                                        </div>
-                                        <div className="mb-6">
-                                            <p className="text-sm font-medium text-gray-500">Date of Request</p>
-                                            <p className="mt-1 text-sm text-gray-900">{formatDate(stockRequest.date_of_request)}</p>
-                                        </div>
-                                        <div className="mb-6">
-                                            <p className="text-sm font-medium text-gray-500">Expected Date</p>
-                                            <p className="mt-1 text-sm text-gray-900">{formatDate(stockRequest.expected_date) || 'Not specified'}</p>
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <p className="text-sm font-medium text-gray-500">Purpose</p>
-                                            <p className="mt-1 text-sm text-gray-900">{stockRequest.purpose || 'Not specified'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-
-
-                            {/* Items Table Card */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                            >
-                                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                                    <h3 className="text-base font-semibold text-gray-900">Items</h3>
-                                    <span className="text-sm text-gray-500">
-                                        {stockRequest.items?.length || 0} {stockRequest.items?.length === 1 ? 'item' : 'items'}
-                                    </span>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
-                                                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                                                <th className="px-5 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-100">
-                                            {stockRequest.items && stockRequest.items.length > 0 ? (
-                                                stockRequest.items.map((item, index) => (
-                                                    <motion.tr
-                                                        key={item.id}
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        transition={{ delay: 0.3 + index * 0.05 }}
-                                                        className="hover:bg-gray-50 transition-colors"
-                                                    >
-                                                        <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
-                                                        <td className="px-5 py-4">
-                                                            <div className="text-sm text-gray-900">{item.item_name}</div>
-                                                            {item.item_description && (
-                                                                <div className="text-sm text-gray-400 mt-1">{item.item_description}</div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                                            {item.quantity} {item.unit}
-                                                        </td>
-                                                        <td className="px-5 py-4 whitespace-nowrap text-center">
-                                                            {item.image_path ? (
-                                                                <a
-                                                                    href={`/storage/${item.image_path}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-blue-600 hover:text-blue-800"
-                                                                >
-                                                                    <Eye className="w-4 h-4 inline" />
-                                                                </a>
-                                                            ) : (
-                                                                <span className="text-gray-400">-</span>
-                                                            )}
-                                                        </td>
-                                                    </motion.tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-gray-500">
-                                                        No items found
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </motion.div>
+                            <StockRequestSummaryPanel stockRequest={stockRequest} />
+                            <StockRequestItemsTable stockRequest={stockRequest} />
                         </div>
 
 
@@ -633,79 +334,30 @@ export default function Show({ stockRequest, can, approvalContext }: ShowPagePro
                 </div>
 
 
-                <VoidConfirmModal
-                    open={showVoidModal}
-                    onClose={() => setShowVoidModal(false)}
+                <StockRequestActionModals
+                    itemNumber={stockRequest.st_number}
+                    showVoidModal={showVoidModal}
+                    showOfflineModal={showOfflineModal}
+                    showApproveModal={showApproveModal}
+                    showRejectModal={showRejectModal}
                     isSubmitting={isSubmitting}
-                    reason={voidReason}
-                    onReasonChange={setVoidReason}
-                    onSubmit={handleVoid}
-                    itemNumber={stockRequest.st_number}
-                />
-
-                {/* Offline Approval Modal */}
-                <AnimatePresence>
-                    {showOfflineModal && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                            onClick={() => setShowOfflineModal(false)}
-                        >
-                            <motion.div
-                                initial={{ scale: 0.95, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0.95, opacity: 0 }}
-                                className="bg-white rounded-xl p-6 max-w-md w-full mx-4"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Mark as Offline Approved</h3>
-                                <form onSubmit={handleOfflineApproval}>
-                                    <div className="mb-4">
-                                        <OfflineApprovalUpload
-                                            value={offlineDocument}
-                                            onChange={setOfflineDocument}
-                                            notes={offlineNotes}
-                                            onNotesChange={setOfflineNotes}
-                                            isSubmitting={isSubmitting}
-                                        />
-                                    </div>
-                                    <div className="flex justify-end space-x-3">
-                                        <Button type="button" variant="ghost" onClick={() => setShowOfflineModal(false)}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit" disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700 text-white">
-                                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                            Mark Approved
-                                        </Button>
-                                    </div>
-                                </form>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-                <ApprovalDecisionModal
-                    open={showApproveModal}
-                    onClose={() => setShowApproveModal(false)}
-                    mode="approve"
-                    isSubmitting={isDecisionSubmitting}
-                    notes={approvalNotes}
-                    onNotesChange={setApprovalNotes}
-                    onSubmit={() => handleApprovalDecision('approve')}
-                    itemNumber={stockRequest.st_number}
-                />
-
-                <ApprovalDecisionModal
-                    open={showRejectModal}
-                    onClose={() => setShowRejectModal(false)}
-                    mode="reject"
-                    isSubmitting={isDecisionSubmitting}
-                    notes={approvalNotes}
-                    onNotesChange={setApprovalNotes}
-                    onSubmit={() => handleApprovalDecision('reject')}
-                    itemNumber={stockRequest.st_number}
-                    notesRequired
+                    isDecisionSubmitting={isDecisionSubmitting}
+                    voidReason={voidReason}
+                    offlineNotes={offlineNotes}
+                    offlineDocument={offlineDocument}
+                    approvalNotes={approvalNotes}
+                    onVoidClose={() => setShowVoidModal(false)}
+                    onOfflineClose={() => setShowOfflineModal(false)}
+                    onApproveClose={() => setShowApproveModal(false)}
+                    onRejectClose={() => setShowRejectModal(false)}
+                    onVoidReasonChange={setVoidReason}
+                    onOfflineNotesChange={setOfflineNotes}
+                    onOfflineDocumentChange={setOfflineDocument}
+                    onApprovalNotesChange={setApprovalNotes}
+                    onVoidSubmit={handleVoid}
+                    onOfflineSubmit={handleOfflineApproval}
+                    onApproveSubmit={() => handleApprovalDecision('approve')}
+                    onRejectSubmit={() => handleApprovalDecision('reject')}
                 />
             </div>
         </>

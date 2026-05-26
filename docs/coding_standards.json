@@ -98,26 +98,33 @@
   },
   "harness_agent_mapping": {
     "available_types": [
-      "default",
-      "explorer",
-      "worker",
-      "qa"
+      "coder-backend",
+      "coder-frontend",
+      "debugger",
+      "explore",
+      "general",
+      "qa",
+      "reviewer",
+      "viewer"
     ],
     "role_to_type": {
-      "viewer": "explorer",
-      "coder_backend": "worker",
-      "coder_frontend": "worker",
+      "viewer": "viewer",
+      "explorer": "explore",
+      "coder_backend": "coder-backend",
+      "coder_frontend": "coder-frontend",
       "qa": "qa",
-      "reviewer_default": "explorer",
-      "reviewer_escalated": "default",
-      "researcher": "explorer"
+      "reviewer": "reviewer",
+      "debugger": "debugger",
+      "researcher": "general"
     },
     "rules": [
-      "spawn workers for implementation tasks with clear file ownership",
-      "spawn explorers for the viewer lane and other read-only discovery tasks",
+      "spawn coder-backend or coder-frontend agents for implementation tasks with clear file ownership",
+      "spawn viewer agents for focused read-only validation and contract tracing",
+      "spawn explore agents for broad repository discovery and mapping",
       "spawn qa agents for browser-level verification, runtime tracing, and evidence gathering",
-      "spawn explorers for repo discovery, tracing, and read-only review when routed through viewer or reviewer",
-      "use default for reviewer work only when explorer-level review is insufficient",
+      "spawn reviewer agents for standards, security, contract, and regression review",
+      "spawn debugger agents when root cause is unclear or the failure requires systematic investigation",
+      "use general agents for research or synthesis that does not fit a specialist lane",
       "do not assume permanent sub-agent connectivity; assign and spawn per task"
     ]
   },
@@ -135,13 +142,57 @@
       "prefer_inertia_link_and_router_visit": true,
       "prefer_named_route_helpers": true,
       "require_contract_safe_types": true,
-      "avoid_untyped_any_when_reasonable": true
+      "avoid_untyped_any_when_reasonable": true,
+      "require_multiline_jsx_for_3_or_more_props": true,
+      "forbid_minified_jsx_single_lines": true
     },
     "general": {
       "preserve_existing_directory_structure": true,
       "forbid_dependency_changes_without_approval": true,
       "forbid_destructive_git_commands_without_explicit_approval": true
     }
+  },
+  "file_size_limits": {
+    "rule": "Files exceeding hard_cap MUST be split into focused modules in the next refactor pass. Generated files and pure constants/types/data files are exempted.",
+    "soft_target_lines": {
+      "react_component": 250,
+      "inertia_page": 300,
+      "custom_hook": 80,
+      "php_controller": 250,
+      "php_service": 200,
+      "php_model": 250,
+      "php_action_class": 150
+    },
+    "hard_cap_lines": {
+      "react_component": 400,
+      "inertia_page": 500,
+      "custom_hook": 150,
+      "php_controller": 500,
+      "php_service": 350,
+      "php_model": 400,
+      "php_action_class": 300
+    },
+    "exemptions": [
+      "constants/*.ts",
+      "types/*.ts",
+      "data files (e.g., articles.ts, lookup tables)",
+      "generated files (manifests, lockfiles)"
+    ]
+  },
+  "chunked_write_protocol": {
+    "rule": "All write/edit operations must respect per-operation server timeouts. Oversized writes fail and waste tokens.",
+    "max_lines_per_operation": 350,
+    "recommended_lines_per_operation": 300,
+    "patterns": {
+      "new_files_over_300_lines": "Write first 250-300 line chunk, then append remaining content in 250-300 line follow-up operations.",
+      "editing_existing_files": "Use surgical edits that change only what is needed. Never rewrite an entire file to change a small section.",
+      "large_refactors": "Split into multiple small focused edits (one method body at a time, one section at a time)."
+    },
+    "forbidden": [
+      "Minifying JSX into single 4000+ character lines to artificially reduce file line count",
+      "Full file replacement when only 5-20 lines need to change",
+      "Skipping verification (php artisan test, npm run build, npx tsc) after refactor work"
+    ]
   },
   "error_handling": {
     "backend": [

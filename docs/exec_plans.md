@@ -1244,6 +1244,38 @@
 - `features.cashflow.minimum_balance_global` — env `CASHFLOW_MINIMUM_BALANCE_GLOBAL`, default `200000000` IDR. Replaces `CashflowProjectionController::MINIMUM_BALANCE_GLOBAL`. The Inertia prop `minimumBalanceGlobal` and the row-level `is_warning` flag now read from config.
 - `features.purchasing.pdf_generation_timeout` — env `PURCHASING_PDF_TIMEOUT`, default `300` seconds. Used by `PurchaseRequestController::downloadPdfPublic()` for `set_time_limit(...)` during Browsershot PDF generation.
 
+## Phase 2 PR/ST Consolidation (2026-05-26)
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend` (parallel)
+- Backend extraction (commit `b9701a94`):
+  - `app/Services/Modules/Purchasing/Shared/PdfGenerationService.php` (134 lines) — Browsershot wrapper, replaces ~110 lines duplicated across `PurchaseRequestController::downloadPdfPublic` and `StockRequestController::downloadPdfPublic`. Uses `config('features.purchasing.pdf_generation_timeout')` from Phase 1.
+  - `app/Services/Modules/Purchasing/Shared/RequestFormDataProvider.php` (123 lines) — `getAvailableApprovers`, `getAccessibleDepartments`, `getPrCategories`. Replaces inline form data builders in 4 controller callsites (`PurchaseRequestController::create`/`editInertia`, `StockRequestController::createInertia`/`editInertia`).
+  - `app/Services/Modules/Purchasing/Shared/ApprovalAuthorityResolver.php` (84 lines) — `findDepartmentHead`/`findFinanceManager`/`findGeneralManager`/`findDirector`. Centralizes role lookups previously inlined in `ApprovalWorkflowService::determineApprovers`. The threshold rule engine itself stays in ApprovalWorkflowService for now (Phase 3 territory).
+  - Controller LOC: `PurchaseRequestController` 1414→1329 (-85), `StockRequestController` 1137→1052 (-85), `ApprovalWorkflowService` 830→791 (-39). Total -209 LOC removed, +341 LOC in shared services with single source of truth.
+  - Deviations: `ApprovalWorkflowService` constructor accepts nullable resolver with lazy default (10 tests instantiate via `new` without DI); `PdfGenerationService::streamPdf` returns `Response|RedirectResponse` to match legacy raw response shape; `getAvailableApprovers` has `excludeSuperAdmin` flag because PR.create historically filtered super_admin while 3 other callsites didn't; `findDepartmentHead` accepts BU id but doesn't filter yet (parity with legacy query).
+- Frontend extraction (commit `92d7fff0`):
+  - `resources/js/inertia/components/purchasing/ApprovalWorkflowBuilder.tsx` (104 lines) — reusable approval workflow builder UI used by both PR and ST forms.
+  - `resources/js/inertia/components/purchasing/OfflineApprovalUpload.tsx` (134 lines) — file input + preview + notes for offline approval evidence.
+  - `resources/js/inertia/components/purchasing/SupportingDocumentLink.tsx` (55 lines) — consistent document link component (View + Download).
+  - `resources/js/inertia/components/purchasing/modals/ApprovalDecisionModal.tsx` (80 lines) — single component covers Approve and Reject via `mode` prop.
+  - `resources/js/inertia/components/purchasing/modals/VoidConfirmModal.tsx` (67 lines) — confirm-with-reason for Void action.
+  - Migrated LOC (Phase 1 baseline → Phase 2 final): `Pages/Purchasing/PurchaseRequest/Show.tsx` 1165→859 (-306, -26%), `Pages/Purchasing/StockRequest/Show.tsx` 742→713 (-29), `components/purchasing/PurchaseRequestForm.tsx` 535→476 (-59), `components/purchasing/StockRequestForm.tsx` 576→474 (-102). Total -496 LOC removed across 4 files, +440 LOC in 5 new shared components.
+  - Type extraction: shared approval workflow types added to `resources/js/inertia/types/purchasing.ts`.
+  - Deviations: `ApprovalWorkflowBuilder` gained `onUpdate` prop to support edit-in-place of approver/task type; ST approval card kept in place but action moved into `ApprovalDecisionModal` (contract unchanged: still posts `stock-approvals.process` with `action+notes`).
+- Verification:
+  - `php artisan test --filter="PurchaseRequest|StockRequest|ApprovalWorkflow|Approval"` — 72 passed (383 assertions), 0 new failures
+  - Full suite: 371 passed, 1 skipped (pre-existing), 0 new failures
+  - `vendor/bin/pint --dirty` — clean
+  - `npx tsc --noEmit --pretty false` — only 2 pre-existing `echo.ts` errors
+  - `npm run build` — clean
+  - Route parity: 47 purchase/stock routes both before and after
+- Follow-ups for Phase 3:
+  - `UniversalPRNumberingService` and `UniversalStockNumberingService` have parallel structure, candidate for consolidation
+  - `generateQrCodesForPdf` still duplicated between PR and ST controllers (~25 lines each); extraction needs strategy class because of different model + QrCodeService methods
+  - Threshold rule engine in `ApprovalWorkflowService::determineApprovers` still hardcodes rule order and reason strings; intent to extract into a rule/spec object preserved
+  - PR `editInertia`'s `getAccessibleDepartments` is named forward-looking but currently mirrors historical behavior (returns all active BU departments); a stricter user-scoped filter would be a behavior change for future iteration
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.

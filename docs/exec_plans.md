@@ -1323,11 +1323,53 @@ PO directive: bring all Phase 1+2 touched files under 500 lines (soft target 300
 - All verification gates pass (72 focused, 371 total tests; npm run build clean; npx tsc only pre-existing echo.ts errors)
 - 0 backend or contract changes
 
+## Phase 2 Continuation 2 - Touched-light modules + standards codification (2026-05-26)
+PO directive: lanjut module yang touched ringan + jadikan ini standard project.
+
+### Standards codified (commit `bcb35bbd`)
+- AGENTS.md: added "File Size & Write Operation Standards" section with hard caps per file type + chunked write protocol
+- docs/coding_standards.json: added `file_size_limits` and `chunked_write_protocol` machine-readable rules + JSX multi-line requirement
+- Forbidden patterns documented: minified JSX, full-file replacement, skipping verification
+
+### Backend split (commit `5c8d5678`)
+Final line counts:
+- ActivityInertiaController.php: 1726 → 499
+- CashflowProjectionController.php: 1366 → 390
+- CashflowProjectionEntryImportService.php: 643 → 317
+
+New Activity services (`app/Services/Modules/Activity/`): TaskQueryBuilder (161), TaskScopeResolver (132), TaskPresenter (209), ActivityAnalyticsAggregator (228), ActivityVisualsBuilder (196), ExecutiveOverviewService (186), BackdateApprovalQueryService (74).
+New Activity actions (`app/Actions/Modules/Activity/`): CreateActivityTaskAction (161), UpdateActivityTaskAction (281), BackdateApprovalAction (105).
+New Cashflow services: CashflowSummaryCalculator (266), LinkedCycleMerger (117), CashflowProjectionScopePolicy (104), CashflowDashboardComposer (149), CashflowExcelBuilder (323), CashflowProjectionPayloadFormatter (199), CashflowProjectionImportRowParser (167), CashflowProjectionImportValidator (248), CashflowProjectionImportErrorAggregator (83).
+New Cashflow actions: StoreCashflowLineItemAction (118), UpdateCashflowLineItemAction (135), DestroyCashflowLineItemAction (83), UpsertFinanceInputAction (87).
+Verified: 106 Activity tests + 36 Cashflow tests pass, full suite 371/1 skip baseline preserved, 65 routes preserved.
+
+### Cashflow frontend split (commit `4b47bf48`)
+- Pages/CashflowProjection/Entries.tsx: 739 → 492
+- Pages/CashflowProjection/Index.tsx: 633 → 434
+- New components under Pages/CashflowProjection/components/: EntriesPageHeader (130), EntriesTable (199), DashboardHeader (296). Existing ProjectionChartCard reused.
+
+### Activity frontend split (commit `ea8727de`)
+- Pages/Activity/TaskForm.tsx: 890 → 436
+- components/activity/TaskFormModal.tsx: 659 → 485
+- Pages/Activity/Admin/Dashboard.tsx: 621 → 489
+- components/activity/ActivityCalendar.tsx: 607 → 492
+- components/activity/KanbanBoard.tsx: 575 → 290
+- New form components: Time24Input, BackdateRequestModal, TaskScheduleCard, TaskSuccessModal, ParticipantSelector, TaskClassificationCard (149), TaskFormModalHeader (22), TaskFormModalFooter (76), TaskFormModalTimeline (216).
+- New admin components: AdminMetricCards (69), DepartmentBreakdown (143), DashboardFilterBar (95).
+- New calendar components: CalendarHeader (99), CalendarStyles (79).
+- New kanban components: KanbanColumn (251).
+- Note: First attempt was partial (TaskForm 543, Modal 662 still over). Resumed with same task_id and finished all 5 in continuation. Multi-line JSX preserved per chunked_write_protocol.
+
+### Cumulative Phase 2 + continuation 1 + continuation 2 impact
+- 16 oversized files brought under 500 hard cap
+- 50+ focused modules created across backend Actions/Services + frontend components
+- All verification gates pass: tests 371 (1 skip pre-existing), tsc only echo.ts, build clean, pint clean
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.
 - Existing repo documentation in `docs/` predates the new execution model and may need gradual consolidation.
-- Files still > 500 lines (deferred to future phases): backend `ActivityInertiaController` (1726), `CashflowProjectionController` (1366), `PurchasingAdminController` (1019), `User` model (746), `ApprovalController` (711), `CashflowEntryImportService` (643), `PurchaseRequestService` (537), `NavigationService` (525), `UserManagementController` (516); frontend `Pages/DocsHelp/data/articles.ts` (1821, data file exempted), `TaskForm.tsx` (890), `ActivityTypes/Index.tsx` (709), `TaskFormModal.tsx` (659), `Cashflow/Entries.tsx` (656), `Activity/Admin/Dashboard.tsx` (621), `ActivityCalendar.tsx` (607), `KanbanBoard.tsx` (575), `Cashflow/Index.tsx` (551), `ErrorPage.tsx` (541), `SubActivities/Index.tsx` (535).
+- Files still > 500 lines (deferred to future phases): backend `PurchasingAdminController` (1019), `User` model (746), `ApprovalController` (711), `PurchaseRequestService` (537), `NavigationService` (525), `UserManagementController` (516); frontend `Pages/DocsHelp/data/articles.ts` (1821, data file exempted), `Pages/Admin/ActivityTypes/Index.tsx` (709), `Pages/ErrorPage.tsx` (541), `Pages/Admin/SubActivities/Index.tsx` (535), plus other Ticket/Notification/Admin module files not yet surveyed.
 
 ## MCP Verification Checklist
 - After changing `.mcp.json` or editor-specific MCP config, reload the client that owns those settings.

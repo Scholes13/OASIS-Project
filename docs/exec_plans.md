@@ -1276,10 +1276,58 @@
   - Threshold rule engine in `ApprovalWorkflowService::determineApprovers` still hardcodes rule order and reason strings; intent to extract into a rule/spec object preserved
   - PR `editInertia`'s `getAccessibleDepartments` is named forward-looking but currently mirrors historical behavior (returns all active BU departments); a stricter user-scoped filter would be a behavior change for future iteration
 
+## Phase 2 Continuation - Hard 500-line cap (2026-05-26)
+PO directive: bring all Phase 1+2 touched files under 500 lines (soft target 300). Three logical commits.
+
+### Backend split (commit `b9675b64`)
+- `PurchaseRequestController.php`: 1329 → 497 (-832)
+- `StockRequestController.php`: 1052 → 349 (-703)
+- `ApprovalWorkflowService.php`: 791 → 385 (-406)
+- New Action classes under `app/Actions/Modules/Purchasing/`:
+  - PR: Create (131), Update (139), MarkOfflineApproved (63), Resubmit (44), ProcessApproval (68), SideEffects (83)
+  - ST: Create (210), Update (181), MarkStockOfflineApproved (73), Resubmit (66)
+- New service classes:
+  - `Purchasing/PurchaseRequest/ApprovalRuleEngine` (236) - threshold rules + workflow steps + due date calc
+  - `Purchasing/PurchaseRequest/ApprovalNotificationDispatcher` (148)
+  - `Purchasing/PurchaseRequest/PurchaseRequestDocumentService` (169)
+  - `Purchasing/PurchaseRequest/PurchaseRequestQueryService` (319)
+  - `Purchasing/StockRequest/StockRequestDocumentService` (130)
+  - `Purchasing/StockRequest/StockRequestQueryService` (213)
+- All new files < 350 lines. Controllers reduced to thin orchestrators (validate -> action -> response).
+- Verified: 72 focused tests + 371 full suite passed (1 skip pre-existing).
+
+### Frontend Show pages split (commit `7c7793b5`)
+- `Pages/Purchasing/PurchaseRequest/Show.tsx`: 859 → 282 (-577)
+- `Pages/Purchasing/StockRequest/Show.tsx`: 713 → 339 (-374)
+- New components under `resources/js/inertia/components/purchasing/show/`:
+  - PurchaseRequestHeader (110), SummaryPanel (46), ItemsTable (80), ApprovalsTimeline (97), ActionModals (106)
+  - StockRequestHeader (54), SummaryPanel (36), ItemsTable (50), ActionModals (62)
+- Note: PR/ST shapes differ enough that shared components were not forced.
+
+### Frontend Activity decomposition (commit `a76d94fc`)
+- `components/activity/ActivityDataTable.tsx`: 1240 → 489 (-751)
+- `Pages/Activity/ActivityDashboard.tsx`: 997 → 454 (-543)
+- `Pages/Admin/ActivityConfiguration/Index.tsx`: 1069 → 492 (-577)
+- New components under `resources/js/inertia/components/activity/datatable/`:
+  - DateFilter (180), MetricCards (211), StatusDropdown (169), TaskListView (235), AvatarStack (58), TypeBadge (28)
+- New components under `resources/js/inertia/components/activity/dashboard/`:
+  - ExecutiveView (224), TeamActivitySection (157), DashboardMetricCards (98), DashboardFilterBar (227)
+- New components under `resources/js/inertia/components/admin/activity/`:
+  - ActivityTypeAccordion (249), ActivityTypeFormModal (201), SubActivityFormModal (113), ConfirmDeleteModal (36), ActivityConfigurationHeader (35), ActivityConfigurationFilters (70), ActivityConfigurationModals (112)
+- Pure utility: `lib/insightGenerator.ts` (30) - generateInsight extracted from ActivityDashboard
+- Note: Initial agent attempt was REVERTED because it minified JSX into 4000-char single lines (defeats maintainability). Re-execution used apply_patch with surgical edits + multi-line JSX preserved. Pre-existing dashboard helpers (StatsCards, TaskRoadmap, FocusBreakdownPanel, DistributionChart, UpcomingTasks, index) untouched.
+
+### Cumulative impact (Phase 1+2 + this continuation)
+- 8 oversized files brought under 500 hard cap
+- ~3000 LOC moved from monolithic files into 30+ focused modules
+- All verification gates pass (72 focused, 371 total tests; npm run build clean; npx tsc only pre-existing echo.ts errors)
+- 0 backend or contract changes
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.
 - Existing repo documentation in `docs/` predates the new execution model and may need gradual consolidation.
+- Files still > 500 lines (deferred to future phases): backend `ActivityInertiaController` (1726), `CashflowProjectionController` (1366), `PurchasingAdminController` (1019), `User` model (746), `ApprovalController` (711), `CashflowEntryImportService` (643), `PurchaseRequestService` (537), `NavigationService` (525), `UserManagementController` (516); frontend `Pages/DocsHelp/data/articles.ts` (1821, data file exempted), `TaskForm.tsx` (890), `ActivityTypes/Index.tsx` (709), `TaskFormModal.tsx` (659), `Cashflow/Entries.tsx` (656), `Activity/Admin/Dashboard.tsx` (621), `ActivityCalendar.tsx` (607), `KanbanBoard.tsx` (575), `Cashflow/Index.tsx` (551), `ErrorPage.tsx` (541), `SubActivities/Index.tsx` (535).
 
 ## MCP Verification Checklist
 - After changing `.mcp.json` or editor-specific MCP config, reload the client that owns those settings.

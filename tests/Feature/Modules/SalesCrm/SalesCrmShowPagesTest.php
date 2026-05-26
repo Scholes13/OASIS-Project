@@ -36,7 +36,7 @@ class SalesCrmShowPagesTest extends TestCase
                 'current_business_unit_name' => $businessUnit->name,
                 'current_department_id' => $department->id,
             ])
-            ->get(route('sales-crm.activities.index'));
+            ->get('/sales-crm/activities');
 
         $response->assertNotFound();
     }
@@ -53,7 +53,7 @@ class SalesCrmShowPagesTest extends TestCase
                 'current_business_unit_name' => $businessUnit->name,
                 'current_department_id' => $department->id,
             ])
-            ->get(route('sales-crm.contacts.index'));
+            ->get('/sales-crm/contacts');
 
         $response->assertNotFound();
     }

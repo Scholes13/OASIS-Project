@@ -1220,6 +1220,29 @@
 - 2026-03-27: Harness Engineering scaffold established with architecture, standards, and execution tracking documents.
 - 2026-03-27: Harness sub-agent role mapping documented for `worker`, `explorer`, and `default` usage.
 - 2026-03-27: `context7` MCP server wired into workspace MCP configs and documented as the preferred source for up-to-date external package guidance.
+- 2026-05-26: Phase 1 backend foundation — config audit (moved `CACHE_TTL`, `MINIMUM_BALANCE_GLOBAL`, and PDF `set_time_limit(300)` magic numbers to `config/features.php` keys, defaults preserved) and SalesCrm archive hardening (routes wrapped in `if (config('features.sales_crm', false))` so they no longer register by default; `SharedRouteContractTest` SalesCrm assertions split into a flag-gated `markTestSkipped` method; `SalesCrmShowPagesTest` switched from `route()` helpers to literal URLs so it works whether or not the routes are registered; `@deprecated` PHPDoc + `<!-- ARCHIVED -->` headers added to SalesCrm controller, services, and models). No schema, model, or contract changes.
+
+## SalesCrm Archive — Reactivation Notes (2026-05-26)
+- **What was disabled:** the `Route::prefix('sales-crm')` group in `routes/web.php` is now wrapped in `if (config('features.sales_crm', false)) { ... }`. With the flag off (default), no `sales-crm.*` route names are registered and `/sales-crm/*` URLs return 404.
+- **What remains on disk (read-only references, do not extend):**
+  - `app/Http/Controllers/SalesCrmController.php` (marked `@deprecated`, `<!-- ARCHIVED -->` header)
+  - `app/Services/Modules/SalesCrm/{ActivityService,ContactService}.php`
+  - `app/Models/Modules/SalesCrm/{Activity,Contact,ContactSource,CompanyVisitHistory}.php`
+  - `database/migrations/modules/sales-crm/*` (already disabled in `AppServiceProvider`)
+  - `resources/views`/Inertia pages and any test fixtures referencing the module.
+- **Navigation:** `NavigationService::canAccessSalesCrm()` already short-circuits on `! config('features.sales_crm')`, so the menu section disappears with the flag off; no further change needed.
+- **Tests:** `SalesCrmShowPagesTest` asserts the 404 behaviour with the flag off; `SharedRouteContractTest::test_deprecated_sales_crm_route_contract_when_feature_enabled` skips when the flag is off and re-enforces controller-method bindings if/when the flag is turned on.
+- **If PO requests reactivation:**
+  1. Set `FEATURE_SALES_CRM=true` in the appropriate environment file.
+  2. Run `php artisan config:clear && php artisan route:clear && php artisan route:cache`.
+  3. Re-enable the migrations directory in `app/Providers/AppServiceProvider.php` (currently commented out due to duplicate-migration concerns) and reconcile any duplicates before running `php artisan migrate`.
+  4. Confirm `SharedRouteContractTest::test_deprecated_sales_crm_route_contract_when_feature_enabled` passes (it stops being skipped once the flag is on).
+  5. Treat the controller as a starting point only; do not bolt new features onto it without a fresh design review.
+
+## Phase 1 Config Keys Added (2026-05-26)
+- `features.activity.dashboard_cache_ttl` — env `ACTIVITY_DASHBOARD_CACHE_TTL`, default `300` seconds. Replaces the previous `ActivityInertiaController::CACHE_TTL` constant (which had no internal call sites and was removed).
+- `features.cashflow.minimum_balance_global` — env `CASHFLOW_MINIMUM_BALANCE_GLOBAL`, default `200000000` IDR. Replaces `CashflowProjectionController::MINIMUM_BALANCE_GLOBAL`. The Inertia prop `minimumBalanceGlobal` and the row-level `is_warning` flag now read from config.
+- `features.purchasing.pdf_generation_timeout` — env `PURCHASING_PDF_TIMEOUT`, default `300` seconds. Used by `PurchaseRequestController::downloadPdfPublic()` for `set_time_limit(...)` during Browsershot PDF generation.
 
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.

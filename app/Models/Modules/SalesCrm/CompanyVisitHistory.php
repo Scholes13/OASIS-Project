@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @deprecated SalesCrm module is archived. Retained on disk for reference
+ *             only. See docs/exec_plans.md for archive log.
+ */
 class CompanyVisitHistory extends Model
 {
     use HasFactory;

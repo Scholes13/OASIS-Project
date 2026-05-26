@@ -1100,7 +1100,7 @@ class PurchaseRequestController extends Controller
     public function downloadPdfPublic(PurchaseRequest $purchaseRequest)
     {
         // Increase PHP execution time for PDF generation
-        set_time_limit(300); // 5 minutes
+        set_time_limit((int) config('features.purchasing.pdf_generation_timeout', 300));
 
         // Load relationships needed for PDF
         $purchaseRequest->load([

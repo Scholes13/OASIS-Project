@@ -1,5 +1,16 @@
 <?php
 
+// <!-- ARCHIVED -->
+// =============================================================================
+// SalesCrm module — DEPRECATED / ARCHIVED
+// -----------------------------------------------------------------------------
+// This module is no longer actively maintained. Routes are gated behind the
+// `features.sales_crm` flag (env: FEATURE_SALES_CRM) and are NOT registered
+// when the flag is false (default). This file is kept on disk for reference
+// only. To reactivate, set FEATURE_SALES_CRM=true and run
+// `php artisan route:cache`. See docs/exec_plans.md for the archive log.
+// =============================================================================
+
 namespace App\Http\Controllers;
 
 use App\Models\Modules\SalesCrm\Activity;
@@ -11,6 +22,12 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
+/**
+ * @deprecated The SalesCrm module is archived. Routes are gated behind
+ *             config('features.sales_crm') and return 404 when the flag is
+ *             off. Code is retained on disk for reference only. Do not
+ *             extend without explicit Product Owner approval.
+ */
 class SalesCrmController extends Controller
 {
     protected ContactService $contactService;

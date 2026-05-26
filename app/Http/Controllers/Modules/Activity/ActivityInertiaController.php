@@ -28,8 +28,12 @@ use Inertia\Response;
 
 class ActivityInertiaController extends Controller
 {
-    protected const CACHE_TTL = 300; // 5 minutes
-
+    /**
+     * Activity dashboard cache TTL (seconds).
+     *
+     * Configured via `config('features.activity.dashboard_cache_ttl')`
+     * (env: ACTIVITY_DASHBOARD_CACHE_TTL). Default: 300.
+     */
     public function __construct(
         protected TaskService $taskService,
         protected BackdatePermissionService $backdateService,

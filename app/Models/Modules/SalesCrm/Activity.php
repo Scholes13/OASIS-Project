@@ -12,6 +12,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @deprecated SalesCrm module is archived. Retained on disk for reference
+ *             only. See docs/exec_plans.md for archive log.
+ */
 class Activity extends Model
 {
     use HasFactory, LogsActivity, SoftDeletes;

@@ -31,8 +31,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CashflowProjectionController extends Controller
 {
-    private const MINIMUM_BALANCE_GLOBAL = 200000000;
-
+    /**
+     * Global minimum cash balance threshold (IDR).
+     *
+     * Configured via `config('features.cashflow.minimum_balance_global')`
+     * (env: CASHFLOW_MINIMUM_BALANCE_GLOBAL). Default: 200_000_000.
+     */
     public function __construct(
         protected CashflowProjectionAccessService $accessService,
         protected CashflowProjectionTemplateService $templateService,
@@ -193,7 +197,7 @@ class CashflowProjectionController extends Controller
                 'status' => $cycle->status,
                 'year' => $cycle->year,
             ],
-            'minimumBalanceGlobal' => self::MINIMUM_BALANCE_GLOBAL,
+            'minimumBalanceGlobal' => (int) config('features.cashflow.minimum_balance_global', 200000000),
             'filters' => [
                 'mode' => $dashboardFilters['mode'],
                 'year' => $year,
@@ -1096,7 +1100,7 @@ class CashflowProjectionController extends Controller
                 'opening_balance' => $openingBalance,
                 'net' => $net,
                 'closing_balance' => $closingBalance,
-                'is_warning' => $closingBalance < self::MINIMUM_BALANCE_GLOBAL,
+                'is_warning' => $closingBalance < (int) config('features.cashflow.minimum_balance_global', 200000000),
             ];
         }
 

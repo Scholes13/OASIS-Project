@@ -262,31 +262,40 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     });
 
     // ============================================================================
-    // Sales CRM Routes (v2.5)
+    // Sales CRM Routes (v2.5) — DEPRECATED / ARCHIVED
+    // ----------------------------------------------------------------------------
+    // The Sales CRM module is archived. Controllers, services, models, and
+    // migrations remain on disk for reference but the routes only register
+    // when the `features.sales_crm` flag is explicitly enabled
+    // (env: FEATURE_SALES_CRM=true). With the flag off (default) the URLs
+    // return 404 because no route is registered.
+    // To reactivate, set FEATURE_SALES_CRM=true and run `php artisan route:cache`.
     // ============================================================================
-    Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {
-        // Activities
-        Route::prefix('activities')->name('activities.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesIndex'])->name('index');
-            Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'activitiesCreate'])->name('create');
-            Route::get('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesShow'])->name('show');
-            Route::get('/{activity}/edit', [\App\Http\Controllers\SalesCrmController::class, 'activitiesEdit'])->name('edit');
-            Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesStore'])->name('store');
-            Route::put('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesUpdate'])->name('update');
-            Route::delete('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesDestroy'])->name('destroy');
-        });
+    if (config('features.sales_crm', false)) {
+        Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {
+            // Activities
+            Route::prefix('activities')->name('activities.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesIndex'])->name('index');
+                Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'activitiesCreate'])->name('create');
+                Route::get('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesShow'])->name('show');
+                Route::get('/{activity}/edit', [\App\Http\Controllers\SalesCrmController::class, 'activitiesEdit'])->name('edit');
+                Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesStore'])->name('store');
+                Route::put('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesUpdate'])->name('update');
+                Route::delete('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesDestroy'])->name('destroy');
+            });
 
-        // Contacts
-        Route::prefix('contacts')->name('contacts.')->middleware('can:view_contacts')->group(function () {
-            Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsIndex'])->name('index');
-            Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'contactsCreate'])->name('create');
-            Route::get('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsShow'])->name('show');
-            Route::get('/{contact}/edit', [\App\Http\Controllers\SalesCrmController::class, 'contactsEdit'])->name('edit');
-            Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsStore'])->name('store');
-            Route::put('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsUpdate'])->name('update');
-            Route::delete('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsDestroy'])->name('destroy');
+            // Contacts
+            Route::prefix('contacts')->name('contacts.')->middleware('can:view_contacts')->group(function () {
+                Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsIndex'])->name('index');
+                Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'contactsCreate'])->name('create');
+                Route::get('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsShow'])->name('show');
+                Route::get('/{contact}/edit', [\App\Http\Controllers\SalesCrmController::class, 'contactsEdit'])->name('edit');
+                Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsStore'])->name('store');
+                Route::put('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsUpdate'])->name('update');
+                Route::delete('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsDestroy'])->name('destroy');
+            });
         });
-    });
+    }
 
     // ============================================================================
     // Activity Tracking Module Routes (INERTIA/REACT)

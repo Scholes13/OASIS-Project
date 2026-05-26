@@ -43,6 +43,28 @@ class SharedRouteContractTest extends TestCase
         );
 
         $this->assertRouteAction(
+            'activity.backdate.approve',
+            'App\\Http\\Controllers\\Modules\\Activity\\ActivityInertiaController@approveBackdate'
+        );
+
+        $this->assertRouteAction(
+            'activity.backdate.reject',
+            'App\\Http\\Controllers\\Modules\\Activity\\ActivityInertiaController@rejectBackdate'
+        );
+    }
+
+    /**
+     * @deprecated SalesCrm module is archived. This contract is preserved for
+     *             the case where the feature flag is re-enabled. The test is
+     *             skipped when `features.sales_crm` is off (the default).
+     */
+    public function test_deprecated_sales_crm_route_contract_when_feature_enabled(): void
+    {
+        if (! config('features.sales_crm', false)) {
+            $this->markTestSkipped('SalesCrm module is archived; feature flag is off.');
+        }
+
+        $this->assertRouteAction(
             'sales-crm.activities.store',
             'App\\Http\\Controllers\\SalesCrmController@activitiesStore'
         );
@@ -70,16 +92,6 @@ class SharedRouteContractTest extends TestCase
         $this->assertRouteAction(
             'sales-crm.contacts.destroy',
             'App\\Http\\Controllers\\SalesCrmController@contactsDestroy'
-        );
-
-        $this->assertRouteAction(
-            'activity.backdate.approve',
-            'App\\Http\\Controllers\\Modules\\Activity\\ActivityInertiaController@approveBackdate'
-        );
-
-        $this->assertRouteAction(
-            'activity.backdate.reject',
-            'App\\Http\\Controllers\\Modules\\Activity\\ActivityInertiaController@rejectBackdate'
         );
     }
 

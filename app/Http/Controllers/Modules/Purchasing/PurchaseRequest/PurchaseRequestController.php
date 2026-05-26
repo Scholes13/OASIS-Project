@@ -1212,9 +1212,28 @@ class PurchaseRequestController extends Controller
      * Determine whether the authenticated user may access the offline
      * approval evidence for a purchase request.  Mirrors the stock
      * request behaviour at StockRequestController::canAccessOfflineApprovalDocument.
+     *
+     * Allowed identities (PO 2026-05-26 widening):
+     *   - super admin
+     *   - top management (`hasTopManagementAccess()` true; e.g. CEO, MD, Chief of Staff)
+     *   - purchasing admin in the PR's BU or any ancestor BU
+     *   - the assigned approver
+     *   - the PR creator (only when the PR is in the user's current BU context)
      */
     private function canAccessOfflineApprovalDocument(PurchaseRequest $purchaseRequest, \App\Models\Core\User $user, int $currentBusinessUnitId): bool
     {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasTopManagementAccess()) {
+            return true;
+        }
+
+        if ($user->isAdminInBuOrAncestor('is_purchasing_admin', $purchaseRequest->business_unit_id)) {
+            return true;
+        }
+
         $isAssignedApprover = $purchaseRequest->approvals()
             ->where('approver_id', $user->id)
             ->exists();

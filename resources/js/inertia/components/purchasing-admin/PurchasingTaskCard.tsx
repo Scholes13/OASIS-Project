@@ -10,6 +10,7 @@ import {
     Shield,
     Eye,
 } from 'lucide-react';
+import { route } from 'ziggy-js';
 import { cn } from '@/lib/utils';
 import type { AdminTask } from './types';
 
@@ -166,7 +167,9 @@ export function PurchasingTaskCard({
                             </div>
                             {taskable?.offline_approval_document_path && (
                                 <a
-                                    href={`/storage/${taskable.offline_approval_document_path}`}
+                                    href={isPR
+                                        ? route('purchase-requests.offline-approval-document', { purchaseRequest: task.taskable_id })
+                                        : route('stock-requests.offline-approval-document', { stockRequest: task.taskable_id })}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}

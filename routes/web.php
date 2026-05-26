@@ -150,6 +150,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
         Route::post('/{purchaseRequest}/mark-offline-approved', [PurchaseRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
         Route::post('/{purchaseRequest}/resend-approval-email', [PurchaseRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
+        Route::get('/{purchaseRequest}/offline-approval-document', [PurchaseRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
 
         // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');

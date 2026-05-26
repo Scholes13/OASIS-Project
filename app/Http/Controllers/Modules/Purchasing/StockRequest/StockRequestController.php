@@ -970,9 +970,28 @@ class StockRequestController extends Controller
 
     /**
      * Check whether the authenticated user may access the offline approval evidence.
+     *
+     * Allowed identities (PO 2026-05-26 widening):
+     *   - super admin
+     *   - top management (`hasTopManagementAccess()` true; e.g. CEO, MD, Chief of Staff)
+     *   - purchasing admin in the ST's BU or any ancestor BU
+     *   - the assigned approver
+     *   - the ST creator (only when the ST is in the user's current BU context)
      */
     private function canAccessOfflineApprovalDocument(StockRequest $stockRequest, User $user, int $currentBusinessUnitId): bool
     {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasTopManagementAccess()) {
+            return true;
+        }
+
+        if ($user->isAdminInBuOrAncestor('is_purchasing_admin', $stockRequest->business_unit_id)) {
+            return true;
+        }
+
         $isAssignedApprover = $stockRequest->approvals()
             ->where('approver_id', $user->id)
             ->exists();

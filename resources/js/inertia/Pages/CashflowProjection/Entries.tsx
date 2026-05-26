@@ -1,15 +1,12 @@
-import { Popover, Transition } from '@headlessui/react';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { type FormEvent, Fragment, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, MoreHorizontal, Pencil, Server, ShoppingBag, Trash2, Upload, Users } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import './cashflow-dashboard.css';
 import AddProjectionCard from './components/AddProjectionCard';
+import EntriesPageHeader from './components/EntriesPageHeader';
+import EntriesTable from './components/EntriesTable';
 import ImportEntriesDialog from './components/ImportEntriesDialog';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
-import { formatCurrency, formatMonthLabel } from './utils';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/ui/toast';
 import type { PageProps } from '@/types';
 
@@ -76,35 +73,6 @@ function toIsoDate(year: number, month: number, day: number): string {
     const safeDay = String(Math.max(1, day)).padStart(2, '0');
     return `${year}-${safeMonth}-${safeDay}`;
 }
-
-function resolveIcon(actionLabel: string) {
-    const text = actionLabel.toLowerCase();
-    if (text.includes('revenue') || text.includes('sales')) return ShoppingBag;
-    if (text.includes('gaji') || text.includes('hr') || text.includes('karyawan')) return Users;
-    return Server;
-}
-
-function formatDate(dateValue: string): string {
-    const [year, month, day] = dateValue.split('-').map(Number);
-    if (!year || !month || !day) return dateValue;
-    return new Date(year, month - 1, day).toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
-}
-
-function hasMeaningfulEdit(item: {
-    has_edit_history?: boolean;
-}): boolean {
-    return item.has_edit_history === true;
-}
-
-const statusBadgeMap: Record<string, string> = {
-    confirmed: 'bg-emerald-100 text-emerald-700',
-    pending: 'bg-amber-100 text-amber-700',
-    projected: 'bg-blue-100 text-blue-700',
-};
 
 export default function CashflowProjectionEntries({
     year,
@@ -450,100 +418,12 @@ export default function CashflowProjectionEntries({
 
             <div className="w-full px-6 py-8 lg:px-8 2xl:px-10">
                 <div className="mx-auto w-full max-w-screen-2xl space-y-8">
-                    {/* Page Header */}
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                            <Link
-                                href={route('cashflow-projection.index')}
-                                className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Back to Dashboard
-                            </Link>
-                            <h1 className="text-[2rem] font-bold text-foreground">Cashflow Entries</h1>
-                            <p className="text-sm text-muted-foreground">
-                                {formatMonthLabel(selectedMonth)} {year} &mdash; Add and manage projection entries.
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <a
-                                href={route('cashflow-projection.entries.import-template', { year, month: selectedMonth })}
-                                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-                            >
-                                <Download className="h-4 w-4" />
-                                Download Template
-                            </a>
-                            <Button type="button" variant="primary" onClick={() => setIsImportDialogOpen(true)}>
-                                <Upload className="h-4 w-4" />
-                                Import Excel
-                            </Button>
-                        </div>
-                    </div>
-
-                    {cashflowImportFlash && (
-                        <section
-                            className={`rounded-2xl border p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
-                                cashflowImportFlash.status === 'success'
-                                    ? 'border-emerald-200 bg-emerald-50/80'
-                                    : 'border-amber-200 bg-amber-50/90'
-                            }`}
-                        >
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Import Summary</p>
-                                    <h2 className="text-lg font-semibold text-slate-900">{cashflowImportFlash.summary}</h2>
-                                    <p className="text-sm text-slate-600">
-                                        Source file: <span className="font-medium text-slate-800">{cashflowImportFlash.file_name}</span>
-                                    </p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
-                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Processed</p>
-                                        <p className="mt-1 text-lg font-semibold text-slate-900">{cashflowImportFlash.processed_rows}</p>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
-                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Created</p>
-                                        <p className="mt-1 text-lg font-semibold text-emerald-700">{cashflowImportFlash.created_rows}</p>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
-                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Updated</p>
-                                        <p className="mt-1 text-lg font-semibold text-blue-700">{cashflowImportFlash.updated_rows}</p>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
-                                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Failed Rows</p>
-                                        <p className="mt-1 text-lg font-semibold text-amber-700">{cashflowImportFlash.failed_rows}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {cashflowImportFlash.errors.length > 0 && (
-                                <div className="mt-5 rounded-2xl border border-amber-200/80 bg-white/85 p-4">
-                                    <p className="text-sm font-semibold text-slate-900">Validation details</p>
-                                    <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                                        {cashflowImportFlash.errors.map((error, index) => {
-                                            const prefix = error.row ? `Row ${error.row}` : 'Template';
-                                            const valueText = error.value !== undefined && error.value !== null && `${error.value}` !== ''
-                                                ? ` (${error.value})`
-                                                : '';
-
-                                            return (
-                                                <li key={`${error.column}-${error.row ?? 'template'}-${index}`}>
-                                                    {prefix} - {error.column}: {error.message}{valueText}
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-
-                                    {cashflowImportFlash.truncated && (
-                                        <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
-                                            Additional errors were truncated for readability.
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </section>
-                    )}
+                    <EntriesPageHeader
+                        year={year}
+                        selectedMonth={selectedMonth}
+                        cashflowImportFlash={cashflowImportFlash}
+                        onImportClick={() => setIsImportDialogOpen(true)}
+                    />
 
                     <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                         {/* Left column — Add Projection Form */}
@@ -573,142 +453,15 @@ export default function CashflowProjectionEntries({
                             />
                         </div>
 
-                        {/* Right column — Full transactions table */}
-                        <motion.section
-                            className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] xl:col-span-2"
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.25, delay: 0.06 }}
-                        >
-                            <div className="mb-5 flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-xl font-semibold text-foreground">All Entries</h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">{lineItems.length} projection entries for {formatMonthLabel(selectedMonth)} {year}</p>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm">
-                                    <thead>
-                                        <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                            <th className="py-3 pr-4">Transaction</th>
-                                            <th className="py-3 pr-4">Category</th>
-                                            <th className="py-3 pr-4">Business Unit</th>
-                                            <th className="py-3 pr-4">Attribution</th>
-                                            <th className="py-3 pr-4">Date</th>
-                                            <th className="py-3 pr-4">Status</th>
-                                            <th className="py-3 pr-4 text-right">Action</th>
-                                            <th className="py-3 text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {lineItems.length === 0 && (
-                                            <tr>
-                                                <td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
-                                                    No entries yet. Use the form to add your first projection.
-                                                </td>
-                                            </tr>
-                                        )}
-
-                                        {lineItems.map((item) => {
-                                            const status: 'confirmed' | 'pending' = item.is_estimated_date ? 'pending' : 'confirmed';
-                                            const statusLabel = status === 'confirmed' ? 'Confirmed' : 'Pending';
-                                            const displayActionLabel = formatCategoryLabel(
-                                                item.action_code,
-                                                item.action_label,
-                                                item.department_code,
-                                                item.business_unit_code,
-                                                Boolean(activeBusinessUnit && item.business_unit_id && item.business_unit_id !== activeBusinessUnit.id)
-                                            );
-                                            const Icon = resolveIcon(displayActionLabel);
-
-                                            return (
-                                                <tr key={item.id} className="border-b border-border/50 last:border-0">
-                                                    <td className="py-3 pr-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                                                                <Icon className="h-4 w-4" />
-                                                            </div>
-                                                            <span className="font-medium text-foreground">{item.description || displayActionLabel}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{displayActionLabel}</td>
-                                                    <td className="py-3 pr-4 font-medium text-muted-foreground">{item.business_unit_code ?? 'N/A'}</td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">
-                                                        <div className="space-y-1 text-xs">
-                                                            {item.creator_name && item.creator_department_label && (
-                                                                <p>Created by: {item.creator_name} ({item.creator_department_label})</p>
-                                                            )}
-                                                            {hasMeaningfulEdit(item) && item.updater_name && item.updater_department_label && (
-                                                                <p>Last edited by: {item.updater_name} ({item.updater_department_label})</p>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{formatDate(item.transaction_date)}</td>
-                                                    <td className="py-3 pr-4">
-                                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadgeMap[status] || 'bg-slate-100 text-slate-700'}`}>
-                                                            {statusLabel}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 pr-4 text-right">
-                                                        <Popover className="relative inline-flex justify-end">
-                                                            {({ close }) => (
-                                                                <>
-                                                                    <Popover.Button
-                                                                        type="button"
-                                                                        aria-label={`More actions for ${item.description || item.action_label}`}
-                                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                                                    >
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Popover.Button>
-                                                                    <Transition
-                                                                        as={Fragment}
-                                                                        enter="transition ease-out duration-150"
-                                                                        enterFrom="opacity-0 translate-y-1"
-                                                                        enterTo="opacity-100 translate-y-0"
-                                                                        leave="transition ease-in duration-100"
-                                                                        leaveFrom="opacity-100 translate-y-0"
-                                                                        leaveTo="opacity-0 translate-y-1"
-                                                                    >
-                                                                        <Popover.Panel className="absolute right-0 top-full z-20 mt-2 w-40 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    beginEdit(item.id);
-                                                                                    close();
-                                                                                }}
-                                                                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                                                                            >
-                                                                                <Pencil className="h-4 w-4" />
-                                                                                Edit entry
-                                                                            </button>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    openDeleteDialog(item.id, item.description || item.action_label);
-                                                                                    close();
-                                                                                }}
-                                                                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
-                                                                            >
-                                                                                <Trash2 className="h-4 w-4" />
-                                                                                Delete entry
-                                                                            </button>
-                                                                        </Popover.Panel>
-                                                                    </Transition>
-                                                                </>
-                                                            )}
-                                                        </Popover>
-                                                    </td>
-                                                    <td className={`py-3 text-right font-semibold ${item.flow_type === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                        {item.flow_type === 'in' ? '+' : '-'}{formatCurrency(item.amount)}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </motion.section>
+                        <EntriesTable
+                            lineItems={lineItems}
+                            year={year}
+                            selectedMonth={selectedMonth}
+                            activeBusinessUnitId={activeBusinessUnit?.id}
+                            formatCategoryLabel={formatCategoryLabel}
+                            onEdit={beginEdit}
+                            onDelete={openDeleteDialog}
+                        />
                     </div>
                 </div>
             </div>

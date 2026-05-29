@@ -1,14 +1,13 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
 import { Dialog } from '@/components/ui/dialog';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { showToast } from '@/components/ui/toast';
 import ParticipantSelector from '@/components/activity/form/ParticipantSelector';
+import TaskFormBasicFields from '@/components/activity/form/TaskFormBasicFields';
 import TaskFormModalFooter from '@/components/activity/form/TaskFormModalFooter';
 import TaskFormModalHeader from '@/components/activity/form/TaskFormModalHeader';
 import TaskFormModalTimeline from '@/components/activity/form/TaskFormModalTimeline';
-import type { PageProps, Task, ActivityType, User, TaskStatus, TaskPriority, TaskParticipantUser } from '@/types';
+import type { Task, ActivityType, User, TaskStatus, TaskPriority, TaskParticipantUser } from '@/types';
 
 const getTodayLocalDate = () => {
     const now = new Date();
@@ -74,24 +73,6 @@ interface GroupedActivityTypes {
     others: PrioritizedActivityType[];
 }
 
-interface TaskFormProps extends PageProps {
-    task: Task | null;
-    activityTypes: GroupedActivityTypes | ActivityType[];
-    departmentUsers?: User[];
-    backdateEnabled?: boolean;
-    backdatePermission?: {
-        id: number;
-        status: string;
-        requested_date: string;
-        granted_until: string;
-        is_active: boolean;
-    } | null;
-    allowedDateRange: {
-        from: string;
-        to: string;
-    };
-}
-
 interface TaskFormData {
     task_title: string;
     task_description: string;
@@ -106,11 +87,6 @@ interface TaskFormData {
     end_time: string;
     completed_date: string;
     confirm_reset_execution?: boolean;
-}
-
-interface BackdateRequestData {
-    requested_date: string;
-    reason: string;
 }
 
 interface TaskFormModalProps {
@@ -321,111 +297,16 @@ export function TaskFormModal({
                 <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 overscroll-contain">
                     <form onSubmit={handleSubmit} className="flex flex-col gap-4" id="task-form">
                     
-                    {/* Top Row: Title and Status */}
-                    <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[12px] font-semibold text-slate-700">Task Title <span className="text-rose-500">*</span></label>
-                            <input
-                                type="text"
-                                value={data.task_title}
-                                onChange={(e) => setData('task_title', e.target.value)}
-                                className={cn("h-10 px-3 py-2 border rounded-lg text-[14px] transition-all focus:ring-2 focus:ring-[#16599c]/20 outline-none", errors.task_title ? "border-rose-300" : "border-slate-200 focus:border-[#16599c]")}
-                                placeholder="What needs to be done?"
-                            />
-                            {errors.task_title && <p className="text-[11px] text-rose-500">{errors.task_title}</p>}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[12px] font-semibold text-slate-700">Status</label>
-                            <div className="relative">
-                                <select
-                                    value={data.status}
-                                    onChange={(e) => {
-                                        const newStatus = e.target.value as TaskStatus;
-                                        if (newStatus === 'planned' && isEditing && (task?.started_at || task?.completed_at)) {
-                                            const confirmed = window.confirm('Reset execution history and move this task back to planned?');
-                                            if (!confirmed) {
-                                                return;
-                                            }
-                                        }
-
-                                        setData((prev) => ({
-                                            ...prev,
-                                            status: newStatus,
-                                            due_date: newStatus === 'completed' ? '' : prev.due_date,
-                                            completed_date: newStatus === 'completed'
-                                                ? (prev.completed_date || prev.task_date)
-                                                : prev.completed_date,
-                                            confirm_reset_execution: newStatus === 'planned' && isEditing && Boolean(task?.started_at || task?.completed_at),
-                                        }));
-                                    }}
-                                    className="w-full h-10 pl-8 pr-3 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none focus:border-[#16599c] bg-white cursor-pointer appearance-none"
-                                >
-                                    <option value="planned">To Do</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="completed">Completed</option>
-                                </select>
-                                <div className={cn(
-                                    "absolute left-3 top-3.5 w-2.5 h-2.5 rounded-full pointer-events-none",
-                                    data.status === 'completed' ? 'bg-emerald-500' :
-                                    data.status === 'in_progress' ? 'bg-[#16599c]' : 'bg-slate-300'
-                                )} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Categorization Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[12px] font-semibold text-slate-700">Activity Type <span className="text-[10px] text-slate-400 font-normal ml-1">Auto</span></label>
-                            <select
-                                value={data.activity_type_id}
-                                disabled
-                                className="h-10 px-3 border border-slate-200 rounded-lg text-[14px] bg-slate-50 text-slate-500 cursor-not-allowed appearance-none"
-                            >
-                                <option value="">Auto-filled...</option>
-                                {flatActivityTypes.map((type) => (
-                                    <option key={type.id} value={type.id.toString()}>{type.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[12px] font-semibold text-slate-700">Sub Activity <span className="text-rose-500">*</span></label>
-                            <select
-                                value={data.sub_activity_id}
-                                onChange={(e) => {
-                                    const subId = e.target.value;
-                                    const parentType = flatActivityTypes.find(t => t.sub_activities?.some(s => s.id.toString() === subId));
-                                    if (subId && parentType) {
-                                        setData({ ...data, activity_type_id: parentType.id.toString(), sub_activity_id: subId });
-                                    } else {
-                                        setData('sub_activity_id', subId);
-                                    }
-                                }}
-                                className={cn("h-10 px-3 border rounded-lg text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none bg-white appearance-none cursor-pointer", errors.sub_activity_id ? "border-rose-300" : "border-slate-200 focus:border-[#16599c]")}
-                            >
-                                <option value="">Select...</option>
-                                {sortedSubActivities.map((sub) => (
-                                    <option key={sub.id} value={sub.id.toString()}>{sub.name}</option>
-                                ))}
-                            </select>
-                            {errors.sub_activity_id && <p className="text-[11px] text-rose-500">{errors.sub_activity_id}</p>}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[12px] font-semibold text-slate-700">Priority</label>
-                            <select
-                                value={data.priority}
-                                onChange={(e) => setData('priority', e.target.value as TaskPriority)}
-                                className="h-10 px-3 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#16599c]/20 outline-none focus:border-[#16599c] bg-white cursor-pointer appearance-none"
-                            >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-                    </div>
+                    <TaskFormBasicFields
+                        data={data}
+                        errors={errors}
+                        task={task}
+                        isEditing={isEditing}
+                        activityTypes={flatActivityTypes}
+                        subActivities={sortedSubActivities}
+                        onChange={setData}
+                        onMerge={setData}
+                    />
 
                     <TaskFormModalTimeline
                         data={data}

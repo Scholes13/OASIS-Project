@@ -254,23 +254,31 @@ class MenuSectionBuilder
     /** Docs &amp; help section (always visible). */
     public function docsHelpSection(): array
     {
+        $items = [
+            [
+                'name' => 'Docs & Help',
+                'href' => route('docs-help'),
+                'icon' => 'book-open',
+                'active' => request()->routeIs('docs-help'),
+            ],
+        ];
+
+        // Knowledge Base lives under the IT Support route group. Skip the
+        // entry when the IT Support feature flag is off so we don't call
+        // route() with a name that no longer exists.
+        if (config('features.it_support', true)) {
+            $items[] = [
+                'name' => 'Knowledge Base',
+                'href' => route('it-support.knowledge'),
+                'icon' => 'library',
+                'active' => request()->routeIs('it-support.knowledge')
+                    || request()->routeIs('it-support.knowledge.*'),
+            ];
+        }
+
         return [
             'name' => 'Support',
-            'items' => [
-                [
-                    'name' => 'Docs & Help',
-                    'href' => route('docs-help'),
-                    'icon' => 'book-open',
-                    'active' => request()->routeIs('docs-help'),
-                ],
-                [
-                    'name' => 'Knowledge Base',
-                    'href' => route('it-support.knowledge'),
-                    'icon' => 'library',
-                    'active' => request()->routeIs('it-support.knowledge')
-                        || request()->routeIs('it-support.knowledge.*'),
-                ],
-            ],
+            'items' => $items,
         ];
     }
 

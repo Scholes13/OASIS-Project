@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | IT Support / Ticketing Module
+    |--------------------------------------------------------------------------
+    |
+    | Toggle the IT Support / WG Ticket module. Default true keeps dev,
+    | staging, and test environments unchanged. Set FEATURE_IT_SUPPORT=false
+    | in production .env to fully hide the module: routes are not registered,
+    | sidebar entries (My Tickets, Submit Ticket, IT Support Admin, Knowledge
+    | Base) disappear, and any direct URL hit returns 404 instead of leaking
+    | the module's existence.
+    |
+    */
+    'it_support' => env('FEATURE_IT_SUPPORT', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Backdate Approval Window (days)
     |--------------------------------------------------------------------------
     |

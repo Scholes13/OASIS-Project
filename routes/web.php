@@ -379,8 +379,11 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
     // ============================================================================
     // IT Support — User routes (all authenticated users)
+    // Gated behind features.it_support so production deploys can hide the
+    // module entirely. Default true keeps dev/staging/test unchanged.
     // ============================================================================
-    Route::prefix('it-support')->name('it-support.')->group(function () {
+    if (config('features.it_support', true)) {
+        Route::prefix('it-support')->name('it-support.')->group(function () {
         // Ticket submission
         Route::get('/submit', [UserTicketController::class, 'create'])->name('submit');
         Route::post('/submit', [UserTicketController::class, 'store'])->name('submit.store');
@@ -464,6 +467,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             ]);
         })->name('approvals');
     });
+    } // end if (config('features.it_support'))
 
     // Admin Routes (require super admin access)
     Route::prefix('admin')->name('admin.')->middleware('admin.access')->group(function () {

@@ -22,10 +22,18 @@ class ItSupportMenuBuilder
     /**
      * Build the IT Support section for the current user.
      *
-     * @return array{name: string, items: array<int, array<string, mixed>>}
+     * Returns an empty array (filtered out by NavigationService::array_filter)
+     * when the `features.it_support` flag is disabled — production deploys
+     * that turn the module off get a fully clean sidebar.
+     *
+     * @return array{name?: string, items?: array<int, array<string, mixed>>}
      */
     public function build(User $user, int $businessUnitId): array
     {
+        if (! config('features.it_support', true)) {
+            return [];
+        }
+
         $isAdmin = $this->visibility->canAccessItSupportAdmin($user, $businessUnitId);
 
         $children = [

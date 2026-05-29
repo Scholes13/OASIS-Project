@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Admin\UpdateDepartmentAction;
 use App\Http\Controllers\Controller;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
@@ -13,6 +14,10 @@ use Inertia\Response as InertiaResponse;
 
 class DepartmentController extends Controller
 {
+    public function __construct(
+        private readonly UpdateDepartmentAction $updateAction,
+    ) {}
+
     /**
      * Display a listing of departments
      */
@@ -344,64 +349,7 @@ class DepartmentController extends Controller
             'sub_activity_ids.*' => 'exists:employee_sub_activities,id',
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active', true);
-        $validated['is_purchasing_department'] = $request->boolean('is_purchasing_enabled', false);
-        $validated['default_purchasing_admin_id'] = $request->purchasing_admin_id;
-
-        // Remove fields that don't exist in departments table
-        unset($validated['is_purchasing_enabled'], $validated['purchasing_admin_id'], $validated['positions'], $validated['sub_activity_ids']);
-
-        $department->update($validated);
-
-        // Sync sub-activities
-        $subActivityIds = $request->input('sub_activity_ids', []);
-        $syncData = [];
-        foreach ($subActivityIds as $index => $subId) {
-            $syncData[$subId] = ['sort_order' => $index];
-        }
-        $department->subActivities()->sync($syncData);
-
-        // Handle positions
-        if ($request->has('positions')) {
-            $existingPositionIds = [];
-
-            foreach ($request->positions as $positionData) {
-                // Skip if marked for deletion
-                if (! empty($positionData['_destroy'])) {
-                    if (! empty($positionData['id'])) {
-                        $department->positions()->where('id', $positionData['id'])->delete();
-                    }
-
-                    continue;
-                }
-
-                // Skip if empty
-                if (empty($positionData['name']) || empty($positionData['code'])) {
-                    continue;
-                }
-
-                if (! empty($positionData['id'])) {
-                    // Update existing position
-                    $position = $department->positions()->find($positionData['id']);
-                    if ($position) {
-                        $position->update([
-                            'name' => $positionData['name'],
-                            'code' => $positionData['code'],
-                            'access_level' => $positionData['access_level'] ?? 'staff',
-                        ]);
-                        $existingPositionIds[] = $position->id;
-                    }
-                } else {
-                    // Create new position
-                    $position = $department->positions()->create([
-                        'name' => $positionData['name'],
-                        'code' => $positionData['code'],
-                        'access_level' => $positionData['access_level'] ?? 'staff',
-                    ]);
-                    $existingPositionIds[] = $position->id;
-                }
-            }
-        }
+        $this->updateAction->execute($request, $department, $validated);
 
         return redirect()
             ->route('admin.departments.index')

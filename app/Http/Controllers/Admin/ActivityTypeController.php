@@ -2,20 +2,27 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Admin\AssignActivityTypeDepartmentsAction;
+use App\Actions\Admin\CreateActivityTypeAction;
 use App\Http\Controllers\Controller;
-use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\DepartmentActivityType;
 use App\Models\Modules\Activity\ActivityType;
+use App\Services\Admin\ActivityTypeQueryBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ActivityTypeController extends Controller
 {
+    public function __construct(
+        private readonly ActivityTypeQueryBuilder $queryBuilder,
+        private readonly CreateActivityTypeAction $createAction,
+        private readonly AssignActivityTypeDepartmentsAction $assignAction,
+    ) {}
+
     /**
      * Display a listing of activity types.
      * Super admin sees all activity types globally with department count and task count.
@@ -27,138 +34,14 @@ class ActivityTypeController extends Controller
         $isSuperAdmin = $user->isSuperAdmin();
         $businessUnitId = session('current_business_unit_id');
 
-        // Get business units for filter (super admin only)
-        $businessUnits = $isSuperAdmin
-            ? BusinessUnit::active()->orderBy('name')->get(['id', 'code', 'name'])
-            : collect();
-
-        // Get departments based on filter
-        $departmentsQuery = Department::query()->orderBy('name');
-
-        if ($request->filled('business_unit_id') && $isSuperAdmin) {
-            $departmentsQuery->where('business_unit_id', $request->business_unit_id);
-        } elseif (! $isSuperAdmin) {
-            $departmentsQuery->where('business_unit_id', $businessUnitId);
-        }
-
-        // For super admin, include business unit info for assignment modal
-        if ($isSuperAdmin) {
-            $departmentsQuery->with('businessUnit:id,code,name');
-        }
-
-        $departments = $departmentsQuery->get(['id', 'code', 'name', 'business_unit_id'])
-            ->map(function ($dept) use ($isSuperAdmin) {
-                $data = [
-                    'id' => $dept->id,
-                    'code' => $dept->code,
-                    'name' => $dept->name,
-                    'business_unit_id' => $dept->business_unit_id,
-                ];
-
-                if ($isSuperAdmin && $dept->businessUnit) {
-                    $data['business_unit'] = [
-                        'id' => $dept->businessUnit->id,
-                        'code' => $dept->businessUnit->code,
-                        'name' => $dept->businessUnit->name,
-                    ];
-                }
-
-                return $data;
-            });
-
-        // Build activity types query
-        $query = ActivityType::query();
-
-        // Super admin: show all activity types globally
-        // Regular users: filter by departments in current business unit
-        if ($isSuperAdmin) {
-            // Add department count
-            $query->withCount([
-                'departments',
-                'subActivities',
-                'employeeTasks',
-            ]);
-
-            // Filter by business unit if specified
-            if ($request->filled('business_unit_id')) {
-                $deptIds = Department::where('business_unit_id', $request->business_unit_id)
-                    ->pluck('id');
-                $query->whereHas('departments', function ($q) use ($deptIds) {
-                    $q->whereIn('departments.id', $deptIds);
-                });
-            }
-
-            // Filter by department if specified
-            if ($request->filled('department_id')) {
-                $query->whereHas('departments', function ($q) use ($request) {
-                    $q->where('departments.id', $request->department_id);
-                });
-            }
-        } else {
-            // Regular user: filter by current business unit's departments
-            $deptIds = $departments->pluck('id');
-
-            $query->withCount([
-                'subActivities',
-                'employeeTasks',
-            ]);
-
-            if ($request->filled('department_id')) {
-                $query->whereHas('departments', function ($q) use ($request) {
-                    $q->where('departments.id', $request->department_id);
-                });
-            } else {
-                $query->whereHas('departments', function ($q) use ($deptIds) {
-                    $q->whereIn('departments.id', $deptIds);
-                });
-            }
-        }
-
-        // Search filter
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        // Load department relationships for super admin
-        if ($isSuperAdmin) {
-            $query->with(['departments:id,code,name,business_unit_id']);
-        }
-
-        $activityTypes = $query->ordered()->paginate(15)->through(function ($activityType) use ($isSuperAdmin) {
-            $data = [
-                'id' => $activityType->id,
-                'code' => $activityType->code,
-                'name' => $activityType->name,
-                'color' => $activityType->color,
-                'sub_activities_count' => $activityType->sub_activities_count,
-                'usage_count' => $activityType->employee_tasks_count,
-                'created_at' => $activityType->created_at->toISOString(),
-                'updated_at' => $activityType->updated_at->toISOString(),
-            ];
-
-            // Add department count and assigned department IDs for super admin
-            if ($isSuperAdmin) {
-                $data['departments_count'] = $activityType->departments_count;
-                $data['assigned_department_ids'] = $activityType->departments->pluck('id')->toArray();
-            }
-
-            return $data;
-        });
+        $data = $this->queryBuilder->buildIndexData($request, $isSuperAdmin, $businessUnitId);
 
         return Inertia::render('Admin/ActivityTypes/Index', [
-            'activityTypes' => $activityTypes,
-            'departments' => $departments,
-            'businessUnits' => $businessUnits,
+            'activityTypes' => $data['activityTypes'],
+            'departments' => $data['departments'],
+            'businessUnits' => $data['businessUnits'],
             'isSuperAdmin' => $isSuperAdmin,
-            'filters' => [
-                'search' => $request->search,
-                'department_id' => $request->department_id,
-                'business_unit_id' => $request->business_unit_id,
-            ],
+            'filters' => $data['filters'],
         ]);
     }
 
@@ -195,49 +78,7 @@ class ActivityTypeController extends Controller
 
         $validated = $request->validate($rules);
 
-        // Generate code without department prefix for super admin
-        $baseCode = strtoupper(str_replace(' ', '_', $validated['name']));
-
-        if ($isSuperAdmin) {
-            // Global activity type: no prefix
-            $code = $baseCode;
-        } else {
-            // Legacy behavior: with department prefix
-            $department = Department::findOrFail($validated['department_id']);
-            $code = "{$department->code}_{$baseCode}";
-        }
-
-        // Ensure unique code
-        $existingCount = ActivityType::where('code', 'like', "{$code}%")->count();
-        if ($existingCount > 0) {
-            $code = "{$code}_{$existingCount}";
-        }
-
-        DB::transaction(function () use ($validated, $code, $isSuperAdmin, $request) {
-            $activityType = ActivityType::create([
-                'code' => $code,
-                'name' => $validated['name'],
-                'color' => $validated['color'] ?? 'blue',
-                'is_active' => true,
-            ]);
-
-            // For non-super admin, link to department
-            if (! $isSuperAdmin && $request->filled('department_id')) {
-                DB::table('department_activity_types')->insert([
-                    'department_id' => $validated['department_id'],
-                    'activity_type_id' => $activityType->id,
-                    'is_default' => false,
-                    'sort_order' => 999,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        });
-
-        $redirectParams = [];
-        if (! $isSuperAdmin && $request->filled('department_id')) {
-            $redirectParams['department_id'] = $validated['department_id'];
-        }
+        $this->createAction->execute($validated, $isSuperAdmin);
 
         return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Activity type created successfully.');
@@ -374,37 +215,11 @@ class ActivityTypeController extends Controller
             'is_default' => 'boolean',
         ]);
 
-        $isDefault = $validated['is_default'] ?? false;
-
-        DB::transaction(function () use ($activityType, $validated, $isDefault) {
-            foreach ($validated['department_ids'] as $departmentId) {
-                // Check if assignment already exists
-                $exists = DepartmentActivityType::where('department_id', $departmentId)
-                    ->where('activity_type_id', $activityType->id)
-                    ->exists();
-
-                if (! $exists) {
-                    // If setting as default, unset other defaults for this department
-                    if ($isDefault) {
-                        DepartmentActivityType::where('department_id', $departmentId)
-                            ->update(['is_default' => false]);
-                    }
-
-                    // Get max sort order for this department
-                    $maxSortOrder = DepartmentActivityType::where('department_id', $departmentId)
-                        ->max('sort_order') ?? 0;
-
-                    DepartmentActivityType::create([
-                        'department_id' => $departmentId,
-                        'activity_type_id' => $activityType->id,
-                        'is_default' => $isDefault,
-                        'sort_order' => $maxSortOrder + 1,
-                    ]);
-                }
-            }
-        });
-
-        $count = count($validated['department_ids']);
+        $count = $this->assignAction->execute(
+            $activityType,
+            $validated['department_ids'],
+            $validated['is_default'] ?? false,
+        );
 
         return redirect()->route('admin.activity-configuration.index')
             ->with('success', "Activity type assigned to {$count} department(s) successfully.");

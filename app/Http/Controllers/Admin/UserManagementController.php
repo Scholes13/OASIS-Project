@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Admin\CreateUserAction;
+use App\Actions\Admin\UpdateUserAction;
 use App\Http\Controllers\Controller;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
-use App\Models\Core\UserBusinessUnit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -139,16 +139,14 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Store a newly created user
+     * Store a newly created user.
+     *
+     * Validation stays here so error responses match the legacy contract.
+     * Persistence and transaction handling are delegated to
+     * {@see CreateUserAction} so this controller stays under the 500-line cap.
      */
-    public function store(Request $request)
+    public function store(Request $request, CreateUserAction $createUser)
     {
-        // Log raw input untuk debugging
-        \Log::info('User creation attempt - raw input', [
-            'global_role_input' => $request->input('global_role'),
-            'form_data' => $request->except(['password', 'password_confirmation']),
-        ]);
-
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -159,91 +157,28 @@ class UserManagementController extends Controller
                 'supervisor_id' => 'nullable|exists:users,id',
                 'is_active' => 'boolean',
 
-                // Business unit assignments
                 'business_units' => 'required|array|min:1',
                 'business_units.*.business_unit_id' => 'required|exists:business_units,id',
                 'business_units.*.department_id' => 'required|exists:departments,id',
                 'business_units.*.position_id' => 'required|exists:positions,id',
                 'primary_business_unit' => 'required|integer|min:0',
             ]);
-
-            \Log::info('User creation validation passed', [
-                'validated_global_role' => $validated['global_role'],
-                'type' => gettype($validated['global_role']),
-                'length' => strlen($validated['global_role']),
-            ]);
-
-            // Get primary business unit from radio selection
-            $primaryIndex = $validated['primary_business_unit'];
-            if (! isset($validated['business_units'][$primaryIndex])) {
-                return back()->withErrors(['primary_business_unit' => 'Invalid primary business unit selection.'])
-                    ->withInput();
-            }
-
-            $primaryBU = $validated['business_units'][$primaryIndex];
-
-            \DB::beginTransaction();
-
-            // Create user
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'phone_number' => $validated['phone_number'] ?? null,
-                'password' => Hash::make($validated['password']),
-                'global_role' => $validated['global_role'],
-                'supervisor_id' => $validated['supervisor_id'] ?? null,
-                'primary_department_id' => $primaryBU['department_id'],
-                'primary_position_id' => $primaryBU['position_id'],
-                'is_active' => $validated['is_active'] ?? true,
-            ]);
-
-            \Log::info('User created successfully', ['user_id' => $user->id, 'user_name' => $user->name]);
-
-            // Create business unit assignments
-            foreach ($validated['business_units'] as $index => $buData) {
-                UserBusinessUnit::create([
-                    'user_id' => $user->id,
-                    'business_unit_id' => $buData['business_unit_id'],
-                    'department_id' => $buData['department_id'],
-                    'position_id' => $buData['position_id'],
-                    'is_primary' => ($index == $primaryIndex),
-                    'is_active' => true,
-                ]);
-            }
-
-            \DB::commit();
-
-            return redirect()->route('admin.users.index')
-                ->with('success', "User '{$user->name}' created successfully with ".count($validated['business_units']).' business unit assignment(s).');
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('User creation validation failed', [
                 'errors' => $e->errors(),
                 'input' => $request->except(['password', 'password_confirmation']),
             ]);
 
-            // Re-throw validation exception untuk ditampilkan ke user
             throw $e;
-        } catch (\Exception $e) {
-            \DB::rollBack();
+        }
 
-            \Log::error('User creation failed with exception', [
-                'error_message' => $e->getMessage(),
-                'error_code' => $e->getCode(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'input_data' => $request->except(['password', 'password_confirmation']),
-            ]);
+        $result = $createUser->execute($validated);
 
-            // Handle specific constraint violation
-            if (str_contains($e->getMessage(), 'CHECK constraint failed: global_role')) {
-                $errorMessage = 'Invalid role value. Please select either Super Admin or User from the dropdown.';
-                \Log::error('CHECK constraint violation detected', [
-                    'selected_role' => $request->input('global_role'),
-                    'available_options' => ['super_admin', 'user'],
-                ]);
-            } else {
-                $errorMessage = 'Failed to create user: '.$e->getMessage();
+        if (! ($result['ok'] ?? false)) {
+            $errorMessage = $result['error'] ?? 'Failed to create user.';
+
+            if (($result['status'] ?? 200) === 422) {
+                return back()->withErrors(['primary_business_unit' => $errorMessage])->withInput();
             }
 
             return back()
@@ -251,6 +186,12 @@ class UserManagementController extends Controller
                 ->withInput()
                 ->with('error', $errorMessage);
         }
+
+        $user = $result['user'];
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "User '{$user->name}' created successfully with "
+                .$result['assignments'].' business unit assignment(s).');
     }
 
     /**
@@ -357,9 +298,12 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Update the specified user
+     * Update the specified user.
+     *
+     * Validation stays here so error responses match the legacy contract.
+     * Persistence is delegated to {@see UpdateUserAction}.
      */
-    public function update(Request $request, User $user)
+    public function update(Request $request, User $user, UpdateUserAction $updateUser)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -370,7 +314,6 @@ class UserManagementController extends Controller
             'supervisor_id' => 'nullable|exists:users,id',
             'is_active' => 'boolean',
 
-            // Business unit assignments
             'business_units' => 'required|array|min:1',
             'business_units.*.business_unit_id' => 'required|exists:business_units,id',
             'business_units.*.department_id' => 'required|exists:departments,id',
@@ -378,50 +321,17 @@ class UserManagementController extends Controller
             'primary_business_unit' => 'required|integer|min:0',
         ]);
 
-        // Get primary business unit from radio selection
-        $primaryIndex = $validated['primary_business_unit'];
-        if (! isset($validated['business_units'][$primaryIndex])) {
-            return back()->withErrors(['primary_business_unit' => 'Invalid primary business unit selection.']);
-        }
+        $result = $updateUser->execute($user, $validated);
 
-        $primaryBU = $validated['business_units'][$primaryIndex];
-
-        // Update user
-        $updateData = [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone_number' => $validated['phone_number'] ?? null,
-            'global_role' => $validated['global_role'],
-            'supervisor_id' => $validated['supervisor_id'] ?? null,
-            'primary_department_id' => $primaryBU['department_id'],
-            'primary_position_id' => $primaryBU['position_id'],
-            'is_active' => $validated['is_active'] ?? true,
-        ];
-
-        if (! empty($validated['password'])) {
-            $updateData['password'] = Hash::make($validated['password']);
-        }
-
-        $user->update($updateData);
-
-        // Update business unit assignments
-        // Delete existing assignments
-        $user->businessUnits()->delete();
-
-        // Create new assignments
-        foreach ($validated['business_units'] as $index => $buData) {
-            UserBusinessUnit::create([
-                'user_id' => $user->id,
-                'business_unit_id' => $buData['business_unit_id'],
-                'department_id' => $buData['department_id'],
-                'position_id' => $buData['position_id'],
-                'is_primary' => ($index == $primaryIndex),
-                'is_active' => true,
+        if (! ($result['ok'] ?? false)) {
+            return back()->withErrors([
+                'primary_business_unit' => $result['error'] ?? 'Failed to update user.',
             ]);
         }
 
         return redirect()->route('admin.users.index')
-            ->with('success', 'User updated successfully with '.count($validated['business_units']).' business unit assignment(s).');
+            ->with('success', 'User updated successfully with '
+                .$result['assignments'].' business unit assignment(s).');
     }
 
     /**
@@ -443,19 +353,18 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Permanently delete the specified user
+     * Permanently delete the specified user.
      *
-     * This method preserves user names in related records before deletion.
-     * The migration adds _name columns and SET NULL on delete for FKs.
+     * Preserves user names in related records before deletion via the
+     * dedicated `*_name` columns.  FK SET NULL on `user_id`-style columns
+     * handles the rest.
      */
     public function forceDelete(User $user)
     {
-        // Prevent deleting super admin
         if ($user->isSuperAdmin()) {
             return back()->withErrors(['error' => 'Cannot delete Super Admin user.']);
         }
 
-        // Prevent deleting yourself
         if ($user->id === auth()->id()) {
             return back()->withErrors(['error' => 'Cannot delete your own account.']);
         }
@@ -465,22 +374,17 @@ class UserManagementController extends Controller
         try {
             $userName = $user->name;
 
-            // Save user name to related records before deletion
-            // (The FK SET NULL will clear the user_id, but name is preserved)
-
-            // PR Approvals
+            // Preserve user name on related records before FK SET NULL fires.
             \DB::table('pr_approvals')
                 ->where('approver_id', $user->id)
                 ->whereNull('approver_name')
                 ->update(['approver_name' => $userName]);
 
-            // Stock Approvals
             \DB::table('stock_approvals')
                 ->where('approver_id', $user->id)
                 ->whereNull('approver_name')
                 ->update(['approver_name' => $userName]);
 
-            // Purchase Requests
             \DB::table('purchase_requests')
                 ->where('user_id', $user->id)
                 ->whereNull('requester_name')
@@ -496,7 +400,6 @@ class UserManagementController extends Controller
                 ->whereNull('offline_approved_by_name')
                 ->update(['offline_approved_by_name' => $userName]);
 
-            // Stock Requests
             \DB::table('stock_requests')
                 ->where('user_id', $user->id)
                 ->whereNull('requester_name')
@@ -512,7 +415,6 @@ class UserManagementController extends Controller
                 ->whereNull('offline_approved_by_name')
                 ->update(['offline_approved_by_name' => $userName]);
 
-            // Employee Tasks
             \DB::table('employee_tasks')
                 ->where('created_by', $user->id)
                 ->whereNull('created_by_name')
@@ -523,13 +425,11 @@ class UserManagementController extends Controller
                 ->whereNull('completed_by_name')
                 ->update(['completed_by_name' => $userName]);
 
-            // Task Participants
             \DB::table('task_participants')
                 ->where('user_id', $user->id)
                 ->whereNull('participant_name')
                 ->update(['participant_name' => $userName]);
 
-            // Backdate Permissions
             \DB::table('backdate_permissions')
                 ->where('user_id', $user->id)
                 ->whereNull('user_name')
@@ -545,24 +445,16 @@ class UserManagementController extends Controller
                 ->whereNull('rejected_by_name')
                 ->update(['rejected_by_name' => $userName]);
 
-            // Delete user's business unit assignments
             $user->businessUnits()->delete();
-
-            // Detach roles and permissions (Spatie)
             $user->roles()->detach();
             $user->permissions()->detach();
-
-            // Delete activity log entries for this user
             \DB::table('activities')->where('user_id', $user->id)->delete();
-
-            // Hard delete user (FK SET NULL will handle the rest)
             $user->delete();
 
             \DB::commit();
 
             return redirect()->route('admin.users.index')
                 ->with('success', "User '{$userName}' permanently deleted.");
-
         } catch (\Exception $e) {
             \DB::rollBack();
             \Log::error('Failed to delete user', [

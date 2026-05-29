@@ -1490,6 +1490,38 @@ PO directive: Phase 3 dengan review DocsHelp untuk maintenance jangka panjang + 
 - 0 backend or contract changes across all refactor phases
 - DocsHelp data file scalability: future article additions land in focused per-category files instead of bloating monolithic file
 
+## Phase 3 QA — Multi-role browser smoke test (2026-05-29)
+PO directive: Playwright browser test post-refactor for GM, dept head, staff, executive, super admin.
+
+### Methodology
+- Tooling: Python Playwright via webapp-testing skill (server already running at localhost:8000)
+- 5 scenarios: andri (GM_SM), dita (HOD_HR), abhi (staff CMC), adiel (Chief of Staff WNS), super (super admin)
+- Reset all 5 + 2 board passwords to `werkudara88` for testing
+- Login flow: form has 3 form elements + multiple submit buttons; correct selector is `form input[type="email"]`/`form input[type="password"]`/`form button[type="submit"]` scoped to first form
+- Each scenario: login → sidebar inspection → 3-4 navigation tests → console + network capture → logout
+
+### QA findings
+
+**Login flow: all 5 users OK** — passwords reset, redirected to /dashboard correctly.
+
+**1 real bug found and fixed (commit `877abf54`)**: Adiel (Chief of Staff WNS, c_level/executive) got 403 on /cashflow-projection.
+- Root cause: `CashflowProjectionAccessService::canAccess` only checked department head OR finance/CFC. Did not include top management.
+- Fix: prepend super admin + `hasTopManagementAccess()` short-circuits. Consistent with previously-widened gates (access-purchasing-admin, access-it-support, view-reports, view-purchasing-reports, view-it-support-reports).
+- Verified: 36 cashflow tests pass; browser test with adiel@werkudara.com on /cashflow-projection returns HTTP 200 (redirect to /cashflow-projection/entries).
+
+**Confirmed correct behavior**:
+- GM andri 403 on /activity/admin/dashboard — correct (per PO note: GM tidak punya activity admin access by default)
+- HOD dita 200 on /activity/admin/dashboard — correct (HoD with activity admin flag in BU)
+- Staff abhi 403 on /activity/admin/dashboard and /purchasing/admin/dashboard — correct
+- Adiel 200 on /purchasing/admin/dashboard (verifies prior gate widening still works)
+
+**Methodology issues (not bugs)**:
+- Sidebar selector `nav a, aside a` only catches 4 items in collapsed sidebar; super admin shows 14 because admin items are flat. Improvement: drill into expanded sub-menus.
+- Some test paths returned 404 (`/purchasing`, `/admin/dashboard`, `/it-support/admin/dashboard`) — actual route names differ (e.g., `/purchase-requests`). Update QA script with correct routes for next run.
+
+**Console warnings (cosmetic, deferred)**:
+- Recharts: "The width(-1) and height(-1) of chart should be greater than 0" appears on Activity Admin Dashboard for users with chart sections. Container sizing issue, doesn't block functionality. Add to tech debt for later polish pass.
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.

@@ -1,23 +1,12 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { 
-    ArrowLeft, 
-    Clock, 
-    User, 
-    Building2, 
-    Tag, 
-    AlertCircle,
-    CheckCircle,
-    XCircle,
-    Loader2,
-    Send
-} from 'lucide-react';
+import { ArrowLeft, Clock, User, Building2, AlertCircle, CheckCircle } from 'lucide-react';
 import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
 import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
-import { SlaBadge } from '@/components/Ticket/SlaBadge';
 import { CommentSection } from '@/components/Ticket/CommentSection';
-import { AttachmentList } from '@/components/Ticket/AttachmentList';
+import { TicketHeader } from '@/components/Ticket/show/TicketHeader';
+import { TicketQuickActions } from '@/components/Ticket/show/TicketQuickActions';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/toast';
@@ -141,55 +130,7 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content - Left Side */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Ticket Header */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <span className="text-lg font-mono font-semibold text-primary">
-                                            {ticket.ticket_number}
-                                        </span>
-                                        <TicketStatusBadge status={ticket.status} />
-                                        <TicketPriorityBadge priority={ticket.priority} />
-                                        {ticket.sla_deadline && (
-                                            <SlaBadge 
-                                                slaDeadline={ticket.sla_deadline} 
-                                                isBreached={ticket.is_sla_breach} 
-                                            />
-                                        )}
-                                    </div>
-                                    <h1 className="text-xl font-bold text-gray-900 mb-2">
-                                        {ticket.title}
-                                    </h1>
-                                    {ticket.category && (
-                                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                                            <Tag className="w-4 h-4" />
-                                            {ticket.category.name}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Description */}
-                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                <h3 className="text-sm font-medium text-gray-700 mb-3">Deskripsi</h3>
-                                <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                                    {ticket.description}
-                                </div>
-                            </div>
-
-                            {/* Attachments */}
-                            {ticket.attachments && ticket.attachments.length > 0 && (
-                                <div className="mt-6 pt-6 border-t border-gray-100">
-                                    <AttachmentList attachments={ticket.attachments} />
-                                </div>
-                            )}
-                        </motion.div>
+                        <TicketHeader ticket={ticket} />
 
                         {/* Comments Section */}
                         <motion.div
@@ -405,29 +346,11 @@ export default function Show({ ticket, isAdmin, staff = [], articles = [] }: Sho
                             </div>
                         )}
 
-                        {/* Quick Actions */}
                         {isAdmin && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                                    Aksi Cepat
-                                </h3>
-                                <div className="space-y-2">
-<Link
-                                            href={route('it-support.admin.tickets.edit', { ticket: ticket.id })}
-                                            className="block w-full text-center px-4 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                                        >
-                                            Edit Tiket
-                                        </Link>
-                                    {articles && articles.length > 0 && (
-                                        <Link
-                                            href={route('it-support.admin.knowledge.index')}
-                                            className="block w-full text-center px-4 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                                        >
-                                            Link Artikel
-                                        </Link>
-                                    )}
-                                </div>
-                            </div>
+                            <TicketQuickActions
+                                ticket={ticket}
+                                articles={articles}
+                            />
                         )}
                     </div>
                 </div>

@@ -1,25 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
-import { ColumnDef } from '@tanstack/react-table';
-import {
-    Search, Filter, Plus, Download, RefreshCw,
-    Eye, UserPlus, MoreHorizontal, ChevronDown,
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Badge } from '@/components/ui/Badge';
-import { DataTable } from '@/components/ui/data-table';
-import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
-import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
-import { SlaBadge } from '@/components/Ticket/SlaBadge';
-import { Menu, Transition } from '@headlessui/react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/toast';
-import { cn } from '@/lib/utils';
+import { AssignmentDialog } from '@/components/Ticket/list/AssignmentDialog';
+import { TicketIndexFilters } from '@/components/Ticket/list/TicketIndexFilters';
+import { TicketIndexTable } from '@/components/Ticket/list/TicketIndexTable';
 import type { PageProps, Ticket, TicketCategory, User, PaginatedData, TicketStatus, TicketPriority, TicketFilters } from '@/types';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -29,23 +16,6 @@ interface IndexProps extends PageProps {
     staff: User[];
     filters: TicketFilters;
 }
-
-// ── Status options ──────────────────────────────────────────────────────
-const statusTabs = [
-    { id: '', label: 'All' },
-    { id: 'waiting', label: 'Menunggu' },
-    { id: 'in_progress', label: 'Dalam Proses' },
-    { id: 'done', label: 'Selesai' },
-    { id: 'cancelled', label: 'Dibatalkan' },
-] as const;
-
-const priorityOptions: { value: TicketPriority | ''; label: string }[] = [
-    { value: '', label: 'All Priority' },
-    { value: 'low', label: 'Rendah' },
-    { value: 'medium', label: 'Sedang' },
-    { value: 'high', label: 'Tinggi' },
-    { value: 'critical', label: 'Kritis' },
-];
 
 export default function TicketIndex({ tickets, categories, staff, filters }: IndexProps) {
     const { flash, auth } = usePage<PageProps>().props;
@@ -132,207 +102,6 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
         });
     };
 
-    // Table columns
-    const columns: ColumnDef<Ticket>[] = useMemo(() => [
-        {
-            accessorKey: 'ticket_number',
-            header: 'Ticket Number',
-            cell: ({ row }) => (
-                <Link href={route('it-support.admin.tickets.show', { ticket: row.original.id })}>
-                    <span className="font-medium text-primary hover:underline">
-                        {row.original.ticket_number}
-                    </span>
-                </Link>
-            ),
-        },
-        {
-            accessorKey: 'title',
-            header: 'Title',
-            cell: ({ row }) => (
-                <span className="text-gray-900 max-w-xs truncate block">
-                    {row.original.title}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'requester',
-            header: 'Requester',
-            cell: ({ row }) => row.original.requester?.name || '-',
-        },
-        {
-            accessorKey: 'category',
-            header: 'Category',
-            cell: ({ row }) => (
-                row.original.category ? (
-                    <Badge variant="default" className="text-xs">
-                        {row.original.category.name}
-                    </Badge>
-                ) : '-'
-            ),
-        },
-        {
-            accessorKey: 'priority',
-            header: 'Priority',
-            cell: ({ row }) => <TicketPriorityBadge priority={row.original.priority} />,
-        },
-        {
-            accessorKey: 'status',
-            header: 'Status',
-            cell: ({ row }) => {
-                const ticket = row.original;
-                const isDone = ticket.status === 'done';
-                const isCancelled = ticket.status === 'cancelled';
-
-                if (isDone || isCancelled) {
-                    return <TicketStatusBadge status={ticket.status} />;
-                }
-
-                const nextStatuses = ticket.status === 'waiting'
-                    ? [
-                        { value: 'in_progress', label: 'Mulai Proses' },
-                        { value: 'cancelled', label: 'Batalkan' },
-                      ]
-                    : [
-                        { value: 'done', label: 'Tandai Selesai' },
-                        { value: 'cancelled', label: 'Batalkan' },
-                      ];
-
-                return (
-                    <Menu as="div" className="relative inline-block text-left">
-                        <Menu.Button className="cursor-pointer focus:outline-none inline-flex items-center gap-1">
-                            <TicketStatusBadge status={ticket.status} />
-                            <ChevronDown className="w-3 h-3 text-gray-400" />
-                        </Menu.Button>
-                        <Transition
-                            enter="transition ease-out duration-100"
-                            enterFrom="transform opacity-0 scale-95"
-                            enterTo="transform opacity-100 scale-100"
-                            leave="transition ease-in duration-75"
-                            leaveFrom="transform opacity-100 scale-100"
-                            leaveTo="transform opacity-0 scale-95"
-                        >
-                            <Menu.Items className="fixed z-[9999] mt-1 w-44 rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
-                                {nextStatuses.map((ns) => (
-                                    <Menu.Item key={ns.value}>
-                                        {({ active }) => (
-                                            <button
-                                                type="button"
-                                                className={cn(
-                                                    'w-full text-left px-4 py-2 text-sm',
-                                                    active ? 'bg-gray-50 text-gray-900' : 'text-gray-700',
-                                                )}
-                                                onClick={() => {
-                                                    router.put(route('it-support.admin.tickets.changeStatus', { ticket: ticket.id }), {
-                                                        status: ns.value,
-                                                    }, {
-                                                        preserveScroll: true,
-                                                        onSuccess: () => toast.success(`Status diubah ke "${ns.label}"`),
-                                                        onError: () => toast.error('Gagal mengubah status'),
-                                                    });
-                                                }}
-                                            >
-                                                {ns.label}
-                                            </button>
-                                        )}
-                                    </Menu.Item>
-                                ))}
-                            </Menu.Items>
-                        </Transition>
-                    </Menu>
-                );
-            },
-        },
-        {
-            accessorKey: 'assigned_user',
-            header: 'Assigned To',
-            cell: ({ row }) => {
-                if (row.original.assigned_user) {
-                    return <span className="text-gray-900">{row.original.assigned_user.name}</span>;
-                }
-                return (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.post(route('it-support.admin.tickets.assign', { ticket: row.original.id }), {
-                                assigned_to: currentUserId,
-                            }, {
-                                preserveScroll: true,
-                                onSuccess: () => toast.success('Ticket berhasil di-claim'),
-                                onError: () => toast.error('Gagal claim ticket'),
-                            });
-                        }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-primary bg-primary/5 border border-primary/20 rounded-md hover:bg-primary/10 transition-colors"
-                    >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        Claim
-                    </button>
-                );
-            },
-        },
-        {
-            accessorKey: 'sla_deadline',
-            header: 'SLA',
-            cell: ({ row }) => (
-                <SlaBadge
-                    slaDeadline={row.original.sla_deadline}
-                    isBreached={row.original.is_sla_breach}
-                />
-            ),
-        },
-        {
-            accessorKey: 'created_at',
-            header: 'Created At',
-            cell: ({ row }) => (
-                <span className="text-gray-600 text-sm">
-                    {format(new Date(row.original.created_at), 'dd MMM yyyy HH:mm')}
-                </span>
-            ),
-        },
-        {id: 'actions',
-            header: '',
-            cell: ({ row }) => (
-                <Menu as="div" className="relative inline-block text-left">
-                    <Menu.Button className="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors">
-                        <MoreHorizontal className="h-4 w-4" />
-                    </Menu.Button>
-                    <Transition
-                        enter="transition ease-out duration-100"
-                        enterFrom="transform opacity-0 scale-95"
-                        enterTo="transform opacity-100 scale-100"
-                        leave="transition ease-in duration-75"
-                        leaveFrom="transform opacity-100 scale-100"
-                        leaveTo="transform opacity-0 scale-95"
-                    >
-                        <Menu.Items className="fixed z-[9999] mt-1 w-44 rounded-lg bg-white border border-gray-200 shadow-lg focus:outline-none py-1">
-                            <Menu.Item>
-                                {({ active }) => (
-                                    <button
-                                        type="button"
-                                        className={cn('w-full text-left px-4 py-2 text-sm', active ? 'bg-gray-50 text-gray-900' : 'text-gray-700')}
-                                        onClick={() => router.visit(route('it-support.admin.tickets.show', { ticket: row.original.id }))}
-                                    >
-                                        Lihat Detail
-                                    </button>
-                                )}
-                            </Menu.Item>
-                            <Menu.Item>
-                                {({ active }) => (
-                                    <button
-                                        type="button"
-                                        className={cn('w-full text-left px-4 py-2 text-sm', active ? 'bg-gray-50 text-gray-900' : 'text-gray-700')}
-                                        onClick={() => handleAssignClick(row.original.id)}
-                                    >
-                                        Tugaskan ke Staff
-                                    </button>
-                                )}
-                            </Menu.Item>
-                        </Menu.Items>
-                    </Transition>
-                </Menu>
-            ),
-        },
-    ], []);
-
     // Category options
     const categoryOptions = useMemo(() => [
         { value: '', label: 'All Categories' },
@@ -368,115 +137,38 @@ export default function TicketIndex({ tickets, categories, staff, filters }: Ind
                     </div>
                 </div>
 
-                {/* ── Filter Bar ─────────────────────────────────────── */}
-                <Card className="p-4 shadow-sm border-gray-200/80">
-                    <div className="flex flex-col lg:flex-row gap-4">
-                        {/* Search */}
-                        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute top-1/2 left-3 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search tickets..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-10"
-                                />
-                            </div>
-                            <Button type="submit" size="sm">
-                                Search
-                            </Button>
-                        </form>
+                <TicketIndexFilters
+                    search={search}
+                    status={status}
+                    priority={priority}
+                    categoryId={categoryId}
+                    assignedUserId={assignedUserId}
+                    categoryOptions={categoryOptions}
+                    staffOptions={staffOptions}
+                    onSearchChange={setSearch}
+                    onSearchSubmit={handleSearch}
+                    onStatusChange={handleStatusChange}
+                    onPriorityChange={handlePriorityChange}
+                    onCategoryChange={handleCategoryChange}
+                    onAssignedChange={handleAssignedChange}
+                />
 
-                        {/* Status Tabs */}
-                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                            {statusTabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleStatusChange(tab.id as TicketStatus | '')}
-                                    className={cn(
-                                        'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
-                                        status === tab.id
-                                            ? 'bg-white text-primary shadow-sm'
-                                            : 'text-gray-600 hover:text-gray-900'
-                                    )}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
+                <TicketIndexTable
+                    tickets={tickets.data}
+                    isFiltering={isFiltering}
+                    currentUserId={currentUserId}
+                    onAssignClick={handleAssignClick}
+                />
 
-                        {/* Filters */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <Select
-                                value={priority}
-                                onChange={(val: string | number) => handlePriorityChange(String(val))}
-                                options={priorityOptions}
-                                placeholder="Priority"
-                                className="w-32"
-                            />
-                            <Select
-                                value={categoryId}
-                                onChange={(val: string | number) => handleCategoryChange(String(val))}
-                                options={categoryOptions}
-                                placeholder="Category"
-                                className="w-40"
-                            />
-                            <Select
-                                value={assignedUserId}
-                                onChange={(val: string | number) => handleAssignedChange(String(val))}
-                                options={staffOptions}
-                                placeholder="Assigned"
-                                className="w-40"
-                            />
-                        </div>
-                    </div>
-                </Card>
-
-                {/* ── Tickets Table ────────────────────────────────────── */}
-                <Card className="border border-gray-200 rounded-lg overflow-hidden">
-                    <DataTable
-                        columns={columns}
-                        data={tickets.data}
-                        searchKey="title"
-                        searchPlaceholder="Search by title..."
-                        showSearch={false}
-                        showColumnToggle={false}
-                        pageSize={20}
-                        emptyMessage="No tickets found."
-                        loading={isFiltering}
-                    />
-                </Card>
-
-                {/* ── Assign Dialog ────────────────────────────────────── */}
-                <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Assign Ticket</DialogTitle>
-                        </DialogHeader>
-                        <form onSubmit={submitAssignment}>
-                            <div className="py-4">
-                                <Select
-                                    value={assigneeId}
-                                    onChange={(val: string | number) => setAssigneeId(String(val))}
-                                    options={staffOptions}
-                                    placeholder="Select staff..."
-                                />
-                            </div>
-                            <DialogFooter>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setAssignDialogOpen(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button type="submit" loading={isAssigning}>
-                                    Assign
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                <AssignmentDialog
+                    open={assignDialogOpen}
+                    assigneeId={assigneeId}
+                    staffOptions={staffOptions}
+                    isAssigning={isAssigning}
+                    onClose={() => setAssignDialogOpen(false)}
+                    onAssigneeChange={setAssigneeId}
+                    onSubmit={submitAssignment}
+                />
             </div>
         </>
     );

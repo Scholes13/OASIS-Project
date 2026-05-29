@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
-    Clock, CheckCircle2, AlertTriangle,
-    Calendar, BarChart3, PieChart, TrendingUp,
-    Users, ArrowRight,
+    Calendar, BarChart3, PieChart,
+    Users,
 } from 'lucide-react';
 import {
     PieChart as PieChartRecharts, Pie, Cell,
@@ -14,13 +12,11 @@ import {
 import { format, subDays, startOfMonth } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/empty-state';
-import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
-import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
-import { SlaBadge } from '@/components/Ticket/SlaBadge';
+import { DashboardMetricCards } from '@/components/Ticket/dashboard/DashboardMetricCards';
+import { RecentTicketsTable } from '@/components/Ticket/dashboard/RecentTicketsTable';
 import { cn } from '@/lib/utils';
-import type { PageProps, Ticket, TicketDashboardMetrics } from '@/types';
+import type { PageProps, TicketDashboardMetrics } from '@/types';
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface DashboardProps extends PageProps {
@@ -72,10 +68,6 @@ function ChartTooltip({ active, payload, label }: any) {
         </div>
     );
 }
-
-// ── Animation variants ──────────────────────────────────────────────
-const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
-const stagger = { show: { transition: { staggerChildren: 0.06 } } };
 
 export default function TicketDashboard({ metrics, filters }: DashboardProps) {
     const { flash } = usePage<PageProps>().props;
@@ -198,55 +190,14 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                     </div>
                 </Card>
 
-                {/* ── Metric Cards ───────────────────────────────────────── */}
-                <AnimatePresence mode="wait">
-                    {isFiltering ? (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
-                        >
-                            {Array.from({ length: 5 }).map((_, i) => (
-                                <div key={i} className="h-24 bg-gray-100 animate-pulse rounded-lg" />
-                            ))}
-                        </motion.div>
-                    ) : (
-                        <motion.div variants={stagger} initial="hidden" animate="show"
-                            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                            <motion.div variants={fadeUp}>
-                                <div className="border border-gray-200/80 rounded-lg p-4 bg-slate-50/80">
-                                    <p className="text-[13px] font-medium text-gray-500">Total Tickets</p>
-                                    <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">{metrics.total}</p>
-                                </div>
-                            </motion.div>
-                            <motion.div variants={fadeUp}>
-                                <div className="border border-gray-200/80 rounded-lg p-4 bg-amber-50/60">
-                                    <p className="text-[13px] font-medium text-gray-500">Menunggu</p>
-                                    <p className="mt-1 text-3xl font-bold tabular-nums text-amber-600">{statusCounts.waiting}</p>
-                                </div>
-                            </motion.div>
-                            <motion.div variants={fadeUp}>
-                                <div className="border border-gray-200/80 rounded-lg p-4 bg-blue-50/60">
-                                    <p className="text-[13px] font-medium text-gray-500">Dalam Proses</p>
-                                    <p className="mt-1 text-3xl font-bold tabular-nums text-blue-600">{statusCounts.in_progress}</p>
-                                </div>
-                            </motion.div>
-                            <motion.div variants={fadeUp}>
-                                <div className="border border-gray-200/80 rounded-lg p-4 bg-emerald-50/60">
-                                    <p className="text-[13px] font-medium text-gray-500">Selesai</p>
-                                    <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-600">{statusCounts.done}</p>
-                                </div>
-                            </motion.div>
-                            <motion.div variants={fadeUp}>
-                                <div className="border border-gray-200/80 rounded-lg p-4 bg-red-50/60">
-                                    <p className="text-[13px] font-medium text-gray-500">SLA Breach</p>
-                                    <p className="mt-1 text-3xl font-bold tabular-nums text-red-600">{metrics.sla_breach_count}</p>
-                                </div>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <DashboardMetricCards
+                    isFiltering={isFiltering}
+                    total={metrics.total}
+                    waiting={statusCounts.waiting}
+                    inProgress={statusCounts.in_progress}
+                    done={statusCounts.done}
+                    slaBreachCount={metrics.sla_breach_count}
+                />
 
                 {/* ── Charts Row 1: Status + Priority ────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -388,72 +339,7 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                     </Card>
                 </div>
 
-                {/* ── Recent Tickets Table ────────────────────────────────────── */}
-                <Card className="border border-gray-200 rounded-lg">
-                    <CardHeader className="pb-4 border-b border-gray-100">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-base font-semibold text-gray-900">Recent Tickets</CardTitle>
-                            <Link href={route('it-support.admin.tickets.index')}>
-                                <Button variant="ghost" size="sm" className="text-primary">
-                                    View All <ArrowRight className="w-4 h-4 ml-1" />
-                                </Button>
-                            </Link>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="bg-gray-100 border-b border-gray-200">
-                                        <th className="h-12 px-5 text-left text-sm font-semibold text-gray-700">Ticket</th>
-                                        <th className="h-12 px-5 text-left text-sm font-semibold text-gray-700">Title</th>
-                                        <th className="h-12 px-5 text-left text-sm font-semibold text-gray-700">Requester</th>
-                                        <th className="h-12 px-5 text-left text-sm font-semibold text-gray-700">Status</th>
-                                        <th className="h-12 px-5 text-left text-sm font-semibold text-gray-700">Priority</th>
-                                        <th className="h-12 px-5 text-left text-sm font-semibold text-gray-700">SLA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {metrics.recent_tickets.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="px-5 py-8 text-center text-gray-500">
-                                                No recent tickets
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        metrics.recent_tickets.slice(0, 10).map((ticket) => (
-                                            <tr key={ticket.id} className="border-b border-gray-100 hover:bg-gray-50/80">
-                                                <td className="px-5 py-4 text-sm font-medium text-primary">
-                                                    <Link href={route('it-support.admin.tickets.show', { ticket: ticket.id })}>
-                                                        {ticket.ticket_number}
-                                                    </Link>
-                                                </td>
-                                                <td className="px-5 py-4 text-sm text-gray-900 max-w-xs truncate">
-                                                    {ticket.title}
-                                                </td>
-                                                <td className="px-5 py-4 text-sm text-gray-600">
-                                                    {ticket.requester?.name || '-'}
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <TicketStatusBadge status={ticket.status} />
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <TicketPriorityBadge priority={ticket.priority} />
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <SlaBadge
-                                                        slaDeadline={ticket.sla_deadline}
-                                                        isBreached={ticket.is_sla_breach}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CardContent>
-                </Card>
+                <RecentTicketsTable tickets={metrics.recent_tickets} />
             </div>
         </>
     );

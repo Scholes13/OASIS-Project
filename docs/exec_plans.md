@@ -1365,11 +1365,54 @@ Verified: 106 Activity tests + 36 Cashflow tests pass, full suite 371/1 skip bas
 - 50+ focused modules created across backend Actions/Services + frontend components
 - All verification gates pass: tests 371 (1 skip pre-existing), tsc only echo.ts, build clean, pint clean
 
+## Phase 2 Continuation 3 - Core/Admin/Purchasing remaining oversized files (2026-05-26)
+PO directive: lanjut 9 file deferred berikutnya, parallel agents per area.
+
+### Backend Core split (commit `0030ef83`)
+- app/Models/Core/User.php: 855 → 388 (model cap 400)
+- app/Services/Core/NavigationService.php: 602 → 74 (service cap 350)
+- app/Http/Controllers/Admin/UserManagementController.php: 596 → 489 (controller cap 500)
+- New services under app/Services/Core/:
+  - UserAccessResolver (145), UserHierarchyResolver (347)
+- New navigation services under app/Services/Core/Navigation/:
+  - MenuVisibilityResolver (128), MenuSectionBuilder (327), ItSupportMenuBuilder (98)
+- New admin actions under app/Actions/Admin/:
+  - CreateUserAction (105), UpdateUserAction (77)
+- User model preserves all 8+ public method signatures via thin proxy methods to UserAccessResolver/UserHierarchyResolver.
+- Deviations: UserCacheKeys not extracted (single constant), UserCsvExporter/UserQueryBuilder not extracted (no export method on disk; controller already at 489 after action extraction).
+
+### Backend Purchasing split (commit `5ad28173`)
+- PurchasingAdminController.php: 1185 → 403 (controller cap 500)
+- ApprovalController.php: 815 → 402 (controller cap 500)
+- PurchaseRequestService.php: 537 → 307 (service cap 350)
+- New Purchasing services under app/Services/Modules/Purchasing/PurchaseRequest/:
+  - ApprovalQrCodeBuilder (47), ApprovalListService, PrAccessibleQueryBuilder, PrCacheManager
+- New Admin services under app/Services/Modules/Purchasing/Admin/:
+  - AdminTaskMetricsService (163), AdminTaskListService (186), AdminTaskHistoryService (349), AdminTaskCsvExporter (118), AdminTaskReportService (300)
+- Deviations: ApprovePrAction/RejectPrAction not created (process()/processPublicApproval() are thin wrappers around ApprovalWorkflowService); ClaimAdminTaskAction et al not created (each method is 15-30 lines authorization plumbing); ApprovalProgressService not created (Blade view dispatches with error fallbacks).
+
+### Frontend admin pages split (commit `00a01e64`)
+- Pages/Admin/ActivityTypes/Index.tsx: 759 → 490
+- Pages/Admin/SubActivities/Index.tsx: 572 → 396
+- Pages/ErrorPage.tsx: 602 → 421
+- New components:
+  - components/admin/activity-types/ActivityTypesTable (264), DepartmentAssignmentModal (149)
+  - components/admin/sub-activities/SubActivitiesTable (242)
+  - lib/errorIllustrations.tsx (117) - Illustration404 + Illustration403 SVG
+- Note: existing ConfirmDeleteModal not wired in this pass; existing browser confirm() preserved to keep parents under 500 without extra parent state.
+
+### Cumulative Phase 2 + 3 continuations impact
+- 27 oversized files brought under hard caps across backend + frontend
+- 80+ focused modules created (Action classes + Services + Components)
+- ~7000 LOC redistributed from monolithic files to single-responsibility modules
+- All verification gates pass: 371 tests (1 skip pre-existing), tsc clean, build clean, pint clean
+- 0 backend or contract changes
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.
 - Existing repo documentation in `docs/` predates the new execution model and may need gradual consolidation.
-- Files still > 500 lines (deferred to future phases): backend `PurchasingAdminController` (1019), `User` model (746), `ApprovalController` (711), `PurchaseRequestService` (537), `NavigationService` (525), `UserManagementController` (516); frontend `Pages/DocsHelp/data/articles.ts` (1821, data file exempted), `Pages/Admin/ActivityTypes/Index.tsx` (709), `Pages/ErrorPage.tsx` (541), `Pages/Admin/SubActivities/Index.tsx` (535), plus other Ticket/Notification/Admin module files not yet surveyed.
+- Modules not yet surveyed for size cap: Ticket/IT Support module (TicketController, TicketService, KnowledgeBaseService, TicketReportingService, KnowledgeBaseController), NotificationCenterController, BusinessUnitController, DepartmentController, several Inertia pages under Pages/Ticket/. Pre-existing data file exemption applies to `Pages/DocsHelp/data/articles.ts` (1821 lines, data file).
 
 ## MCP Verification Checklist
 - After changing `.mcp.json` or editor-specific MCP config, reload the client that owns those settings.

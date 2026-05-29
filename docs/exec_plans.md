@@ -1442,12 +1442,59 @@ PO directive: lanjut module yang belum di-touch (Ticket, Numbering, Activity Exp
 - All verification gates pass: 371 tests, tsc clean, build clean
 - 0 backend or contract changes
 
+## Phase 3 - 300-499 line band + DocsHelp data + standards docs (2026-05-29)
+PO directive: Phase 3 dengan review DocsHelp untuk maintenance jangka panjang + update AGENTS.md & docs harness.
+
+### Standards docs codified (commit `f1ebfc08`)
+- AGENTS.md: added "Refactor Patterns" section with backend split patterns (Action classes / Query services / Document services / Shared services), frontend split patterns (page components / modals / hooks / lib), verification gates per refactor, commit style guidance.
+- docs/agent-routing-guide.md: added "Refactor-Specific Routing" section with refactor agent prompt requirements + resume-task pattern.
+- docs/architecture.md: added "Refactor-established sub-namespaces" with standardized split structure under Modules/<Module>/<Resource>/, Services Shared, frontend mirror pattern, types module convention.
+
+### Backend admin split (commit `92623990`)
+- ActivityTypeController.php: 474 → 249
+- DepartmentController.php: 438 → 351
+- New: app/Services/Admin/ActivityTypeQueryBuilder (145), app/Actions/Admin/CreateActivityTypeAction (64), AssignActivityTypeDepartmentsAction (47), UpdateDepartmentAction (94)
+- Deferred: BusinessUnitController (451) and KnowledgeBaseController (367) — under hard cap, additional split would add indirection without consolidating cohesive behavior.
+
+### Frontend ticket pages split (commit `928423ab`)
+- Pages/Ticket/Index.tsx: 483 → 175
+- Pages/Ticket/Dashboard.tsx: 461 → 346
+- Pages/Ticket/Show.tsx: 437 → 360
+- Pages/Ticket/MyTickets.tsx: 355 (deferred, tightly coupled)
+- New: components/Ticket/list/{AssignmentDialog, TicketIndexFilters, TicketIndexTable}, components/Ticket/dashboard/{DashboardMetricCards, RecentTicketsTable}, components/Ticket/show/{TicketHeader, TicketQuickActions}
+
+### DocsHelp articles split (commit `7c19e308`)
+- articles.ts: 1831 → 26 (orchestrator)
+- 28 articles preserved verbatim, split per category under data/articles/
+- 9 category files (getting-started, purchase-request, stock-request, approvals, activity-tracking, cashflow-projection, dashboard, faq, changelog aggregator)
+- changelog/v3.ts, v3-0-1.ts ... v3-0-4.ts (5 versioned changelog files because single category exceeded 350 cap)
+- README.md (29 lines, maintenance guide for future authors)
+- Maintenance benefit: future article additions go to per-category file or new category file; orchestrator stays small.
+
+### Frontend purchasing-admin pages split (commit `84e26cf9`)
+- Dashboard.tsx: 453 → 80
+- ManagementHistory.tsx: 445 → 116
+- TaskHistory.tsx: 443 → 125
+- ConsolidatedReport.tsx: 429 → 73
+- PersonalTaskHistory.tsx: 419 → 114
+- Average reduction 75%
+- Shared History components used across 3 history pages: HistoryFilters, HistoryTable, HistoryPagination, HistoryStatsCards, historyUtils, HistoryStatusBadge
+- Dashboard split: dashboardTypes, DashboardMetrics, DashboardCharts, RecentTasksList
+- Reports split: reportTypes, ReportMetricCards, BusinessUnitComparisonTable, SavingsTrendComparison
+
+### Cumulative impact (Phase 1+2+3 + 4 continuations)
+- 50+ oversized files brought under hard caps across all phases
+- 130+ focused modules created (Actions + Services + Components + utility libs)
+- ~12,000 LOC redistributed from monolithic files to single-responsibility modules
+- All verification gates pass: 371 tests (1 skip pre-existing), tsc clean, build clean, pint clean
+- 0 backend or contract changes across all refactor phases
+- DocsHelp data file scalability: future article additions land in focused per-category files instead of bloating monolithic file
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.
 - Existing repo documentation in `docs/` predates the new execution model and may need gradual consolidation.
-- Pre-existing data file exemption applies to `Pages/DocsHelp/data/articles.ts` (1821 lines, data file).
-- Phase 3+ candidates (300-499 line band): Admin CRUD pages (Users, Departments, BusinessUnits Index/Show/Edit), Ticket pages (Index, Show, Dashboard), PurchasingAdmin pages (Dashboard, ManagementHistory, TaskHistory, ConsolidatedReport, etc), DepartmentController (438), BusinessUnitController (451), ActivityTypeController (474), KnowledgeBaseController (339).
+- Files still > 300 soft target but under hard cap (acceptable, deferred for future polish): `Pages/Ticket/Dashboard.tsx` (346), `Pages/Ticket/Show.tsx` (360), `Pages/Ticket/MyTickets.tsx` (355), `BusinessUnitController.php` (451), `DepartmentController.php` (351), `KnowledgeBaseController.php` (367), `ActivityTypeController.php` (249, under cap). All meet hard cap.
 
 ## MCP Verification Checklist
 - After changing `.mcp.json` or editor-specific MCP config, reload the client that owns those settings.

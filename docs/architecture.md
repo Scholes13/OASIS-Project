@@ -32,14 +32,15 @@ This repository uses a Harness Engineering structure so the Product Owner can op
 ## Harness Agent Mapping
 - The harness exposes reusable sub-agent types, not permanent named teammates.
 - Role names such as `@viewer`, `@coder_backend`, `@coder_frontend`, and `@reviewer` are operating roles that the `PM Agent` assigns onto harness sub-agents per task.
-- Concrete mapping:
-  - `@viewer` => `explorer` for read-only repository mapping and analysis
-  - `@coder_backend` => `worker`
-  - `@coder_frontend` => `worker`
+- Current concrete mapping:
+  - `@viewer` => `viewer` for read-only repository mapping, contract tracing, and evidence gathering
+  - repository exploration and broad file discovery => `explore`
+  - `@coder_backend` => `coder-backend`
+  - `@coder_frontend` => `coder-frontend`
+  - unclear root-cause bugs => `debugger`
   - `@qa` => `qa`
-  - `@reviewer` => `@viewer` for read-only review and standards validation
-  - `@reviewer` => `default` when the review needs broader reasoning, synthesis, or non-trivial adjudication
-  - repository exploration, impact analysis, and code tracing => `@viewer`
+  - `@reviewer` => `reviewer`
+  - general research or synthesis that does not fit a specialist lane => `general`
 - Sub-agents are spawned on demand, scoped to a task, and closed when their work is complete. They are not treated as permanently running actors.
 
 ## Workflow
@@ -87,6 +88,25 @@ The codebase uses a hybrid module-namespaced organization:
 - **Flat (no namespace)** — cross-cutting controllers that serve global features (e.g., `NotificationCenterController`, `DashboardController`, `DocsHelpController`)
 
 This pattern applies consistently across controllers, models, services, notifications, migrations, and tests.
+
+### Refactor-established sub-namespaces (Phase 2 outcomes)
+Standardized split structure under each module:
+- **`app/Actions/Modules/<Module>/<Resource>/`** — write operations (Create/Update/Destroy/Mark/Resubmit/etc.) as single-purpose action classes
+- **`app/Services/Modules/<Module>/<Resource>/`** — query/document/export services (e.g., `<Resource>QueryService`, `<Resource>DocumentService`)
+- **`app/Services/Modules/<Module>/Shared/`** — helpers used by 2+ resources in the same module (e.g., `Purchasing/Shared/PdfGenerationService`, `RequestFormDataProvider`)
+- **`app/Services/Modules/<Module>/<Concern>/`** — concern-specific groupings (e.g., `Activity/Export/`, `Activity/Migration/`, `Ticket/Reporting/`, `CashflowProjection/` for builders/calculators)
+- **`app/Services/Core/<Concern>/`** — core-level groupings (e.g., `Core/Numbering/`, `Core/Navigation/`)
+
+Frontend mirrors this pattern:
+- **`resources/js/inertia/components/<module>/<resource>/`** — section components per resource (e.g., `purchasing/show/PurchaseRequestHeader`, `activity/datatable/StatusDropdown`)
+- **`resources/js/inertia/components/<module>/<feature>/`** — feature groupings (e.g., `Ticket/reporting/`, `activity/calendar/`, `activity/dashboard/`, `activity/kanban/`)
+- **`resources/js/inertia/components/<module>/modals/`** — reusable modal components per module (e.g., `purchasing/modals/ApprovalDecisionModal`)
+- **`resources/js/inertia/components/admin/<module>/`** — admin-CRUD components shared across admin pages (e.g., `admin/activity/ActivityTypeAccordion`)
+- **`resources/js/inertia/lib/`** — pure utilities (formatters, calculators, constants)
+- **`resources/js/inertia/hooks/`** — reusable React hooks (e.g., `useDebouncedSearch`, `usePagination`)
+- **`resources/js/inertia/types/<module>.ts`** — shared TypeScript types per module (data files exempt from line caps)
+
+Hard size caps are codified in `docs/coding_standards.json` `file_size_limits` section. The chunked write protocol in `chunked_write_protocol` section MUST be followed for all write/edit operations.
 
 ## Repo-specific Rules
 - This app uses a custom Inertia layout under `resources/js/inertia/`; do not assume the default Laravel `resources/js/Pages` layout.

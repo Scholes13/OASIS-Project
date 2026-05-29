@@ -4,11 +4,12 @@ Use this guide when deciding which lane to use for repository exploration, valid
 
 ## Terminology Note
 
-In team-facing docs, `viewer` is the primary name for the read-only exploration lane. In the underlying harness, that lane is commonly implemented with the `explorer` agent type.
+In team-facing docs, `viewer` is the primary name for the focused read-only analysis lane. In the current harness, use `viewer` for validation and contract tracing, and `explore` for broader repository discovery.
 
 ## Quick Summary
 
 - `viewer`: read and understand
+- `explore`: find files and map unfamiliar areas quickly
 - `qa`: verify behavior and gather evidence
 - `reviewer`: audit the result and report risks
 
@@ -35,9 +36,9 @@ Use that full chain only when the task crosses layers, changes user-facing behav
 
 ## When to Use Each Lane
 
-### `viewer`
+### `viewer` / `explore`
 
-Use `viewer` when you need read-only exploration before implementation or before deciding what to do next.
+Use `viewer` when you need focused read-only analysis before implementation or before deciding what to do next. Use `explore` when the task is broad repository discovery, file finding, or codebase mapping.
 
 Best for:
 - finding relevant files quickly
@@ -116,8 +117,8 @@ Expected output:
 
 For most non-trivial work, use this order:
 
-1. `viewer` to map context and dependencies.
-2. `coder` or `debugger` to implement or fix the issue.
+1. `viewer` or `explore` to map context and dependencies.
+2. `coder-backend`, `coder-frontend`, or `debugger` to implement or fix the issue.
 3. `qa` to validate behavior and gather evidence.
 4. `reviewer` to perform the final standards and risk gate.
 
@@ -165,3 +166,23 @@ Default:
 - `viewer`: what is happening?
 - `qa`: does it work?
 - `reviewer`: is it safe and ready?
+
+## Refactor-Specific Routing
+
+When the task is to bring a file under hard cap (see `AGENTS.md` File Size & Write Operation Standards):
+
+- **`explore`**: survey full repo for files >= 500 / 300 lines, produce inventory + suggested splits per top-N file. Use this BEFORE refactor batches.
+- **`coder-backend`** + **`coder-frontend`** in parallel: dispatch with explicit hard caps + suggested extractions + chunked write protocol reminder. Token-efficient when scopes don't overlap (e.g., backend services vs frontend components).
+- **Resume tasks** (same `task_id`): use when an agent stopped mid-work. Brief them on remaining state, not from scratch.
+- **Small refactor (1 file < 800 lines)**: stay in main lane with `apply_patch` / `edit` operations.
+- **Large refactor (3+ files or 1 file > 1000 lines)**: dispatch coder agent with detailed instructions, then verify + commit per logical group.
+
+Refactor agent prompt MUST include:
+1. Hard cap target (e.g., < 500 lines)
+2. Suggested extractions with proposed file names + line counts
+3. Reference patterns already on disk
+4. Chunked write protocol reminder
+5. Verification commands list
+6. Multi-line JSX requirement (frontend)
+7. NO API/contract change rule
+8. Surgical edit only — NEVER full rewrite

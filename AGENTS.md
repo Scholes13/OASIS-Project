@@ -66,3 +66,35 @@ Files that exceed the hard cap MUST be split into focused modules in the next re
 - Minified/compressed JSX into single 4000+ character lines to artificially reduce file line count. JSX must use multi-line formatting with each prop on its own line for elements with 3+ props.
 - Full file replacement when only 5-20 lines need to change.
 - Skipping verification (`php artisan test`, `npm run build`, `npx tsc`) after refactor work.
+
+## Refactor Patterns (project-established, follow when splitting oversized files)
+
+### Backend split patterns
+- **Action classes** under `app/Actions/Modules/<Module>/<Resource>/` for write operations (Create, Update, Destroy, MarkX, Resubmit, etc). Each action class < 300 lines. Constructor DI of services. Single `execute()` method returning result array.
+- **Query/Read services** under `app/Services/Modules/<Module>/<Resource>/<Resource>QueryService.php` for index/show/form-data queries. < 350 lines.
+- **Document/Export services** under same path for PDF/CSV/XLS generation. Stream response from service.
+- **Shared services** under `app/Services/Modules/<Module>/Shared/` when 2+ resources need the same logic (e.g., `PdfGenerationService`, `RequestFormDataProvider`, `ApprovalAuthorityResolver`).
+- **Controllers** become thin orchestrators: validate request → call action/service → return response. Auth/policy checks remain in controller.
+- **Models** stay focused on relationships, scopes, accessors. Move conditional business logic to dedicated `Resolver` services with thin proxy methods on the model for backward compatibility.
+
+### Frontend split patterns
+- **Page components** (Inertia pages) under 500 lines. Split heavy sections into focused sub-components in `resources/js/inertia/components/<module>/<resource>/` (e.g., `PurchaseRequestHeader`, `PurchaseRequestSummaryPanel`).
+- **Modals** as standalone components with explicit prop contracts. Reusable modals (e.g., `ApprovalDecisionModal` covers approve+reject via `mode` prop).
+- **Custom hooks** under `resources/js/inertia/hooks/` for shared state patterns (e.g., `useDebouncedSearch`, `usePagination`, `useClickOutside`, `useActivityFilters`).
+- **Pure utilities** under `resources/js/inertia/lib/` (e.g., `formatters.ts`, `dateFilters.ts`, `<module>Constants.ts`, `<module>Calculators.ts`).
+- **Type extraction** to `resources/js/inertia/types/<module>.ts` (data-file exempt from line caps).
+
+### Verification gates per refactor
+1. `php -l <file>` after every PHP edit
+2. `vendor/bin/pint --dirty` before commit
+3. `php artisan test --filter="<Module>"` for focused module
+4. `php artisan test` full suite — ensure baseline preserved
+5. `npx tsc --noEmit --pretty false` — only pre-existing `echo.ts` errors acceptable
+6. `npm run build` clean
+7. `php artisan route:list` — confirm route parity preserved
+8. Read tail of touched files — confirm under hard cap
+
+### Commit style for refactor work
+- `refactor(<module>): split <files> below <cap>` with breakdown of before/after line counts in body, list of new modules, deviations + reasoning.
+- Group commits by concern: backend / frontend / docs separate.
+- One refactor batch = one commit when files are tightly coupled. Multiple commits when files are independent.

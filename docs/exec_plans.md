@@ -1408,11 +1408,46 @@ PO directive: lanjut 9 file deferred berikutnya, parallel agents per area.
 - All verification gates pass: 371 tests (1 skip pre-existing), tsc clean, build clean, pint clean
 - 0 backend or contract changes
 
+## Phase 2 Continuation 4 - Remaining oversized files (2026-05-26)
+PO directive: lanjut module yang belum di-touch (Ticket, Numbering, Activity Export/Migration, etc).
+
+### Backend services split (commit `d7f76a37`)
+- ActivityTypeMigrationService.php: 546 → 246 (service cap 350)
+- TicketReportingService.php: 466 → 194
+- ActivityExportService.php: 464 → 116
+- NumberingService.php: 440 → 217
+- TicketService.php: 428 → 347
+- New services under app/Services/Core/Numbering/: DistributedLockManager, NumberSequenceGenerator, NumberingFormatter
+- New services under app/Services/Modules/Activity/Export/: ActivityExportFormatter, ActivitySummarySheetBuilder, ActivityCategoryBreakdownBuilder, SpreadsheetStyleHelper
+- New services under app/Services/Modules/Activity/Migration/: ActivityTypeConsolidator, SubActivityConsolidator, TaskReferenceUpdater
+- New services under app/Services/Modules/Ticket/Reporting/: TicketMetricsCalculator, TicketTrendCalculator, SlaComplianceCalculator
+- New services under app/Services/Modules/Ticket/: TicketAssignmentService (89), TicketCommentService (143)
+- All public method signatures preserved via thin proxy methods.
+
+### Frontend purchasing-admin split (commit `c6303166`)
+- components/purchasing-admin/PurchasingTaskBoard.tsx: 450 → 223
+- components/purchasing/show/PurchaseRequestActionModals.tsx: 407 → 105
+- New components: TaskBoardCard (162), TaskBoardColumn (106), OfflineApprovalModal (109)
+
+### Frontend Reporting + Calendar + TaskFormModal split (commit `b7dbaf37`)
+- Pages/Ticket/Reporting.tsx: 507 → 138
+- components/activity/ActivityCalendar.tsx: 492 → 278
+- components/activity/TaskFormModal.tsx: 485 → 366
+- New components: Ticket/reporting/{types, ReportingFilters, ReportingMetricCards, ReportingSlaCompliance, ReportingCharts}, activity/calendar/CalendarEventRenderer (213), activity/form/TaskFormBasicFields (154)
+
+### Cumulative Phase 2 + 4 continuations impact
+- 38 oversized files brought under hard caps (across all 4 continuations)
+- 100+ focused modules created
+- ~9000 LOC redistributed from monolithic files
+- All verification gates pass: 371 tests, tsc clean, build clean
+- 0 backend or contract changes
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.
 - Existing repo documentation in `docs/` predates the new execution model and may need gradual consolidation.
-- Modules not yet surveyed for size cap: Ticket/IT Support module (TicketController, TicketService, KnowledgeBaseService, TicketReportingService, KnowledgeBaseController), NotificationCenterController, BusinessUnitController, DepartmentController, several Inertia pages under Pages/Ticket/. Pre-existing data file exemption applies to `Pages/DocsHelp/data/articles.ts` (1821 lines, data file).
+- Pre-existing data file exemption applies to `Pages/DocsHelp/data/articles.ts` (1821 lines, data file).
+- Phase 3+ candidates (300-499 line band): Admin CRUD pages (Users, Departments, BusinessUnits Index/Show/Edit), Ticket pages (Index, Show, Dashboard), PurchasingAdmin pages (Dashboard, ManagementHistory, TaskHistory, ConsolidatedReport, etc), DepartmentController (438), BusinessUnitController (451), ActivityTypeController (474), KnowledgeBaseController (339).
 
 ## MCP Verification Checklist
 - After changing `.mcp.json` or editor-specific MCP config, reload the client that owns those settings.

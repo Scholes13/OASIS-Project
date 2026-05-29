@@ -4,6 +4,11 @@ namespace App\Http\Controllers\Modules\Purchasing\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Services\Modules\Purchasing\Admin\AdminTaskCsvExporter;
+use App\Services\Modules\Purchasing\Admin\AdminTaskHistoryService;
+use App\Services\Modules\Purchasing\Admin\AdminTaskListService;
+use App\Services\Modules\Purchasing\Admin\AdminTaskMetricsService;
+use App\Services\Modules\Purchasing\Admin\AdminTaskReportService;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,7 +18,12 @@ use Inertia\Response;
 class PurchasingAdminController extends Controller
 {
     public function __construct(
-        protected AdminTaskService $adminTaskService
+        protected AdminTaskService $adminTaskService,
+        protected AdminTaskMetricsService $metricsService,
+        protected AdminTaskListService $listService,
+        protected AdminTaskHistoryService $historyService,
+        protected AdminTaskCsvExporter $csvExporter,
+        protected AdminTaskReportService $reportService,
     ) {}
 
     /**
@@ -22,145 +32,27 @@ class PurchasingAdminController extends Controller
     public function dashboard(Request $request): Response
     {
         $user = auth()->user();
-        $buId = session('current_business_unit_id');
+        $buId = (int) session('current_business_unit_id');
 
-        // Base query for this Business Unit
-        $baseQuery = AdminTask::where('admin_tasks.business_unit_id', $buId);
-
-        // --- 1. Filter Metrics by Date (Optional, default to this month for 'period' related stats?) ---
-        // For general counters (Top cards), usually we show ALL current state.
-        // For "Performance" (averages), we usually filter by specific period.
-
-        $datePreset = $request->input('date_preset', 'this_month');
-        $dateFrom = $request->input('date_from');
-        $dateTo = $request->input('date_to');
-
-        $periodQuery = clone $baseQuery;
-
-        if ($dateFrom && $dateTo) {
-            $periodQuery->whereBetween('entered_at', [$dateFrom, $dateTo]);
-        } elseif ($datePreset === 'this_month') {
-            $periodQuery->whereMonth('entered_at', now()->month)
-                ->whereYear('entered_at', now()->year);
-        } elseif ($datePreset === 'last_month') {
-            $periodQuery->whereMonth('entered_at', now()->subMonth()->month)
-                ->whereYear('entered_at', now()->subMonth()->year);
-        } elseif ($datePreset === 'this_year') {
-            $periodQuery->whereYear('entered_at', now()->year);
-        } elseif ($datePreset === 'all_time') {
-            // No filter
-        }
-        // --- 2. Counters (Current State) ---
-        // Pending: Unassigned OR Assigned to me (usually pending is pooled)
-        $pendingCount = (clone $baseQuery)->where('status', 'pending_followup')->count();
-        $inProgressCount = (clone $baseQuery)->where('status', 'in_progress')->where('assigned_admin_id', $user->id)->count();
-        $doneCount = (clone $baseQuery)->where('status', 'done')->where('assigned_admin_id', $user->id)->count(); // Total completed by me ever? or in period?
-
-        // Usually dashboard "Tasks Completed" metric is period based.
-        // "Completed" top card might be "Total Completed ever" or "This Month".
-        // Let's make Top Card "Completed" be "Total Completed by me ever" to match the label "Your Tasks".
-
-        // --- 3. Performance Metrics (Period based, User based) ---
-        // For performance, we usually look at tasks assigned to the CURRENT USER
-        $performanceQuery = (clone $periodQuery)
-            ->where('assigned_admin_id', $user->id)
-            ->where('status', 'done');
-
-        $metrics = $performanceQuery->selectRaw('
-            COUNT(*) as total_tasks_completed,
-            AVG(followup_time_minutes) as avg_followup_time,
-            AVG(completion_time_minutes) as avg_completion_time,
-            SUM(savings_amount) as total_savings,
-            AVG(savings_percentage) as avg_savings_percentage
-        ')->first();
-
-        // Provide defaults if no metrics found
-        $defaultMetrics = (object) [
-            'total_tasks_completed' => 0,
-            'avg_followup_time' => 0,
-            'avg_completion_time' => 0,
-            'total_savings' => 0,
-            'avg_savings_percentage' => 0,
-        ];
-
-        $metrics = $metrics ?? $defaultMetrics;
-
-        // --- 4. Savings Trend (Last 6 months, User based) ---
-        $trendStart = now()->subMonths(5)->startOfMonth();
-        $savingsTrendData = AdminTask::where('business_unit_id', $buId)
-            ->where('assigned_admin_id', $user->id)
-            ->where('status', 'done')
-            ->where('completed_at', '>=', $trendStart)
-            ->selectRaw('DATE_FORMAT(completed_at, "%Y-%m") as month, SUM(savings_amount) as total_savings')
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
-
-        $trendLabels = [];
-        $trendData = [];
-        // Fill gaps
-        $current = $trendStart->copy();
-        while ($current <= now()->endOfMonth()) {
-            $monthKey = $current->format('Y-m');
-            $trendLabels[] = $current->format('M Y');
-            $record = $savingsTrendData->firstWhere('month', $monthKey);
-            $trendData[] = $record ? (float) $record->total_savings : 0;
-            $current->addMonth();
-        }
-
-        // --- 5. Department Breakdown (Period based, Business Unit wide) ---
-        // This usually shows where usage is coming from
-        $deptBreakdownRaw = (clone $periodQuery)
-            ->join('departments', 'admin_tasks.department_id', '=', 'departments.id')
-            ->selectRaw('departments.name as department_name, COUNT(*) as task_count')
-            ->groupBy('departments.name')
-            ->orderByDesc('task_count')
-            ->limit(5)
-            ->get();
-
-        $totalDeptTasks = $deptBreakdownRaw->sum('task_count');
-        $deptBreakdown = $deptBreakdownRaw->map(function ($item) use ($totalDeptTasks) {
-            return [
-                'department' => $item->department_name,
-                'count' => $item->task_count,
-                'percentage' => $totalDeptTasks > 0 ? round(($item->task_count / $totalDeptTasks) * 100, 1) : 0,
-            ];
-        });
-
-        // --- 6. Recent Tasks (User based) ---
-        $recentTasks = AdminTask::with(['taskable', 'department'])
-            ->where('business_unit_id', $buId)
-            ->where('assigned_admin_id', $user->id) // Only my tasks
-            ->orderBy('updated_at', 'desc')
-            ->limit(5)
-            ->get();
+        $data = $this->metricsService->buildDashboardData($user, $buId, [
+            'date_preset' => $request->input('date_preset', 'this_month'),
+            'date_from' => $request->input('date_from'),
+            'date_to' => $request->input('date_to'),
+        ]);
 
         return Inertia::render('PurchasingAdmin/Dashboard', [
-            'stats' => [
-                'pending' => $pendingCount,
-                'in_progress' => $inProgressCount,
-                'done' => $doneCount, // Total ever
-            ],
-            'recentTasks' => $recentTasks,
-            'metrics' => [
-                'total_tasks_completed' => (int) $metrics->total_tasks_completed,
-                'avg_followup_time' => (float) $metrics->avg_followup_time,
-                'avg_completion_time' => (float) $metrics->avg_completion_time,
-                'total_savings' => (float) $metrics->total_savings,
-                'avg_savings_percentage' => (float) $metrics->avg_savings_percentage,
-            ],
-            'savingsTrend' => [
-                'labels' => $trendLabels,
-                'data' => $trendData,
-            ],
-            'departmentBreakdown' => $deptBreakdown,
-            'datePreset' => $datePreset,
+            'stats' => $data['stats'],
+            'recentTasks' => $data['recentTasks'],
+            'metrics' => $data['metrics'],
+            'savingsTrend' => $data['savingsTrend'],
+            'departmentBreakdown' => $data['departmentBreakdown'],
+            'datePreset' => $data['datePreset'],
             'dateRange' => [
-                'from' => $dateFrom,
-                'to' => $dateTo,
+                'from' => $request->input('date_from'),
+                'to' => $request->input('date_to'),
             ],
             'userRole' => [
-                'is_purchasing_admin' => $user->isAdminInBuOrAncestor('is_purchasing_admin', (int) session('current_business_unit_id')),
+                'is_purchasing_admin' => $user->isAdminInBuOrAncestor('is_purchasing_admin', $buId),
                 'is_management' => $user->hasTopManagementAccess() || $user->isSuperAdmin(),
             ],
         ]);
@@ -171,132 +63,22 @@ class PurchasingAdminController extends Controller
      */
     public function tasks(Request $request): Response
     {
-        $user = auth()->user();
-        $buId = session('current_business_unit_id');
-
-        $filters = [
-            'status' => $request->input('status', 'pending'),
-            'type' => $request->input('type', ''),
-            'date' => $request->input('date', 'all'),
-            'search' => $request->input('search', ''),
-        ];
-
-        // Base query
-        $query = AdminTask::with(['taskable', 'assignedAdmin:id,name', 'department:id,name'])
-            ->where('business_unit_id', $buId);
-
-        // Apply Tab/Status Filter
-        switch ($filters['status']) {
-            case 'pending':
-                $query->where('status', 'pending_followup')
-                    ->where(function ($q) use ($user) {
-                        $q->whereNull('assigned_admin_id')
-                            ->orWhere('assigned_admin_id', $user->id);
-                    });
-                break;
-            case 'in_progress':
-                $query->where('status', 'in_progress')
-                    ->where('assigned_admin_id', $user->id);
-                break;
-            case 'completed':
-                $query->where('status', 'done')
-                    ->where('assigned_admin_id', $user->id);
-                break;
-        }
-
-        // Apply Date Filter
-        if ($filters['date'] !== 'all') {
-            $dateQuery = match ($filters['date']) {
-                'today' => now()->startOfDay(),
-                'last_30_days' => now()->subDays(30)->startOfDay(),
-                default => null,
-            };
-
-            if ($dateQuery) {
-                $query->where('entered_at', '>=', $dateQuery);
-            }
-        }
-
-        // Apply Type Filter
-        if (! empty($filters['type'])) {
-            // Map simple type to full class name if needed, or assume frontend sends partial or full
-            // Frontend sends 'purchase_request' or 'stock_request'
-            $typeMap = [
-                'purchase_request' => 'App\\Models\\Modules\\Purchasing\\PurchaseRequest\\PurchaseRequest',
-                'stock_request' => 'App\\Models\\Modules\\Purchasing\\StockRequest\\StockRequest',
-            ];
-
-            if (isset($typeMap[$filters['type']])) {
-                $query->where('taskable_type', $typeMap[$filters['type']]);
-            }
-        }
-
-        // Apply Search — type-safe morphed queries to avoid cross-table column errors
-        if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->whereHasMorph('taskable', [\App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::class], function ($sub) use ($search) {
-                    $sub->where('pr_number', 'like', "%{$search}%");
-                })->orWhereHasMorph('taskable', [\App\Models\Modules\Purchasing\StockRequest\StockRequest::class], function ($sub) use ($search) {
-                    $sub->where('st_number', 'like', "%{$search}%");
-                });
-            });
-        }
-
-        // Get Stats/Counts
-        // We need to query separate basics to get counts for tabs regardless of current tab selection
-        $statsQuery = AdminTask::where('business_unit_id', $buId);
-        $pendingCount = (clone $statsQuery)->where('status', 'pending_followup')
-            ->where(function ($q) use ($user) {
-                $q->whereNull('assigned_admin_id')->orWhere('assigned_admin_id', $user->id);
-            })->count();
-        $inProgressCount = (clone $statsQuery)->where('status', 'in_progress')
-            ->where('assigned_admin_id', $user->id)->count();
-        $completedCount = (clone $statsQuery)->where('status', 'done')
-            ->where('assigned_admin_id', $user->id)->count();
-
-        $tasks = $query->orderBy('entered_at', 'desc')->paginate(10)->withQueryString();
-
-        // Get all tasks for Board/Calendar/Timeline views (no status filter, no pagination)
-        $allTasksQuery = AdminTask::with(['taskable', 'department', 'assignedAdmin'])
-            ->where('business_unit_id', $buId);
-
-        // Apply type filter if set
-        if (! empty($filters['type'])) {
-            $allTasksQuery->where('taskable_type', 'like', '%'.ucfirst(str_replace('_', '', $filters['type'])).'%');
-        }
-
-        // Apply date filter if set
-        if (! empty($filters['date']) && $filters['date'] !== 'all') {
-            if ($filters['date'] === 'today') {
-                $allTasksQuery->whereDate('entered_at', now()->toDateString());
-            } elseif ($filters['date'] === 'last_30_days') {
-                $allTasksQuery->where('entered_at', '>=', now()->subDays(30));
-            }
-        }
-
-        // Apply search filter if set
-        if (! empty($filters['search'])) {
-            $searchTerm = $filters['search'];
-            $allTasksQuery->whereHas('taskable', function ($sub) use ($searchTerm) {
-                $sub->where(function ($q) use ($searchTerm) {
-                    $q->where('pr_number', 'like', "%{$searchTerm}%")
-                        ->orWhere('st_number', 'like', "%{$searchTerm}%");
-                });
-            });
-        }
-
-        $allTasks = $allTasksQuery->orderBy('entered_at', 'desc')->get();
+        $data = $this->listService->buildTasksPageData(
+            auth()->user(),
+            (int) session('current_business_unit_id'),
+            [
+                'status' => $request->input('status', 'pending'),
+                'type' => $request->input('type', ''),
+                'date' => $request->input('date', 'all'),
+                'search' => $request->input('search', ''),
+            ],
+        );
 
         return Inertia::render('PurchasingAdmin/Tasks', [
-            'tasks' => $tasks,
-            'allTasks' => $allTasks,
-            'filters' => $filters,
-            'counts' => [
-                'pending' => $pendingCount,
-                'in_progress' => $inProgressCount,
-                'completed' => $completedCount,
-            ],
+            'tasks' => $data['tasks'],
+            'allTasks' => $data['allTasks'],
+            'filters' => $data['filters'],
+            'counts' => $data['counts'],
         ]);
     }
 
@@ -468,68 +250,20 @@ class PurchasingAdminController extends Controller
      */
     public function taskHistory(Request $request): Response
     {
-        $user = auth()->user();
-
-        // Filters
-        $filters = [
-            'date_from' => $request->get('date_from', now()->startOfMonth()->format('Y-m-d')),
-            'date_to' => $request->get('date_to', ''),
-            'status' => $request->get('status', 'all'),
-            'type' => $request->get('type', 'all'),
-        ];
-
-        // Build query
-        $query = AdminTask::with(['taskable', 'businessUnit', 'department'])
-            ->where('assigned_admin_id', $user->id)
-            ->orderBy('entered_at', 'desc');
-
-        // Date range filter
-        if (! empty($filters['date_from'])) {
-            $query->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $query->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        // Status filter
-        if ($filters['status'] !== 'all') {
-            $query->where('status', $filters['status']);
-        }
-
-        // Type filter
-        if ($filters['type'] !== 'all') {
-            if ($filters['type'] === 'purchase_request') {
-                $query->where('taskable_type', 'like', '%PurchaseRequest%');
-            } elseif ($filters['type'] === 'stock_request') {
-                $query->where('taskable_type', 'like', '%StockRequest%');
-            }
-        }
-
-        $tasks = $query->paginate(10)->withQueryString();
-
-        // Get statistics (only from completed tasks)
-        $statsQuery = AdminTask::where('assigned_admin_id', $user->id)
-            ->where('status', 'done');
-
-        if (! empty($filters['date_from'])) {
-            $statsQuery->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $statsQuery->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        $statistics = $statsQuery->selectRaw('
-            COUNT(*) as total_completed,
-            AVG(followup_time_minutes) as avg_followup_time,
-            AVG(completion_time_minutes) as avg_completion_time,
-            SUM(savings_amount) as total_savings,
-            AVG(savings_percentage) as avg_savings_percentage
-        ')->first()->toArray();
+        $data = $this->historyService->buildTaskHistoryData(
+            auth()->user(),
+            [
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'status' => $request->get('status', 'all'),
+                'type' => $request->get('type', 'all'),
+            ],
+        );
 
         return Inertia::render('PurchasingAdmin/TaskHistory', [
-            'tasks' => $tasks,
-            'statistics' => $statistics,
-            'filters' => $filters,
+            'tasks' => $data['tasks'],
+            'statistics' => $data['statistics'],
+            'filters' => $data['filters'],
         ]);
     }
 
@@ -538,85 +272,16 @@ class PurchasingAdminController extends Controller
      */
     public function exportTaskHistory(Request $request)
     {
-        $user = auth()->user();
-        $format = $request->get('format', 'csv');
-
-        // Build query with same filters
-        $query = AdminTask::with(['taskable', 'businessUnit', 'department'])
-            ->where('assigned_admin_id', $user->id)
-            ->orderBy('entered_at', 'desc');
-
-        if (! empty($request->get('date_from'))) {
-            $query->whereDate('entered_at', '>=', $request->get('date_from'));
-        }
-        if (! empty($request->get('date_to'))) {
-            $query->whereDate('entered_at', '<=', $request->get('date_to'));
-        }
-        if ($request->get('status', 'all') !== 'all') {
-            $query->where('status', $request->get('status'));
-        }
-        if ($request->get('type', 'all') !== 'all') {
-            if ($request->get('type') === 'purchase_request') {
-                $query->where('taskable_type', 'like', '%PurchaseRequest%');
-            } elseif ($request->get('type') === 'stock_request') {
-                $query->where('taskable_type', 'like', '%StockRequest%');
-            }
-        }
-
-        $tasks = $query->get();
-        $filename = 'task-history-'.$user->name.'-'.now()->format('Y-m-d').'.'.($format === 'excel' ? 'xls' : 'csv');
-
-        return response()->streamDownload(function () use ($tasks) {
-            $handle = fopen('php://output', 'w');
-
-            // BOM for Excel UTF-8
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            // Header
-            fputcsv($handle, [
-                'Document',
-                'Type',
-                'Business Unit',
-                'Status',
-                'Entered At',
-                'Follow-up Time (min)',
-                'Completion Time (min)',
-                'Estimated Price',
-                'Realized Price',
-                'Savings Amount',
-                'Savings %',
-            ]);
-
-            // Data
-            foreach ($tasks as $task) {
-                $docNumber = $task->taskable->pr_number ?? $task->taskable->st_number ?? 'N/A';
-                $type = str_contains($task->taskable_type, 'PurchaseRequest') ? 'PR' : 'ST';
-                $status = match ($task->status) {
-                    'pending_followup' => 'Pending',
-                    'in_progress' => 'In Progress',
-                    'done' => 'Completed',
-                    default => $task->status,
-                };
-
-                fputcsv($handle, [
-                    $docNumber,
-                    $type,
-                    $task->businessUnit->name ?? 'N/A',
-                    $status,
-                    $task->entered_at?->format('Y-m-d H:i'),
-                    $task->followup_time_minutes,
-                    $task->completion_time_minutes,
-                    $task->estimated_total_price,
-                    $task->realized_total_price,
-                    $task->savings_amount,
-                    $task->savings_percentage,
-                ]);
-            }
-
-            fclose($handle);
-        }, $filename, [
-            'Content-Type' => $format === 'excel' ? 'application/vnd.ms-excel' : 'text/csv; charset=UTF-8',
-        ]);
+        return $this->csvExporter->streamPersonalTaskHistory(
+            auth()->user(),
+            [
+                'format' => $request->get('format', 'csv'),
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'status' => $request->get('status', 'all'),
+                'type' => $request->get('type', 'all'),
+            ],
+        );
     }
 
     /**
@@ -624,118 +289,12 @@ class PurchasingAdminController extends Controller
      */
     public function departmentReport(Request $request): Response
     {
-        $user = auth()->user();
-        $buId = session('current_business_unit_id');
+        $data = $this->reportService->buildDepartmentReportData(
+            auth()->user(),
+            (int) session('current_business_unit_id'),
+        );
 
-        // Get user's department in current BU
-        $userBu = \App\Models\Core\UserBusinessUnit::where('user_id', $user->id)
-            ->where('business_unit_id', $buId)
-            ->first();
-
-        $departmentId = $userBu?->department_id;
-        $department = $departmentId ? \App\Models\Core\Department::find($departmentId) : null;
-
-        if (! $departmentId) {
-            return Inertia::render('PurchasingAdmin/DepartmentReport', [
-                'department' => null,
-                'totalSavings' => 0,
-                'averageFollowupTime' => 0,
-                'averageCompletionTime' => 0,
-                'totalTasksCompleted' => 0,
-                'savingsBreakdown' => ['purchase_request' => 0, 'stock_request' => 0],
-                'adminPerformance' => [],
-                'departmentTrendData' => ['labels' => [], 'data' => []],
-            ]);
-        }
-
-        // Get statistics
-        $stats = AdminTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
-            ->where('status', 'done')
-            ->selectRaw('
-                SUM(savings_amount) as total_savings,
-                AVG(followup_time_minutes) as avg_followup_time,
-                AVG(completion_time_minutes) as avg_completion_time,
-                COUNT(*) as total_completed
-            ')
-            ->first();
-
-        // Savings breakdown by type
-        $prSavings = AdminTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
-            ->where('status', 'done')
-            ->where('taskable_type', 'like', '%PurchaseRequest%')
-            ->sum('savings_amount') ?? 0;
-
-        $stSavings = AdminTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
-            ->where('status', 'done')
-            ->where('taskable_type', 'like', '%StockRequest%')
-            ->sum('savings_amount') ?? 0;
-
-        // Admin performance
-        $admins = \App\Models\Core\UserBusinessUnit::with('user')
-            ->where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
-            ->where('is_purchasing_admin', true)
-            ->get();
-
-        $adminPerformance = $admins->map(function ($userBu) use ($buId) {
-            $userId = $userBu->user_id;
-            $adminStats = AdminTask::where('business_unit_id', $buId)
-                ->where('assigned_admin_id', $userId)
-                ->where('status', 'done')
-                ->selectRaw('
-                    COUNT(*) as tasks_completed,
-                    SUM(savings_amount) as total_savings,
-                    AVG(savings_percentage) as avg_savings_percentage,
-                    AVG(followup_time_minutes) as avg_followup_time,
-                    AVG(completion_time_minutes) as avg_completion_time
-                ')
-                ->first();
-
-            return [
-                'name' => $userBu->user->name,
-                'tasks_completed' => (int) ($adminStats->tasks_completed ?? 0),
-                'total_savings' => (float) ($adminStats->total_savings ?? 0),
-                'avg_savings_percentage' => (float) ($adminStats->avg_savings_percentage ?? 0),
-                'avg_followup_time' => (float) ($adminStats->avg_followup_time ?? 0),
-                'avg_completion_time' => (float) ($adminStats->avg_completion_time ?? 0),
-            ];
-        })->sortByDesc('total_savings')->values()->toArray();
-
-        // Trend data (last 12 months)
-        $trendData = AdminTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
-            ->where('status', 'done')
-            ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', now()->subMonths(12))
-            ->selectRaw('DATE_FORMAT(completed_at, "%Y-%m") as month, SUM(savings_amount) as total_savings')
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
-
-        $labels = [];
-        $data = [];
-        foreach ($trendData as $item) {
-            $date = \Carbon\Carbon::createFromFormat('Y-m', $item->month);
-            $labels[] = $date->format('M Y');
-            $data[] = round($item->total_savings, 2);
-        }
-
-        return Inertia::render('PurchasingAdmin/DepartmentReport', [
-            'department' => $department,
-            'totalSavings' => (float) ($stats->total_savings ?? 0),
-            'averageFollowupTime' => (float) ($stats->avg_followup_time ?? 0),
-            'averageCompletionTime' => (float) ($stats->avg_completion_time ?? 0),
-            'totalTasksCompleted' => (int) ($stats->total_completed ?? 0),
-            'savingsBreakdown' => [
-                'purchase_request' => (float) $prSavings,
-                'stock_request' => (float) $stSavings,
-            ],
-            'adminPerformance' => $adminPerformance,
-            'departmentTrendData' => ['labels' => $labels, 'data' => $data],
-        ]);
+        return Inertia::render('PurchasingAdmin/DepartmentReport', $data);
     }
 
     /**
@@ -743,122 +302,11 @@ class PurchasingAdminController extends Controller
      */
     public function consolidatedReport(Request $request): Response
     {
-        $buId = session('current_business_unit_id');
-        $currentBu = \App\Models\Core\BusinessUnit::find($buId);
+        $data = $this->reportService->buildConsolidatedReportData(
+            (int) session('current_business_unit_id'),
+        );
 
-        // Only show for parent BUs
-        $childBUs = collect();
-        if ($currentBu && $currentBu->parent_id === null) {
-            $childBUs = \App\Models\Core\BusinessUnit::where('parent_id', $currentBu->id)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
-        }
-
-        if ($childBUs->isEmpty()) {
-            return Inertia::render('PurchasingAdmin/ConsolidatedReport', [
-                'childBusinessUnits' => [],
-                'businessUnitMetrics' => [],
-                'overallMetrics' => [
-                    'total_tasks' => 0,
-                    'total_savings' => 0,
-                    'avg_savings_percentage' => 0,
-                    'avg_followup_time' => 0,
-                    'avg_completion_time' => 0,
-                ],
-                'comparativeTrendData' => ['labels' => [], 'datasets' => []],
-            ]);
-        }
-
-        $buIds = $childBUs->pluck('id')->toArray();
-
-        // Business unit metrics
-        $businessUnitMetrics = $childBUs->map(function ($bu) {
-            $stats = AdminTask::where('business_unit_id', $bu->id)
-                ->where('status', 'done')
-                ->selectRaw('
-                    COUNT(*) as total_tasks,
-                    SUM(savings_amount) as total_savings,
-                    AVG(savings_percentage) as avg_savings_percentage,
-                    AVG(followup_time_minutes) as avg_followup_time,
-                    AVG(completion_time_minutes) as avg_completion_time
-                ')
-                ->first();
-
-            return [
-                'id' => $bu->id,
-                'code' => $bu->code,
-                'name' => $bu->name,
-                'total_tasks' => (int) ($stats->total_tasks ?? 0),
-                'total_savings' => (float) ($stats->total_savings ?? 0),
-                'avg_savings_percentage' => (float) ($stats->avg_savings_percentage ?? 0),
-                'avg_followup_time' => (float) ($stats->avg_followup_time ?? 0),
-                'avg_completion_time' => (float) ($stats->avg_completion_time ?? 0),
-            ];
-        })->sortByDesc('total_savings')->values()->toArray();
-
-        // Overall metrics
-        $overallStats = AdminTask::whereIn('business_unit_id', $buIds)
-            ->where('status', 'done')
-            ->selectRaw('
-                COUNT(*) as total_tasks,
-                SUM(savings_amount) as total_savings,
-                AVG(savings_percentage) as avg_savings_percentage,
-                AVG(followup_time_minutes) as avg_followup_time,
-                AVG(completion_time_minutes) as avg_completion_time
-            ')
-            ->first();
-
-        // Comparative trend data
-        $trendData = AdminTask::whereIn('business_unit_id', $buIds)
-            ->where('status', 'done')
-            ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', now()->subMonths(12))
-            ->selectRaw('business_unit_id, DATE_FORMAT(completed_at, "%Y-%m") as month, SUM(savings_amount) as total_savings')
-            ->groupBy('business_unit_id', 'month')
-            ->orderBy('month')
-            ->get();
-
-        $months = $trendData->pluck('month')->unique()->sort()->values();
-        $labels = $months->map(fn ($m) => \Carbon\Carbon::createFromFormat('Y-m', $m)->format('M Y'))->toArray();
-
-        $colors = [
-            ['border' => 'rgb(99, 102, 241)', 'bg' => 'rgba(99, 102, 241, 0.1)'],
-            ['border' => 'rgb(16, 185, 129)', 'bg' => 'rgba(16, 185, 129, 0.1)'],
-            ['border' => 'rgb(59, 130, 246)', 'bg' => 'rgba(59, 130, 246, 0.1)'],
-            ['border' => 'rgb(245, 158, 11)', 'bg' => 'rgba(245, 158, 11, 0.1)'],
-            ['border' => 'rgb(239, 68, 68)', 'bg' => 'rgba(239, 68, 68, 0.1)'],
-        ];
-
-        $datasets = $childBUs->values()->map(function ($bu, $index) use ($trendData, $months, $colors) {
-            $data = $months->map(function ($month) use ($bu, $trendData) {
-                $record = $trendData->where('business_unit_id', $bu->id)->where('month', $month)->first();
-
-                return $record ? round($record->total_savings, 2) : 0;
-            })->toArray();
-
-            $color = $colors[$index % count($colors)];
-
-            return [
-                'label' => $bu->name,
-                'data' => $data,
-                'borderColor' => $color['border'],
-                'backgroundColor' => $color['bg'],
-            ];
-        })->toArray();
-
-        return Inertia::render('PurchasingAdmin/ConsolidatedReport', [
-            'childBusinessUnits' => $childBUs->map(fn ($bu) => ['id' => $bu->id, 'code' => $bu->code, 'name' => $bu->name])->toArray(),
-            'businessUnitMetrics' => $businessUnitMetrics,
-            'overallMetrics' => [
-                'total_tasks' => (int) ($overallStats->total_tasks ?? 0),
-                'total_savings' => (float) ($overallStats->total_savings ?? 0),
-                'avg_savings_percentage' => (float) ($overallStats->avg_savings_percentage ?? 0),
-                'avg_followup_time' => (float) ($overallStats->avg_followup_time ?? 0),
-                'avg_completion_time' => (float) ($overallStats->avg_completion_time ?? 0),
-            ],
-            'comparativeTrendData' => ['labels' => $labels, 'datasets' => $datasets],
-        ]);
+        return Inertia::render('PurchasingAdmin/ConsolidatedReport', $data);
     }
 
     /**
@@ -866,67 +314,20 @@ class PurchasingAdminController extends Controller
      */
     public function auditHistory(Request $request): Response
     {
-        $filters = [
-            'date_from' => $request->get('date_from', now()->subDays(30)->format('Y-m-d')),
-            'date_to' => $request->get('date_to', now()->format('Y-m-d')),
+        $data = $this->historyService->buildAuditHistoryData([
+            'date_from' => $request->get('date_from'),
+            'date_to' => $request->get('date_to'),
             'status' => $request->get('status', 'all'),
             'type' => $request->get('type', 'all'),
             'admin' => $request->get('admin', 'all'),
             'department' => $request->get('department', 'all'),
-        ];
-
-        $query = AdminTask::with(['taskable', 'businessUnit', 'department', 'assignedAdmin'])
-            ->orderBy('entered_at', 'desc');
-
-        // Date filters
-        if ($filters['date_from']) {
-            $query->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if ($filters['date_to']) {
-            $query->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        // Status filter
-        if ($filters['status'] !== 'all') {
-            $query->where('status', $filters['status']);
-        }
-
-        // Type filter
-        if ($filters['type'] !== 'all') {
-            if ($filters['type'] === 'purchase_request') {
-                $query->where('taskable_type', 'like', '%PurchaseRequest%');
-            } elseif ($filters['type'] === 'stock_request') {
-                $query->where('taskable_type', 'like', '%StockRequest%');
-            }
-        }
-
-        // Admin filter
-        if ($filters['admin'] !== 'all') {
-            $query->where('assigned_admin_id', $filters['admin']);
-        }
-
-        // Department filter
-        if ($filters['department'] !== 'all') {
-            $query->where('department_id', $filters['department']);
-        }
-
-        $tasks = $query->paginate(20)->withQueryString();
-
-        // Get admins list
-        $admins = \App\Models\Core\User::whereHas('businessUnits', function ($q) {
-            $q->where('is_purchasing_admin', true);
-        })->orderBy('name')->get(['id', 'name']);
-
-        // Get departments list
-        $departments = \App\Models\Core\Department::where('is_purchasing_department', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        ]);
 
         return Inertia::render('PurchasingAdmin/AuditHistory', [
-            'tasks' => $tasks,
-            'admins' => $admins,
-            'departments' => $departments,
-            'filters' => $filters,
+            'tasks' => $data['tasks'],
+            'admins' => $data['admins'],
+            'departments' => $data['departments'],
+            'filters' => $data['filters'],
         ]);
     }
 
@@ -935,75 +336,22 @@ class PurchasingAdminController extends Controller
      */
     public function departmentAuditHistory(Request $request): Response
     {
-        $user = auth()->user();
-        $buId = session('current_business_unit_id');
-
-        // Get user's department
-        $userBu = \App\Models\Core\UserBusinessUnit::where('user_id', $user->id)
-            ->where('business_unit_id', $buId)
-            ->first();
-
-        $departmentId = $userBu?->department_id;
-
-        $filters = [
-            'date_from' => $request->get('date_from', now()->subDays(30)->format('Y-m-d')),
-            'date_to' => $request->get('date_to', now()->format('Y-m-d')),
-            'status' => $request->get('status', 'all'),
-            'type' => $request->get('type', 'all'),
-            'admin' => $request->get('admin', 'all'),
-        ];
-
-        if (! $departmentId) {
-            return Inertia::render('PurchasingAdmin/DepartmentAuditHistory', [
-                'tasks' => ['data' => [], 'links' => [], 'current_page' => 1, 'last_page' => 1, 'total' => 0, 'from' => 0, 'to' => 0],
-                'admins' => [],
-                'filters' => $filters,
-            ]);
-        }
-
-        $query = AdminTask::with(['taskable', 'businessUnit', 'department', 'assignedAdmin'])
-            ->where('department_id', $departmentId)
-            ->orderBy('entered_at', 'desc');
-
-        // Date filters
-        if ($filters['date_from']) {
-            $query->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if ($filters['date_to']) {
-            $query->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        // Status filter
-        if ($filters['status'] !== 'all') {
-            $query->where('status', $filters['status']);
-        }
-
-        // Type filter
-        if ($filters['type'] !== 'all') {
-            if ($filters['type'] === 'purchase_request') {
-                $query->where('taskable_type', 'like', '%PurchaseRequest%');
-            } elseif ($filters['type'] === 'stock_request') {
-                $query->where('taskable_type', 'like', '%StockRequest%');
-            }
-        }
-
-        // Admin filter
-        if ($filters['admin'] !== 'all') {
-            $query->where('assigned_admin_id', $filters['admin']);
-        }
-
-        $tasks = $query->paginate(20)->withQueryString();
-
-        // Get admins in this department
-        $admins = \App\Models\Core\User::whereHas('businessUnits', function ($q) use ($departmentId) {
-            $q->where('is_purchasing_admin', true)
-                ->where('department_id', $departmentId);
-        })->orderBy('name')->get(['id', 'name']);
+        $data = $this->historyService->buildDepartmentAuditHistoryData(
+            auth()->user(),
+            (int) session('current_business_unit_id'),
+            [
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'status' => $request->get('status', 'all'),
+                'type' => $request->get('type', 'all'),
+                'admin' => $request->get('admin', 'all'),
+            ],
+        );
 
         return Inertia::render('PurchasingAdmin/DepartmentAuditHistory', [
-            'tasks' => $tasks,
-            'admins' => $admins,
-            'filters' => $filters,
+            'tasks' => $data['tasks'],
+            'admins' => $data['admins'],
+            'filters' => $data['filters'],
         ]);
     }
 
@@ -1012,72 +360,20 @@ class PurchasingAdminController extends Controller
      */
     public function personalTaskHistory(Request $request): Response
     {
-        $user = auth()->user();
-
-        $filters = [
-            'date_from' => $request->get('date_from', ''),
-            'date_to' => $request->get('date_to', ''),
-            'status' => $request->get('status', 'all'),
-            'type' => $request->get('type', 'all'),
-        ];
-
-        $query = AdminTask::with(['taskable', 'businessUnit', 'department'])
-            ->where('assigned_admin_id', $user->id)
-            ->orderBy('entered_at', 'desc');
-
-        // Date filters
-        if (! empty($filters['date_from'])) {
-            $query->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $query->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        // Status filter
-        if ($filters['status'] !== 'all') {
-            $query->where('status', $filters['status']);
-        }
-
-        // Type filter
-        if ($filters['type'] !== 'all') {
-            if ($filters['type'] === 'purchase_request') {
-                $query->where('taskable_type', 'like', '%PurchaseRequest%');
-            } elseif ($filters['type'] === 'stock_request') {
-                $query->where('taskable_type', 'like', '%StockRequest%');
-            }
-        }
-
-        $tasks = $query->paginate(10)->withQueryString();
-
-        // Statistics
-        $statsQuery = AdminTask::where('assigned_admin_id', $user->id)
-            ->where('status', 'done');
-
-        if (! empty($filters['date_from'])) {
-            $statsQuery->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $statsQuery->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        $statistics = $statsQuery->selectRaw('
-            COUNT(*) as total_completed,
-            AVG(followup_time_minutes) as avg_followup_time,
-            AVG(completion_time_minutes) as avg_completion_time,
-            SUM(savings_amount) as total_savings,
-            AVG(savings_percentage) as avg_savings_percentage
-        ')->first();
+        $data = $this->historyService->buildPersonalTaskHistoryData(
+            auth()->user(),
+            [
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'status' => $request->get('status', 'all'),
+                'type' => $request->get('type', 'all'),
+            ],
+        );
 
         return Inertia::render('PurchasingAdmin/PersonalTaskHistory', [
-            'tasks' => $tasks,
-            'statistics' => [
-                'total_completed' => (int) ($statistics->total_completed ?? 0),
-                'avg_followup_time' => (float) ($statistics->avg_followup_time ?? 0),
-                'avg_completion_time' => (float) ($statistics->avg_completion_time ?? 0),
-                'total_savings' => (float) ($statistics->total_savings ?? 0),
-                'avg_savings_percentage' => (float) ($statistics->avg_savings_percentage ?? 0),
-            ],
-            'filters' => $filters,
+            'tasks' => $data['tasks'],
+            'statistics' => $data['statistics'],
+            'filters' => $data['filters'],
         ]);
     }
 
@@ -1086,100 +382,22 @@ class PurchasingAdminController extends Controller
      */
     public function managementHistory(Request $request): Response
     {
-        $buId = session('current_business_unit_id');
-        $businessUnit = \App\Models\Core\BusinessUnit::with('children')->find($buId);
-
-        // Get BU IDs (include children if parent)
-        $buIds = [$buId];
-        if ($businessUnit && $businessUnit->children->isNotEmpty()) {
-            $buIds = array_merge($buIds, $businessUnit->children->pluck('id')->toArray());
-        }
-
-        $filters = [
-            'date_from' => $request->get('date_from', ''),
-            'date_to' => $request->get('date_to', ''),
-            'status' => $request->get('status', 'all'),
-            'type' => $request->get('type', 'all'),
-            'admin' => $request->get('admin', 'all'),
-        ];
-
-        $query = AdminTask::with(['taskable', 'businessUnit', 'department', 'assignedAdmin'])
-            ->whereIn('business_unit_id', $buIds)
-            ->whereNotNull('assigned_admin_id')
-            ->orderBy('entered_at', 'desc');
-
-        // Date filters
-        if (! empty($filters['date_from'])) {
-            $query->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $query->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-
-        // Status filter
-        if ($filters['status'] !== 'all') {
-            $query->where('status', $filters['status']);
-        }
-
-        // Type filter
-        if ($filters['type'] !== 'all') {
-            if ($filters['type'] === 'purchase_request') {
-                $query->where('taskable_type', 'like', '%PurchaseRequest%');
-            } elseif ($filters['type'] === 'stock_request') {
-                $query->where('taskable_type', 'like', '%StockRequest%');
-            }
-        }
-
-        // Admin filter
-        if ($filters['admin'] !== 'all') {
-            $query->where('assigned_admin_id', $filters['admin']);
-        }
-
-        $tasks = $query->paginate(10)->withQueryString();
-
-        // Statistics
-        $statsQuery = AdminTask::whereIn('business_unit_id', $buIds)
-            ->where('status', 'done');
-
-        if (! empty($filters['date_from'])) {
-            $statsQuery->whereDate('entered_at', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $statsQuery->whereDate('entered_at', '<=', $filters['date_to']);
-        }
-        if ($filters['admin'] !== 'all') {
-            $statsQuery->where('assigned_admin_id', $filters['admin']);
-        }
-
-        $statistics = $statsQuery->selectRaw('
-            COUNT(*) as total_completed,
-            AVG(followup_time_minutes) as avg_followup_time,
-            AVG(completion_time_minutes) as avg_completion_time,
-            SUM(savings_amount) as total_savings,
-            AVG(savings_percentage) as avg_savings_percentage
-        ')->first();
-
-        // Admin list
-        $adminIds = AdminTask::whereIn('business_unit_id', $buIds)
-            ->whereNotNull('assigned_admin_id')
-            ->distinct()
-            ->pluck('assigned_admin_id');
-
-        $adminList = \App\Models\Core\User::whereIn('id', $adminIds)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $data = $this->historyService->buildManagementHistoryData(
+            (int) session('current_business_unit_id'),
+            [
+                'date_from' => $request->get('date_from'),
+                'date_to' => $request->get('date_to'),
+                'status' => $request->get('status', 'all'),
+                'type' => $request->get('type', 'all'),
+                'admin' => $request->get('admin', 'all'),
+            ],
+        );
 
         return Inertia::render('PurchasingAdmin/ManagementHistory', [
-            'tasks' => $tasks,
-            'statistics' => [
-                'total_completed' => (int) ($statistics->total_completed ?? 0),
-                'avg_followup_time' => (float) ($statistics->avg_followup_time ?? 0),
-                'avg_completion_time' => (float) ($statistics->avg_completion_time ?? 0),
-                'total_savings' => (float) ($statistics->total_savings ?? 0),
-                'avg_savings_percentage' => (float) ($statistics->avg_savings_percentage ?? 0),
-            ],
-            'adminList' => $adminList,
-            'filters' => $filters,
+            'tasks' => $data['tasks'],
+            'statistics' => $data['statistics'],
+            'adminList' => $data['adminList'],
+            'filters' => $data['filters'],
         ]);
     }
 }

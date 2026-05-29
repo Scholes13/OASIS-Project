@@ -1537,6 +1537,27 @@ PO directive: pastikan akses 403 tidak muncul di sidebar (no trash items, agar t
 - **Fix** (commit `909791ed`): added regex constraint on `{slug}` param: `^(?!manage|categories|search|suggest)[A-Za-z0-9_\-]+$`. Now reserved segments fall through to admin routes.
 - **Second pass (after fix)**: 0 trash items across all 5 users. Sidebar fully aligned with access policy.
 
+## IT Support Module Feature Flag (2026-05-29)
+PO directive: hide IT Support / WG Ticket module di production, tetap available di staging/test/dev.
+
+### Implementation (commit `bb65ac70`)
+- New config key: `features.it_support` (default `true`) with env var `FEATURE_IT_SUPPORT`. Defined in `config/features.php`.
+- `routes/web.php`: both IT Support route groups (user routes line 383, admin routes line 415) wrapped in `if (config('features.it_support', true))`. When flag off, routes never register and any `/it-support/*` URL returns 404.
+- `ItSupportMenuBuilder::build()`: returns `[]` when flag off so `NavigationService::array_filter` drops the section from sidebar entirely.
+- `MenuSectionBuilder::docsHelpSection()`: skips the Knowledge Base entry when flag off (route `it-support.knowledge` would be unregistered, and `route()` helper would throw `RouteNotFoundException`).
+- `.env.example`: documented `FEATURE_IT_SUPPORT=true` with deploy guidance.
+
+### Production deploy
+Set `FEATURE_IT_SUPPORT=false` di production `.env`:
+- Sidebar: My Tickets, Submit Ticket, IT Support Admin children, Knowledge Base — all hidden
+- Routes: all `/it-support/*` paths return 404
+- Module no longer leaks via route helper or visible UI hooks
+
+### Verified
+- `php artisan test --filter="ItSupport|Ticket"` — 39 passed (111 assertions), tests use feature-flag-on default
+- Browser smoke test (super admin, default flag on): all `/it-support/*` paths return 200, including `/it-support/knowledge/manage` which had route order issue earlier (fixed in `909791ed`)
+- Flag-off behavior gates correctly via the if-block; PHP exceptions on route lookups prevented by the docsHelpSection guard
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.

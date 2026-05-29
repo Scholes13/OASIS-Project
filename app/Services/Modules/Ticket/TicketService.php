@@ -7,8 +7,6 @@ use App\Models\Core\User;
 use App\Models\Modules\Ticket\Ticket;
 use App\Models\Modules\Ticket\TicketAttachment;
 use App\Models\Modules\Ticket\TicketComment;
-use App\Notifications\Ticket\TicketAssignedNotification;
-use App\Notifications\Ticket\TicketCommentNotification;
 use App\Notifications\Ticket\TicketStatusChangedNotification;
 use Exception;
 use Illuminate\Http\UploadedFile;
@@ -34,7 +32,9 @@ class TicketService
 
     public function __construct(
         protected TicketNumberService $ticketNumberService,
-        protected SlaService $slaService
+        protected SlaService $slaService,
+        protected TicketAssignmentService $assignmentService,
+        protected TicketCommentService $commentService
     ) {}
 
     /**
@@ -160,62 +160,21 @@ class TicketService
     /**
      * Assign a ticket to a user.
      *
-     * Validates that the target user has the IT Support admin role
-     * within the ticket's business unit scope.  Sends an assignment
-     * notification to the new assignee (skipped when the actor assigns
-     * the ticket to themselves).
+     * Thin proxy that delegates to {@see TicketAssignmentService} so
+     * controller call sites remain unchanged.
      *
      * @throws Exception
      */
     public function assignTicket(Ticket $ticket, int $userId, ?User $actor = null): Ticket
     {
-        $assignee = User::findOrFail($userId);
-
-        // Validate user is IT Support admin in BU scope
-        $hasAccess = $assignee->global_role === 'super_admin'
-            || $assignee->businessUnits()
-                ->where('business_unit_id', $ticket->business_unit_id)
-                ->where('is_active', true)
-                ->where('is_it_support_admin', true)
-                ->exists();
-
-        if (! $hasAccess) {
-            throw new Exception(
-                'User is not an IT Support admin in this business unit.'
-            );
-        }
-
-        $previousAssigneeId = $ticket->assigned_to;
-        $ticket->update(['assigned_to' => $userId]);
-        $fresh = $ticket->fresh();
-
-        if ((int) $previousAssigneeId !== (int) $userId) {
-            $this->notifyTicketAssigned($fresh, $assignee, $actor);
-        }
-
-        return $fresh;
-    }
-
-    /**
-     * Send an assignment notification to the assignee.  Skipped when the
-     * actor assigns to themselves to avoid self-notify noise.
-     */
-    protected function notifyTicketAssigned(Ticket $ticket, User $assignee, ?User $actor): void
-    {
-        if ($actor !== null && (int) $actor->id === (int) $assignee->id) {
-            return;
-        }
-
-        $assignee->notify(new TicketAssignedNotification($ticket));
-        $this->forgetUnreadNotificationCacheFor([$assignee]);
+        return $this->assignmentService->assignTicket($ticket, $userId, $actor);
     }
 
     /**
      * Add a comment to a ticket.
      *
-     * Notifies the requester and assignee (excluding the commenter).
-     * Private comments only fan out to IT Support recipients — the
-     * requester never sees them.
+     * Thin proxy that delegates to {@see TicketCommentService} so
+     * controller call sites remain unchanged.
      */
     public function addComment(
         Ticket $ticket,
@@ -223,33 +182,24 @@ class TicketService
         string $content,
         bool $isPrivate = false
     ): TicketComment {
-        $comment = TicketComment::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => $user->id,
-            'content' => $content,
-            'is_private' => $isPrivate,
-        ]);
-
-        $this->notifyTicketComment($ticket, $comment, $user, $isPrivate);
-
-        return $comment;
+        return $this->commentService->addComment($ticket, $user, $content, $isPrivate);
     }
 
     /**
-     * Build the recipient list for a ticket comment and dispatch the
-     * notification.  The requester is excluded from private comments so
-     * IT staff can keep internal context inside the ticket.
+     * Add an attachment to a ticket.
+     *
+     * Thin proxy that delegates to {@see TicketCommentService} so
+     * controller call sites remain unchanged.
+     *
+     * @throws Exception
      */
-    protected function notifyTicketComment(Ticket $ticket, TicketComment $comment, User $commenter, bool $isPrivate): void
-    {
-        $recipients = $this->collectTicketWatchers($ticket, $commenter, includeRequester: ! $isPrivate);
-
-        if (empty($recipients)) {
-            return;
-        }
-
-        Notification::send($recipients, new TicketCommentNotification($comment, $commenter, $ticket));
-        $this->forgetUnreadNotificationCacheFor($recipients);
+    public function addAttachment(
+        Ticket $ticket,
+        UploadedFile $file,
+        ?User $uploader = null,
+        ?int $commentId = null
+    ): TicketAttachment {
+        return $this->commentService->addAttachment($ticket, $file, $uploader, $commentId);
     }
 
     /**
@@ -296,37 +246,6 @@ class TicketService
                 Cache::forget(HandleInertiaRequests::unreadNotificationsCacheKey((int) $recipient->id));
             }
         }
-    }
-
-    /**
-     * Add an attachment to a ticket.
-     *
-     * Files are stored on the private `local` disk so they can only be
-     * served through the authenticated download endpoint.  This avoids
-     * exposing potentially sensitive ticket evidence under public URLs.
-     *
-     * @throws Exception
-     */
-    public function addAttachment(
-        Ticket $ticket,
-        UploadedFile $file,
-        ?User $uploader = null,
-        ?int $commentId = null
-    ): TicketAttachment {
-        $disk = 'local';
-        $path = $file->store('ticket-attachments/'.$ticket->id, $disk);
-
-        return TicketAttachment::create([
-            'ticket_id' => $ticket->id,
-            'comment_id' => $commentId,
-            'filename' => basename($path),
-            'original_filename' => $file->getClientOriginalName(),
-            'file_path' => $path,
-            'disk' => $disk,
-            'file_type' => $file->getMimeType(),
-            'file_size' => $file->getSize(),
-            'uploaded_by' => $uploader?->id,
-        ]);
     }
 
     /**

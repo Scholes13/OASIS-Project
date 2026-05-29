@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit2, Trash2, X, Check, Filter, Building2 } from 'lucide-react';
+import { Plus, Search, X, Check, Filter, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SubActivity, SubActivityFormData, ActivityType } from '@/types/admin';
 import { PageProps } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
+import SubActivitiesTable from '@/components/admin/sub-activities/SubActivitiesTable';
 
 // Laravel pagination structure (without meta wrapper)
 interface LaravelPagination<T> {
@@ -372,198 +371,23 @@ function Index({ subActivities, activityTypes, businessUnits, isSuperAdmin, filt
                     )}
                 </AnimatePresence>
 
-                {/* Sub-Activities List - Grouped by Activity Type */}
-                {subActivities.data.length === 0 ? (
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                        <EmptyState
-                            title="No sub-activities found"
-                            description={
-                                search || activityTypeFilter
-                                    ? 'Try adjusting your search or filters'
-                                    : 'Get started by creating your first sub-activity'
-                            }
-                        />
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {groupedSubActivities.map((group) => (
-                            <div
-                                key={group.activityType.id}
-                                className="bg-white rounded-xl border border-gray-200 overflow-hidden"
-                            >
-                                {/* Activity Type Header */}
-                                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                                    <div className="flex items-center gap-3">
-                                        <Badge
-                                            className={getColorClasses(group.activityType.color)}
-                                        >
-                                            {group.activityType.department_prefix
-                                                ? `${group.activityType.name} (${group.activityType.department_prefix})`
-                                                : group.activityType.name}
-                                        </Badge>
-                                        <span className="text-sm text-gray-600">
-                                            {group.subActivities.length} sub-activities
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Sub-Activities */}
-                                <div className="divide-y divide-gray-200">
-                                    {group.subActivities.map((subActivity) => (
-                                        <motion.div
-                                            key={subActivity.id}
-                                            layout
-                                            className="p-6 hover:bg-gray-50 transition-colors"
-                                        >
-                                            {editingId === subActivity.id ? (
-                                                <form onSubmit={handleSubmit} className="space-y-4">
-                                                    <div>
-                                                        <Label
-                                                            htmlFor={`edit-activity-type-${subActivity.id}`}
-                                                        >
-                                                            Activity Type *
-                                                        </Label>
-                                                        <Select
-                                                            value={formData.activity_type_id.toString()}
-                                                            onChange={(value) =>
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    activity_type_id: parseInt(value as string),
-                                                                })
-                                                            }
-                                                            options={activityTypes.map((type) => ({
-                                                                value: type.id.toString(),
-                                                                label: type.department_prefix
-                                                                    ? `${type.name} (${type.department_prefix})`
-                                                                    : type.name,
-                                                            }))}
-                                                            placeholder="Select activity type"
-                                                        />
-                                                    </div>
-
-                                                    <div>
-                                                        <Label htmlFor={`edit-name-${subActivity.id}`}>
-                                                            Name *
-                                                        </Label>
-                                                        <Input
-                                                            id={`edit-name-${subActivity.id}`}
-                                                            type="text"
-                                                            value={formData.name}
-                                                            onChange={(e) =>
-                                                                setFormData({
-                                                                    ...formData,
-                                                                    name: e.target.value,
-                                                                })
-                                                            }
-                                                            placeholder="Enter sub-activity name"
-                                                            required
-                                                        />
-                                                    </div>
-
-                                                    <div className="flex items-center gap-2">
-                                                        <Button type="submit" disabled={isSubmitting}>
-                                                            <Check className="w-4 h-4 mr-2" />
-                                                            Save
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={handleCancel}
-                                                            disabled={isSubmitting}
-                                                        >
-                                                            <X className="w-4 h-4 mr-2" />
-                                                            Cancel
-                                                        </Button>
-                                                    </div>
-                                                </form>
-                                            ) : (
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <span className="font-medium text-gray-900">
-                                                            {subActivity.name}
-                                                        </span>
-                                                        <span className="text-sm text-gray-600">
-                                                            {subActivity.usage_count || 0} tasks
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleEdit(subActivity)}
-                                                        >
-                                                            <Edit2 className="w-4 h-4" />
-                                                        </Button>
-                                                        {(!subActivity.usage_count ||
-                                                            subActivity.usage_count === 0) && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => handleDelete(subActivity)}
-                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {subActivities.last_page > 1 && (
-                    <div className="bg-white rounded-xl border border-gray-200 px-6 py-4 flex items-center justify-between">
-                        <div className="text-sm text-gray-600">
-                            Showing {subActivities.from} to {subActivities.to} of{' '}
-                            {subActivities.total} results
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {subActivities.current_page > 1 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        router.get(
-                                            route('admin.sub-activities.index'),
-                                            {
-                                                ...buildFilters(),
-                                                page: subActivities.current_page - 1,
-                                            },
-                                            { preserveState: true }
-                                        )
-                                    }
-                                >
-                                    Previous
-                                </Button>
-                            )}
-                            {subActivities.current_page < subActivities.last_page && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        router.get(
-                                            route('admin.sub-activities.index'),
-                                            {
-                                                ...buildFilters(),
-                                                page: subActivities.current_page + 1,
-                                            },
-                                            { preserveState: true }
-                                        )
-                                    }
-                                >
-                                    Next
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
+                <SubActivitiesTable
+                    subActivities={subActivities}
+                    groupedSubActivities={groupedSubActivities}
+                    activityTypes={activityTypes}
+                    editingId={editingId}
+                    formData={formData}
+                    isSubmitting={isSubmitting}
+                    search={search}
+                    activityTypeFilter={activityTypeFilter}
+                    buildFilters={buildFilters}
+                    getColorClasses={getColorClasses}
+                    onCancel={handleCancel}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                    onFormDataChange={setFormData}
+                    onSubmit={handleSubmit}
+                />
             </div>
         </>
     );

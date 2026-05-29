@@ -398,7 +398,12 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/knowledge', [KnowledgeBaseController::class, 'browse'])->name('knowledge');
         Route::get('/knowledge/search', [KnowledgeBaseController::class, 'search'])->name('knowledge.search');
         Route::post('/knowledge/suggest', [KnowledgeBaseController::class, 'suggestArticles'])->name('knowledge.suggest');
-        Route::get('/knowledge/{slug}', [KnowledgeBaseController::class, 'article'])->name('knowledge.article');
+        // Note: slug constraint excludes admin-reserved segments so they don't
+        // get swallowed by the public article route. Otherwise /it-support/knowledge/manage
+        // resolves to article(slug=manage) and returns 404.
+        Route::get('/knowledge/{slug}', [KnowledgeBaseController::class, 'article'])
+            ->where('slug', '^(?!manage|categories|search|suggest)[A-Za-z0-9_\-]+$')
+            ->name('knowledge.article');
     });
 
     // ============================================================================

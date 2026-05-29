@@ -1522,6 +1522,21 @@ PO directive: Playwright browser test post-refactor for GM, dept head, staff, ex
 **Console warnings (cosmetic, deferred)**:
 - Recharts: "The width(-1) and height(-1) of chart should be greater than 0" appears on Activity Admin Dashboard for users with chart sections. Container sizing issue, doesn't block functionality. Add to tech debt for later polish pass.
 
+## Phase 3 QA Follow-up — Sidebar trash item audit (2026-05-29)
+PO directive: pastikan akses 403 tidak muncul di sidebar (no trash items, agar tidak ada link unclickable).
+
+### Methodology
+- Wrote `audit_sidebar.php` to invoke `NavigationService::buildMenuForUser()` per test user, dump all hrefs (recursive into nested children).
+- Wrote `audit_sidebar_http.py` to login each user via Playwright then GET every sidebar href, flag any 4xx response.
+- 5 users covered: andri (GM), dita (HOD HR), abhi (staff), adiel (Chief of Staff), super.
+
+### Findings
+- **First pass (before fix)**: 1 real trash item — `/it-support/knowledge/manage` returned 404 for IT Support admins (adiel + super).
+- **Sidebar visibility logic itself is correct**: andri/dita/abhi each have only routes they can access; non-applicable items already hidden via `MenuVisibilityResolver::canAccess*` checks in `NavigationService::buildMenuForUser`.
+- **Root cause** of 404: route registration order. `/it-support/knowledge/{slug}` (public article view) was registered before `/it-support/knowledge/manage` (admin index). Laravel matched the slug route first with `slug='manage'` and returned 404 because no article with that slug exists. The admin route was never reached.
+- **Fix** (commit `909791ed`): added regex constraint on `{slug}` param: `^(?!manage|categories|search|suggest)[A-Za-z0-9_\-]+$`. Now reserved segments fall through to admin routes.
+- **Second pass (after fix)**: 0 trash items across all 5 users. Sidebar fully aligned with access policy.
+
 ## Known Tech Debt
 - Generated route artifacts and client helpers may still contain deprecated `SalesCrm` route names even though the module is disabled.
 - Deprecated module cleanup is incomplete until any remaining stale frontend references are intentionally sunset.

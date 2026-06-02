@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" width="800" height="360" role="img" aria-label="WNS Sales and Marketing structure placeholder">
+    <rect width="800" height="360" fill="#f8fafc" />
+    <rect x="1" y="1" width="798" height="358" fill="none" stroke="#e2e8f0" stroke-width="2" rx="12" />
+    <rect x="320" y="36" width="160" height="48" rx="8" fill="#1e3a8a" />
+    <text x="400" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#ffffff">Sales &amp; Marketing</text>
+    <line x1="400" y1="84" x2="400" y2="120" stroke="#94a3b8" stroke-width="2" />
+    <line x1="160" y1="120" x2="640" y2="120" stroke="#94a3b8" stroke-width="2" />
+    <line x1="160" y1="120" x2="160" y2="150" stroke="#94a3b8" stroke-width="2" />
+    <line x1="400" y1="120" x2="400" y2="150" stroke="#94a3b8" stroke-width="2" />
+    <line x1="640" y1="120" x2="640" y2="150" stroke="#94a3b8" stroke-width="2" />
+    <rect x="80" y="150" width="160" height="60" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" />
+    <text x="160" y="178" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#1e3a8a">Business Solutions</text>
+    <text x="160" y="196" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#2563eb">BS</text>
+    <rect x="320" y="150" width="160" height="60" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5" />
+    <text x="400" y="178" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#166534">Commercial</text>
+    <text x="400" y="196" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#16a34a">COM</text>
+    <rect x="560" y="150" width="160" height="60" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" />
+    <text x="640" y="172" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#92400e">Corporate Marketing</text>
+    <text x="640" y="190" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#92400e">Communication</text>
+    <text x="640" y="205" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" fill="#d97706">CMC</text>
+    <text x="400" y="280" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#1e293b">WNS Sales &amp; Marketing — Parent &amp; 3 Divisions</text>
+    <text x="400" y="312" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#64748b">Placeholder — replace with /images/changelog/v4-beta/wns-structure.png</text>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" width="800" height="360" role="img" aria-label="Activity catalog placeholder">
+    <rect width="800" height="360" fill="#f8fafc" />
+    <rect x="1" y="1" width="798" height="358" fill="none" stroke="#e2e8f0" stroke-width="2" rx="12" />
+    <text x="400" y="54" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="800" fill="#1e3a8a">Activity Catalog — New Divisions</text>
+    <rect x="60" y="90" width="320" height="34" rx="6" fill="#eff6ff" stroke="#bfdbfe" />
+    <text x="76" y="112" font-family="system-ui, sans-serif" font-size="14" fill="#1e3a8a">Project</text>
+    <rect x="60" y="132" width="320" height="34" rx="6" fill="#eff6ff" stroke="#bfdbfe" />
+    <text x="76" y="154" font-family="system-ui, sans-serif" font-size="14" fill="#1e3a8a">Social Media — Instagram</text>
+    <rect x="60" y="174" width="320" height="34" rx="6" fill="#eff6ff" stroke="#bfdbfe" />
+    <text x="76" y="196" font-family="system-ui, sans-serif" font-size="14" fill="#1e3a8a">Costing</text>
+    <rect x="60" y="216" width="320" height="34" rx="6" fill="#eff6ff" stroke="#bfdbfe" />
+    <text x="76" y="238" font-family="system-ui, sans-serif" font-size="14" fill="#1e3a8a">Telemarketing — Meeting</text>
+    <rect x="420" y="90" width="320" height="34" rx="6" fill="#f0fdf4" stroke="#bbf7d0" />
+    <text x="436" y="112" font-family="system-ui, sans-serif" font-size="14" fill="#166534">Brainstorming</text>
+    <rect x="420" y="132" width="320" height="34" rx="6" fill="#f0fdf4" stroke="#bbf7d0" />
+    <text x="436" y="154" font-family="system-ui, sans-serif" font-size="14" fill="#166534">Networking Activities</text>
+    <rect x="420" y="174" width="320" height="34" rx="6" fill="#f0fdf4" stroke="#bbf7d0" />
+    <text x="436" y="196" font-family="system-ui, sans-serif" font-size="14" fill="#166534">Relationship Building</text>
+    <rect x="420" y="216" width="320" height="34" rx="6" fill="#f0fdf4" stroke="#bbf7d0" />
+    <text x="436" y="238" font-family="system-ui, sans-serif" font-size="14" fill="#166534">Content — YouTube</text>
+    <text x="400" y="312" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#64748b">Placeholder — replace with /images/changelog/v4-beta/activity-catalog.png</text>
+</svg>

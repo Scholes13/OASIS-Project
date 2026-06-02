@@ -132,6 +132,24 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
                 </div>
             );
 
+        case 'image':
+            return (
+                <figure id={block.id} className="mb-10 mt-6">
+                    <img
+                        src={block.src}
+                        alt={block.alt}
+                        loading="lazy"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm"
+                    />
+                    {block.caption && (
+                        <figcaption
+                            className="mt-2 text-center text-sm text-slate-500"
+                            dangerouslySetInnerHTML={{ __html: block.caption }}
+                        />
+                    )}
+                </figure>
+            );
+
         default:
             return null;
     }

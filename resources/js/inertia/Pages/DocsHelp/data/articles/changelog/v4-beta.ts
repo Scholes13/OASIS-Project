@@ -176,15 +176,16 @@ export const ChangelogV4BetaArticle: Article =
             },
             {
                 type: 'paragraph',
-                html: '<span class="lang-id">Modul IT Support (WG Ticket) kini dikendalikan oleh sebuah <strong>feature flag</strong>. Di lingkungan pengembangan dan staging modul tetap aktif untuk pengujian, sementara di produksi modul dapat disembunyikan sepenuhnya sampai dinyatakan siap rilis — termasuk menu sidebar, rute, dan tautan Knowledge Base.</span><span class="lang-en">The IT Support (WG Ticket) module is now controlled by a <strong>feature flag</strong>. In development and staging the module stays active for testing, while in production it can be hidden entirely until it is declared ready to launch — including sidebar menus, routes, and the Knowledge Base link.</span>',
+                html: '<span class="lang-id">Modul <strong>IT Support (WG Ticket)</strong> saat ini masih dalam tahap pengembangan, sehingga belum dapat diakses untuk sementara waktu. Modul ini akan diaktifkan secara bertahap setelah pengujian selesai dan dinyatakan siap rilis.</span><span class="lang-en">The <strong>IT Support (WG Ticket)</strong> module is currently still under development, so it cannot be accessed for now. It will be enabled gradually once testing is complete and it is declared ready to launch.</span>',
             },
             {
                 type: 'callout',
-                variant: 'tip',
-                title: 'Catatan Lingkungan',
-                body: '<span class="lang-id">Saat modul dimatikan di produksi, seluruh halaman IT Support tidak dapat diakses dan tidak muncul di navigasi, sehingga tampilan tetap rapi untuk pengguna akhir.</span><span class="lang-en">When the module is turned off in production, all IT Support pages are inaccessible and hidden from navigation, keeping the interface clean for end users.</span>',
+                variant: 'info',
+                title: 'Status: Dalam Pengembangan',
+                body: '<span class="lang-id">Untuk sementara, menu dan halaman IT Support tidak ditampilkan agar pengalaman tetap rapi. Pengumuman akan diberikan saat modul ini siap digunakan.</span><span class="lang-en">For now, IT Support menus and pages are hidden to keep the experience clean. An announcement will be made once the module is ready to use.</span>',
             },
         ],
     };
+
 
 

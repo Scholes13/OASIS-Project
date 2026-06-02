@@ -28,13 +28,6 @@ export const ChangelogV4BetaArticle: Article =
                 body: '<span class="lang-id">Rilis <strong>Beta</strong> ini merangkum perubahan besar pada struktur organisasi <strong>Werkudara Nirwana Sakti (WNS)</strong>, penambahan katalog activity untuk divisi baru, perombakan internal kode untuk kemudahan perawatan, feature flag untuk modul IT Support, dan sejumlah perbaikan hak akses. Karena berstatus Beta, mohon laporkan kendala apa pun melalui kanal Support.</span><span class="lang-en">This <strong>Beta</strong> release summarizes major changes to the <strong>Werkudara Nirwana Sakti (WNS)</strong> organizational structure, new activity catalogs for new divisions, an internal code overhaul for maintainability, a feature flag for the IT Support module, and several access-control fixes. As a Beta, please report any issues through the Support channel.</span>',
             },
             {
-                type: 'image',
-                id: 'hero',
-                src: '/images/changelog/v4-beta/overview.svg',
-                alt: 'OASIS V4 Beta overview',
-                caption: '<span class="lang-id">Tangkapan layar ringkasan OASIS V4 Beta. <em>(Ganti berkas di /images/changelog/v4-beta/overview.svg atau .png)</em></span><span class="lang-en">OASIS V4 Beta overview screenshot. <em>(Replace file at /images/changelog/v4-beta/overview.svg or .png)</em></span>',
-            },
-            {
                 type: 'heading',
                 id: 'overview',
                 level: 2,
@@ -70,13 +63,6 @@ export const ChangelogV4BetaArticle: Article =
             {
                 type: 'paragraph',
                 html: '<span class="lang-id">Perubahan terbesar di V4 Beta adalah pengenalan struktur organisasi baru untuk WNS. Sistem kini mendukung <strong>departemen induk-anak</strong> (maksimal satu tingkat), memungkinkan satu departemen induk membawahi beberapa sub-divisi. Departemen <strong>Sales &amp; Marketing (SM)</strong> menjadi induk dari tiga divisi: Business Solutions, Commercial, dan Corporate Marketing Communication.</span><span class="lang-en">The biggest change in V4 Beta is the introduction of a new organizational structure for WNS. The system now supports <strong>parent-child departments</strong> (max one level), letting one parent department oversee several sub-divisions. The <strong>Sales &amp; Marketing (SM)</strong> department becomes the parent of three divisions: Business Solutions, Commercial, and Corporate Marketing Communication.</span>',
-            },
-            {
-                type: 'image',
-                id: 'wns-structure-img',
-                src: '/images/changelog/v4-beta/wns-structure.svg',
-                alt: 'WNS Sales & Marketing structure',
-                caption: '<span class="lang-id">Struktur Sales &amp; Marketing WNS dengan tiga divisi. <em>(Ganti berkas di /images/changelog/v4-beta/wns-structure.svg atau .png)</em></span><span class="lang-en">WNS Sales &amp; Marketing structure with three divisions. <em>(Replace file at /images/changelog/v4-beta/wns-structure.svg or .png)</em></span>',
             },
             {
                 type: 'status-list',
@@ -116,13 +102,6 @@ export const ChangelogV4BetaArticle: Article =
             {
                 type: 'paragraph',
                 html: '<span class="lang-id">Setiap divisi baru kini punya katalog jenis aktivitas (activity type) dan sub-aktivitas sendiri, sehingga anggota tim memilih kategori yang relevan saat membuat task. Departemen induk Sales &amp; Marketing memperoleh gabungan dari ketiga divisinya.</span><span class="lang-en">Each new division now has its own catalog of activity types and sub-activities, so team members pick relevant categories when creating tasks. The parent Sales &amp; Marketing department receives a merged union of its three divisions.</span>',
-            },
-            {
-                type: 'image',
-                id: 'activity-catalog-img',
-                src: '/images/changelog/v4-beta/activity-catalog.svg',
-                alt: 'Activity catalog for new divisions',
-                caption: '<span class="lang-id">Pilihan activity type untuk divisi baru saat membuat task. <em>(Ganti berkas di /images/changelog/v4-beta/activity-catalog.svg atau .png)</em></span><span class="lang-en">Activity type options for new divisions when creating a task. <em>(Replace file at /images/changelog/v4-beta/activity-catalog.svg or .png)</em></span>',
             },
             {
                 type: 'status-list',

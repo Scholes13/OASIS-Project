@@ -2,6 +2,7 @@ import { Popover, Transition } from '@headlessui/react';
 import { CalendarDays, ChevronDown } from 'lucide-react';
 
 type ViewMode = 'day' | 'week' | 'month';
+type ChartDisplayMode = 'balance' | 'volume';
 
 type DayPill = {
     key: string;
@@ -9,6 +10,8 @@ type DayPill = {
 };
 
 type ProjectionChartControlsProps = {
+    chartDisplayMode: ChartDisplayMode;
+    onChartDisplayModeChange: (mode: ChartDisplayMode) => void;
     viewModes: ViewMode[];
     viewMode: ViewMode;
     onViewModeChange: (mode: ViewMode) => void;
@@ -19,6 +22,8 @@ type ProjectionChartControlsProps = {
 };
 
 export default function ProjectionChartControls({
+    chartDisplayMode,
+    onChartDisplayModeChange,
     viewModes,
     viewMode,
     onViewModeChange,
@@ -27,27 +32,60 @@ export default function ProjectionChartControls({
     selectedDayLabel,
     onDayFilterChange,
 }: ProjectionChartControlsProps) {
+    const chartDisplayModes: Array<{ label: string; value: ChartDisplayMode }> = [
+        { label: 'Saldo Proyeksi', value: 'balance' },
+        { label: 'Inflow / Outflow', value: 'volume' },
+    ];
+
     return (
-        <>
-            <div className="flex rounded-lg border border-slate-200/50 bg-slate-100/80 p-1">
-                {viewModes.map((mode) => (
-                    <button
-                        key={mode}
-                        type="button"
-                        onClick={() => onViewModeChange(mode)}
-                        className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-all duration-200 ${
-                            viewMode === mode
-                                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                        }`}
-                    >
-                        {mode}
-                    </button>
-                ))}
+        <div className="flex flex-col items-stretch gap-3 sm:items-end">
+            <div className="flex flex-wrap justify-end gap-2">
+                <div
+                    className="inline-flex rounded-xl border border-slate-200/70 bg-slate-100/80 p-1 shadow-inner shadow-slate-200/50"
+                    role="group"
+                    aria-label="Chart display mode"
+                >
+                    {chartDisplayModes.map((mode) => (
+                        <button
+                            key={mode.value}
+                            type="button"
+                            aria-pressed={chartDisplayMode === mode.value}
+                            onClick={() => onChartDisplayModeChange(mode.value)}
+                            className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-all duration-200 ${
+                                chartDisplayMode === mode.value
+                                    ? 'bg-white text-slate-950 shadow-sm ring-1 ring-slate-900/5'
+                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'
+                            }`}
+                        >
+                            {mode.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div
+                    className="inline-flex rounded-xl border border-slate-200/70 bg-slate-100/80 p-1 shadow-inner shadow-slate-200/50"
+                    role="group"
+                    aria-label="Chart granularity"
+                >
+                    {viewModes.map((mode) => (
+                        <button
+                            key={mode}
+                            type="button"
+                            onClick={() => onViewModeChange(mode)}
+                            className={`rounded-lg px-3.5 py-1.5 text-sm font-medium capitalize transition-all duration-200 ${
+                                viewMode === mode
+                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'
+                            }`}
+                        >
+                            {mode}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {viewMode === 'day' && dayPills.length > 0 && (
-                <div className="px-6 pb-1 pt-4">
+                <div className="flex justify-end">
                     <Popover className="relative inline-flex">
                         {({ close }) => (
                             <>
@@ -64,7 +102,7 @@ export default function ProjectionChartControls({
                                     leaveFrom="translate-y-0 opacity-100"
                                     leaveTo="translate-y-1 opacity-0"
                                 >
-                                    <Popover.Panel className="absolute left-0 top-full z-20 mt-2 w-[min(92vw,280px)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                                    <Popover.Panel className="absolute right-0 top-full z-20 mt-2 w-[min(92vw,280px)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
                                         <div className="space-y-3">
                                             <div className="space-y-1">
                                                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Day Focus</p>
@@ -111,6 +149,6 @@ export default function ProjectionChartControls({
                     </Popover>
                 </div>
             )}
-        </>
+        </div>
     );
 }

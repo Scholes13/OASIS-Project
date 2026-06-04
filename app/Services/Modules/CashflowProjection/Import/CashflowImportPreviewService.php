@@ -67,17 +67,31 @@ class CashflowImportPreviewService
         $changes = [];
 
         if ($errors === [] && $department) {
-            $cycle = $this->linkedCycleMerger->findOrCreateCycle((int) $department->business_unit_id, (int) substr((string) $row['transaction_date'], 0, 4), $user->id);
-            $matchResult = $this->matchExistingLineItem($cycle->id, $department->id, (string) $row['description']);
+            if (isset($row['line_item_id']) && $row['line_item_id'] !== null) {
+                $matchedItem = CashflowProjectionLineItem::query()->find((int) $row['line_item_id']);
+                if (! $matchedItem || ! in_array((int) $matchedItem->department_id, $allowedDepartmentIds, true)) {
+                    $errors[] = [
+                        'field' => 'line_item_id',
+                        'message' => 'Existing Entry ID tidak ditemukan atau tidak berada dalam scope Anda.',
+                    ];
+                    $status = 'need_review';
+                }
+            } else {
+                $cycle = $this->linkedCycleMerger->findOrCreateCycle((int) $department->business_unit_id, (int) substr((string) $row['transaction_date'], 0, 4), $user->id);
+                $matchResult = $this->matchExistingLineItem($cycle->id, $department->id, (string) $row['description']);
 
-            if ($matchResult['ambiguous']) {
-                $errors[] = [
-                    'field' => 'description',
-                    'message' => 'Lebih dari satu line item existing memiliki deskripsi sama; pilih manual.',
-                ];
-                $status = 'need_review';
-            } elseif ($matchResult['item']) {
-                $matchedItem = $matchResult['item'];
+                if ($matchResult['ambiguous']) {
+                    $errors[] = [
+                        'field' => 'description',
+                        'message' => 'Lebih dari satu line item existing memiliki deskripsi sama; pilih manual.',
+                    ];
+                    $status = 'need_review';
+                } elseif ($matchResult['item']) {
+                    $matchedItem = $matchResult['item'];
+                }
+            }
+
+            if ($matchedItem) {
                 $changes = $this->buildChanges($matchedItem, $row, $classification['action_code']);
                 $status = $changes === [] ? 'no_change' : 'update';
             }
@@ -103,6 +117,7 @@ class CashflowImportPreviewService
             'no_dokumen' => $row['no_dokumen'] ?? null,
             'nama_vendor' => $row['nama_vendor'] ?? null,
             'notes' => $row['notes'],
+            'is_estimated_date' => $row['is_estimated_date'] ?? false,
             'match' => $matchedItem ? ['line_item_id' => $matchedItem->id] : null,
             'changes' => $changes,
             'errors' => $errors,
@@ -151,6 +166,7 @@ class CashflowImportPreviewService
             'action_code' => [$item->action_code, $actionCode],
             'transaction_date' => [$item->transaction_date?->format('Y-m-d'), $row['transaction_date']],
             'due_date' => [$item->due_date?->format('Y-m-d'), $row['due_date']],
+            'is_estimated_date' => [(bool) $item->is_estimated_date, (bool) ($row['is_estimated_date'] ?? false)],
             'amount' => [(float) $item->amount, (float) $row['amount']],
             'description' => [$item->description, $row['description']],
             'keterangan' => [$item->keterangan, $row['keterangan']],

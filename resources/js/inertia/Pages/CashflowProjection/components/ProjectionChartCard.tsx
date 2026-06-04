@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import {
     Bar,
     CartesianGrid,
@@ -12,19 +13,20 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
+import type { TooltipContentProps } from 'recharts';
 import ProjectionChartControls from './ProjectionChartControls';
 import ProjectionChartTooltip from './ProjectionChartTooltip';
 import {
     buildLineSeries,
     resolveLineChartDomain,
-    type CashflowChartRow,
 } from '../chart-utils';
 import { formatCurrency } from '../utils';
 
 type ViewMode = 'day' | 'week' | 'month';
+type ChartDisplayMode = 'balance' | 'volume';
 
 type ChartRow = {
-    key?: string;
+    key: string;
     label: string;
     inflow: number;
     outflow: number;
@@ -51,7 +53,7 @@ interface ProjectionChartCardProps {
 const viewModes: ViewMode[] = ['day', 'week', 'month'];
 
 const INFLOW_COLOR = '#3b82f6';
-const OUTFLOW_COLOR = '#f43f5e';
+const OUTFLOW_COLOR = '#ef4444';
 const BALANCE_COLOR = '#059669';
 const WARNING_COLOR = '#f59e0b';
 const ZERO_BALANCE_COLOR = '#ef4444';
@@ -67,15 +69,17 @@ export default function ProjectionChartCard({
     onDayFilterChange,
     minimumBalanceThreshold,
 }: ProjectionChartCardProps) {
-    const lineSeries = buildLineSeries(chartData as CashflowChartRow[], viewMode);
-    const chartDomain = resolveLineChartDomain(chartData as CashflowChartRow[], viewMode);
+    const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>('balance');
+    const lineSeries = buildLineSeries(chartData, viewMode);
+    const chartDomain = resolveLineChartDomain(chartData, viewMode);
 
     // Day single → full opacity bar, All others → composed chart
     const isSingleDay = viewMode === 'day' && selectedDayKey !== 'all';
     const useMultiPeriodChart = !isSingleDay;
     const hasBalanceData = lineSeries.some((row) => row.closingBalance != null && row.closingBalance !== 0);
-    const showMovementBars = !useMultiPeriodChart || !hasBalanceData;
-    const hideMovementAxis = useMultiPeriodChart && hasBalanceData;
+    const showBalanceLine = chartDisplayMode === 'balance' && useMultiPeriodChart && hasBalanceData;
+    const showMovementBars = chartDisplayMode === 'volume' || !useMultiPeriodChart || !hasBalanceData;
+    const hideMovementAxis = showBalanceLine;
     const closingBalances = lineSeries
         .map((row) => row.closingBalance)
         .filter((value): value is number => typeof value === 'number');
@@ -110,9 +114,10 @@ export default function ProjectionChartCard({
         return String(abs);
     };
 
-    const renderTooltip = (props: any) => (
+    const renderTooltip = (props: TooltipContentProps<number | string | ReadonlyArray<number | string>, number | string>) => (
         <ProjectionChartTooltip
             {...props}
+            chartDisplayMode={chartDisplayMode}
             minimumBalanceThreshold={minimumBalanceThreshold}
         />
     );
@@ -152,6 +157,8 @@ export default function ProjectionChartCard({
                     <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
                 </div>
                 <ProjectionChartControls
+                    chartDisplayMode={chartDisplayMode}
+                    onChartDisplayModeChange={setChartDisplayMode}
                     viewModes={viewModes}
                     viewMode={viewMode}
                     onViewModeChange={onViewModeChange}
@@ -220,7 +227,7 @@ export default function ProjectionChartCard({
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                                 {sharedXAxis}
                                 {sharedYAxis}
-                                {hasBalanceData && (
+                                {showBalanceLine && (
                                     <YAxis
                                         yAxisId="balance"
                                         orientation="right"
@@ -234,7 +241,7 @@ export default function ProjectionChartCard({
                                 )}
                                 <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} content={renderTooltip} />
                                 <ReferenceLine y={0} stroke={ZERO_BALANCE_COLOR} strokeWidth={1.5} strokeDasharray="4 4" />
-                                {hasBalanceData && (
+                                {showBalanceLine && (
                                     <ReferenceLine
                                         yAxisId="balance"
                                         y={0}
@@ -250,7 +257,7 @@ export default function ProjectionChartCard({
                                         }}
                                     />
                                 )}
-                                {minimumLineThreshold && (
+                                {showBalanceLine && minimumLineThreshold && (
                                     <ReferenceLine
                                         yAxisId="balance"
                                         y={minimumLineThreshold}
@@ -281,7 +288,7 @@ export default function ProjectionChartCard({
                                     </Bar>
                                 )}
                                 {/* Balance line on right axis */}
-                                {hasBalanceData && (
+                                {showBalanceLine && (
                                     <Line
                                         yAxisId="balance"
                                         type="monotone"
@@ -298,7 +305,7 @@ export default function ProjectionChartCard({
                                                     cy={cy}
                                                     r={4}
                                                     fill={isBelowThreshold ? OUTFLOW_COLOR : BALANCE_COLOR}
-                                                    stroke="#fff"
+                                                    stroke="#f8fafc"
                                                     strokeWidth={2}
                                                 />
                                             );
@@ -313,7 +320,7 @@ export default function ProjectionChartCard({
                                                         ? OUTFLOW_COLOR
                                                         : BALANCE_COLOR
                                                 }
-                                                stroke="#fff"
+                                                stroke="#f8fafc"
                                                 strokeWidth={2}
                                             />
                                         )}
@@ -322,17 +329,6 @@ export default function ProjectionChartCard({
                                 <Legend
                                     iconSize={10}
                                     wrapperStyle={{ fontSize: 12, paddingTop: 16 }}
-                                    {...({
-                                        payload: [
-                                            ...(showMovementBars
-                                                ? [
-                                                    { value: 'Inflow', type: 'square', color: INFLOW_COLOR },
-                                                    { value: 'Outflow', type: 'square', color: OUTFLOW_COLOR },
-                                                ]
-                                                : []),
-                                            ...(hasBalanceData ? [{ value: 'Saldo Proyeksi', type: 'line' as const, color: BALANCE_COLOR }] : []),
-                                        ],
-                                    } as any)}
                                 />
                             </ComposedChart>
                         </ResponsiveContainer>

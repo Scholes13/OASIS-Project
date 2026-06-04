@@ -2,8 +2,8 @@ import { Upload } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { ImportPreviewPayload, ImportPreviewRow } from '@/hooks/useCashflowImportPreview';
 import type { CashflowImportFlash } from '@/types';
+import type { ImportPreviewPayload, ImportPreviewRow } from '@/types/cashflowImport';
 import ImportRowReviewPanel from './ImportRowReviewPanel';
 import type { DepartmentOption } from '../types';
 

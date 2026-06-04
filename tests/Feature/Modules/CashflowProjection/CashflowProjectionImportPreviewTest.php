@@ -161,6 +161,53 @@ class CashflowProjectionImportPreviewTest extends TestCase
             ->assertJsonPath('rows.0.errors.0.field', 'description');
     }
 
+    public function test_preview_accepts_official_template_workbook(): void
+    {
+        $existing = CashflowProjectionLineItem::create([
+            'cycle_id' => $this->cycle->id,
+            'department_id' => $this->hrDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_HR_OPS',
+            'transaction_date' => '2026-05-26',
+            'due_date' => '2026-05-19',
+            'is_estimated_date' => false,
+            'amount' => 750000,
+            'description' => 'Existing official row',
+            'keterangan' => 'OPERASIONAL',
+            'source_type' => 'manual',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
+        $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-preview'), [
+            'file' => $this->makeTemplateWorkbookUpload([
+                [$existing->id, 2026, 'WNS', 'HR', 'OUT_HR_OPS', '2026-05-26', '2026-05-19', 'FALSE', 800000, 'Existing official row', 'OPERASIONAL', 'Updated note'],
+                ['', 2026, 'WNS', 'HR', 'OUT_HR_OPS', '2026-05-28', '2026-05-28', 'FALSE', 120000, 'New official row', 'OPERASIONAL', 'New note'],
+            ]),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('summary.ready_rows', 2)
+            ->assertJsonPath('rows.0.status', 'update')
+            ->assertJsonPath('rows.0.match.line_item_id', $existing->id)
+            ->assertJsonPath('rows.1.status', 'new')
+            ->assertJsonPath('rows.1.department_code', 'HR');
+    }
+
+    public function test_preview_accepts_one_sheet_official_template_workbook(): void
+    {
+        $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-preview'), [
+            'file' => $this->makeTemplateWorkbookUpload([
+                ['', 2026, 'WNS', 'HR', 'OUT_HR_OPS', '2026-05-28', '2026-05-28', 'FALSE', 120000, 'New one sheet row', 'OPERASIONAL', 'New note'],
+            ], false),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('summary.ready_rows', 1)
+            ->assertJsonPath('rows.0.status', 'new')
+            ->assertJsonPath('rows.0.description', 'New one sheet row');
+    }
+
     private function actingAsFinanceUser(): self
     {
         return $this->actingAs($this->financeUser)->withSession([
@@ -188,5 +235,44 @@ class CashflowProjectionImportPreviewTest extends TestCase
         (new Xlsx($spreadsheet))->save($path);
 
         return new UploadedFile($path, 'cashflow_preview.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+    }
+
+    /**
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function makeTemplateWorkbookUpload(array $rows, bool $withReferenceSheets = true): UploadedFile
+    {
+        $spreadsheet = new Spreadsheet;
+        $templateSheet = $spreadsheet->getActiveSheet();
+        $templateSheet->setTitle('Template');
+        $templateSheet->fromArray([
+            'line_item_id',
+            'year',
+            'business_unit_code',
+            'department_code',
+            'action_code',
+            'transaction_date',
+            'due_date',
+            'is_estimated_date',
+            'amount',
+            'description',
+            'keterangan',
+            'notes',
+        ], null, 'A1');
+        $templateSheet->fromArray($rows, null, 'A2');
+
+        if ($withReferenceSheets) {
+            $spreadsheet->createSheet()->setTitle('Reference');
+            $spreadsheet->createSheet()->setTitle('Existing Entries');
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'cashflow-template-preview-test');
+        if ($path === false) {
+            throw new \RuntimeException('Failed to create temp workbook path.');
+        }
+
+        (new Xlsx($spreadsheet))->save($path);
+
+        return new UploadedFile($path, 'cashflow_template_preview.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
     }
 }

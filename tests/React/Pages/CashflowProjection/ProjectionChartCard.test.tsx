@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import ProjectionChartCard from '@/Pages/CashflowProjection/components/ProjectionChartCard';
 
@@ -38,6 +39,71 @@ vi.mock('recharts', () => {
 });
 
 describe('ProjectionChartCard', () => {
+    it('lets users switch from balance trend to inflow and red outflow volume', async () => {
+        yAxisProps.length = 0;
+        referenceLineProps.length = 0;
+        lineProps.length = 0;
+        barProps.length = 0;
+        legendProps.length = 0;
+        tooltipProps.length = 0;
+
+        const user = userEvent.setup();
+
+        render(
+            <ProjectionChartCard
+                title="Cashflow Projection"
+                subtitle="Granular trend for Apr 2026."
+                chartData={[
+                    { key: '2026-04-05', label: '05', inflow: 113_000_000, outflow: 0, closingBalance: 1_024_400_000 },
+                    { key: '2026-04-19', label: '19', inflow: 0, outflow: 85_000_000, closingBalance: 940_400_000 },
+                ]}
+                viewMode="day"
+                onViewModeChange={() => {}}
+                dayPills={[
+                    { key: '2026-04-05', label: 'Min, 05' },
+                    { key: '2026-04-19', label: 'Min, 19' },
+                ]}
+                selectedDayKey="all"
+                onDayFilterChange={() => {}}
+                minimumBalanceThreshold={200_000_000}
+            />
+        );
+
+        expect(screen.getByRole('button', { name: 'Saldo Proyeksi' })).toHaveAttribute('aria-pressed', 'true');
+
+        await user.click(screen.getByRole('button', { name: 'Inflow / Outflow' }));
+
+        expect(screen.getByRole('button', { name: 'Inflow / Outflow' })).toHaveAttribute('aria-pressed', 'true');
+        expect(lineProps).toHaveLength(1);
+        expect(barProps).toHaveLength(2);
+        expect(barProps[0]).toMatchObject({ dataKey: 'inflow', name: 'Inflow', fill: '#3b82f6' });
+        expect(barProps[1]).toMatchObject({ dataKey: 'outflow', name: 'Outflow', fill: '#ef4444' });
+        expect(legendProps.at(-1)).toMatchObject({ iconSize: 10 });
+
+        const tooltipContent = tooltipProps.at(-1)?.content as ((props: Record<string, unknown>) => React.ReactNode) | undefined;
+
+        render(
+            <>{tooltipContent?.({
+                active: true,
+                label: '19 Apr 2026',
+                payload: [
+                    {
+                        name: 'Outflow',
+                        value: -85_000_000,
+                        payload: {
+                            inflow: 0,
+                            outflow: -85_000_000,
+                            net: -85_000_000,
+                        },
+                    },
+                ],
+            })}</>,
+        );
+
+        expect(screen.getByText('Net Cashflow')).toBeInTheDocument();
+        expect(screen.queryByText('Threshold Status')).not.toBeInTheDocument();
+    });
+
     it('keeps the balance chart focused while showing balance guardrails', () => {
         yAxisProps.length = 0;
         referenceLineProps.length = 0;
@@ -86,9 +152,7 @@ describe('ProjectionChartCard', () => {
             yAxisId: 'balance',
         });
         expect(barProps).toHaveLength(0);
-        expect(legendProps.at(-1)?.payload).toEqual([
-            { value: 'Saldo Proyeksi', type: 'line', color: '#059669' },
-        ]);
+        expect(legendProps.at(-1)).toMatchObject({ iconSize: 10 });
 
         const tooltipContent = tooltipProps.at(-1)?.content as ((props: Record<string, unknown>) => React.ReactNode) | undefined;
 

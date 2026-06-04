@@ -52,10 +52,12 @@ class CashflowProjectionEntryImportTemplateService
             ->filter(fn (Department $department): bool => ! $department->activeChildren()->exists())
             ->values();
 
+        $lineItems = $this->existingLineItemsForYear($departments, $year);
+
         $spreadsheet = new Spreadsheet;
-        $this->buildTemplateSheet($spreadsheet);
+        $this->buildTemplateSheet($spreadsheet, $lineItems);
         $this->buildReferenceSheet($spreadsheet, $businessUnits, $departments);
-        $this->buildExistingEntriesSheet($spreadsheet, $departments, $year, $month);
+        $this->buildExistingEntriesSheet($spreadsheet, $lineItems);
 
         $filename = 'cashflow_entries_import_template.xlsx';
 
@@ -69,7 +71,7 @@ class CashflowProjectionEntryImportTemplateService
         ]);
     }
 
-    protected function buildTemplateSheet(Spreadsheet $spreadsheet): void
+    protected function buildTemplateSheet(Spreadsheet $spreadsheet, Collection $lineItems): void
     {
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Template');
@@ -78,6 +80,12 @@ class CashflowProjectionEntryImportTemplateService
         $this->styleHeader($sheet, 'A1:L1');
 
         $sheet->freezePane('A2');
+
+        $row = 2;
+        foreach ($lineItems as $lineItem) {
+            $this->writeLineItemRow($sheet, $lineItem, $row);
+            $row++;
+        }
 
         foreach (range('A', 'L') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
@@ -173,9 +181,9 @@ class CashflowProjectionEntryImportTemplateService
     }
 
     /**
-     * @param  Collection<int, Department>  $departments
+     * @param  Collection<int, CashflowProjectionLineItem>  $lineItems
      */
-    protected function buildExistingEntriesSheet(Spreadsheet $spreadsheet, Collection $departments, int $year, int $month): void
+    protected function buildExistingEntriesSheet(Spreadsheet $spreadsheet, Collection $lineItems): void
     {
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Existing Entries');
@@ -183,37 +191,47 @@ class CashflowProjectionEntryImportTemplateService
         $this->styleHeader($sheet, 'A1:L1');
         $sheet->freezePane('A2');
 
-        $departmentIds = $departments->pluck('id')->all();
-        $lineItems = CashflowProjectionLineItem::query()
-            ->with(['cycle', 'department.businessUnit'])
-            ->whereIn('department_id', $departmentIds)
-            ->whereHas('cycle', fn ($query) => $query->where('year', $year))
-            ->whereMonth('transaction_date', $month)
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id')
-            ->limit(CashflowProjectionEntryImportService::MAX_ROWS)
-            ->get();
-
         $row = 2;
         foreach ($lineItems as $lineItem) {
-            $sheet->setCellValueExplicit('A'.$row, (string) $lineItem->id, DataType::TYPE_STRING);
-            $sheet->setCellValue('B'.$row, $lineItem->cycle?->year);
-            $sheet->setCellValue('C'.$row, $lineItem->department?->businessUnit?->code);
-            $sheet->setCellValue('D'.$row, $lineItem->department?->code);
-            $sheet->setCellValue('E'.$row, $lineItem->action_code);
-            $sheet->setCellValue('F'.$row, optional($lineItem->transaction_date)->format('Y-m-d'));
-            $sheet->setCellValue('G'.$row, optional($lineItem->due_date)->format('Y-m-d'));
-            $sheet->setCellValue('H'.$row, $lineItem->is_estimated_date ? 'TRUE' : 'FALSE');
-            $sheet->setCellValue('I'.$row, (float) $lineItem->amount);
-            $sheet->setCellValue('J'.$row, $lineItem->description);
-            $sheet->setCellValue('K'.$row, $lineItem->keterangan);
-            $sheet->setCellValue('L'.$row, $lineItem->notes);
+            $this->writeLineItemRow($sheet, $lineItem, $row);
             $row++;
         }
 
         foreach (range('A', 'L') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
+    }
+
+    /**
+     * @param  Collection<int, Department>  $departments
+     * @return Collection<int, CashflowProjectionLineItem>
+     */
+    protected function existingLineItemsForYear(Collection $departments, int $year): Collection
+    {
+        return CashflowProjectionLineItem::query()
+            ->with(['cycle', 'department.businessUnit'])
+            ->whereIn('department_id', $departments->pluck('id')->all())
+            ->whereHas('cycle', fn ($query) => $query->where('year', $year))
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->limit(CashflowProjectionEntryImportService::MAX_ROWS)
+            ->get();
+    }
+
+    protected function writeLineItemRow(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, CashflowProjectionLineItem $lineItem, int $row): void
+    {
+        $sheet->setCellValueExplicit('A'.$row, (string) $lineItem->id, DataType::TYPE_STRING);
+        $sheet->setCellValue('B'.$row, $lineItem->cycle?->year);
+        $sheet->setCellValue('C'.$row, $lineItem->department?->businessUnit?->code);
+        $sheet->setCellValue('D'.$row, $lineItem->department?->code);
+        $sheet->setCellValue('E'.$row, $lineItem->action_code);
+        $sheet->setCellValue('F'.$row, optional($lineItem->transaction_date)->format('Y-m-d'));
+        $sheet->setCellValue('G'.$row, optional($lineItem->due_date)->format('Y-m-d'));
+        $sheet->setCellValue('H'.$row, $lineItem->is_estimated_date ? 'TRUE' : 'FALSE');
+        $sheet->setCellValue('I'.$row, (float) $lineItem->amount);
+        $sheet->setCellValue('J'.$row, $lineItem->description);
+        $sheet->setCellValue('K'.$row, $lineItem->keterangan);
+        $sheet->setCellValue('L'.$row, $lineItem->notes);
     }
 
     protected function styleHeader(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, string $range): void

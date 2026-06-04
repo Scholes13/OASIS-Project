@@ -196,6 +196,21 @@ class CashflowProjectionEntriesImportTest extends TestCase
 
     public function test_download_import_template_returns_strict_workbook_with_reference_and_existing_entries(): void
     {
+        $mayLineItem = CashflowProjectionLineItem::query()->create([
+            'cycle_id' => $this->existingHostLineItem->cycle_id,
+            'department_id' => $this->hrDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_HR_OPS',
+            'transaction_date' => '2026-05-12',
+            'due_date' => '2026-05-12',
+            'is_estimated_date' => false,
+            'amount' => 875000,
+            'description' => 'Existing May row',
+            'source_type' => 'manual',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+
         $response = $this->actingAsFinanceUser()->get(route('cashflow-projection.entries.import-template', [
             'year' => 2026,
             'month' => 4,
@@ -213,9 +228,14 @@ class CashflowProjectionEntriesImportTest extends TestCase
             $this->sheetRowValues($spreadsheet->getSheetByName('Template')?->toArray() ?? [], 1)
         );
 
+        $templateRows = $spreadsheet->getSheetByName('Template')?->toArray() ?? [];
+        $this->assertTrue(collect($templateRows)->contains(fn (array $row): bool => (string) ($row[0] ?? '') === (string) $this->existingHostLineItem->id));
+        $this->assertTrue(collect($templateRows)->contains(fn (array $row): bool => (string) ($row[0] ?? '') === (string) $mayLineItem->id));
+
         $existingRows = $spreadsheet->getSheetByName('Existing Entries')?->toArray() ?? [];
         $this->assertTrue(collect($existingRows)->contains(fn (array $row): bool => (string) ($row[0] ?? '') === (string) $this->existingHostLineItem->id));
         $this->assertTrue(collect($existingRows)->contains(fn (array $row): bool => (string) ($row[0] ?? '') === (string) $this->existingLinkedLineItem->id));
+        $this->assertTrue(collect($existingRows)->contains(fn (array $row): bool => (string) ($row[0] ?? '') === (string) $mayLineItem->id));
     }
 
     public function test_download_import_template_excludes_root_departments_with_active_children(): void

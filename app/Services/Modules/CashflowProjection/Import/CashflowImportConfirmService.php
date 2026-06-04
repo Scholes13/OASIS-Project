@@ -88,7 +88,7 @@ class CashflowImportConfirmService
             'action_code' => $row['action_code'],
             'transaction_date' => $row['transaction_date'],
             'due_date' => $row['due_date'] ?? null,
-            'is_estimated_date' => false,
+            'is_estimated_date' => (bool) ($row['is_estimated_date'] ?? false),
             'amount' => $row['amount'],
             'description' => $row['description'],
             'keterangan' => $row['keterangan'] ?? null,

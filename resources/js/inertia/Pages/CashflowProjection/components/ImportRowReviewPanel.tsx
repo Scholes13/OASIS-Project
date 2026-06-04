@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ImportPreviewRow } from '@/hooks/useCashflowImportPreview';
+import type { ImportPreviewRow } from '@/types/cashflowImport';
 import type { DepartmentOption } from '../types';
 
 type ImportRowReviewPanelProps = {

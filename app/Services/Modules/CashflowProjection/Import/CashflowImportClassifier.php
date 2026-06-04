@@ -28,7 +28,7 @@ class CashflowImportClassifier
             ];
         }
 
-        $actionCode = $department ? $this->resolveActionCode($department, (string) ($row['keterangan'] ?? ''), (string) ($row['description'] ?? '')) : null;
+        $actionCode = $department ? $this->resolveActionCode($department, $row) : null;
         $actionMeta = $actionCode && $department ? $this->templateService->metaForActionCode($actionCode, $department) : null;
 
         if ($department && (! $actionCode || ! $this->templateService->isActionAllowedForDepartment($actionCode, $department) || ! $actionMeta)) {
@@ -97,9 +97,16 @@ class CashflowImportClassifier
         return null;
     }
 
-    private function resolveActionCode(Department $department, string $keterangan, string $description): ?string
+    private function resolveActionCode(Department $department, array $row): ?string
     {
+        $explicit = strtoupper(trim((string) ($row['action_code'] ?? '')));
+        if ($explicit !== '' && $this->templateService->isActionAllowedForDepartment($explicit, $department)) {
+            return $explicit;
+        }
+
         $departmentCode = strtoupper($department->code);
+        $keterangan = (string) ($row['keterangan'] ?? '');
+        $description = (string) ($row['description'] ?? '');
         $keteranganText = strtoupper($keterangan);
         $text = strtoupper($keterangan.' '.$description);
 

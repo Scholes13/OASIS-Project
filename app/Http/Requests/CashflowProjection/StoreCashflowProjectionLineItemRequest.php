@@ -35,7 +35,8 @@ class StoreCashflowProjectionLineItemRequest extends FormRequest
             'due_date' => ['nullable', 'date'],
             'is_estimated_date' => ['nullable', 'boolean'],
             'amount' => ['required', 'numeric', 'min:0'],
-            'description' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string', 'max:5000'],
+            'keterangan' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];
     }

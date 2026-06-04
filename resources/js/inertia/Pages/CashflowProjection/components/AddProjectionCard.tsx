@@ -87,14 +87,14 @@ export default function AddProjectionCard({
 
     return (
         <motion.section
-            className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+            className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut', delay: 0.12 }}
         >
             <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-semibold text-foreground">{isEditing ? 'Edit Projection' : 'Add Projection'}</h2>
+                    <h2 className="text-xl font-semibold text-foreground">Projection Details</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {isEditing ? 'Update an existing projection entry' : 'Simulate future cashflows'}
                     </p>
@@ -120,7 +120,7 @@ export default function AddProjectionCard({
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label htmlFor="transaction-date" className="mb-1.5 block text-sm font-medium text-slate-700">Date</label>
+                        <label htmlFor="transaction-date" className="mb-1.5 block text-sm font-medium text-slate-700">Payment Date</label>
                         <input
                             id="transaction-date"
                             type="date"
@@ -210,15 +210,28 @@ export default function AddProjectionCard({
 
                 <div>
                     <label htmlFor="entry-name" className="mb-1.5 block text-sm font-medium text-slate-700">Entry Name</label>
-                    <input
+                    <textarea
                         id="entry-name"
-                        type="text"
-                        className={inputClasses}
-                        placeholder="e.g. Q4 Server Costs"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                        rows={5}
+                        placeholder="e.g. WNS - HR - Q4 Server Costs"
                         value={lineItemData.description}
                         onChange={(event) => onFieldChange('description', event.target.value)}
                     />
                     {fieldErrors.description && <p className="mt-1 text-xs text-red-500">{fieldErrors.description}</p>}
+                </div>
+
+                <div>
+                    <label htmlFor="keterangan" className="mb-1.5 block text-sm font-medium text-slate-700">Keterangan (Optional)</label>
+                    <input
+                        id="keterangan"
+                        type="text"
+                        className={inputClasses}
+                        placeholder="e.g. OPERASIONAL"
+                        value={lineItemData.keterangan}
+                        onChange={(event) => onFieldChange('keterangan', event.target.value)}
+                    />
+                    {fieldErrors.keterangan && <p className="mt-1 text-xs text-red-500">{fieldErrors.keterangan}</p>}
                 </div>
 
                 <div>
@@ -236,7 +249,7 @@ export default function AddProjectionCard({
                 </div>
 
                 <div>
-                    <label htmlFor="due-date" className="mb-1.5 block text-sm font-medium text-slate-700">Due Date (Optional)</label>
+                    <label htmlFor="due-date" className="mb-1.5 block text-sm font-medium text-slate-700">Due Date</label>
                     <input
                         id="due-date"
                         type="date"
@@ -257,15 +270,6 @@ export default function AddProjectionCard({
                         onChange={(event) => onFieldChange('notes', event.target.value)}
                     />
                     {fieldErrors.notes && <p className="mt-1 text-xs text-red-500">{fieldErrors.notes}</p>}
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-700">Estimated Date</span>
-                    <button
-                        type="button"
-                        className={`cfp-switch ${lineItemData.is_estimated_date ? 'active' : ''}`}
-                        onClick={() => onFieldChange('is_estimated_date', !lineItemData.is_estimated_date)}
-                    />
                 </div>
 
                 <button

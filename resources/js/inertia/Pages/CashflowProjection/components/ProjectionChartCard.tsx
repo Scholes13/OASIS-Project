@@ -1,6 +1,4 @@
-import { Popover, Transition } from '@headlessui/react';
 import { motion } from 'framer-motion';
-import { CalendarDays, ChevronDown } from 'lucide-react';
 import {
     Bar,
     CartesianGrid,
@@ -14,6 +12,8 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
+import ProjectionChartControls from './ProjectionChartControls';
+import ProjectionChartTooltip from './ProjectionChartTooltip';
 import {
     buildLineSeries,
     resolveLineChartDomain,
@@ -54,7 +54,7 @@ const INFLOW_COLOR = '#3b82f6';
 const OUTFLOW_COLOR = '#f43f5e';
 const BALANCE_COLOR = '#059669';
 const WARNING_COLOR = '#f59e0b';
-const WARNING_MULTIPLIER = 2;
+const ZERO_BALANCE_COLOR = '#ef4444';
 
 export default function ProjectionChartCard({
     title,
@@ -79,25 +79,19 @@ export default function ProjectionChartCard({
     const closingBalances = lineSeries
         .map((row) => row.closingBalance)
         .filter((value): value is number => typeof value === 'number');
-    const warningBalanceThreshold = minimumBalanceThreshold ? minimumBalanceThreshold * WARNING_MULTIPLIER : undefined;
-    const minClosingBalance = closingBalances.length > 0 ? Math.min(...closingBalances) : undefined;
-    const showBalanceWarning = Boolean(
-        warningBalanceThreshold !== undefined
-        && minClosingBalance !== undefined
-        && minClosingBalance <= warningBalanceThreshold,
-    );
-
+    const minimumLineThreshold = minimumBalanceThreshold && minimumBalanceThreshold > 0 ? minimumBalanceThreshold : undefined;
     // Right Y-axis domain for balance line (month view)
     const balanceDomain: [number, number] = (() => {
         if (!hasBalanceData) return [0, 1];
         const balances = [...closingBalances];
-        if (showBalanceWarning && warningBalanceThreshold !== undefined) {
-            balances.push(warningBalanceThreshold);
+        balances.push(0);
+        if (minimumLineThreshold !== undefined) {
+            balances.push(minimumLineThreshold);
         }
         const minBal = Math.min(...balances);
         const maxBal = Math.max(...balances);
         const padding = Math.max((maxBal - minBal) * 0.12, maxBal * 0.04, 1);
-        return [Math.max(0, Math.floor(minBal - padding)), Math.ceil(maxBal + padding)];
+        return [Math.floor(minBal - padding), Math.ceil(maxBal + padding)];
     })();
 
     const selectedDayLabel = selectedDayKey === 'all'
@@ -116,94 +110,12 @@ export default function ProjectionChartCard({
         return String(abs);
     };
 
-    const renderTooltip = ({ active, payload, label }: any) => {
-        if (!active || !payload?.length) return null;
-
-        const activeRow = payload.find((entry: any) => entry?.payload)?.payload as {
-            inflow?: number;
-            outflow?: number;
-            net?: number;
-        } | undefined;
-        const balancePayload = payload.find((e: any) => e.name === 'Saldo Proyeksi');
-        const inflowValue = payload.find((e: any) => e.name === 'Inflow')?.value ?? activeRow?.inflow ?? 0;
-        const outflowValue = payload.find((e: any) => e.name === 'Outflow')?.value ?? activeRow?.outflow ?? 0;
-        const netValue = payload.find((e: any) => e.name === 'Net Cashflow')?.value ?? activeRow?.net ?? 0;
-        const hasMovementData = inflowValue !== 0 || outflowValue !== 0;
-
-        return (
-            <div className="rounded-xl border border-slate-200/80 bg-white/95 p-4 shadow-xl backdrop-blur-md min-w-[240px]">
-                <p className="mb-3 text-[11px] font-bold text-slate-500 uppercase tracking-widest">{label}</p>
-
-                {balancePayload && (
-                    <div className="mb-4 rounded-lg bg-emerald-50/50 p-3 ring-1 ring-emerald-100/80">
-                        <p className="text-[11px] font-semibold text-emerald-600 mb-1 uppercase tracking-wider">Saldo Proyeksi</p>
-                        <p className="text-xl font-bold tracking-tight text-slate-900">
-                            {formatCurrency(Math.abs(Number(balancePayload.value ?? 0)))}
-                        </p>
-                        {minimumBalanceThreshold !== undefined && (
-                            <div className="mt-2.5 pt-2.5 border-t border-emerald-100 flex flex-col gap-1 text-[11px] font-medium">
-                                <div className="flex justify-between items-center text-slate-600">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-1 w-1 rounded-full bg-slate-400" />
-                                        Minimum Balance
-                                    </span>
-                                    <span>{formatCurrency(minimumBalanceThreshold)}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="flex items-center gap-1.5 text-slate-500">
-                                        <span className={`h-1 w-1 rounded-full ${
-                                            Number(balancePayload.value) < minimumBalanceThreshold
-                                                ? 'bg-rose-500'
-                                                : showBalanceWarning && warningBalanceThreshold !== undefined && Number(balancePayload.value) <= warningBalanceThreshold
-                                                    ? 'bg-amber-500'
-                                                    : 'bg-emerald-500'
-                                        }`} />
-                                        Threshold Status
-                                    </span>
-                                    <span className={
-                                        Number(balancePayload.value) < minimumBalanceThreshold
-                                            ? 'text-rose-600 font-semibold'
-                                            : showBalanceWarning && warningBalanceThreshold !== undefined && Number(balancePayload.value) <= warningBalanceThreshold
-                                                ? 'text-amber-600 font-semibold'
-                                                : 'text-emerald-600 font-semibold'
-                                    }>
-                                        {Number(balancePayload.value) < minimumBalanceThreshold
-                                            ? 'Below Limit'
-                                            : showBalanceWarning && warningBalanceThreshold !== undefined && Number(balancePayload.value) <= warningBalanceThreshold
-                                                ? 'Watch Zone'
-                                                : 'Above Limit'}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {!balancePayload && netValue !== 0 && (
-                    <div className="mb-4 rounded-lg bg-blue-50/50 p-3 ring-1 ring-blue-100/80">
-                        <p className="text-[11px] font-semibold text-blue-600 mb-1 uppercase tracking-wider">Net Cashflow</p>
-                        <p className="text-xl font-bold tracking-tight text-slate-900">
-                            {formatCurrency(Math.abs(Number(netValue ?? 0)))}
-                        </p>
-                    </div>
-                )}
-
-                {hasMovementData && (
-                    <div className={`${balancePayload || netValue !== 0 ? 'mt-3 pt-3 border-t border-slate-100' : ''} space-y-1`}>
-                        <div className="mb-1.5 text-[11px] font-medium text-slate-500">Cash Movement</div>
-                        <div className="flex justify-between items-center text-[11px]">
-                            <span className="text-slate-500 font-medium">Inflow</span>
-                            <span className="font-semibold text-blue-600">{formatCurrency(Math.abs(Number(inflowValue ?? 0)))}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                            <span className="text-slate-500 font-medium">Outflow</span>
-                            <span className="font-semibold text-rose-600">{formatCurrency(Math.abs(Number(outflowValue ?? 0)))}</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
+    const renderTooltip = (props: any) => (
+        <ProjectionChartTooltip
+            {...props}
+            minimumBalanceThreshold={minimumBalanceThreshold}
+        />
+    );
 
     const sharedXAxis = (
         <XAxis
@@ -239,91 +151,16 @@ export default function ProjectionChartCard({
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h2>
                     <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
                 </div>
-                <div className="flex bg-slate-100/80 p-1 rounded-lg border border-slate-200/50">
-                    {viewModes.map((mode) => (
-                        <button
-                            key={mode}
-                            type="button"
-                            onClick={() => onViewModeChange(mode)}
-                            className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-all duration-200 ${
-                                viewMode === mode
-                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                            {mode}
-                        </button>
-                    ))}
-                </div>
+                <ProjectionChartControls
+                    viewModes={viewModes}
+                    viewMode={viewMode}
+                    onViewModeChange={onViewModeChange}
+                    dayPills={dayPills}
+                    selectedDayKey={selectedDayKey}
+                    selectedDayLabel={selectedDayLabel}
+                    onDayFilterChange={onDayFilterChange}
+                />
             </div>
-
-            {viewMode === 'day' && dayPills.length > 0 && (
-                <div className="px-6 pt-4 pb-1">
-                    <Popover className="relative inline-flex">
-                        {({ close }) => (
-                            <>
-                                <Popover.Button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-                                    <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-                                    <span>{selectedDayLabel}</span>
-                                    <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                                </Popover.Button>
-
-                                <Transition
-                                    enter="transition duration-150 ease-out"
-                                    enterFrom="translate-y-1 opacity-0"
-                                    enterTo="translate-y-0 opacity-100"
-                                    leave="transition duration-100 ease-in"
-                                    leaveFrom="translate-y-0 opacity-100"
-                                    leaveTo="translate-y-1 opacity-0"
-                                >
-                                    <Popover.Panel className="absolute left-0 top-full z-20 mt-2 w-[min(92vw,280px)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-                                        <div className="space-y-3">
-                                            <div className="space-y-1">
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Day Focus</p>
-                                                <p className="text-sm text-slate-500">Pilih hari spesifik untuk menyorot movement harian.</p>
-                                            </div>
-
-                                            <div className="grid max-h-64 gap-2 overflow-y-auto pr-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        onDayFilterChange('all');
-                                                        close();
-                                                    }}
-                                                    className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
-                                                        selectedDayKey === 'all'
-                                                            ? 'bg-slate-900 text-white'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    All Days
-                                                </button>
-                                                {dayPills.map((day) => (
-                                                    <button
-                                                        key={day.key}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            onDayFilterChange(day.key);
-                                                            close();
-                                                        }}
-                                                        className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
-                                                            selectedDayKey === day.key
-                                                                ? 'bg-slate-900 text-white'
-                                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                        }`}
-                                                    >
-                                                        {day.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </Popover.Panel>
-                                </Transition>
-                            </>
-                        )}
-                    </Popover>
-                </div>
-            )}
 
             {chartData.length === 0 && (
                 <div className="m-6 rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center">
@@ -350,7 +187,7 @@ export default function ProjectionChartCard({
                                 {sharedXAxis}
                                 {sharedYAxis}
                                 <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} content={renderTooltip} />
-                                <ReferenceLine y={0} stroke="#cbd5e1" strokeWidth={1} />
+                                <ReferenceLine y={0} stroke={ZERO_BALANCE_COLOR} strokeWidth={1.5} strokeDasharray="4 4" />
                                 <Bar dataKey="inflow" name="Inflow" fill={INFLOW_COLOR} radius={[4, 4, 0, 0]}>
                                     {lineSeries.map((entry) => (
                                         <Cell key={entry.key} fill={INFLOW_COLOR} fillOpacity={(entry.inflow ?? 0) > 0 ? 0.85 : 0} />
@@ -396,16 +233,32 @@ export default function ProjectionChartCard({
                                     />
                                 )}
                                 <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} content={renderTooltip} />
-                                <ReferenceLine y={0} stroke="#cbd5e1" strokeWidth={1} />
-                                {showBalanceWarning && warningBalanceThreshold && (
+                                <ReferenceLine y={0} stroke={ZERO_BALANCE_COLOR} strokeWidth={1.5} strokeDasharray="4 4" />
+                                {hasBalanceData && (
                                     <ReferenceLine
                                         yAxisId="balance"
-                                        y={warningBalanceThreshold}
+                                        y={0}
+                                        stroke={ZERO_BALANCE_COLOR}
+                                        strokeWidth={1.5}
+                                        strokeDasharray="4 4"
+                                        label={{
+                                            value: 'Saldo 0',
+                                            position: 'right',
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            fill: ZERO_BALANCE_COLOR,
+                                        }}
+                                    />
+                                )}
+                                {minimumLineThreshold && (
+                                    <ReferenceLine
+                                        yAxisId="balance"
+                                        y={minimumLineThreshold}
                                         stroke={WARNING_COLOR}
                                         strokeWidth={1}
                                         strokeDasharray="6 4"
                                         label={{
-                                            value: `Watch ${formatAxisCurrencyShort(warningBalanceThreshold)}`,
+                                            value: `Minimum ${formatAxisCurrencyShort(minimumLineThreshold)}`,
                                             position: 'right',
                                             fontSize: 10,
                                             fontWeight: 600,
@@ -439,13 +292,12 @@ export default function ProjectionChartCard({
                                         dot={({ cx, cy, payload }) => {
                                             const val = payload?.closingBalance ?? 0;
                                             const isBelowThreshold = minimumBalanceThreshold ? val < minimumBalanceThreshold : false;
-                                            const isInWatchZone = !isBelowThreshold && showBalanceWarning && warningBalanceThreshold !== undefined && val <= warningBalanceThreshold;
                                             return (
                                                 <circle
                                                     cx={cx}
                                                     cy={cy}
                                                     r={4}
-                                                    fill={isBelowThreshold ? OUTFLOW_COLOR : isInWatchZone ? WARNING_COLOR : BALANCE_COLOR}
+                                                    fill={isBelowThreshold ? OUTFLOW_COLOR : BALANCE_COLOR}
                                                     stroke="#fff"
                                                     strokeWidth={2}
                                                 />
@@ -459,9 +311,7 @@ export default function ProjectionChartCard({
                                                 fill={
                                                     minimumBalanceThreshold && (payload?.closingBalance ?? 0) < minimumBalanceThreshold
                                                         ? OUTFLOW_COLOR
-                                                        : showBalanceWarning && warningBalanceThreshold !== undefined && (payload?.closingBalance ?? 0) <= warningBalanceThreshold
-                                                            ? WARNING_COLOR
-                                                            : BALANCE_COLOR
+                                                        : BALANCE_COLOR
                                                 }
                                                 stroke="#fff"
                                                 strokeWidth={2}

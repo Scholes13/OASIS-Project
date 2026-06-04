@@ -42,7 +42,10 @@ export type LineItem = {
     transaction_date: string;
     due_date: string | null;
     amount: number;
+    no_dokumen: string | null;
+    nama_vendor: string | null;
     description: string;
+    keterangan: string | null;
     notes: string | null;
     is_estimated_date: boolean;
     creator_name?: string | null;
@@ -129,8 +132,25 @@ export interface CashflowProjectionPageProps {
 export interface CashflowProjectionEntriesPageProps {
     year: number;
     selectedMonth: number;
+    filters: {
+        search: string;
+    };
     departments: DepartmentOption[];
-    lineItems: LineItem[];
+    lineItems: {
+        data: LineItem[];
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+        };
+        links: {
+            first: string | null;
+            last: string | null;
+            prev: string | null;
+            next: string | null;
+        };
+    };
 }
 
 export interface CashflowProjectionSettingsPageProps {
@@ -151,6 +171,7 @@ export type LineItemFormData = {
     is_estimated_date: boolean;
     amount: number;
     description: string;
+    keterangan: string;
     notes: string;
 };
 

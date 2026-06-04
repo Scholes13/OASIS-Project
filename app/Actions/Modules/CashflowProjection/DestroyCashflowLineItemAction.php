@@ -77,6 +77,9 @@ class DestroyCashflowLineItemAction
             'is_estimated_date' => (bool) $lineItem->is_estimated_date,
             'amount' => (float) $lineItem->amount,
             'description' => $lineItem->description,
+            'keterangan' => $lineItem->keterangan,
+            'no_dokumen' => $lineItem->no_dokumen,
+            'nama_vendor' => $lineItem->nama_vendor,
             'notes' => $lineItem->notes,
         ];
     }

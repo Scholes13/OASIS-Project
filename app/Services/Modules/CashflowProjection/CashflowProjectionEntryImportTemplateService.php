@@ -31,6 +31,7 @@ class CashflowProjectionEntryImportTemplateService
         'is_estimated_date',
         'amount',
         'description',
+        'keterangan',
         'notes',
     ];
 
@@ -47,7 +48,9 @@ class CashflowProjectionEntryImportTemplateService
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
-        $departments = $this->scopeService->allowedDepartments($user, $activeBusinessUnitId)->values();
+        $departments = $this->scopeService->allowedDepartments($user, $activeBusinessUnitId)
+            ->filter(fn (Department $department): bool => ! $department->activeChildren()->exists())
+            ->values();
 
         $spreadsheet = new Spreadsheet;
         $this->buildTemplateSheet($spreadsheet);
@@ -72,11 +75,11 @@ class CashflowProjectionEntryImportTemplateService
         $sheet->setTitle('Template');
 
         $sheet->fromArray(self::TEMPLATE_HEADERS, null, 'A1');
-        $this->styleHeader($sheet, 'A1:K1');
+        $this->styleHeader($sheet, 'A1:L1');
 
         $sheet->freezePane('A2');
 
-        foreach (range('A', 'K') as $column) {
+        foreach (range('A', 'L') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
     }
@@ -177,7 +180,7 @@ class CashflowProjectionEntryImportTemplateService
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Existing Entries');
         $sheet->fromArray(self::TEMPLATE_HEADERS, null, 'A1');
-        $this->styleHeader($sheet, 'A1:K1');
+        $this->styleHeader($sheet, 'A1:L1');
         $sheet->freezePane('A2');
 
         $departmentIds = $departments->pluck('id')->all();
@@ -203,11 +206,12 @@ class CashflowProjectionEntryImportTemplateService
             $sheet->setCellValue('H'.$row, $lineItem->is_estimated_date ? 'TRUE' : 'FALSE');
             $sheet->setCellValue('I'.$row, (float) $lineItem->amount);
             $sheet->setCellValue('J'.$row, $lineItem->description);
-            $sheet->setCellValue('K'.$row, $lineItem->notes);
+            $sheet->setCellValue('K'.$row, $lineItem->keterangan);
+            $sheet->setCellValue('L'.$row, $lineItem->notes);
             $row++;
         }
 
-        foreach (range('A', 'K') as $column) {
+        foreach (range('A', 'L') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
     }

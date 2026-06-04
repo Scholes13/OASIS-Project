@@ -2,6 +2,7 @@
 
 namespace App\Services\Modules\CashflowProjection;
 
+use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\CashflowProjection\CashflowProjectionLinkedUnit;
@@ -19,6 +20,12 @@ class CashflowProjectionScopeService
      */
     public function allowedBusinessUnitIds(User $user, int $activeBusinessUnitId): array
     {
+        if ($user->isSuperAdmin()) {
+            $activeBusinessUnit = BusinessUnit::query()->with('descendants')->find($activeBusinessUnitId);
+
+            return $activeBusinessUnit?->getAccessibleBusinessUnits() ?? [$activeBusinessUnitId];
+        }
+
         if (! $this->accessService->isFinanceUser($user, $activeBusinessUnitId)) {
             return [$activeBusinessUnitId];
         }
@@ -37,7 +44,7 @@ class CashflowProjectionScopeService
      */
     public function allowedDepartments(User $user, int $activeBusinessUnitId): Collection
     {
-        if ($this->accessService->isFinanceUser($user, $activeBusinessUnitId)) {
+        if ($user->isSuperAdmin() || $this->accessService->isFinanceUser($user, $activeBusinessUnitId)) {
             return Department::query()
                 ->with('businessUnit')
                 ->whereIn('business_unit_id', $this->allowedBusinessUnitIds($user, $activeBusinessUnitId))
@@ -48,12 +55,20 @@ class CashflowProjectionScopeService
         }
 
         return $user->activeBusinessUnits()
-            ->with(['department.businessUnit'])
+            ->with(['department.businessUnit', 'department.activeChildren.businessUnit'])
             ->where('business_unit_id', $activeBusinessUnitId)
             ->get()
             ->pluck('department')
             ->filter(fn ($department) => $department instanceof Department && $department->is_active)
+            ->flatMap(function (Department $department) {
+                return Department::query()
+                    ->with(['businessUnit', 'activeChildren'])
+                    ->whereIn('id', $department->descendantIds())
+                    ->where('is_active', true)
+                    ->get();
+            })
             ->unique('id')
+            ->sortBy('code')
             ->values();
     }
 

@@ -38,7 +38,7 @@ vi.mock('recharts', () => {
 });
 
 describe('ProjectionChartCard', () => {
-    it('keeps the balance chart focused when cash is comfortably above the warning zone', () => {
+    it('keeps the balance chart focused while showing balance guardrails', () => {
         yAxisProps.length = 0;
         referenceLineProps.length = 0;
         lineProps.length = 0;
@@ -70,13 +70,15 @@ describe('ProjectionChartCard', () => {
 
         const movementAxis = yAxisProps.find((props) => !('yAxisId' in props));
         const balanceAxis = yAxisProps.find((props) => props.yAxisId === 'balance');
-        const thresholdLine = referenceLineProps.find((props) => props.yAxisId === 'balance');
+        const minimumLine = referenceLineProps.find((props) => props.yAxisId === 'balance' && props.y === 200_000_000);
+        const zeroLine = referenceLineProps.find((props) => props.yAxisId === 'balance' && props.y === 0);
 
         expect(movementAxis?.hide).toBe(true);
         expect(balanceAxis).toBeTruthy();
-        expect(thresholdLine).toBeUndefined();
+        expect(minimumLine).toMatchObject({ yAxisId: 'balance', y: 200_000_000, stroke: '#f59e0b' });
+        expect(zeroLine).toMatchObject({ yAxisId: 'balance', y: 0, stroke: '#ef4444' });
         expect(Array.isArray(balanceAxis?.domain)).toBe(true);
-        expect((balanceAxis?.domain as [number, number])[0]).toBeGreaterThan(0);
+        expect((balanceAxis?.domain as [number, number])[0]).toBeLessThanOrEqual(0);
         expect(lineProps).toHaveLength(1);
         expect(lineProps[0]).toMatchObject({
             dataKey: 'closingBalance',
@@ -118,7 +120,7 @@ describe('ProjectionChartCard', () => {
         expect(screen.getByText('Outflow')).toBeInTheDocument();
     });
 
-    it('shows a warning reference line when projected balance enters the watch zone', () => {
+    it('shows the real minimum balance line and red zero balance line on the balance axis', () => {
         yAxisProps.length = 0;
         referenceLineProps.length = 0;
         lineProps.length = 0;
@@ -149,12 +151,19 @@ describe('ProjectionChartCard', () => {
         );
 
         const balanceAxis = yAxisProps.find((props) => props.yAxisId === 'balance');
-        const warningLine = referenceLineProps.find((props) => props.yAxisId === 'balance');
+        const minimumLine = referenceLineProps.find((props) => props.yAxisId === 'balance' && props.y === 200_000_000);
+        const zeroLine = referenceLineProps.find((props) => props.yAxisId === 'balance' && props.y === 0);
 
-        expect(warningLine).toMatchObject({
+        expect(minimumLine).toMatchObject({
             yAxisId: 'balance',
-            y: 400_000_000,
+            y: 200_000_000,
+            stroke: '#f59e0b',
         });
-        expect((balanceAxis?.domain as [number, number])[0]).toBeLessThanOrEqual(400_000_000);
+        expect(zeroLine).toMatchObject({
+            yAxisId: 'balance',
+            y: 0,
+            stroke: '#ef4444',
+        });
+        expect((balanceAxis?.domain as [number, number])[0]).toBeLessThanOrEqual(0);
     });
 });

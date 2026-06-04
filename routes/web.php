@@ -369,11 +369,14 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::patch('/line-items/{lineItem}', [CashflowProjectionController::class, 'updateLineItem'])->name('line-items.update');
         Route::post('/finance-inputs', [CashflowProjectionController::class, 'upsertFinanceInput'])->name('finance-inputs.upsert');
         Route::post('/linked-units', [CashflowProjectionController::class, 'storeLinkedUnit'])->name('linked-units.store');
+        Route::delete('/line-items/bulk', [CashflowProjectionController::class, 'bulkDestroyLineItems'])->name('line-items.bulk-destroy');
         Route::delete('/line-items/{lineItem}', [CashflowProjectionController::class, 'destroyLineItem'])->name('line-items.destroy');
         Route::delete('/linked-units/{linkedUnit}', [CashflowProjectionController::class, 'destroyLinkedUnit'])->name('linked-units.destroy');
 
         // Entry Import Routes
         Route::get('/entries/import-template', [CashflowProjectionController::class, 'downloadImportTemplate'])->name('entries.import-template');
+        Route::post('/entries/import-preview', [CashflowProjectionController::class, 'previewImport'])->name('entries.import-preview');
+        Route::post('/entries/import-confirm', [CashflowProjectionController::class, 'confirmImport'])->name('entries.import-confirm');
         Route::post('/entries/import', [CashflowProjectionController::class, 'importEntries'])->name('entries.import');
     });
 
@@ -384,89 +387,89 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     // ============================================================================
     if (config('features.it_support', true)) {
         Route::prefix('it-support')->name('it-support.')->group(function () {
-        // Ticket submission
-        Route::get('/submit', [UserTicketController::class, 'create'])->name('submit');
-        Route::post('/submit', [UserTicketController::class, 'store'])->name('submit.store');
+            // Ticket submission
+            Route::get('/submit', [UserTicketController::class, 'create'])->name('submit');
+            Route::post('/submit', [UserTicketController::class, 'store'])->name('submit.store');
 
-        // My tickets
-        Route::get('/my-tickets', [UserTicketController::class, 'myTickets'])->name('my-tickets');
-        Route::get('/my-tickets/{ticket}', [UserTicketController::class, 'show'])->name('my-tickets.show');
-        Route::post('/my-tickets/{ticket}/comment', [UserTicketController::class, 'addComment'])->name('my-tickets.comment');
+            // My tickets
+            Route::get('/my-tickets', [UserTicketController::class, 'myTickets'])->name('my-tickets');
+            Route::get('/my-tickets/{ticket}', [UserTicketController::class, 'show'])->name('my-tickets.show');
+            Route::post('/my-tickets/{ticket}/comment', [UserTicketController::class, 'addComment'])->name('my-tickets.comment');
 
-        // Authenticated attachment download (requester or IT Support admin in scope)
-        Route::get('/tickets/attachments/{attachment}/download', [\App\Http\Controllers\Modules\Ticket\TicketAttachmentController::class, 'download'])
-            ->name('tickets.attachments.download');
+            // Authenticated attachment download (requester or IT Support admin in scope)
+            Route::get('/tickets/attachments/{attachment}/download', [\App\Http\Controllers\Modules\Ticket\TicketAttachmentController::class, 'download'])
+                ->name('tickets.attachments.download');
 
-        // Knowledge base browse (all users)
-        Route::get('/knowledge', [KnowledgeBaseController::class, 'browse'])->name('knowledge');
-        Route::get('/knowledge/search', [KnowledgeBaseController::class, 'search'])->name('knowledge.search');
-        Route::post('/knowledge/suggest', [KnowledgeBaseController::class, 'suggestArticles'])->name('knowledge.suggest');
-        // Note: slug constraint excludes admin-reserved segments so they don't
-        // get swallowed by the public article route. Otherwise /it-support/knowledge/manage
-        // resolves to article(slug=manage) and returns 404.
-        Route::get('/knowledge/{slug}', [KnowledgeBaseController::class, 'article'])
-            ->where('slug', '^(?!manage|categories|search|suggest)[A-Za-z0-9_\-]+$')
-            ->name('knowledge.article');
-    });
-
-    // ============================================================================
-    // IT Support — Admin routes (IT Support admin only)
-    // ============================================================================
-    Route::middleware(['it.support.access'])
-        ->prefix('it-support')
-        ->name('it-support.admin.')
-        ->group(function () {
-            // Dashboard
-            Route::get('/dashboard', [TicketDashboardController::class, 'index'])->name('dashboard');
-
-            // SLA Settings
-            Route::get('/sla-settings', [TicketDashboardController::class, 'slaSettings'])->name('sla-settings');
-            Route::put('/sla-settings', [TicketDashboardController::class, 'updateSlaSettings'])->name('sla-settings.update');
-
-            // All tickets management
-            Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
-            Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
-            Route::get('/tickets/{ticket}/edit', [TicketController::class, 'edit'])->name('tickets.edit');
-            Route::put('/tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
-            Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
-            Route::post('/tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
-            Route::put('/tickets/{ticket}/change-status', [TicketController::class, 'changeStatus'])->name('tickets.changeStatus');
-            Route::post('/tickets/{ticket}/assign', [TicketController::class, 'assignTicket'])->name('tickets.assign');
-            Route::post('/tickets/{ticket}/link-article', [KnowledgeBaseController::class, 'linkArticle'])->name('tickets.linkArticle');
-
-            // Reporting
-            Route::get('/reporting', [TicketReportingController::class, 'index'])->name('reporting');
-            Route::get('/reporting/export/excel', [TicketReportingController::class, 'exportExcel'])->name('reporting.exportExcel');
-            Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
-
-            // Categories
-            Route::resource('/categories', TicketCategoryController::class)->names('categories')->except(['show']);
-
-            // Knowledge base admin
-            Route::get('/knowledge/manage', [KnowledgeBaseController::class, 'adminIndex'])->name('knowledge.index');
-            Route::get('/knowledge/manage/create', [KnowledgeBaseController::class, 'adminCreate'])->name('knowledge.create');
-            Route::post('/knowledge/manage', [KnowledgeBaseController::class, 'adminStore'])->name('knowledge.store');
-            Route::get('/knowledge/manage/{article}/edit', [KnowledgeBaseController::class, 'adminEdit'])->name('knowledge.edit');
-            Route::put('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminUpdate'])->name('knowledge.update');
-            Route::delete('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminDestroy'])->name('knowledge.destroy');
-
-            // Knowledge categories
-            Route::resource('/knowledge/categories', KnowledgeCategoryController::class)->names('knowledge.categories');
+            // Knowledge base browse (all users)
+            Route::get('/knowledge', [KnowledgeBaseController::class, 'browse'])->name('knowledge');
+            Route::get('/knowledge/search', [KnowledgeBaseController::class, 'search'])->name('knowledge.search');
+            Route::post('/knowledge/suggest', [KnowledgeBaseController::class, 'suggestArticles'])->name('knowledge.suggest');
+            // Note: slug constraint excludes admin-reserved segments so they don't
+            // get swallowed by the public article route. Otherwise /it-support/knowledge/manage
+            // resolves to article(slug=manage) and returns 404.
+            Route::get('/knowledge/{slug}', [KnowledgeBaseController::class, 'article'])
+                ->where('slug', '^(?!manage|categories|search|suggest)[A-Za-z0-9_\-]+$')
+                ->name('knowledge.article');
         });
 
-    // Reports Routes (Top Management Only - Coming Soon)
-    Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
-        Route::get('/purchase-requests', function () {
-            return view('reports.purchase-requests', [
-                'message' => 'Report feature will be available soon for top management.',
-            ]);
-        })->name('purchase-requests');
-        Route::get('/approvals', function () {
-            return view('reports.approvals', [
-                'message' => 'Report feature will be available soon for top management.',
-            ]);
-        })->name('approvals');
-    });
+        // ============================================================================
+        // IT Support — Admin routes (IT Support admin only)
+        // ============================================================================
+        Route::middleware(['it.support.access'])
+            ->prefix('it-support')
+            ->name('it-support.admin.')
+            ->group(function () {
+                // Dashboard
+                Route::get('/dashboard', [TicketDashboardController::class, 'index'])->name('dashboard');
+
+                // SLA Settings
+                Route::get('/sla-settings', [TicketDashboardController::class, 'slaSettings'])->name('sla-settings');
+                Route::put('/sla-settings', [TicketDashboardController::class, 'updateSlaSettings'])->name('sla-settings.update');
+
+                // All tickets management
+                Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
+                Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
+                Route::get('/tickets/{ticket}/edit', [TicketController::class, 'edit'])->name('tickets.edit');
+                Route::put('/tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
+                Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
+                Route::post('/tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
+                Route::put('/tickets/{ticket}/change-status', [TicketController::class, 'changeStatus'])->name('tickets.changeStatus');
+                Route::post('/tickets/{ticket}/assign', [TicketController::class, 'assignTicket'])->name('tickets.assign');
+                Route::post('/tickets/{ticket}/link-article', [KnowledgeBaseController::class, 'linkArticle'])->name('tickets.linkArticle');
+
+                // Reporting
+                Route::get('/reporting', [TicketReportingController::class, 'index'])->name('reporting');
+                Route::get('/reporting/export/excel', [TicketReportingController::class, 'exportExcel'])->name('reporting.exportExcel');
+                Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
+
+                // Categories
+                Route::resource('/categories', TicketCategoryController::class)->names('categories')->except(['show']);
+
+                // Knowledge base admin
+                Route::get('/knowledge/manage', [KnowledgeBaseController::class, 'adminIndex'])->name('knowledge.index');
+                Route::get('/knowledge/manage/create', [KnowledgeBaseController::class, 'adminCreate'])->name('knowledge.create');
+                Route::post('/knowledge/manage', [KnowledgeBaseController::class, 'adminStore'])->name('knowledge.store');
+                Route::get('/knowledge/manage/{article}/edit', [KnowledgeBaseController::class, 'adminEdit'])->name('knowledge.edit');
+                Route::put('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminUpdate'])->name('knowledge.update');
+                Route::delete('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminDestroy'])->name('knowledge.destroy');
+
+                // Knowledge categories
+                Route::resource('/knowledge/categories', KnowledgeCategoryController::class)->names('knowledge.categories');
+            });
+
+        // Reports Routes (Top Management Only - Coming Soon)
+        Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
+            Route::get('/purchase-requests', function () {
+                return view('reports.purchase-requests', [
+                    'message' => 'Report feature will be available soon for top management.',
+                ]);
+            })->name('purchase-requests');
+            Route::get('/approvals', function () {
+                return view('reports.approvals', [
+                    'message' => 'Report feature will be available soon for top management.',
+                ]);
+            })->name('approvals');
+        });
     } // end if (config('features.it_support'))
 
     // Admin Routes (require super admin access)

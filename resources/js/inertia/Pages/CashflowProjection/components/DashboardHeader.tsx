@@ -248,14 +248,14 @@ export default function DashboardHeader({
                 </Popover>
 
                 {hasLinkedUnits && (
-                    <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100/80 p-1 shadow-sm shadow-slate-900/5">
                         <button
                             type="button"
                             onClick={() => onApplyFilters('own')}
-                            className={`rounded-l-lg px-3 py-2 text-sm font-medium transition ${
+                            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                                 scope === 'own'
-                                    ? 'bg-primary text-white'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'
                             }`}
                         >
                             BU Only
@@ -263,10 +263,10 @@ export default function DashboardHeader({
                         <button
                             type="button"
                             onClick={() => onApplyFilters('consolidated')}
-                            className={`rounded-r-lg px-3 py-2 text-sm font-medium transition ${
+                            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                                 scope === 'consolidated'
-                                    ? 'bg-primary text-white'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                                    : 'text-slate-500 hover:bg-white/70 hover:text-slate-700'
                             }`}
                         >
                             Consolidated
@@ -285,7 +285,7 @@ export default function DashboardHeader({
 
                 <Link
                     href={route('cashflow-projection.entries', { year: filtersYear, month: filtersMonth })}
-                    className="flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600"
+                    className="flex items-center justify-center rounded-lg bg-[#2f6f9f] px-4 py-2 text-sm font-medium text-white shadow-sm shadow-[#2f6f9f]/15 transition hover:bg-[#275d87] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2f6f9f]/15 active:translate-y-px"
                 >
                     <span>Add Entry</span>
                     <ArrowRight className="ml-2 h-4 w-4" />

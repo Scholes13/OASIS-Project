@@ -161,6 +161,7 @@ class CashflowProjectionCrossUnitEntryTest extends TestCase
             'is_estimated_date' => false,
             'amount' => 1500000,
             'description' => 'HR operational support',
+            'keterangan' => 'KAS BON OPERASIONAL',
             'notes' => 'Manual input by finance',
         ]);
 
@@ -180,7 +181,46 @@ class CashflowProjectionCrossUnitEntryTest extends TestCase
             'department_id' => $this->hrDepartment->id,
             'action_code' => 'OUT_HR_OPS',
             'description' => 'HR operational support',
+            'keterangan' => 'KAS BON OPERASIONAL',
         ]);
+    }
+
+    public function test_finance_user_can_create_line_item_with_long_description_and_keterangan(): void
+    {
+        $longDescription = trim(str_repeat('WNS - HR - Biaya operasional panjang. ', 40));
+
+        $response = $this->actingAsFinanceUser()->post(route('cashflow-projection.line-items.store'), [
+            'year' => 2026,
+            'department_id' => $this->hrDepartment->id,
+            'action_code' => 'OUT_HR_OPS',
+            'transaction_date' => '2026-03-12',
+            'due_date' => '2026-03-12',
+            'is_estimated_date' => false,
+            'amount' => 1500000,
+            'description' => $longDescription,
+            'keterangan' => 'OPERASIONAL',
+            'notes' => 'Manual input by finance',
+        ]);
+
+        $response->assertRedirect(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 3,
+        ]));
+
+        $this->assertDatabaseHas('cashflow_projection_line_items', [
+            'department_id' => $this->hrDepartment->id,
+            'description' => $longDescription,
+            'keterangan' => 'OPERASIONAL',
+        ]);
+
+        $this->actingAsFinanceUser()->get(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 3,
+        ]))->assertInertia(fn (Assert $page) => $page
+            ->component('CashflowProjection/Entries')
+            ->where('lineItems.data.0.description', $longDescription)
+            ->where('lineItems.data.0.keterangan', 'OPERASIONAL')
+        );
     }
 
     public function test_finance_user_can_create_line_item_for_linked_business_unit_department_and_it_uses_target_cycle(): void

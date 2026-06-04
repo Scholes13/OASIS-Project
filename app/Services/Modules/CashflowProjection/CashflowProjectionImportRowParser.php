@@ -55,7 +55,8 @@ class CashflowProjectionImportRowParser
         $isEstimatedDateRaw = $this->cellValue($sheet->getCell('H'.$rowNumber));
         $amountRaw = $this->cellValue($sheet->getCell('I'.$rowNumber));
         $description = $this->normalizeString($this->cellValue($sheet->getCell('J'.$rowNumber)));
-        $notes = $this->normalizeString($this->cellValue($sheet->getCell('K'.$rowNumber)));
+        $keterangan = $this->normalizeString($this->cellValue($sheet->getCell('K'.$rowNumber)));
+        $notes = $this->normalizeString($this->cellValue($sheet->getCell('L'.$rowNumber)));
 
         return [
             'line_item_id' => $lineItemIdRaw !== null && ctype_digit($lineItemIdRaw) ? (int) $lineItemIdRaw : null,
@@ -72,6 +73,7 @@ class CashflowProjectionImportRowParser
             'is_estimated_date_raw' => $this->normalizeScalarForError($isEstimatedDateRaw),
             'amount' => is_numeric($amountRaw) ? (float) $amountRaw : $this->normalizeScalarForError($amountRaw),
             'description' => $description,
+            'keterangan' => $keterangan,
             'notes' => $notes,
         ];
     }
@@ -89,6 +91,7 @@ class CashflowProjectionImportRowParser
             $row['is_estimated_date_raw'],
             $row['amount'],
             $row['description'],
+            $row['keterangan'],
             $row['notes'],
         ])->every(fn ($value) => $value === null || $value === '');
     }

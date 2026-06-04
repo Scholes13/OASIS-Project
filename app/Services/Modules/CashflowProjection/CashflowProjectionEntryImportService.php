@@ -159,6 +159,7 @@ class CashflowProjectionEntryImportService
                             'is_estimated_date' => $row['is_estimated_date'],
                             'amount' => $row['amount'],
                             'description' => $row['description'],
+                            'keterangan' => $row['keterangan'],
                             'notes' => $row['notes'],
                             'source_type' => 'import',
                             'updated_by' => $user->id,
@@ -189,6 +190,7 @@ class CashflowProjectionEntryImportService
                         'is_estimated_date' => $row['is_estimated_date'],
                         'amount' => $row['amount'],
                         'description' => $row['description'],
+                        'keterangan' => $row['keterangan'],
                         'notes' => $row['notes'],
                         'source_type' => 'import',
                         'created_by' => $user->id,
@@ -311,6 +313,7 @@ class CashflowProjectionEntryImportService
             'is_estimated_date' => (bool) $lineItem->is_estimated_date,
             'amount' => (float) $lineItem->amount,
             'description' => $lineItem->description,
+            'keterangan' => $lineItem->keterangan,
             'notes' => $lineItem->notes,
         ];
     }

@@ -91,6 +91,7 @@ class UpdateCashflowLineItemAction
             'is_estimated_date' => (bool) $request->boolean('is_estimated_date'),
             'amount' => $request->input('amount'),
             'description' => (string) $request->string('description'),
+            'keterangan' => $request->filled('keterangan') ? (string) $request->string('keterangan') : null,
             'notes' => $request->filled('notes') ? (string) $request->string('notes') : null,
             'updated_by' => $user->id,
         ])->save();
@@ -129,6 +130,7 @@ class UpdateCashflowLineItemAction
             'is_estimated_date' => (bool) $lineItem->is_estimated_date,
             'amount' => (float) $lineItem->amount,
             'description' => $lineItem->description,
+            'keterangan' => $lineItem->keterangan,
             'notes' => $lineItem->notes,
         ];
     }

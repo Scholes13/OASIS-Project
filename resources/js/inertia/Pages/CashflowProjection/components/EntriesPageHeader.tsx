@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, Download, Upload } from 'lucide-react';
+import { ArrowLeft, Download, PlusCircle, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatMonthLabel } from '../utils';
 
@@ -24,6 +24,7 @@ interface EntriesPageHeaderProps {
     year: number;
     selectedMonth: number;
     cashflowImportFlash?: CashflowImportFlash | null;
+    onAddClick: () => void;
     onImportClick: () => void;
 }
 
@@ -40,6 +41,7 @@ export default function EntriesPageHeader({
     year,
     selectedMonth,
     cashflowImportFlash,
+    onAddClick,
     onImportClick,
 }: EntriesPageHeaderProps) {
     return (
@@ -60,6 +62,10 @@ export default function EntriesPageHeader({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <Button type="button" variant="primary" onClick={onAddClick}>
+                        <PlusCircle className="h-4 w-4" />
+                        Add Projection
+                    </Button>
                     <a
                         href={route('cashflow-projection.entries.import-template', { year, month: selectedMonth })}
                         className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"

@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import './cashflow-dashboard.css';
 import AddProjectionCard from './components/AddProjectionCard';
@@ -7,7 +7,9 @@ import EntriesTable from './components/EntriesTable';
 import ImportEntriesDialog from './components/ImportEntriesDialog';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { showToast } from '@/components/ui/toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useCashflowEntryDeletion } from '@/hooks/useCashflowEntryDeletion';
+import { useCashflowImportPreview } from '@/hooks/useCashflowImportPreview';
 import type { PageProps } from '@/types';
 
 type FlowType = 'in' | 'out';
@@ -77,6 +79,7 @@ function toIsoDate(year: number, month: number, day: number): string {
 export default function CashflowProjectionEntries({
     year,
     selectedMonth,
+    filters,
     departments,
     lineItems,
 }: CashflowProjectionEntriesPageProps) {
@@ -85,17 +88,12 @@ export default function CashflowProjectionEntries({
     const cashflowImportFlash = flash?.cashflow_import;
     const [flowType, setFlowType] = useState<FlowType>('in');
     const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-    const [deleteDialogState, setDeleteDialogState] = useState<{
-        isOpen: boolean;
-        lineItemId: number | null;
-        label: string;
-    }>({
-        isOpen: false,
-        lineItemId: null,
-        label: '',
-    });
+    const [isProjectionDialogOpen, setIsProjectionDialogOpen] = useState(false);
+
+    const importPreview = useCashflowImportPreview(year, selectedMonth);
+    const entryDeletion = useCashflowEntryDeletion({ year, selectedMonth });
+    const lineItemRows = lineItems.data;
 
     const defaultTransactionDate = useMemo(() => {
         const now = new Date();
@@ -154,26 +152,10 @@ export default function CashflowProjectionEntries({
         is_estimated_date: false,
         amount: 0,
         description: '',
+        keterangan: '',
         notes: '',
     });
     const { data, setData, post: submitLineItem, patch: updateExistingLineItem, processing, errors } = lineItemForm;
-
-    const importForm = useForm<{
-        file: File | null;
-        context_year: number;
-        context_month: number;
-    }>({
-        file: null,
-        context_year: year,
-        context_month: selectedMonth,
-    });
-    const {
-        data: importData,
-        setData: setImportData,
-        post: submitImport,
-        processing: importProcessing,
-        errors: importErrors,
-    } = importForm;
 
     const selectedDepartment = useMemo(() => {
         return departments.find((department) => department.id === data.department_id) ?? null;
@@ -275,23 +257,28 @@ export default function CashflowProjectionEntries({
         setData('transaction_date', defaultTransactionDate);
     }, [defaultTransactionDate, selectedMonth, setData, year]);
 
-    useEffect(() => {
-        setImportData('context_year', year);
-        setImportData('context_month', selectedMonth);
-    }, [selectedMonth, setImportData, year]);
-
     const handleLineItemSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
         if (editingLineItemId !== null) {
             updateExistingLineItem(route('cashflow-projection.line-items.update', { lineItem: editingLineItemId }), {
                 preserveScroll: true,
+                onSuccess: () => {
+                    setIsProjectionDialogOpen(false);
+                    resetForm();
+                },
             });
 
             return;
         }
 
-        submitLineItem(route('cashflow-projection.line-items.store'), { preserveScroll: true });
+        submitLineItem(route('cashflow-projection.line-items.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsProjectionDialogOpen(false);
+                resetForm();
+            },
+        });
     };
 
     const handleCategoryChange = (categoryCode: string) => {
@@ -310,11 +297,7 @@ export default function CashflowProjectionEntries({
     };
 
     const resetImportForm = () => {
-        setImportData({
-            file: null,
-            context_year: year,
-            context_month: selectedMonth,
-        });
+        importPreview.reset();
     };
 
     const closeImportDialog = () => {
@@ -322,19 +305,10 @@ export default function CashflowProjectionEntries({
         resetImportForm();
     };
 
-    const handleImportSubmit = () => {
-        if (!importData.file) {
-            return;
+    const handleImportConfirm = async () => {
+        if (await importPreview.confirmImport()) {
+            setIsImportDialogOpen(false);
         }
-
-        submitImport(route('cashflow-projection.entries.import'), {
-            preserveScroll: true,
-            forceFormData: true,
-            onSuccess: () => {
-                setIsImportDialogOpen(false);
-                resetImportForm();
-            },
-        });
     };
 
     const resetForm = () => {
@@ -351,12 +325,23 @@ export default function CashflowProjectionEntries({
             is_estimated_date: false,
             amount: 0,
             description: '',
+            keterangan: '',
             notes: '',
         });
     };
 
+    const openProjectionDialog = () => {
+        resetForm();
+        setIsProjectionDialogOpen(true);
+    };
+
+    const closeProjectionDialog = () => {
+        setIsProjectionDialogOpen(false);
+        resetForm();
+    };
+
     const beginEdit = (lineItemId: number) => {
-        const lineItem = lineItems.find((item) => item.id === lineItemId);
+        const lineItem = lineItemRows.find((item) => item.id === lineItemId);
         if (!lineItem) {
             return;
         }
@@ -374,42 +359,10 @@ export default function CashflowProjectionEntries({
             is_estimated_date: lineItem.is_estimated_date,
             amount: lineItem.amount,
             description: lineItem.description,
+            keterangan: lineItem.keterangan ?? '',
             notes: lineItem.notes ?? '',
         });
-    };
-
-    const openDeleteDialog = (lineItemId: number, label: string) => {
-        setDeleteDialogState({
-            isOpen: true,
-            lineItemId,
-            label,
-        });
-    };
-
-    const closeDeleteDialog = () => {
-        setIsDeleting(false);
-        setDeleteDialogState({
-            isOpen: false,
-            lineItemId: null,
-            label: '',
-        });
-    };
-
-    const confirmDelete = () => {
-        if (!deleteDialogState.lineItemId || isDeleting) {
-            return;
-        }
-
-        setIsDeleting(true);
-        router.delete(route('cashflow-projection.line-items.destroy', { lineItem: deleteDialogState.lineItemId }), {
-            preserveScroll: true,
-            onSuccess: (page) => {
-                closeDeleteDialog();
-                const pageProps = page.props as unknown as PageProps;
-                showToast.success(pageProps.flash?.success ?? 'Line item cashflow berhasil dihapus.');
-            },
-            onFinish: () => setIsDeleting(false),
-        });
+        setIsProjectionDialogOpen(true);
     };
 
     return (
@@ -422,70 +375,98 @@ export default function CashflowProjectionEntries({
                         year={year}
                         selectedMonth={selectedMonth}
                         cashflowImportFlash={cashflowImportFlash}
+                        onAddClick={openProjectionDialog}
                         onImportClick={() => setIsImportDialogOpen(true)}
                     />
 
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                        {/* Left column — Add Projection Form */}
-                        <div className="space-y-6">
-                            <AddProjectionCard
-                                lineItemData={data}
-                                lineItemProcessing={processing}
-                                flowType={flowType}
-                                businessUnitOptions={businessUnitOptions}
-                                departmentOptions={departmentsForSelectedBusinessUnit.map((department) => ({
-                                    id: department.id,
-                                    name: department.name,
-                                }))}
-                                categoryOptions={filteredCategoryOptions}
-                                isEditing={editingLineItemId !== null}
-                                selectedDepartmentName={selectedDepartment?.name}
-                                selectedBusinessUnitCode={selectedBusinessUnitOption?.code}
-                                businessUnitNotice={linkedBusinessUnitNotice}
-                                fieldErrors={errors}
-                                onFlowTypeChange={setFlowType}
-                                onBusinessUnitChange={handleBusinessUnitChange}
-                                onDepartmentChange={handleDepartmentChange}
-                                onCategoryChange={handleCategoryChange}
-                                onCancelEdit={resetForm}
-                                onFieldChange={setData}
-                                onSubmit={handleLineItemSubmit}
-                            />
-                        </div>
-
-                        <EntriesTable
-                            lineItems={lineItems}
-                            year={year}
-                            selectedMonth={selectedMonth}
-                            activeBusinessUnitId={activeBusinessUnit?.id}
-                            formatCategoryLabel={formatCategoryLabel}
-                            onEdit={beginEdit}
-                            onDelete={openDeleteDialog}
-                        />
-                    </div>
+                    <EntriesTable
+                        lineItems={lineItemRows}
+                        pagination={lineItems}
+                        year={year}
+                        selectedMonth={selectedMonth}
+                        search={filters.search}
+                        activeBusinessUnitId={activeBusinessUnit?.id}
+                        formatCategoryLabel={formatCategoryLabel}
+                        onEdit={beginEdit}
+                        onDelete={entryDeletion.openDeleteDialog}
+                        onBulkDelete={entryDeletion.openBulkDeleteDialog}
+                    />
                 </div>
             </div>
 
+            <Dialog open={isProjectionDialogOpen} onClose={closeProjectionDialog} className="max-w-3xl p-0">
+                <DialogHeader className="border-b border-slate-100 px-6 py-5" onClose={closeProjectionDialog}>
+                    <div>
+                        <DialogTitle>{editingLineItemId !== null ? 'Edit Projection' : 'Add Projection'}</DialogTitle>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Match the import experience: classify type, department, action, description, keterangan, and amount before saving.
+                        </p>
+                    </div>
+                </DialogHeader>
+                <DialogContent className="mt-0 max-h-[calc(100vh-9rem)] overflow-y-auto px-6 pb-6 pt-5">
+                    <AddProjectionCard
+                        lineItemData={data}
+                        lineItemProcessing={processing}
+                        flowType={flowType}
+                        businessUnitOptions={businessUnitOptions}
+                        departmentOptions={departmentsForSelectedBusinessUnit.map((department) => ({
+                            id: department.id,
+                            name: department.name,
+                        }))}
+                        categoryOptions={filteredCategoryOptions}
+                        isEditing={editingLineItemId !== null}
+                        selectedDepartmentName={selectedDepartment?.name}
+                        selectedBusinessUnitCode={selectedBusinessUnitOption?.code}
+                        businessUnitNotice={linkedBusinessUnitNotice}
+                        fieldErrors={errors}
+                        onFlowTypeChange={setFlowType}
+                        onBusinessUnitChange={handleBusinessUnitChange}
+                        onDepartmentChange={handleDepartmentChange}
+                        onCategoryChange={handleCategoryChange}
+                        onCancelEdit={closeProjectionDialog}
+                        onFieldChange={setData}
+                        onSubmit={handleLineItemSubmit}
+                    />
+                </DialogContent>
+            </Dialog>
+
             <ConfirmDialog
-                isOpen={deleteDialogState.isOpen}
-                onClose={closeDeleteDialog}
-                onConfirm={confirmDelete}
+                isOpen={entryDeletion.deleteDialogState.isOpen}
+                onClose={entryDeletion.closeDeleteDialog}
+                onConfirm={entryDeletion.confirmDelete}
                 title="Delete Entry"
-                message={deleteDialogState.label ? `Delete this entry "${deleteDialogState.label}"? This action cannot be undone.` : 'Delete this entry? This action cannot be undone.'}
+                message={entryDeletion.deleteDialogState.label
+                    ? `Delete this entry "${entryDeletion.deleteDialogState.label}"? This action cannot be undone. Perubahan ini akan mempengaruhi data cashflow dan dashboard.`
+                    : 'Delete this entry? This action cannot be undone. Perubahan ini akan mempengaruhi data cashflow dan dashboard.'}
                 confirmText="Delete"
                 variant="danger"
-                isLoading={isDeleting}
+                isLoading={entryDeletion.isDeleting}
+            />
+
+            <ConfirmDialog
+                isOpen={entryDeletion.isBulkDeleteDialogOpen}
+                onClose={entryDeletion.closeBulkDeleteDialog}
+                onConfirm={entryDeletion.confirmBulkDelete}
+                title="Delete Selected Entries"
+                message={`Delete ${entryDeletion.bulkDeleteIds.length} selected entries? This action cannot be undone. Perubahan ini akan mempengaruhi data cashflow dan dashboard.`}
+                confirmText="Delete"
+                variant="danger"
+                isLoading={entryDeletion.isDeleting}
             />
 
             <ImportEntriesDialog
                 open={isImportDialogOpen}
-                processing={importProcessing}
-                selectedFileName={importData.file?.name ?? null}
+                processing={importPreview.processing}
+                selectedFileName={importPreview.file?.name ?? null}
+                preview={importPreview.preview}
+                departments={departments}
                 flashImport={cashflowImportFlash}
-                fileError={importErrors.file}
+                fileError={importPreview.errors.file ?? importPreview.previewError ?? undefined}
                 onClose={closeImportDialog}
-                onFileChange={(file) => setImportData('file', file)}
-                onSubmit={handleImportSubmit}
+                onFileChange={importPreview.setFile}
+                onSubmit={importPreview.previewImport}
+                onConfirm={handleImportConfirm}
+                onReviewRow={importPreview.updatePreviewRow}
             />
         </>
     );

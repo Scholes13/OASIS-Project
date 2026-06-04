@@ -464,6 +464,130 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         ]);
     }
 
+    public function test_department_named_finance_without_finance_code_cannot_access_finance_surfaces(): void
+    {
+        $reportingDepartment = Department::create([
+            'business_unit_id' => $this->businessUnit->id,
+            'code' => 'PFR',
+            'name' => 'Project Finance Reporting',
+            'is_active' => true,
+        ]);
+
+        $position = Position::query()
+            ->where('department_id', $reportingDepartment->id)
+            ->where('code', 'HOD_PFR')
+            ->firstOrFail();
+
+        $user = User::create([
+            'name' => 'Reporting HOD',
+            'email' => 'reporting.hod@example.com',
+            'password' => bcrypt('password'),
+            'phone_number' => '081234567811',
+            'primary_department_id' => $reportingDepartment->id,
+            'primary_position_id' => $position->id,
+            'global_role' => 'user',
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $user->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $reportingDepartment->id,
+            'position_id' => $position->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($user)->withSession([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_department_id' => $reportingDepartment->id,
+        ])->get(route('cashflow-projection.entries'))->assertOk();
+
+        $this->actingAs($user)->withSession([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_department_id' => $reportingDepartment->id,
+        ])->get(route('cashflow-projection.settings'))->assertForbidden();
+
+        $this->actingAs($user)->withSession([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_department_id' => $reportingDepartment->id,
+        ])->get(route('cashflow-projection.export', [
+            'filter' => 'month',
+            'year' => 2026,
+            'month' => 3,
+        ]))->assertForbidden();
+    }
+
+    public function test_root_department_head_entries_include_active_child_department_line_items(): void
+    {
+        $rootDepartment = Department::create([
+            'business_unit_id' => $this->businessUnit->id,
+            'code' => 'SM',
+            'name' => 'Sales Marketing',
+            'is_active' => true,
+        ]);
+
+        $childDepartment = Department::create([
+            'business_unit_id' => $this->businessUnit->id,
+            'parent_department_id' => $rootDepartment->id,
+            'code' => 'BSD',
+            'name' => 'Business Development',
+            'is_active' => true,
+        ]);
+
+        $position = Position::query()
+            ->where('department_id', $rootDepartment->id)
+            ->where(function ($query) {
+                $query->where('level', 'hod')
+                    ->orWhere('access_level', 'department_head');
+            })
+            ->firstOrFail();
+
+        $user = User::create([
+            'name' => 'SM HOD',
+            'email' => 'sm.hod@example.com',
+            'password' => bcrypt('password'),
+            'phone_number' => '081234567812',
+            'primary_department_id' => $rootDepartment->id,
+            'primary_position_id' => $position->id,
+            'global_role' => 'user',
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $user->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $rootDepartment->id,
+            'position_id' => $position->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $cycle = CashflowProjectionCycle::query()
+            ->where('business_unit_id', $this->businessUnit->id)
+            ->where('year', 2026)
+            ->firstOrFail();
+        $this->createLineItem($cycle, 'out', '2026-03-14', 450, 'BSD child expense', $childDepartment);
+
+        $response = $this->actingAs($user)->withSession([
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_department_id' => $rootDepartment->id,
+        ])->get(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 3,
+        ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('CashflowProjection/Entries')
+            ->where('lineItems.data', function ($lineItems): bool {
+                return collect($lineItems)->contains(fn ($lineItem) => is_array($lineItem)
+                    && ($lineItem['department_code'] ?? null) === 'BSD'
+                    && ($lineItem['description'] ?? null) === 'BSD child expense');
+            })
+        );
+    }
+
     private function actingAsFinanceUser(): self
     {
         return $this->actingAs($this->financeUser)->withSession([

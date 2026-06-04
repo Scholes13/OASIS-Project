@@ -33,6 +33,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
         'is_estimated_date',
         'amount',
         'description',
+        'keterangan',
         'notes',
     ];
 
@@ -43,6 +44,10 @@ class CashflowProjectionEntriesImportTest extends TestCase
     private Department $financeDepartment;
 
     private Department $hrDepartment;
+
+    private Department $rootDepartment;
+
+    private Department $childDepartment;
 
     private Department $linkedOpsDepartment;
 
@@ -84,6 +89,21 @@ class CashflowProjectionEntriesImportTest extends TestCase
             'business_unit_id' => $this->hostBusinessUnit->id,
             'code' => 'HR',
             'name' => 'Human Resources',
+            'is_active' => true,
+        ]);
+
+        $this->rootDepartment = Department::create([
+            'business_unit_id' => $this->hostBusinessUnit->id,
+            'code' => 'SM',
+            'name' => 'Sales Marketing',
+            'is_active' => true,
+        ]);
+
+        $this->childDepartment = Department::create([
+            'business_unit_id' => $this->hostBusinessUnit->id,
+            'parent_department_id' => $this->rootDepartment->id,
+            'code' => 'BSD',
+            'name' => 'Business Development',
             'is_active' => true,
         ]);
 
@@ -198,6 +218,22 @@ class CashflowProjectionEntriesImportTest extends TestCase
         $this->assertTrue(collect($existingRows)->contains(fn (array $row): bool => (string) ($row[0] ?? '') === (string) $this->existingLinkedLineItem->id));
     }
 
+    public function test_download_import_template_excludes_root_departments_with_active_children(): void
+    {
+        $response = $this->actingAsFinanceUser()->get(route('cashflow-projection.entries.import-template', [
+            'year' => 2026,
+            'month' => 4,
+        ]));
+
+        $response->assertOk();
+
+        $spreadsheet = $this->loadSpreadsheetFromBinary($response->streamedContent());
+        $referenceRows = $spreadsheet->getSheetByName('Reference')?->toArray() ?? [];
+
+        $this->assertFalse(collect($referenceRows)->contains(fn (array $row): bool => ($row[1] ?? null) === 'SM'));
+        $this->assertTrue(collect($referenceRows)->contains(fn (array $row): bool => ($row[1] ?? null) === 'BSD'));
+    }
+
     public function test_import_accepts_mixed_create_and_update_rows_and_writes_audit_summary(): void
     {
         Log::spy();
@@ -214,6 +250,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
                 'FALSE',
                 2750000,
                 'Imported create row',
+                'IMPORT KETERANGAN',
                 'Imported note',
             ],
             [
@@ -227,6 +264,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
                 'TRUE',
                 1800000,
                 'Existing host row updated',
+                'UPDATE KETERANGAN',
                 'Updated by import',
             ],
         ]);
@@ -264,6 +302,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
             'department_id' => $this->hrDepartment->id,
             'action_code' => 'OUT_HR_GAJI_BENEFIT',
             'description' => 'Imported create row',
+            'keterangan' => 'IMPORT KETERANGAN',
             'source_type' => 'import',
             'created_by' => $this->financeUser->id,
             'updated_by' => $this->financeUser->id,
@@ -272,6 +311,7 @@ class CashflowProjectionEntriesImportTest extends TestCase
         $this->assertDatabaseHas('cashflow_projection_line_items', [
             'id' => $this->existingHostLineItem->id,
             'description' => 'Existing host row updated',
+            'keterangan' => 'UPDATE KETERANGAN',
             'amount' => 1800000,
             'is_estimated_date' => 1,
             'source_type' => 'import',
@@ -288,6 +328,47 @@ class CashflowProjectionEntriesImportTest extends TestCase
         ]);
 
         Log::shouldHaveReceived('info')->once();
+    }
+
+    public function test_import_rejects_root_department_with_active_children(): void
+    {
+        $file = $this->makeWorkbookUpload([
+            [
+                '',
+                2026,
+                'WNS',
+                'SM',
+                'OUT_SM_OPS',
+                '2026-04-18',
+                '2026-04-18',
+                'FALSE',
+                2750000,
+                'Root department import row',
+                'Should fail',
+            ],
+        ]);
+
+        $response = $this->actingAsFinanceUser()->post(route('cashflow-projection.entries.import'), [
+            'file' => $file,
+            'context_year' => 2026,
+            'context_month' => 4,
+        ]);
+
+        $response->assertRedirect(route('cashflow-projection.entries', [
+            'year' => 2026,
+            'month' => 4,
+        ]));
+
+        $response->assertSessionHas('cashflow_import', function (array $payload): bool {
+            return ($payload['failed_rows'] ?? null) === 1
+                && collect($payload['errors'] ?? [])->contains(fn (array $error): bool => ($error['column'] ?? null) === 'department_code'
+                    && str_contains((string) ($error['message'] ?? ''), 'sub-department'));
+        });
+
+        $this->assertDatabaseMissing('cashflow_projection_line_items', [
+            'department_id' => $this->rootDepartment->id,
+            'description' => 'Root department import row',
+        ]);
     }
 
     public function test_import_accepts_valid_xlsx_even_when_browser_reports_zip_mime_type(): void

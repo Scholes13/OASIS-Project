@@ -7,8 +7,11 @@ use App\Actions\Modules\CashflowProjection\StoreCashflowLineItemAction;
 use App\Actions\Modules\CashflowProjection\UpdateCashflowLineItemAction;
 use App\Actions\Modules\CashflowProjection\UpsertFinanceInputAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CashflowProjection\BulkDestroyCashflowProjectionLineItemsRequest;
 use App\Http\Requests\CashflowProjection\CashflowProjectionDashboardFilterRequest;
+use App\Http\Requests\CashflowProjection\ConfirmCashflowProjectionImportRequest;
 use App\Http\Requests\CashflowProjection\ImportCashflowProjectionEntriesRequest;
+use App\Http\Requests\CashflowProjection\PreviewCashflowProjectionImportRequest;
 use App\Http\Requests\CashflowProjection\StoreCashflowProjectionLineItemRequest;
 use App\Http\Requests\CashflowProjection\UpdateCashflowProjectionLineItemRequest;
 use App\Http\Requests\CashflowProjection\UpsertCashflowProjectionFinanceInputRequest;
@@ -28,9 +31,13 @@ use App\Services\Modules\CashflowProjection\CashflowProjectionScopePolicy;
 use App\Services\Modules\CashflowProjection\CashflowProjectionScopeService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionTemplateService;
 use App\Services\Modules\CashflowProjection\CashflowSummaryCalculator;
+use App\Services\Modules\CashflowProjection\Import\CashflowImportConfirmService;
+use App\Services\Modules\CashflowProjection\Import\CashflowImportPreviewService;
 use App\Services\Modules\CashflowProjection\LinkedCycleMerger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -43,6 +50,8 @@ class CashflowProjectionController extends Controller
         protected CashflowProjectionScopeService $scopeService,
         protected CashflowProjectionScopePolicy $scopePolicy,
         protected CashflowProjectionEntryImportTemplateService $entryImportTemplateService,
+        protected CashflowImportPreviewService $importPreviewService,
+        protected CashflowImportConfirmService $importConfirmService,
         protected CashflowProjectionEntryImportService $entryImportService,
         protected CashflowSummaryCalculator $summaryCalculator,
         protected CashflowDashboardComposer $dashboardComposer,
@@ -129,6 +138,7 @@ class CashflowProjectionController extends Controller
 
         $year = (int) $request->integer('year', (int) now()->format('Y'));
         $selectedMonth = (int) max(1, min(12, $request->integer('month', (int) now()->format('n'))));
+        $search = trim((string) $request->query('search', ''));
         $allowedBusinessUnitIds = $this->scopeService->allowedBusinessUnitIds($user, $businessUnitId);
         $departments = $this->scopeService->allowedDepartments($user, $businessUnitId);
         $departmentIds = $departments->pluck('id');
@@ -139,16 +149,44 @@ class CashflowProjectionController extends Controller
             ->with(['department.businessUnit', 'creator', 'updater'])
             ->whereIn('cycle_id', $cycleIds)
             ->whereIn('department_id', $departmentIds)
-            ->whereMonth('transaction_date', $selectedMonth)
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $likeSearch = "%{$search}%";
+                    $searchQuery->where('no_dokumen', 'like', $likeSearch)
+                        ->orWhere('nama_vendor', 'like', $likeSearch)
+                        ->orWhere('description', 'like', $likeSearch)
+                        ->orWhere('keterangan', 'like', $likeSearch);
+                });
+            })
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
-            ->get();
+            ->paginate(25)
+            ->withQueryString();
+
+        $lineItemPayload = $this->payloadFormatter->buildLineItemPayload($lineItems->getCollection());
 
         return Inertia::render('CashflowProjection/Entries', [
             'year' => $year,
             'selectedMonth' => $selectedMonth,
             'departments' => $this->payloadFormatter->buildDepartmentOptions($departments)->values(),
-            'lineItems' => $this->payloadFormatter->buildLineItemPayload($lineItems)->values(),
+            'lineItems' => [
+                'data' => $lineItemPayload->values(),
+                'meta' => [
+                    'current_page' => $lineItems->currentPage(),
+                    'last_page' => $lineItems->lastPage(),
+                    'per_page' => $lineItems->perPage(),
+                    'total' => $lineItems->total(),
+                ],
+                'links' => [
+                    'first' => $lineItems->url(1),
+                    'last' => $lineItems->url($lineItems->lastPage()),
+                    'prev' => $lineItems->previousPageUrl(),
+                    'next' => $lineItems->nextPageUrl(),
+                ],
+            ],
+            'filters' => [
+                'search' => $search,
+            ],
         ]);
     }
 
@@ -257,6 +295,44 @@ class CashflowProjectionController extends Controller
             ->with('success', 'Line item cashflow berhasil dihapus.');
     }
 
+    public function bulkDestroyLineItems(BulkDestroyCashflowProjectionLineItemsRequest $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
+
+        $validated = $request->validated();
+
+        $year = isset($validated['year']) ? (int) $validated['year'] : null;
+        $month = isset($validated['month']) ? (int) $validated['month'] : null;
+        $deletedCount = 0;
+
+        DB::transaction(function () use ($validated, $user, $businessUnitId, $year, $month, &$deletedCount): void {
+            CashflowProjectionLineItem::query()
+                ->whereIn('id', $validated['line_item_ids'])
+                ->orderBy('id')
+                ->get()
+                ->each(function (CashflowProjectionLineItem $lineItem) use ($user, $businessUnitId, $year, $month, &$deletedCount): void {
+                    $this->destroyLineItemAction->execute($lineItem, $user, $businessUnitId, $year, $month);
+                    $deletedCount++;
+                });
+        });
+
+        $redirectParams = [];
+        if ($year !== null) {
+            $redirectParams['year'] = $year;
+        }
+        if ($month !== null) {
+            $redirectParams['month'] = $month;
+        }
+
+        return redirect()
+            ->route('cashflow-projection.entries', $redirectParams)
+            ->with('success', $deletedCount.' line item cashflow berhasil dihapus.');
+    }
+
     public function upsertFinanceInput(UpsertCashflowProjectionFinanceInputRequest $request): RedirectResponse
     {
         /** @var User $user */
@@ -361,6 +437,38 @@ class CashflowProjectionController extends Controller
         $month = (int) max(1, min(12, $request->integer('month', (int) now()->format('n'))));
 
         return $this->entryImportTemplateService->generateTemplate($businessUnitId, $user, $year, $month);
+    }
+
+    public function previewImport(PreviewCashflowProjectionImportRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
+
+        $file = $request->file('file');
+
+        return response()->json($this->importPreviewService->preview($file, $user, $businessUnitId));
+    }
+
+    public function confirmImport(ConfirmCashflowProjectionImportRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
+
+        $validated = $request->validated();
+
+        return response()->json($this->importConfirmService->confirm(
+            $validated['rows'],
+            $user,
+            $businessUnitId,
+            (int) $validated['context_year'],
+            (int) $validated['context_month']
+        ));
     }
 
     public function importEntries(ImportCashflowProjectionEntriesRequest $request): RedirectResponse

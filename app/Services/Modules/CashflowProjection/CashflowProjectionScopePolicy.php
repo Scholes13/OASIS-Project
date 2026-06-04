@@ -32,8 +32,7 @@ class CashflowProjectionScopePolicy
         return $user->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->whereHas('department', function ($query) {
-                $query->whereIn('code', ['CFC', 'FIN'])
-                    ->orWhere('name', 'like', '%Finance%');
+                $query->whereIn('code', ['CFC', 'FIN']);
             })
             ->exists();
     }

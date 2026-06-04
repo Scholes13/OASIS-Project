@@ -32,6 +32,121 @@
 
 ## Active Tasks
 
+### 2026-06-02 - Cashflow friendly import preview
+- Status: phase 5 implemented; full module review/QA pass pending
+- Owner: PM Agent
+- Delegates: pending (`@coder_backend` for parser/preview/persistence, `@coder_frontend` for preview UX, `@reviewer` before final, `@qa` for browser flow)
+- Source files reviewed:
+  - `excel/samplecfc.xlsx` — current Finance/CFC user sheet reference (`Data CFC`, header row: `BULAN`, `TGL BAYAR`, `NO DOKUMEN`, `NAMA VENDOR`, `DESKRIPSI`, `NOMINAL`, `DUE DATE`, `KETERANGAN`, `ENTITAS`),
+  - `docs/input/cashflowbase.xlsx` — older multi-sheet baseline,
+  - `excel/strukturnew.pdf` — present but unreadable by current tool/model.
+- Product decisions captured:
+  - strict old Cashflow import template may change because module is not production,
+  - user can upload existing Finance sheet or use a new friendly template,
+  - all uploads go through preview before save,
+  - ambiguous department/action rows must be user-reviewed,
+  - `description` remains one main field, becomes tall textarea in UI, and can act as scoped natural identifier for update matching,
+  - add `keterangan` as separate line-item field,
+  - import must auto-classify department, action, and `in/out` flow (e.g. ACC Operational => `OUT_ACC_OPS`),
+  - bulk update must show notice + before/after; no silent replace,
+  - update actor and old/new values must be logged.
+- Plan: `docs/plans/2026-06-02-cashflow-friendly-import-preview.md`.
+- Phase 1 implemented:
+  - added `keterangan` to `cashflow_projection_line_items`, model fillable, manual request validation, actions, strict import parser/validator/template, dashboard/entries payloads, TS types, and Entries form/table UI,
+  - widened `description` from `string(255)` to `text`; validation cap now `max:5000`,
+  - audit payloads for line-item create/update/import now include `keterangan`,
+  - current strict import header includes `keterangan` before `notes` as an interim compatibility bridge until the friendly `Import` sheet replaces it.
+- Phase 1 verification:
+  - red tests confirmed missing `keterangan`, missing audit values, and old `description max:255`,
+  - `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 41 passed, 401 assertions,
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand` — pass,
+  - `npm exec tsc --noEmit --pretty false` — pass,
+  - `.\vendor\bin\pint.bat --dirty` — pass, 18 files,
+  - `php -l` clean for new migration and touched import parser/validator.
+- Phase 2 implemented:
+  - added `CashflowFriendlyImportParser` for `Data CFC` workbooks (header row 3), mapping `TGL BAYAR`, `NO DOKUMEN`, `NAMA VENDOR`, `DESKRIPSI`, `NOMINAL`, `DUE DATE`, `KETERANGAN`, and `ENTITAS` into normalized rows,
+  - added `CashflowImportClassifier` to detect department from explicit `department_code`, `WNS - <DEPT> - ...` descriptions, or `NO DOKUMEN` prefixes, then resolve action/flow using existing `CashflowProjectionTemplateService`,
+  - classifier returns `ready` with `department_code`, `action_code`, `action_label`, `flow_type`, or `need_review` with field-level errors for missing department/action.
+- Phase 2 UI improvement:
+  - moved manual `Add Projection`/edit form into a modal so `All Entries` can use full page width,
+  - added header-level `Add Projection` button alongside template/import actions,
+  - kept row edit flow intact by opening the same modal with existing row data,
+  - changed manual description input to a taller textarea and added `keterangan` input/display to align with import data shape.
+- Phase 2 verification:
+  - red tests confirmed missing parser/classifier classes,
+  - `php artisan test tests/Unit/Services/CashflowProjection/CashflowFriendlyImportParserTest.php tests/Unit/Services/CashflowProjection/CashflowImportClassifierTest.php` — 6 passed, 34 assertions,
+  - `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 47 passed, 435 assertions,
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand` — pass,
+  - `npm exec tsc --noEmit --pretty false` — pass,
+  - `.\vendor\bin\pint.bat --dirty` — pass, 22 files,
+  - `php -l` clean for parser/classifier.
+- Phase 3 implemented:
+  - added `PreviewCashflowProjectionImportRequest` and route `cashflow-projection.entries.import-preview`,
+  - added controller method `previewImport` with existing `canManage` authorization,
+  - added `CashflowImportPreviewService` to combine parser + classifier, enforce allowed department scope, reject root departments with active children, match existing line items by scoped normalized description, compute `new`/`update`/`no_change`/`need_review`/`invalid` statuses, and return summary/change/error payloads.
+- Phase 3 verification:
+  - red tests confirmed preview route missing,
+  - `php artisan test tests/Feature/Modules/CashflowProjection/CashflowProjectionImportPreviewTest.php` — 2 passed, 16 assertions,
+  - `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 49 passed, 451 assertions,
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand` — pass,
+  - `npm exec tsc --noEmit --pretty false` — pass,
+  - `.\vendor\bin\pint.bat --dirty` — pass, 27 files, 1 style issue fixed,
+  - `php -l` clean for route/controller/request/preview service.
+- Phase 4 implemented:
+  - added `ConfirmCashflowProjectionImportRequest` and route `cashflow-projection.entries.import-confirm`,
+  - added controller method `confirmImport` with existing `canManage` authorization,
+  - added `CashflowImportConfirmService` to reject unresolved `need_review`/`invalid` rows, persist `new` rows, update `update` rows by `match.line_item_id`, skip `no_change` rows, enforce department scope/root-dept constraints, set `source_type=import`, and write line-item audit logs for create/update.
+- Phase 4 verification:
+  - red tests confirmed confirm route missing,
+  - `php artisan test tests/Feature/Modules/CashflowProjection/CashflowProjectionImportConfirmTest.php` — 2 passed, 12 assertions,
+  - `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 51 passed, 463 assertions,
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand` — pass,
+  - `npm exec tsc --noEmit --pretty false` — pass,
+  - `.\vendor\bin\pint.bat --dirty` — pass, 30 files, 1 style issue fixed,
+  - `php -l` clean for confirm service/request/controller.
+- Risks:
+  - description-as-natural-key needs scoped normalized matching (`cycle_id + department_id + normalized_description`) to avoid false updates,
+  - legacy user descriptions are long; `description` must become `text` and validation cap should be widened,
+  - classifier should prefer `Need Review` over risky auto-action when confidence is low.
+- Phase 5 implemented:
+  - import dialog now uploads to `entries.import-preview` (JSON `fetch` + CSRF), renders status summary (`new`/`update`/`no_change`/`need_review`/`invalid`) and a per-row preview table with errors,
+  - `Confirm Ready Rows` posts preview rows to `entries.import-confirm`, shows a success toast with created/updated/skipped counts, and reloads `lineItems`,
+  - confirm button is disabled while any `need_review`/`invalid` rows exist; `Preview Import` replaces the old direct upload action,
+  - manual Add/Edit Projection remains a modal so `All Entries` keeps full width.
+- Phase 5 verification:
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand` — pass,
+  - `npm exec tsc --noEmit --pretty false` — pass,
+  - `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 51 passed, 463 assertions,
+  - `npm run build` — pass,
+  - Playwright browser check (super@werkudara.com on local `:8000`): login → `/cashflow-projection/entries`, Add Projection modal opens, Import modal opens with `Preview Import` + `Confirm Ready Rows` buttons present.
+- Phase 5 follow-up: full Cashflow module review and QA regression were completed during Phase 6; optional friendly-template download remains a future product choice.
+- Phase 6 implemented:
+  - Entries now behaves as an all-accessible ledger with paginated data and search over `no_dokumen`, `nama_vendor`, `description`, and `keterangan`,
+  - added `no_dokumen` and `nama_vendor` columns plus query/order indexes for Cashflow Projection line items,
+  - added legacy backfill migration from old import `notes` (`No Dokumen: ...`, `Vendor: ...`) into the new document/vendor columns,
+  - friendly import preview/confirm/payloads now preserve Excel `NO DOKUMEN` and `NAMA VENDOR`,
+  - Entries table now follows `excel/samplecfc.xlsx` order: `BULAN`, `TGL BAYAR`, `NO DOKUMEN`, `NAMA VENDOR`, `DESKRIPSI`, `NOMINAL`, `DUE DATE`, `KETERANGAN`, `ENTITAS`, `ACTION`,
+  - polished Entries table toward an Oasis-standard ledger: lighter card shell, fixed column widths, balanced row density, stronger typography, blue Search action, and less spreadsheet-heavy visual styling,
+  - removed visible status/attribution noise from the ledger table,
+  - added bulk delete mode with per-row selection, confirmation dialog, scope-checked backend deletion, and delete audit logs.
+- Phase 6 verification:
+  - red tests confirmed import did not persist `no_dokumen`/`nama_vendor`, entries search contract was absent, bulk-delete route was absent, and old table headers/status UI remained,
+  - `php artisan migrate` — migrated `2026_06_03_000001_add_document_vendor_indexes_to_cashflow_projection_line_items`,
+  - `php artisan migrate` — migrated `2026_06_03_000002_backfill_document_vendor_from_cashflow_projection_notes` and restored current local rows (e.g. `HR-02/202605/0016`, `KASBON MEIDA`),
+  - `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 59 passed, 515 assertions,
+  - `npm exec vitest run tests/React/Pages/CashflowProjection/Entries.test.tsx --runInBand` — pass,
+  - `npm exec tsc --noEmit --pretty false` — pass,
+  - `npm run build` — pass,
+  - `.\vendor\bin\pint.bat --dirty` — pass, 34 files,
+  - `php artisan route:list` — 291 routes, includes `cashflow-projection.line-items.bulk-destroy`,
+  - reviewer gate — pass with only non-blocking soft file-size warnings,
+  - Playwright browser smoke (`py`, local `:8000`, `super@werkudara.com`) — login, Entries page load, Excel headers, search request/URL, bulk mode, import dialog, no console errors or failed requests.
+  - Playwright UI smoke (`py`, local `:8000`, `super@werkudara.com`) — ledger shell, blue Search button, document/vendor headers, and `KASBON MEIDA` row visible; no console errors, one unrelated missing BU logo asset request.
+  - chart guardrail fix: removed `2x` warning multiplier so the minimum reference line is the real configured `200M`, added visible red `Saldo 0` reference line on the balance axis, and split `ProjectionChartCard` into focused tooltip/controls components below hard cap.
+  - summary fix: monthly projected balance now carries previous month closing balance forward when a month has no explicit finance opening balance, preventing future months from resetting to `0`.
+  - chart verification: `npm exec vitest run tests/React/Pages/CashflowProjection/ProjectionChartCard.test.tsx --runInBand` — pass; `npm exec tsc --noEmit --pretty false` — pass; `npm run build` — pass.
+  - summary verification: `php artisan test tests/Feature/Modules/CashflowProjection tests/Unit/Services/CashflowProjection` — 61 passed, 522 assertions.
+
 ### 2026-05-25 - WNS Restructure 2026 (foundation + section 06 partial)
 - Status: foundation + section 06 (partial) implemented; user data migrated on local
 - Owner: PM Agent

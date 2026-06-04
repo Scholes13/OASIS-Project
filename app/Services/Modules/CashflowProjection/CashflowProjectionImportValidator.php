@@ -37,6 +37,7 @@ class CashflowProjectionImportValidator
         'is_estimated_date',
         'amount',
         'description',
+        'keterangan',
         'notes',
     ];
 
@@ -71,7 +72,7 @@ class CashflowProjectionImportValidator
         }
 
         $headers = [];
-        foreach (range('A', 'K') as $index => $column) {
+        foreach (range('A', 'L') as $index => $column) {
             $headers[] = trim((string) $templateSheet->getCell($column.'1')->getFormattedValue());
         }
 
@@ -144,6 +145,13 @@ class CashflowProjectionImportValidator
                     'message' => 'Kode department tidak valid untuk business unit yang dipilih.',
                     'value' => $row['department_code'],
                 ]);
+            } elseif ($department->activeChildren()->exists()) {
+                $this->pushError($errors, $errorCount, [
+                    'row' => $row['row_number'],
+                    'column' => 'department_code',
+                    'message' => 'Cashflow line item harus dibuat di sub-department, bukan root department dengan sub-department aktif.',
+                    'value' => $row['department_code'],
+                ]);
             }
 
             if (! is_int($row['year']) || $row['year'] < 2000 || $row['year'] > 2100) {
@@ -198,11 +206,11 @@ class CashflowProjectionImportValidator
                     'message' => 'Description wajib diisi.',
                     'value' => null,
                 ]);
-            } elseif (mb_strlen($row['description']) > 255) {
+            } elseif (mb_strlen($row['description']) > 5000) {
                 $this->pushError($errors, $errorCount, [
                     'row' => $row['row_number'],
                     'column' => 'description',
-                    'message' => 'Description maksimal 255 karakter.',
+                    'message' => 'Description maksimal 5000 karakter.',
                     'value' => mb_substr($row['description'], 0, 50),
                 ]);
             }

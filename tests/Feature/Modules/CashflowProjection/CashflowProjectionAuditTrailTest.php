@@ -122,6 +122,7 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'is_estimated_date' => false,
             'amount' => 1000000,
             'description' => 'Audit create',
+            'keterangan' => 'OPERASIONAL',
             'notes' => 'Created by finance',
         ])->assertRedirect();
 
@@ -136,16 +137,21 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'department_id' => $this->hrDepartment->id,
         ]);
 
+        $this->assertSame(
+            'OPERASIONAL',
+            CashflowProjectionAuditLog::query()->where('action', 'created')->first()?->new_values['keterangan'] ?? null
+        );
+
         $this->actingAsFinanceUser()->get(route('cashflow-projection.entries', [
             'year' => 2026,
             'month' => 3,
         ]))->assertInertia(fn (Assert $page) => $page
             ->component('CashflowProjection/Entries')
-            ->where('lineItems.0.creator_name', 'Finance User')
-            ->where('lineItems.0.creator_department_label', 'Core Finance')
-            ->where('lineItems.0.has_edit_history', false)
-            ->where('lineItems.0.updater_name', 'Finance User')
-            ->where('lineItems.0.updater_department_label', 'Core Finance')
+            ->where('lineItems.data.0.creator_name', 'Finance User')
+            ->where('lineItems.data.0.creator_department_label', 'Core Finance')
+            ->where('lineItems.data.0.has_edit_history', false)
+            ->where('lineItems.data.0.updater_name', 'Finance User')
+            ->where('lineItems.data.0.updater_department_label', 'Core Finance')
         );
     }
 
@@ -169,6 +175,7 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'is_estimated_date' => false,
             'amount' => 1000000,
             'description' => 'Original value',
+            'keterangan' => 'ORIGINAL KETERANGAN',
             'notes' => 'Initial note',
             'source_type' => 'manual',
             'created_by' => $this->financeUser->id,
@@ -191,6 +198,7 @@ class CashflowProjectionAuditTrailTest extends TestCase
                 'department_id' => $this->hrDepartment->id,
                 'action_code' => 'OUT_HR_OPS',
                 'amount' => 1000000,
+                'keterangan' => 'ORIGINAL KETERANGAN',
             ],
             'created_at' => now()->subMinute(),
         ]);
@@ -206,6 +214,7 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'is_estimated_date' => true,
             'amount' => 1750000,
             'description' => 'Updated value',
+            'keterangan' => 'UPDATED KETERANGAN',
             'notes' => 'Updated note',
         ])->assertRedirect();
 
@@ -216,14 +225,18 @@ class CashflowProjectionAuditTrailTest extends TestCase
             'action' => 'updated',
         ]);
 
+        $updatedLog = CashflowProjectionAuditLog::query()->where('action', 'updated')->firstOrFail();
+        $this->assertSame('ORIGINAL KETERANGAN', $updatedLog->old_values['keterangan'] ?? null);
+        $this->assertSame('UPDATED KETERANGAN', $updatedLog->new_values['keterangan'] ?? null);
+
         $this->actingAsFinanceUser()->get(route('cashflow-projection.entries', [
             'year' => 2026,
             'month' => 3,
         ]))->assertInertia(fn (Assert $page) => $page
             ->component('CashflowProjection/Entries')
-            ->where('lineItems.0.creator_name', 'Finance User')
-            ->where('lineItems.0.updater_name', 'Finance User')
-            ->where('lineItems.0.has_edit_history', true)
+            ->where('lineItems.data.0.creator_name', 'Finance User')
+            ->where('lineItems.data.0.updater_name', 'Finance User')
+            ->where('lineItems.data.0.has_edit_history', true)
         );
     }
 

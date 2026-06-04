@@ -184,13 +184,17 @@ class CashflowSummaryCalculator
         }
 
         $rows = [];
+        $previousClosingBalance = 0.0;
         for ($month = 1; $month <= 12; $month++) {
             $plus = $plusByMonth[$month];
             $minus = $minusByMonth[$month];
-            $openingBalance = $financeByMonth[$month]['opening_balance'] ?? 0.0;
+            $openingBalance = array_key_exists($month, $financeByMonth)
+                ? $financeByMonth[$month]['opening_balance']
+                : $previousClosingBalance;
             $financeIncome = $financeByMonth[$month]['finance_income'] ?? 0.0;
             $net = $plus - $minus + $financeIncome;
             $closingBalance = $openingBalance + $net;
+            $previousClosingBalance = $closingBalance;
 
             $rows[] = [
                 'month' => $month,

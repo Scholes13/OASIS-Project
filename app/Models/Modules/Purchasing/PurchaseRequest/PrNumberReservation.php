@@ -54,7 +54,6 @@ class PrNumberReservation extends Model
         'voided_at' => 'datetime',
     ];
 
-
     /**
      * Get the business unit
      */

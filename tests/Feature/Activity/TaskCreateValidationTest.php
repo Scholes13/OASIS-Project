@@ -10,6 +10,8 @@ use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Activity\SubActivity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TaskCreateValidationTest extends TestCase
@@ -105,7 +107,7 @@ class TaskCreateValidationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_planned_task_successfully()
     {
         $response = $this->actingAs($this->user)
@@ -114,7 +116,7 @@ class TaskCreateValidationTest extends TestCase
                 'status' => 'planned',
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('employee_tasks', [
@@ -126,7 +128,49 @@ class TaskCreateValidationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
+    public function it_notifies_newly_tagged_participants_when_creating_a_task(): void
+    {
+        Notification::fake();
+
+        $participant = User::factory()->create([
+            'primary_department_id' => $this->department->id,
+            'email_verified_at' => now(),
+        ]);
+
+        $participant->businessUnits()->create([
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'position_id' => $this->position->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user)
+            ->from(route('activity.task.create'))
+            ->post(route('activity.task.store'), $this->validPayload([
+                'participant_ids' => [$participant->id],
+            ]))
+            ->assertRedirect(route('activity.task.index'));
+
+        Notification::assertCount(1);
+    }
+
+    #[Test]
+    public function it_accepts_string_activity_type_id_when_creating_task()
+    {
+        $response = $this->actingAs($this->user)
+            ->from(route('activity.task.create'))
+            ->post(route('activity.task.store'), $this->validPayload([
+                'activity_type_id' => (string) $this->activityType->id,
+                'sub_activity_id' => (string) $this->subActivity->id,
+            ]));
+
+        $response->assertRedirect(route('activity.task.index'));
+        $response->assertSessionHasNoErrors();
+    }
+
+    #[Test]
     public function it_redirects_back_to_origin_page_after_successful_create()
     {
         $response = $this->actingAs($this->user)
@@ -138,7 +182,7 @@ class TaskCreateValidationTest extends TestCase
         $response->assertRedirect(route('activity.dashboard'));
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_in_progress_task_and_sets_started_at()
     {
         $response = $this->actingAs($this->user)
@@ -147,7 +191,7 @@ class TaskCreateValidationTest extends TestCase
                 'status' => 'in_progress',
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
 
         $task = EmployeeTask::latest('id')->first();
 
@@ -156,7 +200,7 @@ class TaskCreateValidationTest extends TestCase
         $this->assertNotNull($task->started_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_completed_task_with_duration()
     {
         $response = $this->actingAs($this->user)
@@ -169,7 +213,7 @@ class TaskCreateValidationTest extends TestCase
                 'completed_date' => now()->format('Y-m-d'),
             ]));
 
-        $response->assertRedirect(route('activity.task.create'));
+        $response->assertRedirect(route('activity.task.index'));
 
         $task = EmployeeTask::latest('id')->first();
 
@@ -181,7 +225,7 @@ class TaskCreateValidationTest extends TestCase
         $this->assertSame(90, $task->duration_minutes);
     }
 
-    /** @test */
+    #[Test]
     public function it_rejects_due_date_before_task_date()
     {
         $taskDate = now()->addDays(2)->format('Y-m-d');
@@ -196,7 +240,7 @@ class TaskCreateValidationTest extends TestCase
         $response->assertSessionHasErrors(['due_date']);
     }
 
-    /** @test */
+    #[Test]
     public function it_requires_start_time_for_backdate_in_progress_task()
     {
         $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([
@@ -208,7 +252,30 @@ class TaskCreateValidationTest extends TestCase
         $response->assertSessionHasErrors(['start_time']);
     }
 
-    /** @test */
+    #[Test]
+    public function it_requires_start_time_for_future_in_progress_task()
+    {
+        $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([
+            'status' => 'in_progress',
+            'task_date' => now()->addDay()->format('Y-m-d'),
+            'due_date' => now()->addDays(2)->format('Y-m-d'),
+            'start_time' => '',
+        ]));
+
+        $response->assertSessionHasErrors(['start_time']);
+    }
+
+    #[Test]
+    public function it_returns_validation_error_for_invalid_task_date_instead_of_throwing()
+    {
+        $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([
+            'task_date' => 'not-a-date',
+        ]));
+
+        $response->assertSessionHasErrors(['task_date']);
+    }
+
+    #[Test]
     public function it_rejects_completed_task_with_end_time_before_start_time()
     {
         $response = $this->actingAs($this->user)->post(route('activity.task.store'), $this->validPayload([

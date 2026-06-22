@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "review_policy": {
+    "require_self_review_before_finalization": true,
+    "require_reviewer_agent_for_multi_file_or_multi-layer_changes": true,
+    "require_qa_for_user_facing_or_runtime_behavior": true,
+    "block_completion_on_standards_violation": true
+  },
+  "knowledge_sources": {
+    "prefer_context7_for_up_to_date_library_docs": true,
+    "rules": [
+      "use context7 when framework, package, sdk, or setup guidance may have changed recently",
+      "prefer repository code and docs for local architecture truths",
+      "do not rely on model memory alone for rapidly changing external tooling"
+    ]
+  },
+  "roles": {
+    "pm_agent": {
+      "must": [
+        "update docs/exec_plans.md before or during substantial work",
+        "delegate implementation by ownership boundary when the task spans multiple layers",
+        "use the viewer lane for read-only mapping, tracing, and evidence gathering when those tasks are justified",
+        "route user-facing or runtime-sensitive work through qa when browser-level validation or runtime evidence matters",
+        "translate conceptual roles into the correct harness sub-agent type",
+        "send completed work through review before presenting it as final"
+      ],
+      "must_not": [
+        "claim work is complete before required verification passes",
+        "treat deprecated modules as active without explicit approval"
+      ]
+    },
+    "coder_backend": {
+      "owns": [
+        "database schema and migrations",
+        "eloquent models and relationships",
+        "form requests",
+        "controllers",
+        "services",
+        "middleware and authorization gates",
+        "notifications",
+        "providers",
+        "console commands",
+        "api and inertia server-side payloads",
+        "backend tests"
+      ],
+      "must_not": [
+        "rewrite frontend UI behavior except for small contract-preserving support changes"
+      ]
+    },
+    "coder_frontend": {
+      "owns": [
+        "inertia pages",
+        "react components",
+        "typescript types",
+        "forms",
+        "state and interaction logic",
+        "frontend tests"
+      ],
+      "must_not": [
+        "change backend persistence or business rules without backend ownership"
+      ]
+    },
+    "viewer": {
+      "owns": [
+        "read-only repository mapping",
+        "contract tracing and impact analysis",
+        "diff and output inspection",
+        "evidence gathering before implementation or review"
+      ],
+      "must_not": [
+        "edit implementation files",
+        "replace reviewer validation when a standards gate is required"
+      ]
+    },
+    "qa": {
+      "owns": [
+        "browser-based smoke and regression validation",
+        "runtime request and response inspection",
+        "console and network verification",
+        "screenshot evidence for user-facing behavior",
+        "reproducible QA findings for changed flows"
+      ],
+      "must_not": [
+        "take over backend or frontend implementation ownership",
+        "replace standards review when reviewer validation is required"
+      ]
+    },
+    "reviewer": {
+      "checks": [
+        "architecture boundary compliance",
+        "security-sensitive changes",
+        "error handling",
+        "route and payload consistency",
+        "test coverage for changed behavior",
+        "lint, format, and typecheck results"
+      ]
+    }
+  },
+  "harness_agent_mapping": {
+    "available_types": [
+      "coder-backend",
+      "coder-frontend",
+      "debugger",
+      "explore",
+      "general",
+      "qa",
+      "reviewer",
+      "viewer"
+    ],
+    "role_to_type": {
+      "viewer": "viewer",
+      "explorer": "explore",
+      "coder_backend": "coder-backend",
+      "coder_frontend": "coder-frontend",
+      "qa": "qa",
+      "reviewer": "reviewer",
+      "debugger": "debugger",
+      "researcher": "general"
+    },
+    "rules": [
+      "spawn coder-backend or coder-frontend agents for implementation tasks with clear file ownership",
+      "spawn viewer agents for focused read-only validation and contract tracing",
+      "spawn explore agents for broad repository discovery and mapping",
+      "spawn qa agents for browser-level verification, runtime tracing, and evidence gathering",
+      "spawn reviewer agents for standards, security, contract, and regression review",
+      "spawn debugger agents when root cause is unclear or the failure requires systematic investigation",
+      "use general agents for research or synthesis that does not fit a specialist lane",
+      "do not assume permanent sub-agent connectivity; assign and spawn per task"
+    ]
+  },
+  "code_style": {
+    "php": {
+      "require_explicit_return_types": true,
+      "require_type_hints": true,
+      "require_curly_braces_for_control_structures": true,
+      "prefer_form_requests_over_inline_validation": true,
+      "prefer_eloquent_relationships_over_raw_db_calls": true,
+      "forbid_env_outside_config": true
+    },
+    "typescript_react": {
+      "prefer_existing_components_and_patterns": true,
+      "prefer_inertia_link_and_router_visit": true,
+      "prefer_named_route_helpers": true,
+      "require_contract_safe_types": true,
+      "avoid_untyped_any_when_reasonable": true,
+      "require_multiline_jsx_for_3_or_more_props": true,
+      "forbid_minified_jsx_single_lines": true
+    },
+    "general": {
+      "preserve_existing_directory_structure": true,
+      "forbid_dependency_changes_without_approval": true,
+      "forbid_destructive_git_commands_without_explicit_approval": true
+    }
+  },
+  "file_size_limits": {
+    "rule": "Files exceeding hard_cap MUST be split into focused modules in the next refactor pass. Generated files and pure constants/types/data files are exempted.",
+    "soft_target_lines": {
+      "react_component": 250,
+      "inertia_page": 300,
+      "custom_hook": 80,
+      "php_controller": 250,
+      "php_service": 200,
+      "php_model": 250,
+      "php_action_class": 150
+    },
+    "hard_cap_lines": {
+      "react_component": 400,
+      "inertia_page": 500,
+      "custom_hook": 150,
+      "php_controller": 500,
+      "php_service": 350,
+      "php_model": 400,
+      "php_action_class": 300
+    },
+    "exemptions": [
+      "constants/*.ts",
+      "types/*.ts",
+      "data files (e.g., articles.ts, lookup tables)",
+      "generated files (manifests, lockfiles)"
+    ]
+  },
+  "chunked_write_protocol": {
+    "rule": "All write/edit operations must respect per-operation server timeouts. Oversized writes fail and waste tokens.",
+    "max_lines_per_operation": 350,
+    "recommended_lines_per_operation": 300,
+    "patterns": {
+      "new_files_over_300_lines": "Write first 250-300 line chunk, then append remaining content in 250-300 line follow-up operations.",
+      "editing_existing_files": "Use surgical edits that change only what is needed. Never rewrite an entire file to change a small section.",
+      "large_refactors": "Split into multiple small focused edits (one method body at a time, one section at a time)."
+    },
+    "forbidden": [
+      "Minifying JSX into single 4000+ character lines to artificially reduce file line count",
+      "Full file replacement when only 5-20 lines need to change",
+      "Skipping verification (php artisan test, npm run build, npx tsc) after refactor work"
+    ]
+  },
+  "error_handling": {
+    "backend": [
+      "validate input with dedicated form requests when introducing or changing request validation",
+      "return consistent redirect, flash, validation, or JSON responses that match the existing surface",
+      "avoid exposing internal exception details to end users"
+    ],
+    "frontend": [
+      "surface validation errors from Inertia responses",
+      "handle loading, empty, and failure states when behavior changes require them",
+      "avoid silent failures in complex UI flows"
+    ]
+  },
+  "response_contracts": {
+    "api": {
+      "prefer_named_routes": true,
+      "must_keep_response_shapes_stable_when_possible": true,
+      "must_note_contract_changes_in_exec_plan": true
+    },
+    "inertia": {
+      "must_use_inertia_render_for_server_pages": true,
+      "must_preserve_shared_props_contracts": true,
+      "must_not_break_navigation_contracts_without_coordinated_frontend_change": true
+    }
+  },
+  "verification": {
+    "required_after_code_changes": [
+      "run focused tests for touched behavior",
+      "run vendor/bin/pint --dirty after php changes",
+      "run npm exec tsc --noEmit --pretty false after frontend or type changes"
+    ],
+    "required_before_completion": [
+      "review changed files against this standards document",
+      "confirm QA coverage for user-facing or runtime-sensitive changes, or explicitly record why QA was skipped",
+      "confirm deprecated modules were not unintentionally re-enabled",
+      "summarize any remaining risk or skipped verification"
+    ]
+  },
+  "deprecated_modules": {
+    "SalesCrm": {
+      "status": "deprecated",
+      "default_action": "disabled",
+      "rule": "do not restore, extend, or route new work through this module unless explicitly requested by the Product Owner"
+    }
+  }
+}

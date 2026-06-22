@@ -3,24 +3,22 @@
 namespace App\Http\Controllers\Modules\Purchasing\PurchaseRequest;
 
 use App\Http\Controllers\Controller;
-use App\Models\Core\BusinessUnit;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
-use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Services\Core\QrCodeService;
+use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalListService;
+use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalQrCodeBuilder;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
-    protected $workflowService;
-
-    public function __construct(ApprovalWorkflowService $workflowService)
-    {
-        $this->workflowService = $workflowService;
-    }
+    public function __construct(
+        protected ApprovalWorkflowService $workflowService,
+        protected ApprovalListService $approvalListService,
+        protected ApprovalQrCodeBuilder $qrCodeBuilder,
+    ) {}
 
     /**
      * Show approval page for a specific approval
@@ -238,408 +236,19 @@ class ApprovalController extends Controller
      */
     public function index(Request $request)
     {
-        $userId = Auth::id();
-        $businessUnitId = session('current_business_unit_id');
-
-        // For c_level/executive users, expand filter to include all descendant BUs
-        $filterBusinessUnitIds = $this->getFilterBusinessUnitIds($businessUnitId);
-
-        // Get PR pending count (must match list: parent in_approval + business unit)
-        $prPendingQuery = PrApproval::where('approver_id', $userId)
-            ->where('status', 'pending')
-            ->whereHas('purchaseRequest', function ($q) {
-                $q->where('status', 'in_approval');
-            });
-
-        if (! empty($filterBusinessUnitIds)) {
-            $prPendingQuery->whereHas('purchaseRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-        }
-
-        $prPendingCount = $prPendingQuery->count();
-
-        // Get PR approved/rejected counts (historical, filtered by business unit only)
-        $prHistoryQuery = PrApproval::where('approver_id', $userId)
-            ->whereIn('status', ['approved', 'rejected']);
-
-        if (! empty($filterBusinessUnitIds)) {
-            $prHistoryQuery->whereHas('purchaseRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-        }
-
-        $prHistoryStats = $prHistoryQuery->select([
-            DB::raw("SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count"),
-            DB::raw("SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count"),
-        ])->first();
-
-        // Get ST pending count (must match list: parent in_approval + business unit)
-        $stPendingQuery = StockApproval::where('approver_id', $userId)
-            ->where('status', 'pending')
-            ->whereHas('stockRequest', function ($q) {
-                $q->where('status', 'in_approval');
-            });
-
-        if (! empty($filterBusinessUnitIds)) {
-            $stPendingQuery->whereHas('stockRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-        }
-
-        $stPendingCount = $stPendingQuery->count();
-
-        // Get ST approved/rejected counts (historical, filtered by business unit only)
-        $stHistoryQuery = StockApproval::where('approver_id', $userId)
-            ->whereIn('status', ['approved', 'rejected']);
-
-        if (! empty($filterBusinessUnitIds)) {
-            $stHistoryQuery->whereHas('stockRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-        }
-
-        $stHistoryStats = $stHistoryQuery->select([
-            DB::raw("SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count"),
-            DB::raw("SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count"),
-        ])->first();
-
-        // Build query for pending PR approvals
-        $pendingPrQuery = PrApproval::with([
-            'purchaseRequest' => function ($query) {
-                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id',
-                    'total_amount', 'currency', 'status', 'used_for', 'created_at', 'updated_at');
-            },
-            'purchaseRequest.user:id,name,email',
-            'purchaseRequest.department:id,name,code',
-            'purchaseRequest.businessUnit:id,name,code',
-        ])
-            ->where('approver_id', $userId)
-            ->where('status', 'pending')
-            ->whereHas('purchaseRequest', function ($q) {
-                $q->where('status', 'in_approval');
-            });
-
-        // Build query for pending ST approvals
-        $pendingStQuery = StockApproval::with([
-            'stockRequest' => function ($query) {
-                $query->select('id', 'st_number', 'user_id', 'department_id', 'business_unit_id',
-                    'purpose', 'status', 'created_at', 'updated_at');
-            },
-            'stockRequest.user:id,name,email',
-            'stockRequest.department:id,name,code',
-            'stockRequest.businessUnit:id,name,code',
-            'stockRequest.items:id,stock_request_id,total',
-        ])
-            ->where('approver_id', $userId)
-            ->where('status', 'pending')
-            ->whereHas('stockRequest', function ($q) {
-                $q->where('status', 'in_approval');
-            });
-
-        // Filter by business unit if set
-        if (! empty($filterBusinessUnitIds)) {
-            $pendingPrQuery->whereHas('purchaseRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-            $pendingStQuery->whereHas('stockRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-        }
-
-        // Get pending approvals
-        $pendingPrApprovals = $pendingPrQuery->orderBy('created_at', 'asc')->get();
-        $pendingStApprovals = $pendingStQuery->orderBy('created_at', 'asc')->get();
-
-        // Transform and merge pending approvals
-        $pendingApprovals = collect();
-
-        foreach ($pendingPrApprovals as $approval) {
-            $pendingApprovals->push([
-                'id' => $approval->id,
-                'type' => 'PR',
-                'request_number' => $approval->purchaseRequest->pr_number,
-                'request_id' => $approval->purchaseRequest->id,
-                'used_for' => $approval->purchaseRequest->used_for,
-                'total_amount' => $approval->purchaseRequest->total_amount,
-                'currency' => $approval->purchaseRequest->currency ?? 'IDR',
-                'user' => $approval->purchaseRequest->user ?? ['id' => 0, 'name' => 'Unknown User', 'email' => ''],
-                'department' => $approval->purchaseRequest->department ?? ['id' => 0, 'name' => 'Unknown Department', 'code' => '-'],
-                'business_unit' => $approval->purchaseRequest->businessUnit ?? ['id' => 0, 'name' => 'Unknown BU', 'code' => '-'],
-                'step_order' => $approval->step_order,
-                'approval_type' => $approval->approval_type ?? $approval->task_type,
-                'status' => $approval->status,
-                'waiting_since' => $approval->created_at->toISOString(),
-                'created_at' => $approval->created_at,
-                'can' => [
-                    'approve' => $this->canProcessApproval($approval),
-                    'reject' => $this->canProcessApproval($approval),
-                ],
-            ]);
-        }
-
-        foreach ($pendingStApprovals as $approval) {
-            $totalAmount = $approval->stockRequest->items->sum('total');
-            $pendingApprovals->push([
-                'id' => $approval->id,
-                'type' => 'ST',
-                'request_number' => $approval->stockRequest->st_number,
-                'request_id' => $approval->stockRequest->id,
-                'used_for' => $approval->stockRequest->purpose,
-                'total_amount' => $totalAmount,
-                'currency' => 'IDR',
-                'user' => $approval->stockRequest->user ?? ['id' => 0, 'name' => 'Unknown User', 'email' => ''],
-                'department' => $approval->stockRequest->department ?? ['id' => 0, 'name' => 'Unknown Department', 'code' => '-'],
-                'business_unit' => $approval->stockRequest->businessUnit ?? ['id' => 0, 'name' => 'Unknown BU', 'code' => '-'],
-                'step_order' => $approval->step_order,
-                'approval_type' => $approval->approval_type ?? $approval->task_type,
-                'status' => $approval->status,
-                'waiting_since' => $approval->created_at->toISOString(),
-                'created_at' => $approval->created_at,
-                'can' => [
-                    'approve' => $this->canProcessStockApproval($approval),
-                    'reject' => $this->canProcessStockApproval($approval),
-                ],
-            ]);
-        }
-
-        // Sort by created_at (oldest first)
-        $pendingApprovals = $pendingApprovals->sortBy('created_at')->values();
-
-        // Get recent PR approvals
-        $recentPrQuery = PrApproval::with([
-            'purchaseRequest' => function ($query) {
-                $query->select('id', 'pr_number', 'user_id', 'department_id', 'business_unit_id',
-                    'total_amount', 'currency', 'status', 'used_for', 'created_at', 'updated_at');
-            },
-            'purchaseRequest.user:id,name,email',
-            'purchaseRequest.department:id,name,code',
-            'purchaseRequest.businessUnit:id,name,code',
-        ])
-            ->where('approver_id', $userId)
-            ->whereIn('status', ['approved', 'rejected']);
-
-        // Get recent ST approvals
-        $recentStQuery = StockApproval::with([
-            'stockRequest' => function ($query) {
-                $query->select('id', 'st_number', 'user_id', 'department_id', 'business_unit_id',
-                    'purpose', 'status', 'created_at', 'updated_at');
-            },
-            'stockRequest.user:id,name,email',
-            'stockRequest.department:id,name,code',
-            'stockRequest.businessUnit:id,name,code',
-            'stockRequest.items:id,stock_request_id,total',
-        ])
-            ->where('approver_id', $userId)
-            ->whereIn('status', ['approved', 'rejected']);
-
-        // Filter by business unit if set
-        if (! empty($filterBusinessUnitIds)) {
-            $recentPrQuery->whereHas('purchaseRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-            $recentStQuery->whereHas('stockRequest', function ($q) use ($filterBusinessUnitIds) {
-                $q->whereIn('business_unit_id', $filterBusinessUnitIds);
-            });
-        }
-
-        $recentPrApprovals = $recentPrQuery->orderBy('responded_at', 'desc')->limit(10)->get();
-        $recentStApprovals = $recentStQuery->orderBy('responded_at', 'desc')->limit(10)->get();
-
-        // Transform and merge recent approvals
-        $recentApprovals = collect();
-
-        foreach ($recentPrApprovals as $approval) {
-            $recentApprovals->push([
-                'id' => $approval->id,
-                'type' => 'PR',
-                'request_number' => $approval->purchaseRequest->pr_number,
-                'request_id' => $approval->purchaseRequest->id,
-                'used_for' => $approval->purchaseRequest->used_for,
-                'total_amount' => $approval->purchaseRequest->total_amount,
-                'currency' => $approval->purchaseRequest->currency ?? 'IDR',
-                'user' => $approval->purchaseRequest->user ?? ['id' => 0, 'name' => 'Unknown User', 'email' => ''],
-                'department' => $approval->purchaseRequest->department ?? ['id' => 0, 'name' => 'Unknown Department', 'code' => '-'],
-                'business_unit' => $approval->purchaseRequest->businessUnit ?? ['id' => 0, 'name' => 'Unknown BU', 'code' => '-'],
-                'step_order' => $approval->step_order,
-                'approval_type' => $approval->approval_type ?? $approval->task_type,
-                'status' => $approval->status,
-                'responded_at' => $approval->responded_at,
-                'waiting_since' => $approval->created_at->toISOString(),
-                'can' => ['approve' => false, 'reject' => false],
-            ]);
-        }
-
-        foreach ($recentStApprovals as $approval) {
-            $totalAmount = $approval->stockRequest->items->sum('total');
-            $recentApprovals->push([
-                'id' => $approval->id,
-                'type' => 'ST',
-                'request_number' => $approval->stockRequest->st_number,
-                'request_id' => $approval->stockRequest->id,
-                'used_for' => $approval->stockRequest->purpose,
-                'total_amount' => $totalAmount,
-                'currency' => 'IDR',
-                'user' => $approval->stockRequest->user ?? ['id' => 0, 'name' => 'Unknown User', 'email' => ''],
-                'department' => $approval->stockRequest->department ?? ['id' => 0, 'name' => 'Unknown Department', 'code' => '-'],
-                'business_unit' => $approval->stockRequest->businessUnit ?? ['id' => 0, 'name' => 'Unknown BU', 'code' => '-'],
-                'step_order' => $approval->step_order,
-                'approval_type' => $approval->approval_type ?? $approval->task_type,
-                'status' => $approval->status,
-                'responded_at' => $approval->responded_at,
-                'waiting_since' => $approval->created_at->toISOString(),
-                'can' => ['approve' => false, 'reject' => false],
-            ]);
-        }
-
-        // Sort by responded_at (most recent first) and take 10
-        $recentApprovals = $recentApprovals->sortByDesc('responded_at')->take(10)->values();
-
-        // Combined stats
-        $approvedCount = (int) (($prHistoryStats->approved_count ?? 0) + ($stHistoryStats->approved_count ?? 0));
-        $rejectedCount = (int) (($prHistoryStats->rejected_count ?? 0) + ($stHistoryStats->rejected_count ?? 0));
-        $pendingCount = $prPendingCount + $stPendingCount;
-
-        $stats = [
-            'pending' => $pendingCount,
-            'approved' => $approvedCount,
-            'rejected' => $rejectedCount,
-            'total' => $pendingCount + $approvedCount + $rejectedCount,
-            'pr_pending' => $prPendingCount,
-            'st_pending' => $stPendingCount,
-        ];
+        $data = $this->approvalListService->buildIndexData(
+            (int) Auth::id(),
+            session('current_business_unit_id'),
+        );
 
         return inertia('Purchasing/Approvals', [
-            'pendingApprovals' => $pendingApprovals,
-            'recentApprovals' => $recentApprovals,
-            'stats' => $stats,
+            'pendingApprovals' => $data['pendingApprovals'],
+            'recentApprovals' => $data['recentApprovals'],
+            'stats' => $data['stats'],
             'can' => [
                 'processApprovals' => true,
             ],
         ]);
-    }
-
-    /**
-     * Get business unit IDs to filter approvals by.
-     *
-     * For c_level/executive users viewing from a parent BU, this returns
-     * the parent BU + all descendant BU IDs so they can see approvals
-     * from all child business units in one place.
-     *
-     * @return int[]
-     */
-    protected function getFilterBusinessUnitIds(?int $businessUnitId): array
-    {
-        if (! $businessUnitId) {
-            return [];
-        }
-
-        $user = Auth::user();
-
-        if ($user->hasTopManagementAccess()) {
-            $bu = BusinessUnit::find($businessUnitId);
-            if ($bu) {
-                return $bu->getAccessibleBusinessUnits();
-            }
-        }
-
-        return [$businessUnitId];
-    }
-
-    /**
-     * Check if current user can process this stock approval
-     */
-    protected function canProcessStockApproval(StockApproval $approval): bool
-    {
-        if ($approval->approver_id !== Auth::id()) {
-            return false;
-        }
-        if ($approval->status !== 'pending') {
-            return false;
-        }
-        if ($approval->stockRequest->status !== 'in_approval') {
-            return false;
-        }
-        $currentApproval = $approval->stockRequest->currentApproval();
-        if (! $currentApproval || $currentApproval->id !== $approval->id) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Transform PurchaseRequest model to match frontend interface
-     */
-    protected function transformPurchaseRequest($pr): array
-    {
-        return [
-            'id' => $pr->id,
-            'pr_number' => $pr->pr_number,
-            'business_unit_id' => $pr->business_unit_id,
-            'department_id' => $pr->department_id,
-            'user_id' => $pr->user_id,
-            'used_for' => $pr->used_for,
-            'date_of_request' => $pr->date_of_request?->toISOString(),
-            'status' => $pr->status,
-            'total_amount' => $pr->total_amount,
-            'currency' => $pr->currency,
-            'created_at' => $pr->created_at->toISOString(),
-            'updated_at' => $pr->updated_at->toISOString(),
-            'department' => [
-                'id' => $pr->department->id,
-                'name' => $pr->department->name,
-                'code' => $pr->department->code,
-            ],
-            'user' => [
-                'id' => $pr->user->id,
-                'name' => $pr->user->name,
-                'email' => $pr->user->email,
-            ],
-            'business_unit' => $pr->businessUnit ? [
-                'id' => $pr->businessUnit->id,
-                'name' => $pr->businessUnit->name,
-                'code' => $pr->businessUnit->code,
-            ] : null,
-            'current_approval_step' => $pr->approvals->where('status', 'approved')->count() + 1,
-            'total_approval_steps' => $pr->approvals->count(),
-            'can' => [
-                'view' => true,
-                'edit' => false,
-                'delete' => false,
-                'void' => false,
-                'resubmit' => false,
-            ],
-        ];
-    }
-
-    /**
-     * Check if current user can process this approval
-     */
-    protected function canProcessApproval(PrApproval $approval): bool
-    {
-        // Must be the approver
-        if ($approval->approver_id !== Auth::id()) {
-            return false;
-        }
-
-        // Must be pending
-        if ($approval->status !== 'pending') {
-            return false;
-        }
-
-        // PR must be in approval
-        if ($approval->purchaseRequest->status !== 'in_approval') {
-            return false;
-        }
-
-        // Must be the current approval step
-        $currentApproval = $approval->purchaseRequest->currentApproval();
-        if (! $currentApproval || $currentApproval->id !== $approval->id) {
-            return false;
-        }
-
-        return true;
     }
 
     /**
@@ -692,31 +301,9 @@ class ApprovalController extends Controller
         }
 
         // Generate QR codes for display
-        $qrCodeService = new QrCodeService;
-        $qrCodes = $this->generateQrCodesForPublicApproval($approval->purchaseRequest, $qrCodeService);
+        $qrCodes = $this->qrCodeBuilder->buildForPublicApproval($approval->purchaseRequest);
 
         return view('purchasing.approvals.purchase-request.public-approval', compact('approval', 'qrCodes'));
-    }
-
-    /**
-     * Generate QR codes for public approval page
-     */
-    protected function generateQrCodesForPublicApproval(PurchaseRequest $purchaseRequest, QrCodeService $qrCodeService): array
-    {
-        $qrCodes = [];
-
-        // Generate QR code for requestor (creator)
-        if ($purchaseRequest->submitted_at) {
-            $qrCodes['requestor'] = $qrCodeService->generateRequestorQrCodeDataUrl($purchaseRequest);
-        }
-
-        // Generate QR codes for all approvals that have been approved
-        $qrCodes['approvals'] = [];
-        foreach ($purchaseRequest->approvals->where('status', 'approved') as $approval) {
-            $qrCodes['approvals'][$approval->id] = $qrCodeService->generateApproverQrCodeDataUrl($approval);
-        }
-
-        return $qrCodes;
     }
 
     /**

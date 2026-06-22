@@ -73,8 +73,8 @@ class AdminTaskItemRealization extends Model
     public function getItemModelAttribute(): ?Model
     {
         $modelClass = self::$morphMap[$this->item_type] ?? null;
-        
-        if (!$modelClass) {
+
+        if (! $modelClass) {
             return null;
         }
 
@@ -86,8 +86,8 @@ class AdminTaskItemRealization extends Model
      */
     public function hasSupplierChanged(): bool
     {
-        return $this->original_supplier !== $this->realized_supplier 
-            && !empty($this->realized_supplier);
+        return $this->original_supplier !== $this->realized_supplier
+            && ! empty($this->realized_supplier);
     }
 
     /**
@@ -112,7 +112,8 @@ class AdminTaskItemRealization extends Model
     public function getFormattedSavingsAmountAttribute(): string
     {
         $prefix = $this->savings_amount >= 0 ? '' : '-';
-        return $prefix . 'Rp ' . number_format(abs($this->savings_amount), 2);
+
+        return $prefix.'Rp '.number_format(abs($this->savings_amount), 2);
     }
 
     /**
@@ -121,7 +122,8 @@ class AdminTaskItemRealization extends Model
     public function getFormattedSavingsPercentageAttribute(): string
     {
         $prefix = $this->savings_percentage >= 0 ? '' : '-';
-        return $prefix . number_format(abs($this->savings_percentage), 2) . '%';
+
+        return $prefix.number_format(abs($this->savings_percentage), 2).'%';
     }
 
     /**

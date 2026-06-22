@@ -197,7 +197,6 @@ class ApprovalController extends Controller
         }
     }
 
-
     /**
      * Approve a purchase request
      */

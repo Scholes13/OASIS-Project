@@ -36,7 +36,7 @@ class SubActivityController extends Controller
         $activityTypesQuery = ActivityType::query()->ordered();
 
         // For non-super admin, filter activity types by current business unit's departments
-        if (!$isSuperAdmin) {
+        if (! $isSuperAdmin) {
             $deptIds = Department::where('business_unit_id', $businessUnitId)->pluck('id');
             $activityTypesQuery->whereHas('departments', function ($q) use ($deptIds) {
                 $q->whereIn('departments.id', $deptIds);
@@ -52,6 +52,7 @@ class SubActivityController extends Controller
         $activityTypes = $activityTypesQuery->get()->map(function ($type) {
             // Extract department prefix from code (e.g., "BAS_ADMINISTRATION" -> "BAS")
             $prefix = $type->code ? explode('_', $type->code)[0] : null;
+
             return [
                 'id' => $type->id,
                 'name' => $type->name,
@@ -70,7 +71,7 @@ class SubActivityController extends Controller
             $query->where('activity_type_id', $request->activity_type_id);
         } else {
             // If no specific activity type filter, apply business unit filter for non-super admin
-            if (!$isSuperAdmin) {
+            if (! $isSuperAdmin) {
                 $deptIds = Department::where('business_unit_id', $businessUnitId)->pluck('id');
                 $activityTypeIds = ActivityType::whereHas('departments', function ($q) use ($deptIds) {
                     $q->whereIn('departments.id', $deptIds);
@@ -91,7 +92,7 @@ class SubActivityController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
@@ -101,10 +102,11 @@ class SubActivityController extends Controller
         }
 
         $subActivities = $query->ordered()->paginate(15)->appends($request->query());
-        
+
         // Transform data for Inertia
         $subActivities->through(function ($subActivity) {
             $prefix = $subActivity->activityType->code ? explode('_', $subActivity->activityType->code)[0] : null;
+
             return [
                 'id' => $subActivity->id,
                 'name' => $subActivity->name,
@@ -151,7 +153,7 @@ class SubActivityController extends Controller
         $activityTypesQuery = ActivityType::active()->ordered();
 
         // For non-super admin, filter by current business unit's departments
-        if (!$isSuperAdmin) {
+        if (! $isSuperAdmin) {
             $deptIds = Department::where('business_unit_id', $businessUnitId)->pluck('id');
             $activityTypesQuery->whereHas('departments', function ($q) use ($deptIds) {
                 $q->whereIn('departments.id', $deptIds);
@@ -160,6 +162,7 @@ class SubActivityController extends Controller
 
         $activityTypes = $activityTypesQuery->get()->map(function ($type) {
             $prefix = $type->code ? explode('_', $type->code)[0] : null;
+
             return [
                 'id' => $type->id,
                 'name' => $type->name,
@@ -168,7 +171,7 @@ class SubActivityController extends Controller
                 'department_prefix' => $prefix,
             ];
         });
-        
+
         $selectedActivityTypeId = $request->get('activity_type');
 
         return Inertia::render('Admin/SubActivities/Create', [
@@ -204,17 +207,17 @@ class SubActivityController extends Controller
         $baseCode = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', $validated['name']));
         $baseCode = preg_replace('/_+/', '_', $baseCode); // Remove multiple underscores
         $baseCode = trim($baseCode, '_'); // Remove leading/trailing underscores
-        
+
         // Limit to 20 characters for the sub-activity part
         $baseCode = substr($baseCode, 0, 20);
-        
+
         // Check for uniqueness within the activity type
         $code = $baseCode;
         $counter = 1;
         while (SubActivity::where('activity_type_id', $validated['activity_type_id'])
             ->where('code', $code)
             ->exists()) {
-            $code = $baseCode . '_' . $counter;
+            $code = $baseCode.'_'.$counter;
             $counter++;
         }
 
@@ -224,7 +227,7 @@ class SubActivityController extends Controller
 
         SubActivity::create($validated);
 
-        return redirect()->route('admin.sub-activities.index', ['activity_type_id' => $request->activity_type_id])
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Sub-activity created successfully.');
     }
 
@@ -266,7 +269,7 @@ class SubActivityController extends Controller
         $activityTypesQuery = ActivityType::ordered();
 
         // For non-super admin, filter by current business unit's departments
-        if (!$isSuperAdmin) {
+        if (! $isSuperAdmin) {
             $deptIds = Department::where('business_unit_id', $businessUnitId)->pluck('id');
             $activityTypesQuery->whereHas('departments', function ($q) use ($deptIds) {
                 $q->whereIn('departments.id', $deptIds);
@@ -275,6 +278,7 @@ class SubActivityController extends Controller
 
         $activityTypes = $activityTypesQuery->get()->map(function ($type) {
             $prefix = $type->code ? explode('_', $type->code)[0] : null;
+
             return [
                 'id' => $type->id,
                 'name' => $type->name,
@@ -324,14 +328,14 @@ class SubActivityController extends Controller
             $baseCode = preg_replace('/_+/', '_', $baseCode);
             $baseCode = trim($baseCode, '_');
             $baseCode = substr($baseCode, 0, 20);
-            
+
             $code = $baseCode;
             $counter = 1;
             while (SubActivity::where('activity_type_id', $validated['activity_type_id'])
                 ->where('code', $code)
                 ->where('id', '!=', $subActivity->id)
                 ->exists()) {
-                $code = $baseCode . '_' . $counter;
+                $code = $baseCode.'_'.$counter;
                 $counter++;
             }
             $validated['code'] = $code;
@@ -341,7 +345,7 @@ class SubActivityController extends Controller
 
         $subActivity->update($validated);
 
-        return redirect()->route('admin.sub-activities.index', ['activity_type_id' => $subActivity->activity_type_id])
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Sub-activity updated successfully.');
     }
 
@@ -354,13 +358,13 @@ class SubActivityController extends Controller
 
         // Check if sub-activity is being used by tasks
         if ($subActivity->employeeTasks()->exists()) {
-            return redirect()->route('admin.sub-activities.index', ['activity_type_id' => $activityTypeId])
+            return redirect()->route('admin.activity-configuration.index')
                 ->with('error', 'Cannot delete sub-activity that is being used by tasks. Consider deactivating it instead.');
         }
 
         $subActivity->delete();
 
-        return redirect()->route('admin.sub-activities.index', ['activity_type_id' => $activityTypeId])
+        return redirect()->route('admin.activity-configuration.index')
             ->with('success', 'Sub-activity deleted successfully.');
     }
 }

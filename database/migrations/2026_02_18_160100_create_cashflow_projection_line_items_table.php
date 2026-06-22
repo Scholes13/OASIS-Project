@@ -18,7 +18,10 @@ return new class extends Migration
             $table->date('due_date')->nullable();
             $table->boolean('is_estimated_date')->default(false);
             $table->decimal('amount', 18, 2);
-            $table->string('description', 255);
+            $table->text('description');
+            $table->string('keterangan')->nullable();
+            $table->string('no_dokumen')->nullable();
+            $table->string('nama_vendor')->nullable();
             $table->text('notes')->nullable();
             $table->enum('source_type', ['manual', 'api'])->default('manual');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();

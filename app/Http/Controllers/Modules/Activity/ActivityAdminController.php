@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Modules\Activity;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Modules\Activity\BackdatePermission;
 use App\Models\Modules\Activity\EmployeeTask;
@@ -26,16 +27,20 @@ class ActivityAdminController extends Controller
      */
     public function dashboard(Request $request): Response
     {
-        $buId = session('current_business_unit_id');
+        $scopedBusinessUnitIds = $this->resolveScopedBusinessUnitIds();
         $dateFrom = $request->get('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
-        $selectedDepartmentId = $request->get('department_id');
+        $requestedDepartmentId = $request->integer('department_id');
 
-        // Get all departments in this BU
-        $departments = Department::where('business_unit_id', $buId)
+        // Parent or holding BUs should aggregate descendant BU activity data too.
+        $departments = Department::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
+
+        $selectedDepartmentId = $requestedDepartmentId && $departments->contains('id', $requestedDepartmentId)
+            ? $requestedDepartmentId
+            : null;
 
         // Determine which departments to aggregate stats for
         $filteredDepartments = $selectedDepartmentId
@@ -45,7 +50,7 @@ class ActivityAdminController extends Controller
         // Aggregate stats per department
         $departmentStats = [];
         foreach ($filteredDepartments as $dept) {
-            $query = EmployeeTask::where('business_unit_id', $buId)
+            $query = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
                 ->where('department_id', $dept->id)
                 ->whereBetween('task_date', [$dateFrom, $dateTo]);
 
@@ -75,16 +80,20 @@ class ActivityAdminController extends Controller
             'in_progress' => array_sum(array_column($departmentStats, 'in_progress')),
             'planned' => array_sum(array_column($departmentStats, 'planned')),
             'cancelled' => array_sum(array_column($departmentStats, 'cancelled')),
-            'total_hours' => array_sum(array_column($departmentStats, 'total_hours')),
+            'total_hours' => round(array_sum(array_column($departmentStats, 'total_hours')), 1),
         ];
         $buSummary['completion_rate'] = $buSummary['total'] > 0
             ? round(($buSummary['completed'] / $buSummary['total']) * 100, 1)
             : 0;
 
-        // Activity type distribution (scoped to department if filtered)
-        $buActivityTypes = EmployeeTask::where('business_unit_id', $buId)
+        // Activity type distribution (scoped to department + descendants if filtered)
+        $selectedDepartmentScopeIds = $selectedDepartmentId
+            ? Department::scopeIdsForId($selectedDepartmentId)
+            : [];
+
+        $buActivityTypes = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
-            ->when($selectedDepartmentId, fn ($q) => $q->where('department_id', $selectedDepartmentId))
+            ->when($selectedDepartmentScopeIds, fn ($q, $ids) => $q->whereIn('department_id', $ids))
             ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
             ->select('employee_activity_types.name')
             ->selectRaw('MIN(employee_activity_types.color) as color')
@@ -106,10 +115,10 @@ class ActivityAdminController extends Controller
                 ];
             });
 
-        // Daily trend (scoped to department if filtered)
-        $dailyTrend = EmployeeTask::where('business_unit_id', $buId)
+        // Daily trend (scoped to department + descendants if filtered)
+        $dailyTrend = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
-            ->when($selectedDepartmentId, fn ($q) => $q->where('department_id', $selectedDepartmentId))
+            ->when($selectedDepartmentScopeIds, fn ($q, $ids) => $q->whereIn('department_id', $ids))
             ->select('task_date')
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
@@ -123,7 +132,7 @@ class ActivityAdminController extends Controller
             ]);
 
         // Top contributors (scoped to department if filtered)
-        $topContributors = EmployeeTask::where('employee_tasks.business_unit_id', $buId)
+        $topContributors = EmployeeTask::whereIn('employee_tasks.business_unit_id', $scopedBusinessUnitIds)
             ->whereBetween('employee_tasks.task_date', [$dateFrom, $dateTo])
             ->when($selectedDepartmentId, fn ($q) => $q->where('employee_tasks.department_id', $selectedDepartmentId))
             ->join('users', 'employee_tasks.created_by', '=', 'users.id')
@@ -139,11 +148,11 @@ class ActivityAdminController extends Controller
         // Pending HOD backdate requests count (only when feature is enabled)
         $pendingBackdateCount = 0;
         if (config('features.backdate_approval')) {
-            $pendingBackdateCount = BackdatePermission::where('business_unit_id', $buId)
+            $pendingBackdateCount = BackdatePermission::whereIn('business_unit_id', $scopedBusinessUnitIds)
                 ->where('status', 'pending')
-                ->whereHas('requester', function ($q) use ($buId) {
-                    $q->whereHas('businessUnits', function ($q2) use ($buId) {
-                        $q2->where('business_unit_id', $buId)
+                ->whereHas('requester', function ($q) use ($scopedBusinessUnitIds) {
+                    $q->whereHas('businessUnits', function ($q2) use ($scopedBusinessUnitIds) {
+                        $q2->whereIn('business_unit_id', $scopedBusinessUnitIds)
                             ->whereHas('position', fn ($q3) => $q3->whereIn('access_level', ['department_head', 'team_leader']));
                     });
                 })
@@ -171,19 +180,24 @@ class ActivityAdminController extends Controller
      */
     public function departmentDetail(Request $request, int $departmentId): Response
     {
-        $buId = session('current_business_unit_id');
+        $scopedBusinessUnitIds = $this->resolveScopedBusinessUnitIds();
         $dateFrom = $request->get('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
         $status = $request->get('status', '');
         $activityTypeId = $request->get('activity_type_id', '');
         $search = $request->get('search', '');
+        $perPage = $this->resolveDepartmentTaskPerPage($request);
 
-        $department = Department::where('business_unit_id', $buId)
+        $department = Department::whereIn('business_unit_id', $scopedBusinessUnitIds)
             ->findOrFail($departmentId);
 
+        // Include sub-department ids when this dept is a root with children,
+        // so admin viewing a parent department sees aggregate of its divisions.
+        $scopeDepartmentIds = $department->descendantIds();
+
         // Tasks query with filters
-        $query = EmployeeTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
+        $query = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
+            ->whereIn('department_id', $scopeDepartmentIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
             ->when($status, fn ($q, $v) => $q->where('status', $v))
             ->when($activityTypeId, fn ($q, $v) => $q->where('activity_type_id', $v))
@@ -192,12 +206,12 @@ class ActivityAdminController extends Controller
         $tasks = (clone $query)
             ->with(['activityType', 'subActivity', 'participants', 'creator', 'department'])
             ->latest('task_date')
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         // Per-user breakdown
-        $userBreakdown = EmployeeTask::where('employee_tasks.business_unit_id', $buId)
-            ->where('employee_tasks.department_id', $departmentId)
+        $userBreakdown = EmployeeTask::whereIn('employee_tasks.business_unit_id', $scopedBusinessUnitIds)
+            ->whereIn('employee_tasks.department_id', $scopeDepartmentIds)
             ->whereBetween('employee_tasks.task_date', [$dateFrom, $dateTo])
             ->join('users', 'employee_tasks.created_by', '=', 'users.id')
             ->select('employee_tasks.created_by', 'users.name as created_by_name')
@@ -210,8 +224,8 @@ class ActivityAdminController extends Controller
             ->get();
 
         // Activity type distribution
-        $activityTypeDistribution = EmployeeTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
+        $activityTypeDistribution = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
+            ->whereIn('department_id', $scopeDepartmentIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo])
             ->join('employee_activity_types', 'employee_tasks.activity_type_id', '=', 'employee_activity_types.id')
             ->select('employee_activity_types.name', 'employee_activity_types.color')
@@ -221,8 +235,8 @@ class ActivityAdminController extends Controller
             ->get();
 
         // Department stats
-        $statsQuery = EmployeeTask::where('business_unit_id', $buId)
-            ->where('department_id', $departmentId)
+        $statsQuery = EmployeeTask::whereIn('business_unit_id', $scopedBusinessUnitIds)
+            ->whereIn('department_id', $scopeDepartmentIds)
             ->whereBetween('task_date', [$dateFrom, $dateTo]);
 
         $stats = [
@@ -241,6 +255,13 @@ class ActivityAdminController extends Controller
             ->orderBy('department_activity_types.sort_order')
             ->get();
 
+        $selectedTask = $this->resolveSelectedDepartmentTask(
+            request: $request,
+            departmentId: $departmentId,
+            scopedBusinessUnitIds: $scopedBusinessUnitIds,
+        );
+        $selectedTaskModal = $selectedTask ? 'detail' : null;
+
         return Inertia::render('Activity/Admin/DepartmentDetail', [
             'department' => $department,
             'tasks' => $tasks,
@@ -248,12 +269,15 @@ class ActivityAdminController extends Controller
             'userBreakdown' => $userBreakdown,
             'activityTypeDistribution' => $activityTypeDistribution,
             'activityTypes' => $activityTypes,
+            'selectedTask' => $selectedTask,
+            'selectedTaskModal' => $selectedTaskModal,
             'filters' => [
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'status' => $status,
                 'activity_type_id' => $activityTypeId,
                 'search' => $search,
+                'per_page' => (string) $perPage,
             ],
         ]);
     }
@@ -263,10 +287,9 @@ class ActivityAdminController extends Controller
      */
     public function taskDetail(EmployeeTask $task): Response
     {
-        $buId = session('current_business_unit_id');
+        $scopedBusinessUnitIds = $this->resolveScopedBusinessUnitIds();
 
-        // Ensure task belongs to current BU
-        if ($task->business_unit_id !== (int) $buId) {
+        if (! in_array((int) $task->business_unit_id, $scopedBusinessUnitIds, true)) {
             abort(403, 'Task does not belong to current business unit.');
         }
 
@@ -291,13 +314,13 @@ class ActivityAdminController extends Controller
     {
         abort_unless(config('features.backdate_approval'), 404);
 
-        $buId = session('current_business_unit_id');
+        $scopedBusinessUnitIds = $this->resolveScopedBusinessUnitIds();
         $status = $request->get('status', 'pending');
 
-        $query = BackdatePermission::where('business_unit_id', $buId)
-            ->whereHas('requester', function ($q) use ($buId) {
-                $q->whereHas('businessUnits', function ($q2) use ($buId) {
-                    $q2->where('business_unit_id', $buId)
+        $query = BackdatePermission::whereIn('business_unit_id', $scopedBusinessUnitIds)
+            ->whereHas('requester', function ($q) use ($scopedBusinessUnitIds) {
+                $q->whereHas('businessUnits', function ($q2) use ($scopedBusinessUnitIds) {
+                    $q2->whereIn('business_unit_id', $scopedBusinessUnitIds)
                         ->whereHas('position', fn ($q3) => $q3->whereIn('access_level', ['department_head', 'team_leader']));
                 });
             })
@@ -321,6 +344,11 @@ class ActivityAdminController extends Controller
         abort_unless(config('features.backdate_approval'), 404);
 
         $permission = BackdatePermission::findOrFail($id);
+
+        // Verify the permission belongs to the admin's BU scope
+        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+        abort_unless(in_array((int) $permission->business_unit_id, $scopedBuIds, true), 403);
+
         $this->backdateService->approveRequest($permission, Auth::user());
 
         return back()->with('success', 'Backdate request approved.');
@@ -336,6 +364,10 @@ class ActivityAdminController extends Controller
         $request->validate(['reason' => 'required|string|max:500']);
 
         $permission = BackdatePermission::findOrFail($id);
+
+        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+        abort_unless(in_array((int) $permission->business_unit_id, $scopedBuIds, true), 403);
+
         $this->backdateService->rejectRequest($permission, Auth::user(), $request->input('reason'));
 
         return back()->with('success', 'Backdate request rejected.');
@@ -346,20 +378,87 @@ class ActivityAdminController extends Controller
      */
     public function export(Request $request)
     {
-        $buId = session('current_business_unit_id');
-        $departmentId = $request->get('department_id');
+        $scopedBusinessUnitIds = $this->resolveScopedBusinessUnitIds();
+        $requestedDepartmentId = $request->integer('department_id');
         $dateFrom = $request->get('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
         $status = $request->get('status');
         $activityTypeId = $request->get('activity_type_id');
+        $departmentId = null;
+
+        if ($requestedDepartmentId) {
+            $departmentId = Department::query()
+                ->whereIn('business_unit_id', $scopedBusinessUnitIds)
+                ->whereKey($requestedDepartmentId)
+                ->exists()
+                ? $requestedDepartmentId
+                : null;
+        }
 
         return $this->exportService->exportToXlsx(
-            businessUnitId: $buId,
-            departmentId: $departmentId ? (int) $departmentId : null,
+            businessUnitIds: $scopedBusinessUnitIds,
+            departmentId: $departmentId,
             dateFrom: $dateFrom,
             dateTo: $dateTo,
             status: $status,
             activityTypeId: $activityTypeId ? (int) $activityTypeId : null,
         );
+    }
+
+    /**
+     * Resolve the active BU scope for Activity Admin.
+     * Parent or holding BUs include all descendants so their dashboard can act as a roll-up view.
+     *
+     * @return array<int>
+     */
+    private function resolveScopedBusinessUnitIds(): array
+    {
+        $currentBusinessUnitId = (int) session('current_business_unit_id');
+
+        if ($currentBusinessUnitId <= 0) {
+            return [];
+        }
+
+        $currentBusinessUnit = BusinessUnit::with('descendants')->find($currentBusinessUnitId);
+
+        if (! $currentBusinessUnit) {
+            return [$currentBusinessUnitId];
+        }
+
+        return $currentBusinessUnit->getAccessibleBusinessUnits();
+    }
+
+    private function resolveSelectedDepartmentTask(Request $request, int $departmentId, array $scopedBusinessUnitIds): ?EmployeeTask
+    {
+        $modal = $request->string('modal')->toString();
+        $taskId = $request->integer('task');
+
+        if ($modal !== 'detail' || $taskId <= 0) {
+            return null;
+        }
+
+        return EmployeeTask::query()
+            ->whereKey($taskId)
+            ->whereIn('business_unit_id', $scopedBusinessUnitIds)
+            ->whereIn('department_id', Department::scopeIdsForId($departmentId))
+            ->with([
+                'activityType',
+                'subActivity',
+                'participants',
+                'creator',
+                'department',
+                'attachments',
+            ])
+            ->first();
+    }
+
+    private function resolveDepartmentTaskPerPage(Request $request): int
+    {
+        $allowedPerPage = [10, 20, 50];
+        $requestedPerPage = $request->integer('per_page', 10);
+
+        return in_array($requestedPerPage, $allowedPerPage, true)
+            ? $requestedPerPage
+            : 10;
     }
 }

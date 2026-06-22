@@ -69,8 +69,9 @@ class BusinessUnitController extends Controller
             'current_business_unit_logo' => $businessUnit->logo,
         ]);
 
-        // Update department context for the new business unit
-        $this->updateDepartmentContext($user, $businessUnit->id);
+        // Re-resolve department for the new BU using shared helper
+        $resolvedDeptId = $user->resolveDepartmentForBusinessUnit($businessUnit->id);
+        session(['current_department_id' => $resolvedDeptId]);
 
         // Save last active BU for next login (only if changed to save DB query)
         if ($user->last_active_business_unit_id !== $businessUnit->id) {

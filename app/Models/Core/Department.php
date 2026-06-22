@@ -59,6 +59,7 @@ class Department extends Model
 
     protected $fillable = [
         'business_unit_id',
+        'parent_department_id',
         'code',
         'name',
         'is_active',
@@ -81,9 +82,48 @@ class Department extends Model
 
     protected static function booted(): void
     {
-        static::created(function (self $department) {
-            $department->ensureDefaultPositions();
+        static::saving(function (self $department) {
+            $department->validateParentDepartment();
         });
+
+        static::created(function (self $department) {
+            // Sub-departments (Division) define their positions explicitly via seeder
+            // or admin UI. Only root departments get the default 4-level template.
+            if ($department->parent_department_id === null) {
+                $department->ensureDefaultPositions();
+            }
+        });
+    }
+
+    /**
+     * Validate parent_department_id rules:
+     * - Cannot be self.
+     * - Parent must exist and belong to the same business unit.
+     * - Max 1 level nesting (sub-department cannot have a sub-department).
+     */
+    protected function validateParentDepartment(): void
+    {
+        if ($this->parent_department_id === null) {
+            return;
+        }
+
+        if ($this->parent_department_id === $this->id) {
+            throw new \DomainException('Department cannot be its own parent.');
+        }
+
+        $parent = static::find($this->parent_department_id);
+
+        if (! $parent) {
+            throw new \DomainException('Parent department not found.');
+        }
+
+        if ($parent->business_unit_id !== $this->business_unit_id) {
+            throw new \DomainException('Parent department must belong to the same business unit.');
+        }
+
+        if ($parent->parent_department_id !== null) {
+            throw new \DomainException('Sub-department cannot have a sub-department (max 1 level nesting).');
+        }
     }
 
     /**
@@ -92,6 +132,30 @@ class Department extends Model
     public function businessUnit(): BelongsTo
     {
         return $this->belongsTo(BusinessUnit::class);
+    }
+
+    /**
+     * Get the parent department (for sub-departments / divisions).
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_department_id');
+    }
+
+    /**
+     * Get sub-departments (divisions) of this department.
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_department_id');
+    }
+
+    /**
+     * Get active sub-departments only.
+     */
+    public function activeChildren(): HasMany
+    {
+        return $this->children()->where('is_active', true);
     }
 
     /**
@@ -293,13 +357,84 @@ class Department extends Model
     }
 
     /**
-     * Get full department name with business unit
+     * Scope for root departments only (no parent).
+     */
+    public function scopeRootOnly($query)
+    {
+        return $query->whereNull('parent_department_id');
+    }
+
+    /**
+     * Scope for sub-departments only (has parent).
+     */
+    public function scopeSubOnly($query)
+    {
+        return $query->whereNotNull('parent_department_id');
+    }
+
+    /**
+     * True when this department is a root (no parent).
+     */
+    public function isRootDepartment(): bool
+    {
+        return $this->parent_department_id === null;
+    }
+
+    /**
+     * True when this department is a sub-department (has parent).
+     */
+    public function isSubDepartment(): bool
+    {
+        return $this->parent_department_id !== null;
+    }
+
+    /**
+     * Returns this department's id plus active children ids.
+     *
+     * Used by scope queries (Activity tasks, Cashflow line items, etc.)
+     * so a user at a root department automatically sees data from its
+     * sub-departments without extra logic at every callsite.
+     */
+    public function descendantIds(): array
+    {
+        $childIds = $this->relationLoaded('activeChildren')
+            ? $this->activeChildren->pluck('id')->all()
+            : $this->activeChildren()->pluck('id')->all();
+
+        return array_values(array_unique([$this->id, ...$childIds]));
+    }
+
+    /**
+     * Resolve descendant ids by department id, gracefully falling back to
+     * `[$id]` when the department is missing. Convenient for controller
+     * callsites that only have the id from a request param.
+     */
+    public static function scopeIdsForId(?int $departmentId): array
+    {
+        if (! $departmentId) {
+            return [];
+        }
+
+        $dept = static::with('activeChildren:id,parent_department_id,is_active')->find($departmentId);
+
+        return $dept ? $dept->descendantIds() : [$departmentId];
+    }
+
+    /**
+     * Get full department name with business unit.
+     *
+     * Format:
+     * - root dept: "{BusinessUnit} - {Department}"
+     * - sub-dept:  "{BusinessUnit} - {Parent} / {Department}"
      */
     public function getFullNameAttribute(): string
     {
-        // Add null safety check for businessUnit relationship
         if (! $this->businessUnit) {
             return $this->name;
+        }
+
+        if ($this->parent_department_id && $this->parent) {
+            return $this->businessUnit->name.' - '.$this->parent->name.' / '.$this->name;
         }
 
         return $this->businessUnit->name.' - '.$this->name;

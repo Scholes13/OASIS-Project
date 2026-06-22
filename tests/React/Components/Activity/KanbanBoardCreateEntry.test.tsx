@@ -1,12 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { router } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 import { KanbanBoard } from '@/components/activity/KanbanBoard';
+import { showToast } from '@/components/ui/toast';
 import type { Task } from '@/types';
 
+let latestDndHandlers: {
+    onDragStart?: (event: { active: { id: number } }) => void;
+    onDragOver?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+    onDragEnd?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+} = {};
+
 vi.mock('@dnd-kit/core', () => ({
-    DndContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    DndContext: ({
+        children,
+        onDragStart,
+        onDragOver,
+        onDragEnd,
+    }: {
+        children: ReactNode;
+        onDragStart?: (event: { active: { id: number } }) => void;
+        onDragOver?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+        onDragEnd?: (event: { active: { id: number }; over: { id: string } | null }) => void;
+    }) => {
+        latestDndHandlers = { onDragStart, onDragOver, onDragEnd };
+
+        return <div>{children}</div>;
+    },
     DragOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     closestCorners: vi.fn(),
     KeyboardSensor: class KeyboardSensor {},
@@ -39,6 +60,18 @@ vi.mock('@dnd-kit/utilities', () => ({
         Transform: {
             toString: () => undefined,
         },
+    },
+}));
+
+vi.mock('@/components/ui/toast', () => ({
+    showToast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        warning: vi.fn(),
+        info: vi.fn(),
+        loading: vi.fn(),
+        dismiss: vi.fn(),
+        promise: vi.fn(),
     },
 }));
 
@@ -87,6 +120,7 @@ describe('KanbanBoard create entry', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        latestDndHandlers = {};
     });
 
     it('uses modal callback when onCreateTask is provided', () => {
@@ -105,6 +139,64 @@ describe('KanbanBoard create entry', () => {
 
         fireEvent.click(screen.getAllByRole('button', { name: /add task/i })[0]);
 
-        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.create');
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.index?modal=create');
+    });
+
+    it('restores the original board state when a drag is cancelled', () => {
+        render(<KanbanBoard tasks={[baseTask]} />);
+
+        expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
+        expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
+
+        act(() => {
+            latestDndHandlers.onDragStart?.({ active: { id: 1 } });
+            latestDndHandlers.onDragOver?.({ active: { id: 1 }, over: { id: 'in_progress' } });
+        });
+
+        expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
+        expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
+
+        act(() => {
+            latestDndHandlers.onDragEnd?.({ active: { id: 1 }, over: null });
+        });
+
+        expect(within(screen.getByText('To Do').parentElement as HTMLElement).getByText('1')).toBeInTheDocument();
+        expect(within(screen.getByText('In Progress').parentElement as HTMLElement).getByText('0')).toBeInTheDocument();
+    });
+
+    it('surfaces execution-time guidance when direct complete from planned is blocked', () => {
+        const onEditTask = vi.fn();
+        const historicalTask: Task = {
+            ...baseTask,
+            task_date: '2026-04-10',
+        };
+
+        render(<KanbanBoard tasks={[historicalTask]} onEditTask={onEditTask} />);
+
+        act(() => {
+            latestDndHandlers.onDragStart?.({ active: { id: 1 } });
+            latestDndHandlers.onDragOver?.({ active: { id: 1 }, over: { id: 'completed' } });
+            latestDndHandlers.onDragEnd?.({ active: { id: 1 }, over: { id: 'completed' } });
+        });
+
+        expect(vi.mocked(router.put)).toHaveBeenCalledWith(
+            '/activity.task.update?task=1',
+            { status: 'completed' },
+            expect.objectContaining({
+                preserveScroll: true,
+                onError: expect.any(Function),
+            })
+        );
+
+        act(() => {
+            vi.mocked(router.put).mock.calls[0][2]?.onError?.({
+                status: ['Task uses a historical date. Please confirm actual execution time.'],
+            });
+        });
+
+        expect(showToast.error).toHaveBeenCalledWith(
+            'Task uses a historical date. Please confirm actual execution time.'
+        );
+        expect(onEditTask).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
     });
 });

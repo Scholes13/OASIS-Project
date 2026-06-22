@@ -3,12 +3,16 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Pencil, Trash2, Calendar, Clock, User, Users, List, Columns, Layout } from 'lucide-react';
 import { StatusBadge, PriorityBadge, ActivityTypeBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody } from '@/components/ui/Card';
 import type { PageProps, Task } from '@/types';
 import { useState } from 'react';
 
 interface TaskDetailProps extends PageProps {
     task: Task;
+    departmentUsers?: any[];
+    backdatePermission?: any;
+    allowedDateRange?: any;
+    backdateEnabled?: boolean;
+    prioritizedActivityTypes?: any;
 }
 
 function formatDate(dateString: string | null): string {
@@ -39,9 +43,13 @@ function isOverdue(dueDate: string | null, status: string): boolean {
     return new Date(dueDate) < new Date();
 }
 
-export default function TaskDetail({ task }: TaskDetailProps) {
+export default function TaskDetail({ task, departmentUsers = [], backdatePermission, allowedDateRange, backdateEnabled, prioritizedActivityTypes }: TaskDetailProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const overdue = isOverdue(task.due_date, task.status);
+
+    const handleEditClick = () => {
+        router.visit(route('activity.task.index', { task: task.id, modal: 'edit' }));
+    };
 
     const handleDelete = () => {
         if (confirm('Are you sure you want to delete this task?')) {
@@ -84,12 +92,10 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <Link href={route('activity.task.edit', { task: task.id })}>
-                                <Button variant="secondary" size="sm" className="shadow-sm border-gray-300">
-                                    <Pencil className="w-4 h-4 mr-2" />
-                                    Edit Task
-                                </Button>
-                            </Link>
+                            <Button variant="secondary" size="sm" className="shadow-sm border-gray-300" onClick={handleEditClick}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit Task
+                            </Button>
                             <Button
                                 variant="danger"
                                 size="sm"
@@ -180,13 +186,13 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                         <h3 className="text-lg font-semibold text-gray-900">Participants</h3>
                                     </div>
                                     <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                                        {task.participants.length} Members
+                                        {(task.participants ?? []).length} Members
                                     </span>
                                 </div>
                                 <div className="p-6">
-                                    {task.participants.length > 0 ? (
+                                    {(task.participants ?? []).length > 0 ? (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {task.participants.map((participant) => (
+                                            {(task.participants ?? []).map((participant) => (
                                                 <div
                                                     key={participant.id}
                                                     className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 hover:shadow-sm transition-all duration-200 group"
@@ -329,7 +335,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                     </div>
                 </motion.div>
             </div>
+
         </div>
     );
 }
-

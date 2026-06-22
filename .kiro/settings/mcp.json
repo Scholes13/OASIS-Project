@@ -25,6 +25,12 @@
         "browser-logs",
         "search-docs"
       ]
+    },
+    "context7": {
+      "command": "npx.cmd",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "cwd": "I:\\Project\\Numbering",
+      "disabled": false
     }
   }
 }

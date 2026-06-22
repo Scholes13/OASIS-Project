@@ -1,12 +1,36 @@
 import { motion } from 'framer-motion';
+import { useState } from 'react';
+import {
+    Bar,
+    CartesianGrid,
+    Cell,
+    ComposedChart,
+    Legend,
+    Line,
+    ReferenceLine,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import type { TooltipContentProps } from 'recharts';
+import ProjectionChartControls from './ProjectionChartControls';
+import ProjectionChartTooltip from './ProjectionChartTooltip';
+import {
+    buildLineSeries,
+    resolveLineChartDomain,
+} from '../chart-utils';
 import { formatCurrency } from '../utils';
 
 type ViewMode = 'day' | 'week' | 'month';
+type ChartDisplayMode = 'balance' | 'volume';
 
 type ChartRow = {
+    key: string;
     label: string;
     inflow: number;
     outflow: number;
+    closingBalance?: number;
 };
 
 type DayPill = {
@@ -15,150 +39,304 @@ type DayPill = {
 };
 
 interface ProjectionChartCardProps {
+    title: string;
+    subtitle: string;
     chartData: ChartRow[];
-    chartMaxValue: number;
     viewMode: ViewMode;
     onViewModeChange: (mode: ViewMode) => void;
     dayPills: DayPill[];
     selectedDayKey: string;
     onDayFilterChange: (value: string) => void;
-}
-
-function formatAxisValue(value: number): string {
-    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1).replace('.0', '')}B`;
-    if (value >= 1000000) return `${Math.round(value / 1000000)}M`;
-    if (value >= 1000) return `${Math.round(value / 1000)}k`;
-    return `${Math.round(value)}`;
-}
-
-function barHeightPercent(value: number, maxValue: number): number {
-    if (value <= 0) return 0;
-    return Math.max((value / maxValue) * 100, 2);
+    minimumBalanceThreshold?: number;
 }
 
 const viewModes: ViewMode[] = ['day', 'week', 'month'];
 
+const INFLOW_COLOR = '#3b82f6';
+const OUTFLOW_COLOR = '#ef4444';
+const BALANCE_COLOR = '#059669';
+const WARNING_COLOR = '#f59e0b';
+const ZERO_BALANCE_COLOR = '#ef4444';
+
 export default function ProjectionChartCard({
+    title,
+    subtitle,
     chartData,
-    chartMaxValue,
     viewMode,
     onViewModeChange,
     dayPills,
     selectedDayKey,
     onDayFilterChange,
+    minimumBalanceThreshold,
 }: ProjectionChartCardProps) {
-    const axisValues = [chartMaxValue, chartMaxValue * 0.75, chartMaxValue * 0.5, chartMaxValue * 0.25, 0];
-    const barsAnimationKey = `${viewMode}-${selectedDayKey}-${chartData.length}`;
+    const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>('balance');
+    const lineSeries = buildLineSeries(chartData, viewMode);
+    const chartDomain = resolveLineChartDomain(chartData, viewMode);
+
+    // Day single → full opacity bar, All others → composed chart
+    const isSingleDay = viewMode === 'day' && selectedDayKey !== 'all';
+    const useMultiPeriodChart = !isSingleDay;
+    const hasBalanceData = lineSeries.some((row) => row.closingBalance != null && row.closingBalance !== 0);
+    const showBalanceLine = chartDisplayMode === 'balance' && useMultiPeriodChart && hasBalanceData;
+    const showMovementBars = chartDisplayMode === 'volume' || !useMultiPeriodChart || !hasBalanceData;
+    const hideMovementAxis = showBalanceLine;
+    const closingBalances = lineSeries
+        .map((row) => row.closingBalance)
+        .filter((value): value is number => typeof value === 'number');
+    const minimumLineThreshold = minimumBalanceThreshold && minimumBalanceThreshold > 0 ? minimumBalanceThreshold : undefined;
+    // Right Y-axis domain for balance line (month view)
+    const balanceDomain: [number, number] = (() => {
+        if (!hasBalanceData) return [0, 1];
+        const balances = [...closingBalances];
+        balances.push(0);
+        if (minimumLineThreshold !== undefined) {
+            balances.push(minimumLineThreshold);
+        }
+        const minBal = Math.min(...balances);
+        const maxBal = Math.max(...balances);
+        const padding = Math.max((maxBal - minBal) * 0.12, maxBal * 0.04, 1);
+        return [Math.floor(minBal - padding), Math.ceil(maxBal + padding)];
+    })();
+
+    const selectedDayLabel = selectedDayKey === 'all'
+        ? 'All Days'
+        : dayPills.find((day) => day.key === selectedDayKey)?.label ?? 'All Days';
+
+    const formatAxisCurrency = (value: number): string => {
+        return formatCurrency(Math.abs(value));
+    };
+
+    const formatAxisCurrencyShort = (value: number): string => {
+        const abs = Math.abs(value);
+        if (abs >= 1_000_000_000) return `${(abs / 1_000_000_000).toFixed(1)}B`;
+        if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(0)}M`;
+        if (abs >= 1_000) return `${(abs / 1_000).toFixed(0)}K`;
+        return String(abs);
+    };
+
+    const renderTooltip = (props: TooltipContentProps<number | string | ReadonlyArray<number | string>, number | string>) => (
+        <ProjectionChartTooltip
+            {...props}
+            chartDisplayMode={chartDisplayMode}
+            minimumBalanceThreshold={minimumBalanceThreshold}
+        />
+    );
+
+    const sharedXAxis = (
+        <XAxis
+            dataKey="label"
+            tick={{ fontSize: 11, fill: '#64748b' }}
+            axisLine={false}
+            tickLine={false}
+            dy={8}
+        />
+    );
+
+    const sharedYAxis = (
+        <YAxis
+            domain={chartDomain}
+            tick={hideMovementAxis ? false : { fontSize: 11, fill: '#64748b' }}
+            axisLine={false}
+            tickLine={false}
+            width={72}
+            tickFormatter={formatAxisCurrency}
+            hide={hideMovementAxis}
+        />
+    );
 
     return (
         <motion.section
-            className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+            className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
         >
-            {/* Header */}
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-foreground">Cashflow Projection</h2>
-                <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50/80 p-1">
-                    {viewModes.map((mode) => (
-                        <button
-                            key={mode}
-                            type="button"
-                            onClick={() => onViewModeChange(mode)}
-                            className={`rounded-md px-3 py-1.5 text-[13px] font-medium capitalize transition-all duration-200 ${
-                                viewMode === mode
-                                    ? 'bg-white text-primary shadow-sm font-semibold ring-1 ring-slate-200/50'
-                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
-                            }`}
-                        >
-                            {mode}
-                        </button>
-                    ))}
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 bg-white">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
                 </div>
+                <ProjectionChartControls
+                    chartDisplayMode={chartDisplayMode}
+                    onChartDisplayModeChange={setChartDisplayMode}
+                    viewModes={viewModes}
+                    viewMode={viewMode}
+                    onViewModeChange={onViewModeChange}
+                    dayPills={dayPills}
+                    selectedDayKey={selectedDayKey}
+                    selectedDayLabel={selectedDayLabel}
+                    onDayFilterChange={onDayFilterChange}
+                />
             </div>
 
-            {/* Day pills */}
-            {viewMode === 'day' && (
-                <div className="mb-4 flex gap-2 overflow-x-auto pb-1 show-scrollbar">
-                    <button
-                        type="button"
-                        onClick={() => onDayFilterChange('all')}
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                            selectedDayKey === 'all'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    >
-                        All Days
-                    </button>
-                    {dayPills.map((day) => (
-                        <button
-                            key={day.key}
-                            type="button"
-                            onClick={() => onDayFilterChange(day.key)}
-                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                                selectedDayKey === day.key
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                        >
-                            {day.label}
-                        </button>
-                    ))}
+            {chartData.length === 0 && (
+                <div className="m-6 rounded-lg border border-dashed border-slate-200 bg-slate-50 py-10 text-center">
+                    <p className="text-sm font-medium text-slate-700">Belum ada pergerakan cashflow pada periode ini.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Coba ubah filter atau tambahkan entry baru untuk melihat proyeksi.</p>
                 </div>
             )}
 
-            {/* Chart area */}
-            <div className="relative overflow-x-auto show-scrollbar">
-                <div className="relative min-h-[280px]" style={chartData.length > 16 ? { minWidth: `${chartData.length * 2.25}rem` } : undefined}>
-                    {/* Y-axis grid lines */}
-                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                        {axisValues.map((value) => (
-                            <div key={value} className="flex items-center border-b border-slate-100">
-                                <span className="w-10 shrink-0 text-right pr-2 text-[10px] text-muted-foreground">{formatAxisValue(value)}</span>
-                            </div>
-                        ))}
-                    </div>
 
-                    {/* Bars */}
-                    <div className="relative flex items-end justify-around gap-1 pl-12" style={{ height: '280px' }} key={barsAnimationKey}>
-                        {chartData.map((row, index) => (
-                            <div key={`${row.label}-${row.inflow}-${row.outflow}`} className="flex flex-col items-center gap-1" style={{ flex: '1 1 0' }}>
-                                <div className="flex items-end gap-[3px]" style={{ height: '250px' }}>
-                                    <motion.div
-                                        className="cfp-bar inflow"
-                                        initial={{ height: 0 }}
-                                        animate={{ height: `${barHeightPercent(row.inflow, chartMaxValue)}%` }}
-                                        transition={{ duration: 0.45, ease: 'easeOut', delay: index * 0.02 }}
-                                        data-value={formatCurrency(row.inflow)}
-                                    />
-                                    <motion.div
-                                        className="cfp-bar outflow"
-                                        initial={{ height: 0 }}
-                                        animate={{ height: `${barHeightPercent(row.outflow, chartMaxValue)}%` }}
-                                        transition={{ duration: 0.45, ease: 'easeOut', delay: index * 0.02 + 0.04 }}
-                                        data-value={formatCurrency(row.outflow)}
-                                    />
-                                </div>
-                                <span className="text-[10px] text-muted-foreground">{row.label}</span>
-                            </div>
-                        ))}
+
+            {/* Day single → bar chart */}
+            {chartData.length > 0 && isSingleDay && (
+                <div className="relative overflow-x-auto px-6 py-5 show-scrollbar">
+                    <div className="min-w-[320px]">
+                        <ResponsiveContainer width="100%" height={360}>
+                            <ComposedChart
+                                data={lineSeries}
+                                margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                                barSize={64}
+                                barGap={-64}
+                                barCategoryGap="20%"
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                                {sharedXAxis}
+                                {sharedYAxis}
+                                <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} content={renderTooltip} />
+                                <ReferenceLine y={0} stroke={ZERO_BALANCE_COLOR} strokeWidth={1.5} strokeDasharray="4 4" />
+                                <Bar dataKey="inflow" name="Inflow" fill={INFLOW_COLOR} radius={[4, 4, 0, 0]}>
+                                    {lineSeries.map((entry) => (
+                                        <Cell key={entry.key} fill={INFLOW_COLOR} fillOpacity={(entry.inflow ?? 0) > 0 ? 0.85 : 0} />
+                                    ))}
+                                </Bar>
+                                <Bar dataKey="outflow" name="Outflow" fill={OUTFLOW_COLOR} radius={[0, 0, 4, 4]}>
+                                    {lineSeries.map((entry) => (
+                                        <Cell key={entry.key} fill={OUTFLOW_COLOR} fillOpacity={(entry.outflow ?? 0) < 0 ? 0.85 : 0} />
+                                    ))}
+                                </Bar>
+                                <Legend iconType="square" iconSize={10} wrapperStyle={{ fontSize: 12, paddingTop: 16 }} />
+                            </ComposedChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Legend */}
-            <div className="mt-4 flex items-center justify-center gap-6">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="h-2.5 w-2.5 rounded-full bg-primary" />
-                    Inflow
+            {/* Multi-period → composed chart with balance line, dominant trend, & threshold */}
+            {chartData.length > 0 && useMultiPeriodChart && (
+                <div className="relative overflow-x-auto px-6 py-5 show-scrollbar">
+                    <div className="min-w-[680px]" style={lineSeries.length > 18 ? { width: `${lineSeries.length * 48}px` } : undefined}>
+                        <ResponsiveContainer width="100%" height={380}>
+                            <ComposedChart
+                                data={lineSeries}
+                                margin={{ top: 8, right: hasBalanceData ? 16 : 8, left: 8, bottom: 8 }}
+                                barSize={22}
+                                barGap={-22}
+                                barCategoryGap="20%"
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                                {sharedXAxis}
+                                {sharedYAxis}
+                                {showBalanceLine && (
+                                    <YAxis
+                                        yAxisId="balance"
+                                        orientation="right"
+                                        domain={balanceDomain}
+                                        tick={{ fontSize: 10, fill: BALANCE_COLOR }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        width={56}
+                                        tickFormatter={formatAxisCurrencyShort}
+                                    />
+                                )}
+                                <Tooltip cursor={{ fill: 'rgba(148,163,184,0.08)' }} content={renderTooltip} />
+                                <ReferenceLine y={0} stroke={ZERO_BALANCE_COLOR} strokeWidth={1.5} strokeDasharray="4 4" />
+                                {showBalanceLine && (
+                                    <ReferenceLine
+                                        yAxisId="balance"
+                                        y={0}
+                                        stroke={ZERO_BALANCE_COLOR}
+                                        strokeWidth={1.5}
+                                        strokeDasharray="4 4"
+                                        label={{
+                                            value: 'Saldo 0',
+                                            position: 'right',
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            fill: ZERO_BALANCE_COLOR,
+                                        }}
+                                    />
+                                )}
+                                {showBalanceLine && minimumLineThreshold && (
+                                    <ReferenceLine
+                                        yAxisId="balance"
+                                        y={minimumLineThreshold}
+                                        stroke={WARNING_COLOR}
+                                        strokeWidth={1}
+                                        strokeDasharray="6 4"
+                                        label={{
+                                            value: `Minimum ${formatAxisCurrencyShort(minimumLineThreshold)}`,
+                                            position: 'right',
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                            fill: WARNING_COLOR,
+                                        }}
+                                    />
+                                )}
+                                {showMovementBars && (
+                                    <Bar dataKey="inflow" name="Inflow" fill={INFLOW_COLOR} radius={[4, 4, 0, 0]}>
+                                        {lineSeries.map((entry) => (
+                                            <Cell key={entry.key} fill={INFLOW_COLOR} fillOpacity={(entry.inflow ?? 0) > 0 ? 0.35 : 0} />
+                                        ))}
+                                    </Bar>
+                                )}
+                                {showMovementBars && (
+                                    <Bar dataKey="outflow" name="Outflow" fill={OUTFLOW_COLOR} radius={[0, 0, 4, 4]}>
+                                        {lineSeries.map((entry) => (
+                                            <Cell key={entry.key} fill={OUTFLOW_COLOR} fillOpacity={(entry.outflow ?? 0) < 0 ? 0.35 : 0} />
+                                        ))}
+                                    </Bar>
+                                )}
+                                {/* Balance line on right axis */}
+                                {showBalanceLine && (
+                                    <Line
+                                        yAxisId="balance"
+                                        type="monotone"
+                                        dataKey="closingBalance"
+                                        name="Saldo Proyeksi"
+                                        stroke={BALANCE_COLOR}
+                                        strokeWidth={3.5}
+                                        dot={({ cx, cy, payload }) => {
+                                            const val = payload?.closingBalance ?? 0;
+                                            const isBelowThreshold = minimumBalanceThreshold ? val < minimumBalanceThreshold : false;
+                                            return (
+                                                <circle
+                                                    cx={cx}
+                                                    cy={cy}
+                                                    r={4}
+                                                    fill={isBelowThreshold ? OUTFLOW_COLOR : BALANCE_COLOR}
+                                                    stroke="#f8fafc"
+                                                    strokeWidth={2}
+                                                />
+                                            );
+                                        }}
+                                        activeDot={({ cx, cy, payload }) => (
+                                            <circle
+                                                cx={cx}
+                                                cy={cy}
+                                                r={6}
+                                                fill={
+                                                    minimumBalanceThreshold && (payload?.closingBalance ?? 0) < minimumBalanceThreshold
+                                                        ? OUTFLOW_COLOR
+                                                        : BALANCE_COLOR
+                                                }
+                                                stroke="#f8fafc"
+                                                strokeWidth={2}
+                                            />
+                                        )}
+                                    />
+                                )}
+                                <Legend
+                                    iconSize={10}
+                                    wrapperStyle={{ fontSize: 12, paddingTop: 16 }}
+                                />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                    Outflow
-                </div>
-            </div>
+            )}
+
+
         </motion.section>
     );
 }

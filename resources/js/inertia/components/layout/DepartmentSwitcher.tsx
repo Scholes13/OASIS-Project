@@ -17,11 +17,16 @@ interface Department {
     id: number;
     code: string;
     name: string;
+    parent_department_id?: number | null;
+}
+
+interface DepartmentTreeNode extends Department {
+    children?: Department[];
 }
 
 interface PagePropsWithDepartment {
-    currentDepartment: Department | null;
-    availableDepartments: Department[];
+    currentDepartment: (Department & { parent?: Department | null }) | null;
+    availableDepartments: DepartmentTreeNode[];
     [key: string]: unknown;
 }
 
@@ -124,13 +129,15 @@ function SmoothCheck({ isVisible }: { isVisible: boolean }) {
 }
 
 // Department item in dropdown
-function DepartmentMenuItem({ 
-    department, 
-    isActive, 
+function DepartmentMenuItem({
+    department,
+    isActive,
+    isSubDepartment,
     onClick,
-}: { 
-    department: Department; 
-    isActive: boolean; 
+}: {
+    department: Department;
+    isActive: boolean;
+    isSubDepartment?: boolean;
     onClick: () => void;
 }) {
     return (
@@ -139,13 +146,14 @@ function DepartmentMenuItem({
             disabled={isActive}
             className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                isActive 
-                    ? "bg-primary cursor-default" 
+                isSubDepartment && "pl-10",
+                isActive
+                    ? "bg-primary cursor-default"
                     : "hover:bg-gray-50 active:bg-gray-100"
             )}
         >
             <DepartmentIcon department={department} size="md" />
-            
+
             <div className="flex-1 min-w-0">
                 <span className={cn(
                     "font-semibold text-base block",
@@ -155,7 +163,7 @@ function DepartmentMenuItem({
                 </span>
                 <p className="text-sm text-gray-500 truncate">{department.name}</p>
             </div>
-            
+
             <SmoothCheck isVisible={isActive} />
         </button>
     );
@@ -167,19 +175,31 @@ export function DepartmentSwitcher() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const { currentDepartment, availableDepartments } = usePage<PagePropsWithDepartment>().props;
     
-    // Sort: active department first
-    const sortedDepartments = useMemo(() => {
-        if (!currentDepartment || !availableDepartments.length) return availableDepartments;
-        
-        return [...availableDepartments].sort((a, b) => {
-            if (a.id === currentDepartment.id) return -1;
-            if (b.id === currentDepartment.id) return 1;
-            return a.code.localeCompare(b.code);
-        });
-    }, [availableDepartments, currentDepartment]);
+    // Flatten tree to a list of switchable depts (root + their children),
+    // preserving hierarchy via the optional parent_department_id field.
+    const flatDepartments = useMemo<Department[]>(() => {
+        const out: Department[] = [];
+        for (const root of availableDepartments) {
+            out.push({
+                id: root.id,
+                code: root.code,
+                name: root.name,
+                parent_department_id: root.parent_department_id ?? null,
+            });
+            for (const child of root.children ?? []) {
+                out.push({
+                    id: child.id,
+                    code: child.code,
+                    name: child.name,
+                    parent_department_id: child.parent_department_id ?? root.id,
+                });
+            }
+        }
+        return out;
+    }, [availableDepartments]);
 
-    // Only render if user has multiple departments
-    const hasMultipleDepartments = availableDepartments && availableDepartments.length > 1;
+    // Only render if user has multiple departments (across roots + children)
+    const hasMultipleDepartments = flatDepartments.length > 1;
     
     // Close on outside click
     useEffect(() => {
@@ -211,7 +231,7 @@ export function DepartmentSwitcher() {
         setIsSwitching(true);
 
         // Validate user has access to this department
-        const targetDepartment = availableDepartments?.find(dept => dept.id === departmentId);
+        const targetDepartment = flatDepartments.find(dept => dept.id === departmentId);
         if (!targetDepartment) {
             showToast.error('You do not have access to this department');
             setIsSwitching(false);
@@ -296,11 +316,12 @@ export function DepartmentSwitcher() {
                         
                         {/* List */}
                         <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
-                            {sortedDepartments.map((dept) => (
+                            {flatDepartments.map((dept) => (
                                 <DepartmentMenuItem
                                     key={dept.id}
                                     department={dept}
                                     isActive={dept.id === currentDepartment.id}
+                                    isSubDepartment={Boolean(dept.parent_department_id)}
                                     onClick={() => handleSwitch(dept.id)}
                                 />
                             ))}

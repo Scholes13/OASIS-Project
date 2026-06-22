@@ -26,7 +26,7 @@ export function UpcomingTasks({ tasks }: UpcomingTasksProps) {
             <div className="space-y-3">
                 {tasks?.length > 0 ? (
                     tasks.map(task => (
-                        <Link key={task.id} href={route('activity.task.show', { task: task.id })}>
+                        <Link key={task.id} href={route('activity.task.index', { task: task.id, modal: 'detail' })}>
                             <div className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-all cursor-pointer border border-transparent hover:border-gray-100 group">
                                 <div className={cn(
                                     "mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ring-2 ring-white shadow-sm", 

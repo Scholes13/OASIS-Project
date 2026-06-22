@@ -10,6 +10,7 @@ use App\Models\Modules\Activity\BackdatePermission;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BackdateValidationTest extends TestCase
@@ -54,7 +55,7 @@ class BackdateValidationTest extends TestCase
         $this->backdateService = app(BackdatePermissionService::class);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_task_with_today_date()
     {
         $today = Carbon::today();
@@ -64,7 +65,7 @@ class BackdateValidationTest extends TestCase
         $this->assertTrue($canCreate);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_task_with_yesterday_date()
     {
         $yesterday = Carbon::yesterday();
@@ -74,7 +75,7 @@ class BackdateValidationTest extends TestCase
         $this->assertTrue($canCreate);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_create_task_with_date_older_than_yesterday_without_permission()
     {
         $twoDaysAgo = Carbon::today()->subDays(2);
@@ -84,7 +85,7 @@ class BackdateValidationTest extends TestCase
         $this->assertFalse($canCreate);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_task_with_old_date_when_has_active_permission()
     {
         $tenDaysAgo = Carbon::today()->subDays(10);
@@ -107,7 +108,7 @@ class BackdateValidationTest extends TestCase
         $this->assertTrue($canCreate);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_create_task_with_date_before_granted_permission()
     {
         $tenDaysAgo = Carbon::today()->subDays(10);
@@ -132,7 +133,7 @@ class BackdateValidationTest extends TestCase
         $this->assertFalse($canCreate);
     }
 
-    /** @test */
+    #[Test]
     public function allowed_date_range_is_yesterday_to_today_by_default()
     {
         $range = $this->backdateService->getAllowedDateRange($this->user);
@@ -141,7 +142,7 @@ class BackdateValidationTest extends TestCase
         $this->assertEquals(Carbon::today()->addYear()->toDateString(), $range['to']->toDateString());
     }
 
-    /** @test */
+    #[Test]
     public function allowed_date_range_extends_with_active_permission()
     {
         $tenDaysAgo = Carbon::today()->subDays(10);

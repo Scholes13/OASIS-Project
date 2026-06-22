@@ -24,6 +24,7 @@ const defaultFilters: TaskFilters = {
     status: '',
     date_from: '',
     date_to: '',
+    member_user_id: '',
 };
 
 /**
@@ -86,6 +87,7 @@ export function useFilters(
             status: '',
             date_from: threeMonthsAgo.toISOString().split('T')[0],
             date_to: new Date().toISOString().split('T')[0],
+            member_user_id: '',
         };
         setFiltersState(reset);
         applyFilters(reset);

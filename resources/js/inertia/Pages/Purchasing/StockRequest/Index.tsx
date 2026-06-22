@@ -69,9 +69,19 @@ export default function Index({
     currentBusinessUnit
 }: STIndexPageProps) {
     // Defensive defaults for stockRequests to prevent undefined errors
+    // Inertia v2 serializes Laravel paginator at root level (not nested under meta)
     const safeData = stockRequests?.data ?? [];
-    const safeMeta = stockRequests?.meta ?? { from: 0, to: 0, total: 0, last_page: 1, links: [] };
-    const safeLinks = stockRequests?.links ?? { prev: null, next: null };
+    const safeMeta = stockRequests?.meta ?? {
+        from: (stockRequests as any)?.from ?? 0,
+        to: (stockRequests as any)?.to ?? 0,
+        total: (stockRequests as any)?.total ?? 0,
+        last_page: (stockRequests as any)?.last_page ?? 1,
+        links: (stockRequests as any)?.links ?? [],
+    };
+    const safeLinks = stockRequests?.links ?? {
+        prev: (stockRequests as any)?.prev_page_url ?? null,
+        next: (stockRequests as any)?.next_page_url ?? null,
+    };
 
     const [search, setSearch] = useState(filters?.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters?.status || '');

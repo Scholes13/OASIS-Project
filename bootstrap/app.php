@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Global middleware for Inertia
@@ -35,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'purchasing.admin.access' => \App\Http\Middleware\PurchasingAdminAccess::class,
             'activity.reporting.access' => \App\Http\Middleware\ActivityReportingAccess::class,
             'activity.admin.access' => \App\Http\Middleware\ActivityAdminAccess::class,
+            'it.support.access' => \App\Http\Middleware\ITSupportAccess::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
@@ -43,17 +48,25 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
             // Handle 419 Page Expired (CSRF Token Mismatch)
-            // Redirect back with flash message instead of showing ugly error modal
+            // If the user is no longer authenticated, redirect to login instead of back
+            // (going back to an authenticated page would just fail again)
             if ($response->getStatusCode() === 419) {
+                if (! $request->user()) {
+                    return redirect()->route('login')->with([
+                        'error' => 'Your session has expired. Please log in again.',
+                    ]);
+                }
+
                 return back()->with([
                     'error' => 'The page expired, please try again.',
                 ]);
             }
 
-            // Handle common HTTP errors in production with proper Inertia error page
-            // In local/testing, let the default error handler show detailed debug info
-            if (! app()->environment(['local', 'testing'])
-                && in_array($response->getStatusCode(), [500, 503, 404, 403])
+            // Handle common HTTP errors with proper Inertia error page
+            // Show custom error pages in all environments for a polished user experience
+            // (Laravel Debugbar still provides debug info in local via the bottom toolbar)
+            if (in_array($response->getStatusCode(), [403, 404, 503])
+                || (! app()->environment(['local', 'testing']) && $response->getStatusCode() === 500)
             ) {
                 // Set root view explicitly since HandleInertiaRequests middleware
                 // may not have run (e.g., 404 on non-existent routes)

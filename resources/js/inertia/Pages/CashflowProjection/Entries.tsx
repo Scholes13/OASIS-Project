@@ -1,10 +1,16 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Server, ShoppingBag, Users, ChevronDown, PlusCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
 import './cashflow-dashboard.css';
+import AddProjectionCard from './components/AddProjectionCard';
+import EntriesPageHeader from './components/EntriesPageHeader';
+import EntriesTable from './components/EntriesTable';
+import ImportEntriesDialog from './components/ImportEntriesDialog';
 import type { CashflowProjectionEntriesPageProps, LineItemFormData } from './types';
-import { formatCurrency, formatMonthLabel } from './utils';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useCashflowEntryDeletion } from '@/hooks/useCashflowEntryDeletion';
+import { useCashflowImportPreview } from '@/hooks/useCashflowImportPreview';
+import type { PageProps } from '@/types';
 
 type FlowType = 'in' | 'out';
 
@@ -15,8 +21,54 @@ type CategoryOption = {
     department_id: number;
 };
 
-const inputClasses =
-    'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+type BusinessUnitOption = {
+    id: number;
+    code: string;
+    name: string;
+};
+
+function extractDepartmentCode(actionCode: string, fallbackCode: string): string {
+    const match = actionCode.match(/^[A-Z]+_([A-Z0-9]+)_/);
+    return match?.[1] ?? fallbackCode;
+}
+
+function normalizeActionLabel(actionLabel: string): string {
+    const prefixedParts = actionLabel.split(' - ');
+    const coreLabel = prefixedParts.length >= 2
+        ? prefixedParts.slice(prefixedParts.length >= 3 ? 2 : 1).join(' - ')
+        : actionLabel;
+
+    if (coreLabel.toLowerCase().startsWith('operational department')) {
+        return 'Operational';
+    }
+
+    if (prefixedParts.length >= 2) {
+        return coreLabel;
+    }
+
+    return actionLabel;
+}
+
+function formatCategoryLabel(
+    actionCode: string,
+    actionLabel: string,
+    departmentCode: string,
+    businessUnitCode?: string,
+    isLinkedBusinessUnit: boolean = false
+): string {
+    const normalizedDepartmentCode = extractDepartmentCode(actionCode, departmentCode);
+    const normalizedLabel = normalizeActionLabel(actionLabel);
+
+    const labelParts = [normalizedDepartmentCode];
+
+    if (isLinkedBusinessUnit && businessUnitCode) {
+        labelParts.push(businessUnitCode);
+    }
+
+    labelParts.push(normalizedLabel);
+
+    return labelParts.join(' - ');
+}
 
 function toIsoDate(year: number, month: number, day: number): string {
     const safeMonth = String(Math.max(1, Math.min(12, month))).padStart(2, '0');
@@ -24,36 +76,24 @@ function toIsoDate(year: number, month: number, day: number): string {
     return `${year}-${safeMonth}-${safeDay}`;
 }
 
-function resolveIcon(actionLabel: string) {
-    const text = actionLabel.toLowerCase();
-    if (text.includes('revenue') || text.includes('sales')) return ShoppingBag;
-    if (text.includes('gaji') || text.includes('hr') || text.includes('karyawan')) return Users;
-    return Server;
-}
-
-function formatDate(dateValue: string): string {
-    const [year, month, day] = dateValue.split('-').map(Number);
-    if (!year || !month || !day) return dateValue;
-    return new Date(year, month - 1, day).toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
-}
-
-const statusBadgeMap: Record<string, string> = {
-    confirmed: 'bg-emerald-100 text-emerald-700',
-    pending: 'bg-amber-100 text-amber-700',
-    projected: 'bg-blue-100 text-blue-700',
-};
-
 export default function CashflowProjectionEntries({
     year,
     selectedMonth,
+    filters,
     departments,
     lineItems,
 }: CashflowProjectionEntriesPageProps) {
+    const pageProps = usePage<PageProps>().props;
+    const { currentBusinessUnit: activeBusinessUnit, flash } = pageProps;
+    const cashflowImportFlash = flash?.cashflow_import;
     const [flowType, setFlowType] = useState<FlowType>('in');
+    const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [isProjectionDialogOpen, setIsProjectionDialogOpen] = useState(false);
+
+    const importPreview = useCashflowImportPreview(year, selectedMonth);
+    const entryDeletion = useCashflowEntryDeletion({ year, selectedMonth });
+    const lineItemRows = lineItems.data;
 
     const defaultTransactionDate = useMemo(() => {
         const now = new Date();
@@ -63,63 +103,266 @@ export default function CashflowProjectionEntries({
         return toIsoDate(year, selectedMonth, 1);
     }, [year, selectedMonth]);
 
-    const allCategoryOptions = useMemo<CategoryOption[]>(() => {
-        return departments.flatMap((department) =>
-            department.actions.map((action) => ({
-                value: action.code,
-                label: action.label,
-                flow_type: action.flow_type,
-                department_id: department.id,
-            }))
-        );
+    const businessUnitOptions = useMemo<BusinessUnitOption[]>(() => {
+        return departments.reduce<BusinessUnitOption[]>((options, department) => {
+            if (!department.business_unit_id || !department.business_unit_code) {
+                return options;
+            }
+
+            if (options.some((option) => option.id === department.business_unit_id)) {
+                return options;
+            }
+
+            return [
+                ...options,
+                {
+                    id: department.business_unit_id,
+                    code: department.business_unit_code,
+                    name: department.business_unit_name ?? department.business_unit_code,
+                },
+            ];
+        }, []);
     }, [departments]);
 
-    const filteredCategoryOptions = useMemo(() => {
-        return allCategoryOptions.filter((option) => option.flow_type === flowType);
-    }, [allCategoryOptions, flowType]);
+    const [selectedBusinessUnitId, setSelectedBusinessUnitId] = useState<number>(() => businessUnitOptions[0]?.id ?? 0);
+
+    const departmentsForSelectedBusinessUnit = useMemo(() => {
+        return departments.filter((department) => department.business_unit_id === selectedBusinessUnitId);
+    }, [departments, selectedBusinessUnitId]);
+
+    const selectedBusinessUnitOption = useMemo(() => {
+        return businessUnitOptions.find((option) => option.id === selectedBusinessUnitId) ?? null;
+    }, [businessUnitOptions, selectedBusinessUnitId]);
+
+    const linkedBusinessUnitNotice = useMemo(() => {
+        if (!activeBusinessUnit || !selectedBusinessUnitOption || selectedBusinessUnitOption.id === activeBusinessUnit.id) {
+            return null;
+        }
+
+        return `This entry will be saved to linked business unit ${selectedBusinessUnitOption.code} - ${selectedBusinessUnitOption.name}, not to the active business unit ${activeBusinessUnit.code} - ${activeBusinessUnit.name}.`;
+    }, [activeBusinessUnit, selectedBusinessUnitOption]);
 
     const lineItemForm = useForm<LineItemFormData>({
         year,
-        department_id: filteredCategoryOptions[0]?.department_id ?? departments[0]?.id ?? 0,
-        action_code: filteredCategoryOptions[0]?.value ?? '',
+        business_unit_id: selectedBusinessUnitId,
+        department_id: departmentsForSelectedBusinessUnit[0]?.id ?? 0,
+        action_code: '',
         transaction_date: defaultTransactionDate,
         due_date: '',
         is_estimated_date: false,
         amount: 0,
         description: '',
+        keterangan: '',
         notes: '',
     });
+    const { data, setData, post: submitLineItem, patch: updateExistingLineItem, processing, errors } = lineItemForm;
+
+    const selectedDepartment = useMemo(() => {
+        return departments.find((department) => department.id === data.department_id) ?? null;
+    }, [data.department_id, departments]);
+
+    const filteredCategoryOptions = useMemo<CategoryOption[]>(() => {
+        if (!selectedDepartment) {
+            return [];
+        }
+
+        const uniqueActions = selectedDepartment.actions.reduce<typeof selectedDepartment.actions>((actions, action) => {
+            if (actions.some((existingAction) => existingAction.code === action.code)) {
+                return actions;
+            }
+
+            return [...actions, action];
+        }, []);
+
+        return uniqueActions
+            .filter((action) => action.flow_type === flowType)
+            .sort((left, right) => {
+                const leftPrefix = extractDepartmentCode(left.code, selectedDepartment.code);
+                const rightPrefix = extractDepartmentCode(right.code, selectedDepartment.code);
+                const prefixComparison = leftPrefix.localeCompare(rightPrefix);
+
+                if (prefixComparison !== 0) {
+                    return prefixComparison;
+                }
+
+                const leftLabel = normalizeActionLabel(left.label);
+                const rightLabel = normalizeActionLabel(right.label);
+                const labelComparison = leftLabel.localeCompare(rightLabel);
+
+                if (labelComparison !== 0) {
+                    return labelComparison;
+                }
+
+                return left.code.localeCompare(right.code);
+            })
+            .map((action) => ({
+                value: action.code,
+                label: formatCategoryLabel(
+                    action.code,
+                    action.label,
+                    selectedDepartment.code,
+                    selectedDepartment.business_unit_code,
+                    Boolean(activeBusinessUnit && selectedDepartment.business_unit_id && selectedDepartment.business_unit_id !== activeBusinessUnit.id)
+                ),
+                flow_type: action.flow_type,
+                department_id: selectedDepartment.id,
+            }));
+    }, [activeBusinessUnit, flowType, selectedDepartment]);
+
+    useEffect(() => {
+        if (!businessUnitOptions.length) {
+            return;
+        }
+
+        if (businessUnitOptions.some((option) => option.id === selectedBusinessUnitId)) {
+            return;
+        }
+
+        const fallbackBusinessUnitId = businessUnitOptions[0].id;
+        setSelectedBusinessUnitId(fallbackBusinessUnitId);
+        setData('business_unit_id', fallbackBusinessUnitId);
+    }, [businessUnitOptions, selectedBusinessUnitId, setData]);
+
+    useEffect(() => {
+        setData('business_unit_id', selectedBusinessUnitId);
+
+        if (!departmentsForSelectedBusinessUnit.length) {
+            setData('department_id', 0);
+            setData('action_code', '');
+            return;
+        }
+
+        if (departmentsForSelectedBusinessUnit.some((department) => department.id === data.department_id)) {
+            return;
+        }
+
+        setData('department_id', departmentsForSelectedBusinessUnit[0].id);
+    }, [data.department_id, departmentsForSelectedBusinessUnit, selectedBusinessUnitId, setData]);
 
     useEffect(() => {
         if (!filteredCategoryOptions.length) {
-            lineItemForm.setData('action_code', '');
+            setData('action_code', '');
             return;
         }
-        const selectedCategory = filteredCategoryOptions.find((option) => option.value === lineItemForm.data.action_code);
-        if (!selectedCategory) {
-            const fallback = filteredCategoryOptions[0];
-            lineItemForm.setData('action_code', fallback.value);
-            lineItemForm.setData('department_id', fallback.department_id);
+
+        if (filteredCategoryOptions.some((option) => option.value === data.action_code)) {
             return;
         }
-        lineItemForm.setData('department_id', selectedCategory.department_id);
-    }, [flowType, filteredCategoryOptions]);
+
+        setData('action_code', filteredCategoryOptions[0].value);
+    }, [data.action_code, filteredCategoryOptions, setData]);
 
     useEffect(() => {
-        lineItemForm.setData('year', year);
-        lineItemForm.setData('transaction_date', defaultTransactionDate);
-    }, [year, selectedMonth, defaultTransactionDate]);
+        setData('year', year);
+        setData('transaction_date', defaultTransactionDate);
+    }, [defaultTransactionDate, selectedMonth, setData, year]);
 
     const handleLineItemSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        lineItemForm.post(route('cashflow-projection.line-items.store'), { preserveScroll: true });
+
+        if (editingLineItemId !== null) {
+            updateExistingLineItem(route('cashflow-projection.line-items.update', { lineItem: editingLineItemId }), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsProjectionDialogOpen(false);
+                    resetForm();
+                },
+            });
+
+            return;
+        }
+
+        submitLineItem(route('cashflow-projection.line-items.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsProjectionDialogOpen(false);
+                resetForm();
+            },
+        });
     };
 
     const handleCategoryChange = (categoryCode: string) => {
-        const category = allCategoryOptions.find((option) => option.value === categoryCode);
+        const category = filteredCategoryOptions.find((option) => option.value === categoryCode);
         if (!category) return;
-        lineItemForm.setData('action_code', category.value);
-        lineItemForm.setData('department_id', category.department_id);
+        setData('action_code', category.value);
+        setData('department_id', category.department_id);
+    };
+
+    const handleBusinessUnitChange = (businessUnitId: number) => {
+        setSelectedBusinessUnitId(businessUnitId);
+    };
+
+    const handleDepartmentChange = (departmentId: number) => {
+        setData('department_id', departmentId);
+    };
+
+    const resetImportForm = () => {
+        importPreview.reset();
+    };
+
+    const closeImportDialog = () => {
+        setIsImportDialogOpen(false);
+        resetImportForm();
+    };
+
+    const handleImportConfirm = async () => {
+        if (await importPreview.confirmImport()) {
+            setIsImportDialogOpen(false);
+        }
+    };
+
+    const resetForm = () => {
+        setEditingLineItemId(null);
+        setFlowType('in');
+        setSelectedBusinessUnitId(businessUnitOptions[0]?.id ?? 0);
+        setData({
+            year,
+            business_unit_id: businessUnitOptions[0]?.id ?? 0,
+            department_id: departments.filter((department) => department.business_unit_id === (businessUnitOptions[0]?.id ?? 0))[0]?.id ?? 0,
+            action_code: '',
+            transaction_date: defaultTransactionDate,
+            due_date: '',
+            is_estimated_date: false,
+            amount: 0,
+            description: '',
+            keterangan: '',
+            notes: '',
+        });
+    };
+
+    const openProjectionDialog = () => {
+        resetForm();
+        setIsProjectionDialogOpen(true);
+    };
+
+    const closeProjectionDialog = () => {
+        setIsProjectionDialogOpen(false);
+        resetForm();
+    };
+
+    const beginEdit = (lineItemId: number) => {
+        const lineItem = lineItemRows.find((item) => item.id === lineItemId);
+        if (!lineItem) {
+            return;
+        }
+
+        setEditingLineItemId(lineItemId);
+        setFlowType(lineItem.flow_type);
+        setSelectedBusinessUnitId(lineItem.business_unit_id ?? 0);
+        setData({
+            year,
+            business_unit_id: lineItem.business_unit_id ?? 0,
+            department_id: lineItem.department_id,
+            action_code: lineItem.action_code,
+            transaction_date: lineItem.transaction_date,
+            due_date: lineItem.due_date ?? '',
+            is_estimated_date: lineItem.is_estimated_date,
+            amount: lineItem.amount,
+            description: lineItem.description,
+            keterangan: lineItem.keterangan ?? '',
+            notes: lineItem.notes ?? '',
+        });
+        setIsProjectionDialogOpen(true);
     };
 
     return (
@@ -128,221 +371,103 @@ export default function CashflowProjectionEntries({
 
             <div className="w-full px-6 py-8 lg:px-8 2xl:px-10">
                 <div className="mx-auto w-full max-w-screen-2xl space-y-8">
-                    {/* Page Header */}
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                            <Link
-                                href={route('cashflow-projection.index')}
-                                className="mb-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Back to Dashboard
-                            </Link>
-                            <h1 className="text-[2rem] font-bold text-foreground">Cashflow Entries</h1>
-                            <p className="text-sm text-muted-foreground">
-                                {formatMonthLabel(selectedMonth)} {year} &mdash; Add and manage projection entries.
-                            </p>
-                        </div>
-                    </div>
+                    <EntriesPageHeader
+                        year={year}
+                        selectedMonth={selectedMonth}
+                        cashflowImportFlash={cashflowImportFlash}
+                        onAddClick={openProjectionDialog}
+                        onImportClick={() => setIsImportDialogOpen(true)}
+                    />
 
-                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                        {/* Left column — Add Projection Form */}
-                        <div className="space-y-6">
-                            <motion.section
-                                className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.25 }}
-                            >
-                                <div className="mb-5">
-                                    <h2 className="text-xl font-semibold text-foreground">Add Projection</h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">Simulate future cashflows</p>
-                                </div>
-
-                                <form onSubmit={handleLineItemSubmit} className="space-y-4">
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Entry Name</label>
-                                        <input
-                                            type="text"
-                                            className={inputClasses}
-                                            placeholder="e.g. Q4 Server Costs"
-                                            value={lineItemForm.data.description}
-                                            onChange={(e) => lineItemForm.setData('description', e.target.value)}
-                                        />
-                                        {lineItemForm.errors.description && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.description}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Amount</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            className={inputClasses}
-                                            placeholder="0"
-                                            value={lineItemForm.data.amount}
-                                            onChange={(e) => lineItemForm.setData('amount', Number(e.target.value))}
-                                        />
-                                        {lineItemForm.errors.amount && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.amount}</p>}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Date</label>
-                                            <input
-                                                type="date"
-                                                className={inputClasses}
-                                                value={lineItemForm.data.transaction_date}
-                                                onChange={(e) => lineItemForm.setData('transaction_date', e.target.value)}
-                                            />
-                                            {lineItemForm.errors.transaction_date && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.transaction_date}</p>}
-                                        </div>
-                                        <div>
-                                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Type</label>
-                                            <div className="relative">
-                                                <select
-                                                    className={`${inputClasses} appearance-none pr-8`}
-                                                    value={flowType}
-                                                    onChange={(e) => setFlowType(e.target.value as FlowType)}
-                                                >
-                                                    <option value="in">Inflow</option>
-                                                    <option value="out">Outflow</option>
-                                                </select>
-                                                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Category</label>
-                                        <div className="relative">
-                                            <select
-                                                className={`${inputClasses} appearance-none pr-8`}
-                                                value={lineItemForm.data.action_code}
-                                                disabled={filteredCategoryOptions.length === 0}
-                                                onChange={(e) => handleCategoryChange(e.target.value)}
-                                            >
-                                                {filteredCategoryOptions.length === 0 && <option value="">No category available</option>}
-                                                {filteredCategoryOptions.map((option) => (
-                                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                        </div>
-                                        {lineItemForm.errors.action_code && <p className="mt-1 text-xs text-red-500">{lineItemForm.errors.action_code}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Due Date (Optional)</label>
-                                        <input
-                                            type="date"
-                                            className={inputClasses}
-                                            value={lineItemForm.data.due_date}
-                                            onChange={(e) => lineItemForm.setData('due_date', e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Notes (Optional)</label>
-                                        <textarea
-                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-                                            rows={2}
-                                            value={lineItemForm.data.notes}
-                                            onChange={(e) => lineItemForm.setData('notes', e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-slate-700">Estimated Date</span>
-                                        <button
-                                            type="button"
-                                            className={`cfp-switch ${lineItemForm.data.is_estimated_date ? 'active' : ''}`}
-                                            onClick={() => lineItemForm.setData('is_estimated_date', !lineItemForm.data.is_estimated_date)}
-                                        />
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        disabled={lineItemForm.processing}
-                                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#16599c] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#124a82] disabled:opacity-50"
-                                    >
-                                        <PlusCircle className="h-4 w-4" />
-                                        {lineItemForm.processing ? 'Saving...' : 'Add to Projection'}
-                                    </button>
-                                </form>
-                            </motion.section>
-                        </div>
-
-                        {/* Right column — Full transactions table */}
-                        <motion.section
-                            className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] xl:col-span-2"
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.25, delay: 0.06 }}
-                        >
-                            <div className="mb-5 flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-xl font-semibold text-foreground">All Entries</h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">{lineItems.length} projection entries for {formatMonthLabel(selectedMonth)} {year}</p>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-sm">
-                                    <thead>
-                                        <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                            <th className="py-3 pr-4">Transaction</th>
-                                            <th className="py-3 pr-4">Category</th>
-                                            <th className="py-3 pr-4">Department</th>
-                                            <th className="py-3 pr-4">Date</th>
-                                            <th className="py-3 pr-4">Status</th>
-                                            <th className="py-3 text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {lineItems.length === 0 && (
-                                            <tr>
-                                                <td colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                                                    No entries yet. Use the form to add your first projection.
-                                                </td>
-                                            </tr>
-                                        )}
-
-                                        {lineItems.map((item) => {
-                                            const status = item.is_estimated_date ? 'pending' : item.flow_type === 'in' ? 'confirmed' : 'projected';
-                                            const statusLabel = status === 'confirmed' ? 'Confirmed' : status === 'pending' ? 'Pending' : 'Projected';
-                                            const Icon = resolveIcon(item.action_label);
-
-                                            return (
-                                                <tr key={item.id} className="border-b border-border/50 last:border-0">
-                                                    <td className="py-3 pr-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                                                                <Icon className="h-4 w-4" />
-                                                            </div>
-                                                            <span className="font-medium text-foreground">{item.description || item.action_label}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{item.action_label}</td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{item.department_name}</td>
-                                                    <td className="py-3 pr-4 text-muted-foreground">{formatDate(item.transaction_date)}</td>
-                                                    <td className="py-3 pr-4">
-                                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadgeMap[status] || 'bg-slate-100 text-slate-700'}`}>
-                                                            {statusLabel}
-                                                        </span>
-                                                    </td>
-                                                    <td className={`py-3 text-right font-semibold ${item.flow_type === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                        {item.flow_type === 'in' ? '+' : '-'}{formatCurrency(item.amount)}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </motion.section>
-                    </div>
+                    <EntriesTable
+                        lineItems={lineItemRows}
+                        pagination={lineItems}
+                        year={year}
+                        selectedMonth={selectedMonth}
+                        search={filters.search}
+                        activeBusinessUnitId={activeBusinessUnit?.id}
+                        formatCategoryLabel={formatCategoryLabel}
+                        onEdit={beginEdit}
+                        onDelete={entryDeletion.openDeleteDialog}
+                        onBulkDelete={entryDeletion.openBulkDeleteDialog}
+                    />
                 </div>
             </div>
+
+            <Dialog open={isProjectionDialogOpen} onClose={closeProjectionDialog} className="max-w-3xl p-0">
+                <DialogHeader className="border-b border-slate-100 px-6 py-5" onClose={closeProjectionDialog}>
+                    <div>
+                        <DialogTitle>{editingLineItemId !== null ? 'Edit Projection' : 'Add Projection'}</DialogTitle>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Match the import experience: classify type, department, action, description, keterangan, and amount before saving.
+                        </p>
+                    </div>
+                </DialogHeader>
+                <DialogContent className="mt-0 max-h-[calc(100vh-9rem)] overflow-y-auto px-6 pb-6 pt-5">
+                    <AddProjectionCard
+                        lineItemData={data}
+                        lineItemProcessing={processing}
+                        flowType={flowType}
+                        businessUnitOptions={businessUnitOptions}
+                        departmentOptions={departmentsForSelectedBusinessUnit.map((department) => ({
+                            id: department.id,
+                            name: department.name,
+                        }))}
+                        categoryOptions={filteredCategoryOptions}
+                        isEditing={editingLineItemId !== null}
+                        selectedDepartmentName={selectedDepartment?.name}
+                        selectedBusinessUnitCode={selectedBusinessUnitOption?.code}
+                        businessUnitNotice={linkedBusinessUnitNotice}
+                        fieldErrors={errors}
+                        onFlowTypeChange={setFlowType}
+                        onBusinessUnitChange={handleBusinessUnitChange}
+                        onDepartmentChange={handleDepartmentChange}
+                        onCategoryChange={handleCategoryChange}
+                        onCancelEdit={closeProjectionDialog}
+                        onFieldChange={setData}
+                        onSubmit={handleLineItemSubmit}
+                    />
+                </DialogContent>
+            </Dialog>
+
+            <ConfirmDialog
+                isOpen={entryDeletion.deleteDialogState.isOpen}
+                onClose={entryDeletion.closeDeleteDialog}
+                onConfirm={entryDeletion.confirmDelete}
+                title="Delete Entry"
+                message={entryDeletion.deleteDialogState.label
+                    ? `Delete this entry "${entryDeletion.deleteDialogState.label}"? This action cannot be undone. Perubahan ini akan mempengaruhi data cashflow dan dashboard.`
+                    : 'Delete this entry? This action cannot be undone. Perubahan ini akan mempengaruhi data cashflow dan dashboard.'}
+                confirmText="Delete"
+                variant="danger"
+                isLoading={entryDeletion.isDeleting}
+            />
+
+            <ConfirmDialog
+                isOpen={entryDeletion.isBulkDeleteDialogOpen}
+                onClose={entryDeletion.closeBulkDeleteDialog}
+                onConfirm={entryDeletion.confirmBulkDelete}
+                title="Delete Selected Entries"
+                message={`Delete ${entryDeletion.bulkDeleteIds.length} selected entries? This action cannot be undone. Perubahan ini akan mempengaruhi data cashflow dan dashboard.`}
+                confirmText="Delete"
+                variant="danger"
+                isLoading={entryDeletion.isDeleting}
+            />
+
+            <ImportEntriesDialog
+                open={isImportDialogOpen}
+                processing={importPreview.processing}
+                selectedFileName={importPreview.file?.name ?? null}
+                preview={importPreview.preview}
+                departments={departments}
+                flashImport={cashflowImportFlash}
+                fileError={importPreview.errors.file ?? importPreview.previewError ?? undefined}
+                onClose={closeImportDialog}
+                onFileChange={importPreview.setFile}
+                onSubmit={importPreview.previewImport}
+                onConfirm={handleImportConfirm}
+                onReviewRow={importPreview.updatePreviewRow}
+            />
         </>
     );
 }

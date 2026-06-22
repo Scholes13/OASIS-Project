@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit2, Trash2, X, Check, Building2, Users, Filter } from 'lucide-react';
+import { Plus, Search, X, Check, Building2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { ActivityType, ActivityTypeFormData } from '@/types/admin';
 import { PageProps } from '@/types';
@@ -9,17 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ColorPicker } from '@/components/admin/ColorPicker';
-import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Select } from '@/components/ui/select';
-import {
-    Dialog,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogContent,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import ActivityTypesTable from '@/components/admin/activity-types/ActivityTypesTable';
+import DepartmentAssignmentModal from '@/components/admin/activity-types/DepartmentAssignmentModal';
 
 // Laravel pagination structure (without meta wrapper)
 interface LaravelPagination<T> {
@@ -463,295 +455,34 @@ function Index({ activityTypes, departments, businessUnits, isSuperAdmin, filter
                     )}
                 </AnimatePresence>
 
-                {/* Activity Types List */}
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    {activityTypes.data.length === 0 ? (
-                        <EmptyState
-                            title="No activity types found"
-                            description={
-                                search
-                                    ? 'Try adjusting your search query'
-                                    : 'Get started by creating your first activity type'
-                            }
-                        />
-                    ) : (
-                        <>
-                            {/* Table Header */}
-                            <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-600">
-                                <div className="col-span-4">Activity Type</div>
-                                {isSuperAdmin && <div className="col-span-2 text-center">Departments</div>}
-                                <div className={`${isSuperAdmin ? 'col-span-2' : 'col-span-3'} text-center`}>Sub-Activities</div>
-                                <div className={`${isSuperAdmin ? 'col-span-2' : 'col-span-3'} text-center`}>Tasks</div>
-                                <div className={`${isSuperAdmin ? 'col-span-2' : 'col-span-2'} text-right`}>Actions</div>
-                            </div>
-
-                            <div className="divide-y divide-gray-200">
-                                {activityTypes.data.map((activityType) => (
-                                    <motion.div
-                                        key={activityType.id}
-                                        layout
-                                        className="p-6 hover:bg-gray-50 transition-colors"
-                                    >
-                                        {editingId === activityType.id ? (
-                                            <form onSubmit={handleSubmit} className="space-y-4">
-                                                <div>
-                                                    <Label htmlFor={`edit-name-${activityType.id}`}>
-                                                        Name *
-                                                    </Label>
-                                                    <Input
-                                                        id={`edit-name-${activityType.id}`}
-                                                        type="text"
-                                                        value={formData.name}
-                                                        onChange={(e) =>
-                                                            setFormData({
-                                                                ...formData,
-                                                                name: e.target.value,
-                                                            })
-                                                        }
-                                                        placeholder="Enter activity type name"
-                                                        required
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <Label htmlFor={`edit-color-${activityType.id}`}>
-                                                        Color *
-                                                    </Label>
-                                                    <ColorPicker
-                                                        label=""
-                                                        value={formData.color}
-                                                        onChange={(color) =>
-                                                            setFormData({ ...formData, color })
-                                                        }
-                                                    />
-                                                </div>
-
-                                                <div className="flex items-center gap-2">
-                                                    <Button type="submit" disabled={isSubmitting}>
-                                                        <Check className="w-4 h-4 mr-2" />
-                                                        Save
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        onClick={handleCancel}
-                                                        disabled={isSubmitting}
-                                                    >
-                                                        <X className="w-4 h-4 mr-2" />
-                                                        Cancel
-                                                    </Button>
-                                                </div>
-                                            </form>
-                                        ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                                                {/* Activity Type Name */}
-                                                <div className="col-span-4 flex items-center gap-3">
-                                                    <Badge className={getColorClasses(activityType.color)}>
-                                                        {activityType.name}
-                                                    </Badge>
-                                                    {activityType.code && (
-                                                        <span className="text-xs text-gray-500 font-mono">
-                                                            {activityType.code}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Department Count (Super Admin only) */}
-                                                {isSuperAdmin && (
-                                                    <div className="col-span-2 text-center">
-                                                        <span className="inline-flex items-center gap-1 text-sm text-gray-600">
-                                                            <Building2 className="w-4 h-4" />
-                                                            {activityType.departments_count || 0}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* Sub-Activities Count */}
-                                                <div className={`${isSuperAdmin ? 'col-span-2' : 'col-span-3'} text-center`}>
-                                                    <span className="text-sm text-gray-600">
-                                                        {activityType.sub_activities_count || 0} sub-activities
-                                                    </span>
-                                                </div>
-
-                                                {/* Tasks Count */}
-                                                <div className={`${isSuperAdmin ? 'col-span-2' : 'col-span-3'} text-center`}>
-                                                    <span className="text-sm text-gray-600">
-                                                        {activityType.usage_count || 0} tasks
-                                                    </span>
-                                                </div>
-
-                                                {/* Actions */}
-                                                <div className={`${isSuperAdmin ? 'col-span-2' : 'col-span-2'} flex items-center justify-end gap-2`}>
-                                                    {isSuperAdmin && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleOpenAssignModal(activityType)}
-                                                            title="Assign to Departments"
-                                                        >
-                                                            <Users className="w-4 h-4" />
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleEdit(activityType)}
-                                                    >
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </Button>
-                                                    {(!activityType.sub_activities_count || activityType.sub_activities_count === 0) &&
-                                                        (!activityType.usage_count || activityType.usage_count === 0) && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => handleDelete(activityType)}
-                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {/* Pagination */}
-                    {activityTypes.last_page > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                            <div className="text-sm text-gray-600">
-                                Showing {activityTypes.from} to {activityTypes.to} of{' '}
-                                {activityTypes.total} results
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {activityTypes.current_page > 1 && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            router.get(
-                                                route('admin.activity-types.index'),
-                                                {
-                                                    ...buildFilters(),
-                                                    page: activityTypes.current_page - 1,
-                                                },
-                                                { preserveState: true }
-                                            )
-                                        }
-                                    >
-                                        Previous
-                                    </Button>
-                                )}
-                                {activityTypes.current_page < activityTypes.last_page && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            router.get(
-                                                route('admin.activity-types.index'),
-                                                {
-                                                    ...buildFilters(),
-                                                    page: activityTypes.current_page + 1,
-                                                },
-                                                { preserveState: true }
-                                            )
-                                        }
-                                    >
-                                        Next
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <ActivityTypesTable
+                    activityTypes={activityTypes}
+                    editingId={editingId}
+                    formData={formData}
+                    isSubmitting={isSubmitting}
+                    isSuperAdmin={isSuperAdmin}
+                    search={search}
+                    buildFilters={buildFilters}
+                    getColorClasses={getColorClasses}
+                    onCancel={handleCancel}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                    onFormDataChange={setFormData}
+                    onOpenAssignModal={handleOpenAssignModal}
+                    onSubmit={handleSubmit}
+                />
             </div>
 
-            {/* Department Assignment Modal */}
-            <Dialog open={assignModalOpen} onClose={() => setAssignModalOpen(false)} className="max-w-2xl">
-                <DialogHeader onClose={() => setAssignModalOpen(false)}>
-                    <DialogTitle>Assign to Departments</DialogTitle>
-                    <DialogDescription>
-                        Select departments to assign "{selectedActivityType?.name}" activity type
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogContent>
-                    <div className="max-h-96 overflow-y-auto space-y-4">
-                        {departmentsByBusinessUnit.map((group) => (
-                            <div key={group.businessUnit.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                                    <span className="font-medium text-gray-900">
-                                        {group.businessUnit.code} - {group.businessUnit.name}
-                                    </span>
-                                </div>
-                                <div className="p-4 space-y-2">
-                                    {group.departments.map((dept) => {
-                                        const isAlreadyAssigned = selectedActivityType?.assigned_department_ids?.includes(dept.id) || false;
-                                        const isSelected = selectedDepartments.includes(dept.id);
-                                        
-                                        return (
-                                            <label
-                                                key={dept.id}
-                                                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${
-                                                    isAlreadyAssigned && !isSelected 
-                                                        ? 'bg-green-50 hover:bg-green-100' 
-                                                        : 'hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={() => handleDepartmentToggle(dept.id)}
-                                                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                                                />
-                                                <span className="text-sm text-gray-900">
-                                                    {dept.code} - {dept.name}
-                                                </span>
-                                                {isAlreadyAssigned && (
-                                                    <span className="ml-auto text-xs text-green-600 font-medium">
-                                                        Already assigned
-                                                    </span>
-                                                )}
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    {selectedDepartments.length > 0 && (
-                        <div className="mt-4 p-3 bg-primary rounded-lg">
-                            <span className="text-sm text-primary">
-                                {selectedDepartments.length} department(s) selected
-                                {selectedActivityType?.assigned_department_ids && selectedActivityType.assigned_department_ids.length > 0 && (
-                                    <span className="ml-2 text-gray-500">
-                                        ({selectedActivityType.assigned_department_ids.length} already assigned)
-                                    </span>
-                                )}
-                            </span>
-                        </div>
-                    )}
-                </DialogContent>
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={() => setAssignModalOpen(false)}
-                        disabled={isAssigning}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleAssignDepartments}
-                        disabled={isAssigning || selectedDepartments.length === 0}
-                        loading={isAssigning}
-                    >
-                        <Users className="w-4 h-4 mr-2" />
-                        Assign ({selectedDepartments.length})
-                    </Button>
-                </DialogFooter>
-            </Dialog>
+            <DepartmentAssignmentModal
+                open={assignModalOpen}
+                selectedActivityType={selectedActivityType}
+                selectedDepartments={selectedDepartments}
+                departmentsByBusinessUnit={departmentsByBusinessUnit}
+                isAssigning={isAssigning}
+                onAssignDepartments={handleAssignDepartments}
+                onClose={() => setAssignModalOpen(false)}
+                onDepartmentToggle={handleDepartmentToggle}
+            />
         </>
     );
 }

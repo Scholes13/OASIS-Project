@@ -17,9 +17,10 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["resources/js/inertia/*"]
+      "@/*": ["resources/js/inertia/*"],
+      "@echo": ["resources/js/echo.ts"]
     }
   },
-  "include": ["resources/js/inertia/**/*"],
+  "include": ["resources/js/inertia/**/*", "resources/js/echo.ts", "resources/js/echo.d.ts"],
   "exclude": ["node_modules"]
 }

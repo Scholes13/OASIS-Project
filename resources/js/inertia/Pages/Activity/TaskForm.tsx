@@ -1,9 +1,14 @@
 import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Star, Building2, Plus, Eye } from 'lucide-react';
+import { ArrowLeft, Star, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/ui/toast';
+import BackdateRequestModal from '@/components/activity/form/BackdateRequestModal';
+import ParticipantSelector from '@/components/activity/form/ParticipantSelector';
+import TaskClassificationCard from '@/components/activity/form/TaskClassificationCard';
+import TaskScheduleCard from '@/components/activity/form/TaskScheduleCard';
+import TaskSuccessModal from '@/components/activity/form/TaskSuccessModal';
 import type { PageProps, Task, ActivityType, User, TaskStatus, TaskPriority } from '@/types';
 
 interface PrioritizedActivityType extends ActivityType {
@@ -54,66 +59,6 @@ interface BackdateRequestData {
     reason: string;
 }
 
-interface Time24InputProps {
-    id: string;
-    value: string;
-    onChange: (value: string) => void;
-    hasError?: boolean;
-}
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-
-function Time24Input({ id, value, onChange, hasError = false }: Time24InputProps) {
-    const [hour = '', minute = ''] = value ? value.split(':') : ['', ''];
-
-    const handleHourChange = (nextHour: string) => {
-        if (!nextHour) {
-            onChange('');
-            return;
-        }
-        onChange(`${nextHour}:${minute || '00'}`);
-    };
-
-    const handleMinuteChange = (nextMinute: string) => {
-        if (!hour) {
-            onChange('');
-            return;
-        }
-        onChange(`${hour}:${nextMinute || '00'}`);
-    };
-
-    const baseClass = `w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${hasError ? 'border-red-500' : 'border-gray-200'}`;
-
-    return (
-        <div className="grid grid-cols-2 gap-2">
-            <select
-                id={`${id}-hour`}
-                value={hour}
-                onChange={(e) => handleHourChange(e.target.value)}
-                className={baseClass}
-            >
-                <option value="">Jam</option>
-                {HOUR_OPTIONS.map((h) => (
-                    <option key={h} value={h}>{h}</option>
-                ))}
-            </select>
-            <select
-                id={`${id}-minute`}
-                value={minute}
-                onChange={(e) => handleMinuteChange(e.target.value)}
-                disabled={!hour}
-                className={baseClass}
-            >
-                <option value="">Menit</option>
-                {MINUTE_OPTIONS.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                ))}
-            </select>
-        </div>
-    );
-}
-
 export default function TaskForm({ task, activityTypes, departmentUsers = [], backdateEnabled = false, backdatePermission, allowedDateRange }: TaskFormProps) {
     const isEditing = !!task;
     const [showBackdateModal, setShowBackdateModal] = useState(false);
@@ -133,14 +78,15 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
 
     // Normalize activity types - handle both grouped and flat array formats
     const flatActivityTypes = useMemo(() => {
+        if (!activityTypes) return [];
         if (Array.isArray(activityTypes)) {
             return activityTypes;
         }
         // Grouped format from prioritization service
         return [
-            ...activityTypes.favorites,
-            ...activityTypes.department,
-            ...activityTypes.others,
+            ...(activityTypes.favorites || []),
+            ...(activityTypes.department || []),
+            ...(activityTypes.others || []),
         ];
     }, [activityTypes]);
 
@@ -285,7 +231,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
 
     const handleViewTask = () => {
         if (createdTaskId) {
-            router.visit(route('activity.task.show', { task: createdTaskId }));
+            router.visit(route('activity.task.index', { task: createdTaskId, modal: 'detail' }));
         }
     };
 
@@ -320,7 +266,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
         }
     };
 
-    const backRoute = isEditing ? route('activity.task.show', { task: task!.id }) : route('activity.task.index');
+    const backRoute = isEditing ? route('activity.task.index', { task: task!.id, modal: 'detail' }) : route('activity.task.index');
 
     return (
         <div className="w-full pb-12">
@@ -430,526 +376,60 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
                                 </div>
                             </div>
 
-                            {/* Participants Card */}
-                            {departmentUsers.length > 0 && (
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-                                        <h3 className="text-lg font-semibold text-gray-900">Participants</h3>
-                                        {data.participant_ids.length > 0 && (
-                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                                                {data.participant_ids.length} Selected
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {departmentUsers.map((user) => (
-                                                <label
-                                                    key={user.id}
-                                                    className={`relative flex items-center gap-4 p-3 rounded-xl border transition-all cursor-pointer group ${data.participant_ids.includes(user.id)
-                                                        ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-300'
-                                                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={data.participant_ids.includes(user.id)}
-                                                        onChange={() => toggleParticipant(user.id)}
-                                                        className="sr-only"
-                                                    />
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${data.participant_ids.includes(user.id)
-                                                        ? 'bg-primary text-white'
-                                                        : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
-                                                        }`}>
-                                                        {user.name.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className={`font-medium truncate ${data.participant_ids.includes(user.id) ? 'text-primary' : 'text-gray-900'
-                                                            }`}>
-                                                            {user.name}
-                                                        </p>
-                                                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                                                    </div>
-                                                    {data.participant_ids.includes(user.id) && (
-                                                        <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary"></div>
-                                                    )}
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            <ParticipantSelector
+                                users={departmentUsers}
+                                selectedIds={data.participant_ids}
+                                onToggle={toggleParticipant}
+                            />
                         </div>
 
                         {/* Sidebar Column (1/3 width) */}
                         <div className="space-y-8">
-                            {/* Classification Card */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                                    <h3 className="text-lg font-semibold text-gray-900">Classification</h3>
-                                </div>
-                                <div className="p-6 space-y-5">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Sub Activity <span className="text-red-500">*</span>
-                                        </label>
-                                        <select
-                                            value={data.sub_activity_id}
-                                            onChange={(e) => {
-                                                const subId = e.target.value;
-                                                const parentType = flatActivityTypes.find(t => t.sub_activities?.some(s => s.id.toString() === subId));
+                            <TaskClassificationCard
+                                data={data}
+                                activityTypes={flatActivityTypes}
+                                subActivities={sortedSubActivities}
+                                errors={errors}
+                                onChange={setData}
+                                onChangeMany={setData}
+                            />
 
-                                                if (subId && parentType) {
-                                                    setData({
-                                                        ...data,
-                                                        activity_type_id: parentType.id.toString(),
-                                                        sub_activity_id: subId
-                                                    });
-                                                } else {
-                                                    setData('sub_activity_id', subId);
-                                                }
-                                            }}
-                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                                        >
-                                            <option value="">Select sub activity...</option>
-                                            {sortedSubActivities.map((sub) => (
-                                                <option key={sub.id} value={sub.id.toString()}>
-                                                    {sub.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Activity Type <span className="text-gray-400 text-xs font-normal">(Auto-filled)</span>
-                                        </label>
-                                        <select
-                                            value={data.activity_type_id}
-                                            onChange={(e) => setData('activity_type_id', e.target.value)}
-                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50 ${errors.activity_type_id ? 'border-red-500' : 'border-gray-200'
-                                                }`}
-                                        >
-                                            <option value="">Select type...</option>
-                                            {flatActivityTypes.map((type) => (
-                                                <option key={type.id} value={type.id.toString()}>
-                                                    {type.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.activity_type_id && (
-                                            <p className="mt-1 text-sm text-red-600">{errors.activity_type_id}</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Status & Priority Card */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                                    <h3 className="text-lg font-semibold text-gray-900">Status & Priority</h3>
-                                </div>
-                                <div className="p-6 space-y-5">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Status <span className="text-red-500">*</span>
-                                        </label>
-                                        <select
-                                            value={data.status}
-                                            onChange={(e) => {
-                                                const newStatus = e.target.value as TaskStatus;
-                                                setData('status', newStatus);
-                                                // Clear due_date when switching to completed (no deadline needed)
-                                                if (newStatus === 'completed') {
-                                                    setData(prev => ({ ...prev, status: newStatus, due_date: '' }));
-                                                }
-                                            }}
-                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                                        >
-                                            <option value="planned">Planned</option>
-                                            <option value="in_progress">In Progress</option>
-                                            <option value="completed">Completed</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Priority <span className="text-red-500">*</span>
-                                        </label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {['low', 'medium', 'high'].map((p) => (
-                                                <button
-                                                    key={p}
-                                                    type="button"
-                                                    onClick={() => setData('priority', p as TaskPriority)}
-                                                    className={`px-3 py-2 text-sm font-medium rounded-lg border transition-all ${data.priority === p
-                                                        ? p === 'high'
-                                                            ? 'bg-red-50 border-red-200 text-red-700 ring-1 ring-red-200'
-                                                            : p === 'medium'
-                                                                ? 'bg-orange-50 border-orange-200 text-orange-700 ring-1 ring-orange-200'
-                                                                : 'bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-200'
-                                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Schedule Card */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                                    <h3 className="text-lg font-semibold text-gray-900">Schedule</h3>
-                                </div>
-                                <div className="p-6 space-y-5">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Task Date <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={data.task_date}
-                                            onChange={(e) => setData('task_date', e.target.value)}
-                                            min={allowedDateRange.from}
-                                            max={allowedDateRange.to}
-                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${errors.task_date ? 'border-red-500' : 'border-gray-200'
-                                                }`}
-                                        />
-                                        {errors.task_date && (
-                                            <p className="mt-1 text-sm text-red-600">{errors.task_date}</p>
-                                        )}
-                                        {backdateEnabled && (
-                                            backdatePermission?.is_active ? (
-                                                <p className="mt-1 text-xs text-green-600">
-                                                    ✓ You can backdate up to {backdatePermission.requested_date} (expires {new Date(backdatePermission.granted_until).toLocaleString()})
-                                                </p>
-                                            ) : (
-                                                <p className="mt-1 text-xs text-gray-500">
-                                                    You can backdate up to {allowedDateRange.from}. Need older dates? <button type="button" onClick={() => setShowBackdateModal(true)} className="text-primary hover:text-primary font-medium underline">Request backdate access</button>
-                                                </p>
-                                            )
-                                        )}
-                                    </div>
-
-                                    {/* Time Fields - Show for completed OR backdate in_progress */}
-                                    {(() => {
-                                        const today = new Date().toISOString().split('T')[0];
-                                        const isBackdate = data.task_date && data.task_date < today;
-                                        const showTimeFields = data.status === 'completed' || (data.status === 'in_progress' && isBackdate);
-
-                                        if (!showTimeFields) return null;
-
-                                        return (
-                                            <>
-                                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                                    <p className="text-sm text-amber-700">
-                                                        <span className="font-medium">
-                                                            {data.status === 'in_progress' ? 'Backdate In Progress:' : 'Status Completed:'}
-                                                        </span>{' '}
-                                                        {data.status === 'in_progress'
-                                                            ? 'Silakan isi waktu mulai untuk task backdate.'
-                                                            : 'Silakan isi tanggal selesai, waktu mulai dan waktu selesai.'
-                                                        }
-                                                    </p>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Waktu Mulai <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <Time24Input
-                                                        id="start_time"
-                                                        value={data.start_time}
-                                                        onChange={(value) => setData('start_time', value)}
-                                                        hasError={!!errors.start_time}
-                                                    />
-                                                    {errors.start_time && (
-                                                        <p className="mt-1 text-sm text-red-600">{errors.start_time}</p>
-                                                    )}
-                                                    <p className="mt-1 text-xs text-gray-500">
-                                                        Format 24 jam (00:00-23:59). Tanggal mulai: {data.task_date || '-'}
-                                                    </p>
-                                                </div>
-
-                                                {/* Tanggal Selesai + Waktu Selesai - show for completed status */}
-                                                {data.status === 'completed' && (
-                                                    <>
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Tanggal Selesai <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <input
-                                                                type="date"
-                                                                value={data.completed_date}
-                                                                onChange={(e) => {
-                                                                    setData('completed_date', e.target.value);
-                                                                    setCompletedDateManuallySet(true);
-                                                                }}
-                                                                min={data.task_date}
-                                                                max={allowedDateRange.to}
-                                                                className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${errors.completed_date ? 'border-red-500' : 'border-gray-200'
-                                                                    }`}
-                                                            />
-                                                            {errors.completed_date && (
-                                                                <p className="mt-1 text-sm text-red-600">{errors.completed_date}</p>
-                                                            )}
-                                                            <p className="mt-1 text-xs text-gray-500">
-                                                                Default sama dengan tanggal task. Ubah jika selesai di hari berbeda.
-                                                            </p>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Waktu Selesai <span className="text-red-500">*</span>
-                                                            </label>
-                                                            <Time24Input
-                                                                id="end_time"
-                                                                value={data.end_time}
-                                                                onChange={(value) => setData('end_time', value)}
-                                                                hasError={!!errors.end_time}
-                                                            />
-                                                            {errors.end_time && (
-                                                                <p className="mt-1 text-sm text-red-600">{errors.end_time}</p>
-                                                            )}
-                                                            <p className="mt-1 text-xs text-gray-500">
-                                                                Format 24 jam (00:00-23:59)
-                                                            </p>
-                                                            {data.completed_date && data.completed_date === data.task_date && (
-                                                                <p className="mt-1 text-xs text-gray-500">
-                                                                    Waktu selesai harus setelah waktu mulai
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </>
-                                                )}
-
-                                                {/* Duration Preview - for completed tasks */}
-                                                {data.status === 'completed' && data.start_time && data.end_time && data.completed_date && (
-                                                    <div className="bg-primary border border-primary rounded-lg p-3">
-                                                        <p className="text-sm text-primary">
-                                                            <span className="font-medium">Durasi:</span>{' '}
-                                                            {(() => {
-                                                                const startDate = new Date(`${data.task_date}T${data.start_time}`);
-                                                                const endDate = new Date(`${data.completed_date}T${data.end_time}`);
-                                                                const diffMs = endDate.getTime() - startDate.getTime();
-                                                                if (diffMs < 0) return 'Invalid (waktu selesai harus setelah waktu mulai)';
-                                                                const totalMins = Math.floor(diffMs / 60000);
-                                                                const days = Math.floor(totalMins / (24 * 60));
-                                                                const hours = Math.floor((totalMins % (24 * 60)) / 60);
-                                                                const mins = totalMins % 60;
-                                                                const parts: string[] = [];
-                                                                if (days > 0) parts.push(`${days} hari`);
-                                                                if (hours > 0) parts.push(`${hours} jam`);
-                                                                if (mins > 0 || parts.length === 0) parts.push(`${mins} menit`);
-                                                                return parts.join(' ');
-                                                            })()}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-
-                                    {/* Due Date - hidden when status is completed (task already done, no deadline needed) */}
-                                    {data.status !== 'completed' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Due Date <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={data.due_date}
-                                            onChange={(e) => setData('due_date', e.target.value)}
-                                            min={allowedDateRange.from}
-                                            max={allowedDateRange.to}
-                                            className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white ${errors.due_date ? 'border-red-500' : 'border-gray-200'
-                                                }`}
-                                        />
-                                        {errors.due_date && (
-                                            <p className="mt-1 text-sm text-red-600">{errors.due_date}</p>
-                                        )}
-                                        {backdateEnabled && (
-                                            backdatePermission?.is_active ? (
-                                                <p className="mt-1 text-xs text-green-600">
-                                                    ✓ You can backdate up to {backdatePermission.requested_date} (expires {new Date(backdatePermission.granted_until).toLocaleString()})
-                                                </p>
-                                            ) : (
-                                                <p className="mt-1 text-xs text-gray-500">
-                                                    You can backdate up to yesterday. <button type="button" onClick={() => setShowBackdateModal(true)} className="text-primary hover:text-primary underline">Request more</button>
-                                                </p>
-                                            )
-                                        )}
-                                    </div>
-                                    )}
-                                </div>
-                            </div>
+                            <TaskScheduleCard
+                                data={data}
+                                errors={errors}
+                                allowedDateRange={allowedDateRange}
+                                backdateEnabled={backdateEnabled}
+                                backdatePermission={backdatePermission}
+                                onChange={setData}
+                                onCompletedDateManualChange={() => setCompletedDateManuallySet(true)}
+                                onRequestBackdate={() => setShowBackdateModal(true)}
+                            />
                         </div>
                     </form>
                 </motion.div>
             </div>
 
-            {/* Backdate Request Modal */}
             {backdateEnabled && showBackdateModal && (
-                <div className="fixed inset-0 z-[9999] overflow-y-auto">
-                    <div className="flex items-center justify-center min-h-screen px-4 text-center">
-                        {/* Background overlay */}
-                        <div
-                            className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-                            onClick={() => setShowBackdateModal(false)}
-                        ></div>
-
-                        {/* Modal panel - centered */}
-                        <div className="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full z-[10000]">
-                            <form onSubmit={handleBackdateRequest}>
-                                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                    <div className="sm:flex sm:items-start">
-                                        <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                                            <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                                Request Backdate Access
-                                            </h3>
-                                            <p className="mt-2 text-sm text-gray-600">
-                                                Request permission to enter tasks with older dates. Your department head will review and approve your request.
-                                            </p>
-                                            <div className="mt-4 space-y-4">
-                                                {/* Requested Date */}
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Backdate To <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={backdateData.requested_date}
-                                                        onChange={(e) => setBackdateData('requested_date', e.target.value)}
-                                                        max={new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                                                    />
-                                                    {backdateErrors.requested_date && (
-                                                        <p className="mt-1 text-sm text-red-600">{backdateErrors.requested_date}</p>
-                                                    )}
-                                                    <p className="mt-1 text-xs text-gray-500">
-                                                        Select the earliest date you need to create tasks for
-                                                    </p>
-                                                </div>
-
-                                                {/* Reason */}
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Reason <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <textarea
-                                                        value={backdateData.reason}
-                                                        onChange={(e) => setBackdateData('reason', e.target.value)}
-                                                        rows={4}
-                                                        placeholder="Explain why you need backdate access..."
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                                                    />
-                                                    {backdateErrors.reason && (
-                                                        <p className="mt-1 text-sm text-red-600">{backdateErrors.reason}</p>
-                                                    )}
-                                                    <div className="mt-1 flex justify-between text-xs text-gray-500">
-                                                        <span>Minimum 10 characters</span>
-                                                        <span>{backdateData.reason.trim().length} characters</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Info Box */}
-                                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                                    <div className="flex">
-                                                        <div className="flex-shrink-0">
-                                                            <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                            </svg>
-                                                        </div>
-                                                        <div className="ml-3">
-                                                            <p className="text-sm text-blue-700">
-                                                                Once approved, you'll be able to enter tasks from the selected date until today. The permission will be valid until the end of the approval day.
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                    <button
-                                        type="submit"
-                                        disabled={backdateProcessing || backdateData.reason.trim().length < 10 || !backdateData.requested_date}
-                                        className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {backdateProcessing ? 'Submitting...' : 'Submit Request'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowBackdateModal(false);
-                                            resetBackdate();
-                                        }}
-                                        className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:w-auto sm:text-sm"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                <BackdateRequestModal
+                    data={backdateData}
+                    errors={backdateErrors}
+                    processing={backdateProcessing}
+                    onChange={setBackdateData}
+                    onSubmit={handleBackdateRequest}
+                    onClose={() => {
+                        setShowBackdateModal(false);
+                        resetBackdate();
+                    }}
+                />
             )}
 
-            {/* Success Modal - Create Another */}
             {showSuccessModal && (
-                <div className="fixed inset-0 z-[9999] overflow-y-auto">
-                    <div className="flex items-center justify-center min-h-screen px-4 text-center">
-                        <div
-                            className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-                            onClick={() => setShowSuccessModal(false)}
-                        ></div>
-
-                        <div className="relative bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:max-w-md sm:w-full z-[10000]">
-                            <div className="bg-white px-6 pt-6 pb-4">
-                                <div className="text-center">
-                                    <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-100 mb-4">
-                                        <svg className="h-7 w-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                        Task Berhasil Dibuat!
-                                    </h3>
-                                    <p className="text-sm text-gray-500">
-                                        Apa yang ingin Anda lakukan selanjutnya?
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-6 py-4 space-y-3">
-                                <button
-                                    onClick={handleCreateAnother}
-                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-primary text-base font-medium text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                                >
-                                    <Plus className="h-5 w-5" />
-                                    Buat Task Lagi
-                                </button>
-                                <button
-                                    onClick={handleViewTask}
-                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                                >
-                                    <Eye className="h-5 w-5" />
-                                    Lihat Task
-                                </button>
-                                <button
-                                    onClick={handleGoToList}
-                                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                                >
-                                    Kembali ke Daftar Task
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <TaskSuccessModal
+                    onCreateAnother={handleCreateAnother}
+                    onViewTask={handleViewTask}
+                    onGoToList={handleGoToList}
+                    onClose={() => setShowSuccessModal(false)}
+                />
             )}
         </div>
     );

@@ -21,10 +21,7 @@ interface ArticleRendererProps {
  */
 export default function ArticleRenderer({ blocks, lang }: ArticleRendererProps) {
     return (
-        <div
-            className="prose prose-slate max-w-none text-[15px]"
-            data-lang={lang ?? 'id'}
-        >
+        <div className="prose prose-slate max-w-none text-[15px]" data-lang={lang ?? 'id'}>
             {blocks.map((block, i) => (
                 <BlockRenderer key={i} block={block} />
             ))}
@@ -60,9 +57,7 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
         case 'ordered-list':
             return (
                 <div className="mb-10">
-                    {block.intro && (
-                        <p className="text-slate-600 mb-5">{block.intro}</p>
-                    )}
+                    {block.intro && <p className="text-slate-600 mb-5">{block.intro}</p>}
                     <ol className="list-decimal list-outside text-slate-600 space-y-3.5 ml-5 marker:text-slate-500">
                         {block.items.map((item, i) => (
                             <li key={i} className="pl-2" dangerouslySetInnerHTML={{ __html: item }} />
@@ -74,9 +69,7 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
         case 'unordered-list':
             return (
                 <div className="mb-10">
-                    {block.intro && (
-                        <p className="text-slate-600 mb-5">{block.intro}</p>
-                    )}
+                    {block.intro && <p className="text-slate-600 mb-5">{block.intro}</p>}
                     <ul className="list-disc list-outside text-slate-600 space-y-2.5 ml-5 marker:text-slate-400">
                         {block.items.map((item, i) => (
                             <li key={i} className="pl-2" dangerouslySetInnerHTML={{ __html: item }} />
@@ -91,9 +84,7 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
         case 'step-list':
             return (
                 <div className="mb-10">
-                    {block.intro && (
-                        <p className="text-slate-600 mb-5">{block.intro}</p>
-                    )}
+                    {block.intro && <p className="text-slate-600 mb-5">{block.intro}</p>}
                     <div className="space-y-4">
                         {block.steps.map((step, i) => (
                             <div key={i} className="bg-white border border-gray-200 rounded-lg p-4">
@@ -103,7 +94,10 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
                                     </span>
                                     <div className="flex-1">
                                         <h4 className="font-semibold text-gray-900 mb-2">{step.title}</h4>
-                                        <p className="text-slate-600 text-sm" dangerouslySetInnerHTML={{ __html: step.body }} />
+                                        <p
+                                            className="text-slate-600 text-sm"
+                                            dangerouslySetInnerHTML={{ __html: step.body }}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -115,9 +109,7 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
         case 'status-list':
             return (
                 <div className="mb-10">
-                    {block.intro && (
-                        <p className="text-slate-600 mb-5">{block.intro}</p>
-                    )}
+                    {block.intro && <p className="text-slate-600 mb-5">{block.intro}</p>}
                     <div className="space-y-2">
                         {block.items.map((item, i) => (
                             <StatusBadge key={i} color={item.color} label={item.label} description={item.description} />
@@ -140,12 +132,28 @@ function BlockRenderer({ block }: { block: ArticleBlock }) {
                 </div>
             );
 
+        case 'image':
+            return (
+                <figure id={block.id} className="mb-10 mt-6">
+                    <img
+                        src={block.src}
+                        alt={block.alt}
+                        loading="lazy"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm"
+                    />
+                    {block.caption && (
+                        <figcaption
+                            className="mt-2 text-center text-sm text-slate-500"
+                            dangerouslySetInnerHTML={{ __html: block.caption }}
+                        />
+                    )}
+                </figure>
+            );
+
         default:
             return null;
     }
 }
-
-// ── Sub-components ───────────────────────────────
 
 function Callout({ variant, title, body }: { variant: 'info' | 'warning' | 'tip'; title: string; body: string }) {
     const config = {
@@ -169,7 +177,15 @@ function Callout({ variant, title, body }: { variant: 'info' | 'warning' | 'tip'
     );
 }
 
-function StatusBadge({ color, label, description }: { color: 'gray' | 'blue' | 'amber' | 'emerald' | 'red'; label: string; description: string }) {
+function StatusBadge({
+    color,
+    label,
+    description,
+}: {
+    color: 'gray' | 'blue' | 'amber' | 'emerald' | 'red';
+    label: string;
+    description: string;
+}) {
     const colorMap = {
         gray: { bg: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400' },
         blue: { bg: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
@@ -179,13 +195,12 @@ function StatusBadge({ color, label, description }: { color: 'gray' | 'blue' | '
     };
 
     const c = colorMap[color];
+    const content = `<strong>${label}</strong> - ${description}`;
 
     return (
         <div className={`flex items-center space-x-2 ${c.bg} rounded-lg px-3 py-2`}>
             <span className={`w-2 h-2 ${c.dot} rounded-full`} />
-            <span className="text-sm">
-                <strong>{label}</strong> — {description}
-            </span>
+            <span className="text-sm" dangerouslySetInnerHTML={{ __html: content }} />
         </div>
     );
 }

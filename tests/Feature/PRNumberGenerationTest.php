@@ -11,6 +11,7 @@ use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PRNumberGenerationTest extends TestCase
@@ -79,7 +80,7 @@ class PRNumberGenerationTest extends TestCase
         $this->prNumberingService = app(UniversalPRNumberingService::class);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_generate_pr_number_for_valid_user()
     {
         $result = $this->prNumberingService->generatePRNumber($this->user);
@@ -91,7 +92,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertSame(1, $result['sequence_number']);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_sequential_numbers()
     {
         $first = $this->prNumberingService->generatePRNumber($this->user);
@@ -101,7 +102,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertSame(2, $second['sequence_number']);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_number_for_specific_date()
     {
         $date = Carbon::create(2026, 3, 15);
@@ -113,7 +114,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertSame(3, $result['month']);
     }
 
-    /** @test */
+    #[Test]
     public function it_provides_next_number_preview()
     {
         $preview = $this->prNumberingService->getNextPRNumberPreview($this->user);
@@ -125,7 +126,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertSame('GA', $preview['department']['code']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_and_parses_pr_number_format()
     {
         $validNumber = 'PR.WNS/202602/001';
@@ -142,7 +143,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertSame(1, $parsed['sequence']);
     }
 
-    /** @test */
+    #[Test]
     public function it_gets_user_available_business_units()
     {
         $list = $this->prNumberingService->getUserAvailableBusinessUnits($this->user);
@@ -152,7 +153,7 @@ class PRNumberGenerationTest extends TestCase
         $this->assertNotEmpty($list[0]['departments']);
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_when_user_has_no_business_unit_context()
     {
         $otherUser = User::create([

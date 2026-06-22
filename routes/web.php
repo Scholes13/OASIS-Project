@@ -1,11 +1,22 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityConfigurationController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\BusinessUnitController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\ITSupportAssignmentController;
+use App\Http\Controllers\Api\DepartmentController as ApiDepartmentController;
+use App\Http\Controllers\Modules\Activity\TaskCommentController;
 use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
+use App\Http\Controllers\Modules\Ticket\KnowledgeBaseController;
+use App\Http\Controllers\Modules\Ticket\KnowledgeCategoryController;
+use App\Http\Controllers\Modules\Ticket\TicketCategoryController;
+use App\Http\Controllers\Modules\Ticket\TicketController;
+use App\Http\Controllers\Modules\Ticket\TicketDashboardController;
+use App\Http\Controllers\Modules\Ticket\TicketReportingController;
+use App\Http\Controllers\Modules\Ticket\UserTicketController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +33,9 @@ Route::prefix('api')->middleware(['auth'])->group(function () {
     Route::post('/business-unit/switch', [\App\Http\Controllers\Api\BusinessUnitController::class, 'switch'])
         ->name('api.business-unit.switch');
 
+    // Department Switch API for users with multiple departments in the active BU
+    Route::post('/department/switch', [ApiDepartmentController::class, 'switch'])
+        ->name('api.department.switch');
     // Error Logging API (Requirement 15.5: Log frontend errors to server)
     Route::post('/error-logs', [\App\Http\Controllers\ErrorLogController::class, 'store'])
         ->name('api.error-logs.store');
@@ -101,6 +115,13 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     // Main Dashboard (Quick Access after login)
     Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('index');
+        Route::get('/recent', [\App\Http\Controllers\NotificationCenterController::class, 'recent'])->name('recent');
+        Route::post('/mark-all-read', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('mark-all-read');
+        Route::get('/{notification}/open', [\App\Http\Controllers\NotificationCenterController::class, 'open'])->name('open');
+    });
+
     // Purchase Request Management
     Route::prefix('purchase-requests')->name('purchase-requests.')->group(function () {
         // My History - Inertia/React page
@@ -129,9 +150,12 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
         Route::post('/{purchaseRequest}/mark-offline-approved', [PurchaseRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
         Route::post('/{purchaseRequest}/resend-approval-email', [PurchaseRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
+        Route::get('/{purchaseRequest}/offline-approval-document', [PurchaseRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
 
         // PDF Routes
         Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
+        Route::get('/{purchaseRequest}/supporting-document', [PurchaseRequestController::class, 'supportingDocument'])->name('supporting-document');
+        Route::get('/{purchaseRequest}/supporting-document/download', [PurchaseRequestController::class, 'downloadSupportingDocument'])->name('supporting-document.download');
         Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestController::class, 'downloadPdf'])->name('download-pdf');
 
         // List all PRs (for admin/manager view) - Livewire for now
@@ -169,18 +193,22 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // List Routes - Inertia for modern SPA experience
         Route::get('/', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'index'])->name('index');
 
-        // Create Route - Loads Livewire component for creating new Stock Request
-        Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'create'])->name('create');
+        // Create Route - Inertia form for creating new Stock Request
+        Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'createInertia'])->name('create');
+        Route::post('/', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'store'])->name('store');
 
         // View/Edit Routes
-        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'show'])->name('show');
-        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'edit'])->name('edit');
+        Route::get('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'showInertia'])->name('show');
+        Route::get('/{stockRequest}/edit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'editInertia'])->name('edit');
+        Route::put('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'update'])->name('update');
 
         // Action Routes
         Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
         Route::post('/{stockRequest}/resubmit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{stockRequest}/void', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'void'])->name('void');
         Route::post('/{stockRequest}/mark-offline-approved', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
+        Route::post('/{stockRequest}/resend-approval-email', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
+        Route::get('/{stockRequest}/offline-approval-document', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
 
         // PDF Routes (authenticated)
         Route::get('/{stockRequest}/download-pdf', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'downloadPdf'])->name('download-pdf');
@@ -215,7 +243,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
             // Reports
             Route::get('/department-report', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'departmentReport'])->name('department-report');
-            Route::get('/consolidated-report', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'consolidatedReport'])->name('consolidated-report');
+            Route::get('/consolidated-report', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'consolidatedReport'])->middleware('can:view-purchasing-reports')->name('consolidated-report');
 
             // Audit History Routes
             Route::get('/audit-history', [\App\Http\Controllers\Modules\Purchasing\Admin\PurchasingAdminController::class, 'auditHistory'])->name('audit-history');
@@ -234,25 +262,40 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     });
 
     // ============================================================================
-    // Sales CRM Routes (v2.5)
+    // Sales CRM Routes (v2.5) — DEPRECATED / ARCHIVED
+    // ----------------------------------------------------------------------------
+    // The Sales CRM module is archived. Controllers, services, models, and
+    // migrations remain on disk for reference but the routes only register
+    // when the `features.sales_crm` flag is explicitly enabled
+    // (env: FEATURE_SALES_CRM=true). With the flag off (default) the URLs
+    // return 404 because no route is registered.
+    // To reactivate, set FEATURE_SALES_CRM=true and run `php artisan route:cache`.
     // ============================================================================
-    Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {
-        // Activities
-        Route::prefix('activities')->name('activities.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesIndex'])->name('index');
-            Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'activitiesCreate'])->name('create');
-            Route::get('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesShow'])->name('show');
-            Route::get('/{activity}/edit', [\App\Http\Controllers\SalesCrmController::class, 'activitiesEdit'])->name('edit');
-        });
+    if (config('features.sales_crm', false)) {
+        Route::prefix('sales-crm')->name('sales-crm.')->middleware('can:view_activities')->group(function () {
+            // Activities
+            Route::prefix('activities')->name('activities.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesIndex'])->name('index');
+                Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'activitiesCreate'])->name('create');
+                Route::get('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesShow'])->name('show');
+                Route::get('/{activity}/edit', [\App\Http\Controllers\SalesCrmController::class, 'activitiesEdit'])->name('edit');
+                Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'activitiesStore'])->name('store');
+                Route::put('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesUpdate'])->name('update');
+                Route::delete('/{activity}', [\App\Http\Controllers\SalesCrmController::class, 'activitiesDestroy'])->name('destroy');
+            });
 
-        // Contacts
-        Route::prefix('contacts')->name('contacts.')->middleware('can:view_contacts')->group(function () {
-            Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsIndex'])->name('index');
-            Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'contactsCreate'])->name('create');
-            Route::get('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsShow'])->name('show');
-            Route::get('/{contact}/edit', [\App\Http\Controllers\SalesCrmController::class, 'contactsEdit'])->name('edit');
+            // Contacts
+            Route::prefix('contacts')->name('contacts.')->middleware('can:view_contacts')->group(function () {
+                Route::get('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsIndex'])->name('index');
+                Route::get('/create', [\App\Http\Controllers\SalesCrmController::class, 'contactsCreate'])->name('create');
+                Route::get('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsShow'])->name('show');
+                Route::get('/{contact}/edit', [\App\Http\Controllers\SalesCrmController::class, 'contactsEdit'])->name('edit');
+                Route::post('/', [\App\Http\Controllers\SalesCrmController::class, 'contactsStore'])->name('store');
+                Route::put('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsUpdate'])->name('update');
+                Route::delete('/{contact}', [\App\Http\Controllers\SalesCrmController::class, 'contactsDestroy'])->name('destroy');
+            });
         });
-    });
+    }
 
     // ============================================================================
     // Activity Tracking Module Routes (INERTIA/REACT)
@@ -295,6 +338,13 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/{task}/edit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'edit'])->name('edit')->whereNumber('task');
             Route::put('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'update'])->name('update')->whereNumber('task');
             Route::delete('/{task}', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'destroy'])->name('destroy')->whereNumber('task');
+
+            // Task Comment Routes
+            Route::prefix('{task}/comments')->name('comments.')->whereNumber('task')->group(function () {
+                Route::post('/', [TaskCommentController::class, 'store'])->name('store')->middleware('throttle:10,1');
+                Route::put('/{comment}', [TaskCommentController::class, 'update'])->name('update')->middleware('throttle:10,1')->whereNumber('comment');
+                Route::delete('/{comment}', [TaskCommentController::class, 'destroy'])->name('destroy')->middleware('throttle:10,1')->whereNumber('comment');
+            });
         });
 
         // Backdate Permission Routes
@@ -302,6 +352,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/requests', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateRequests'])->name('requests');
             Route::post('/request/submit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'submitBackdateRequest'])->name('request.submit');
             Route::get('/approvals', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateApprovals'])->name('approvals');
+            Route::post('/{id}/approve', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'approveBackdate'])->name('approve')->whereNumber('id');
+            Route::post('/{id}/reject', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'rejectBackdate'])->name('reject')->whereNumber('id');
         });
     });
 
@@ -314,22 +366,111 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::get('/settings', [CashflowProjectionController::class, 'settings'])->name('settings');
         Route::get('/export', [CashflowProjectionController::class, 'export'])->name('export');
         Route::post('/line-items', [CashflowProjectionController::class, 'storeLineItem'])->name('line-items.store');
+        Route::patch('/line-items/{lineItem}', [CashflowProjectionController::class, 'updateLineItem'])->name('line-items.update');
         Route::post('/finance-inputs', [CashflowProjectionController::class, 'upsertFinanceInput'])->name('finance-inputs.upsert');
+        Route::post('/linked-units', [CashflowProjectionController::class, 'storeLinkedUnit'])->name('linked-units.store');
+        Route::delete('/line-items/bulk', [CashflowProjectionController::class, 'bulkDestroyLineItems'])->name('line-items.bulk-destroy');
+        Route::delete('/line-items/{lineItem}', [CashflowProjectionController::class, 'destroyLineItem'])->name('line-items.destroy');
+        Route::delete('/linked-units/{linkedUnit}', [CashflowProjectionController::class, 'destroyLinkedUnit'])->name('linked-units.destroy');
+
+        // Entry Import Routes
+        Route::get('/entries/import-template', [CashflowProjectionController::class, 'downloadImportTemplate'])->name('entries.import-template');
+        Route::post('/entries/import-preview', [CashflowProjectionController::class, 'previewImport'])->name('entries.import-preview');
+        Route::post('/entries/import-confirm', [CashflowProjectionController::class, 'confirmImport'])->name('entries.import-confirm');
+        Route::post('/entries/import', [CashflowProjectionController::class, 'importEntries'])->name('entries.import');
     });
 
-    // Reports Routes (Top Management Only - Coming Soon)
-    Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
-        Route::get('/purchase-requests', function () {
-            return view('reports.purchase-requests', [
-                'message' => 'Report feature will be available soon for top management.',
-            ]);
-        })->name('purchase-requests');
-        Route::get('/approvals', function () {
-            return view('reports.approvals', [
-                'message' => 'Report feature will be available soon for top management.',
-            ]);
-        })->name('approvals');
-    });
+    // ============================================================================
+    // IT Support — User routes (all authenticated users)
+    // Gated behind features.it_support so production deploys can hide the
+    // module entirely. Default true keeps dev/staging/test unchanged.
+    // ============================================================================
+    if (config('features.it_support', true)) {
+        Route::prefix('it-support')->name('it-support.')->group(function () {
+            // Ticket submission
+            Route::get('/submit', [UserTicketController::class, 'create'])->name('submit');
+            Route::post('/submit', [UserTicketController::class, 'store'])->name('submit.store');
+
+            // My tickets
+            Route::get('/my-tickets', [UserTicketController::class, 'myTickets'])->name('my-tickets');
+            Route::get('/my-tickets/{ticket}', [UserTicketController::class, 'show'])->name('my-tickets.show');
+            Route::post('/my-tickets/{ticket}/comment', [UserTicketController::class, 'addComment'])->name('my-tickets.comment');
+
+            // Authenticated attachment download (requester or IT Support admin in scope)
+            Route::get('/tickets/attachments/{attachment}/download', [\App\Http\Controllers\Modules\Ticket\TicketAttachmentController::class, 'download'])
+                ->name('tickets.attachments.download');
+
+            // Knowledge base browse (all users)
+            Route::get('/knowledge', [KnowledgeBaseController::class, 'browse'])->name('knowledge');
+            Route::get('/knowledge/search', [KnowledgeBaseController::class, 'search'])->name('knowledge.search');
+            Route::post('/knowledge/suggest', [KnowledgeBaseController::class, 'suggestArticles'])->name('knowledge.suggest');
+            // Note: slug constraint excludes admin-reserved segments so they don't
+            // get swallowed by the public article route. Otherwise /it-support/knowledge/manage
+            // resolves to article(slug=manage) and returns 404.
+            Route::get('/knowledge/{slug}', [KnowledgeBaseController::class, 'article'])
+                ->where('slug', '^(?!manage|categories|search|suggest)[A-Za-z0-9_\-]+$')
+                ->name('knowledge.article');
+        });
+
+        // ============================================================================
+        // IT Support — Admin routes (IT Support admin only)
+        // ============================================================================
+        Route::middleware(['it.support.access'])
+            ->prefix('it-support')
+            ->name('it-support.admin.')
+            ->group(function () {
+                // Dashboard
+                Route::get('/dashboard', [TicketDashboardController::class, 'index'])->name('dashboard');
+
+                // SLA Settings
+                Route::get('/sla-settings', [TicketDashboardController::class, 'slaSettings'])->name('sla-settings');
+                Route::put('/sla-settings', [TicketDashboardController::class, 'updateSlaSettings'])->name('sla-settings.update');
+
+                // All tickets management
+                Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
+                Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
+                Route::get('/tickets/{ticket}/edit', [TicketController::class, 'edit'])->name('tickets.edit');
+                Route::put('/tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
+                Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
+                Route::post('/tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
+                Route::put('/tickets/{ticket}/change-status', [TicketController::class, 'changeStatus'])->name('tickets.changeStatus');
+                Route::post('/tickets/{ticket}/assign', [TicketController::class, 'assignTicket'])->name('tickets.assign');
+                Route::post('/tickets/{ticket}/link-article', [KnowledgeBaseController::class, 'linkArticle'])->name('tickets.linkArticle');
+
+                // Reporting
+                Route::get('/reporting', [TicketReportingController::class, 'index'])->name('reporting');
+                Route::get('/reporting/export/excel', [TicketReportingController::class, 'exportExcel'])->name('reporting.exportExcel');
+                Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
+
+                // Categories
+                Route::resource('/categories', TicketCategoryController::class)->names('categories')->except(['show']);
+
+                // Knowledge base admin
+                Route::get('/knowledge/manage', [KnowledgeBaseController::class, 'adminIndex'])->name('knowledge.index');
+                Route::get('/knowledge/manage/create', [KnowledgeBaseController::class, 'adminCreate'])->name('knowledge.create');
+                Route::post('/knowledge/manage', [KnowledgeBaseController::class, 'adminStore'])->name('knowledge.store');
+                Route::get('/knowledge/manage/{article}/edit', [KnowledgeBaseController::class, 'adminEdit'])->name('knowledge.edit');
+                Route::put('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminUpdate'])->name('knowledge.update');
+                Route::delete('/knowledge/manage/{article}', [KnowledgeBaseController::class, 'adminDestroy'])->name('knowledge.destroy');
+
+                // Knowledge categories
+                Route::resource('/knowledge/categories', KnowledgeCategoryController::class)->names('knowledge.categories');
+            });
+
+        // Reports Routes (Top Management Only - Coming Soon)
+        Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
+            Route::get('/purchase-requests', function () {
+                return view('reports.purchase-requests', [
+                    'message' => 'Report feature will be available soon for top management.',
+                ]);
+            })->name('purchase-requests');
+            Route::get('/approvals', function () {
+                return view('reports.approvals', [
+                    'message' => 'Report feature will be available soon for top management.',
+                ]);
+            })->name('approvals');
+        });
+    } // end if (config('features.it_support'))
 
     // Admin Routes (require super admin access)
     Route::prefix('admin')->name('admin.')->middleware('admin.access')->group(function () {
@@ -355,12 +496,41 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // PR Category Management
         Route::resource('pr-categories', \App\Http\Controllers\Admin\PrCategoryController::class);
 
+        // Unified Activity Configuration page
+        Route::get('/activity-configuration', [ActivityConfigurationController::class, 'index'])
+            ->name('activity-configuration.index');
+
         // Activity Type & Sub-Activity Management
-        Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class);
-        Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class);
+        // Legacy index redirects — point old index URLs to the unified page
+        Route::get('activity-types', fn () => redirect()->route('admin.activity-configuration.index'))
+            ->name('activity-types.index');
+        Route::get('sub-activities', fn () => redirect()->route('admin.activity-configuration.index'))
+            ->name('sub-activities.index');
+
+        // Activity Types CRUD (excluding index, which is redirected above)
+        Route::resource('activity-types', \App\Http\Controllers\Admin\ActivityTypeController::class)
+            ->except(['index']);
+        Route::post('activity-types/{activity_type}/assign-departments', [\App\Http\Controllers\Admin\ActivityTypeController::class, 'assignDepartments'])->name('activity-types.assign-departments');
+
+        // Sub-Activities CRUD (excluding index, which is redirected above)
+        Route::resource('sub-activities', \App\Http\Controllers\Admin\SubActivityController::class)
+            ->except(['index']);
         Route::prefix('activity-admins')->name('activity-admins.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'index'])->name('index');
             Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
+            Route::post('/{id}/toggle-report', [\App\Http\Controllers\Admin\ActivityAdminAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
+        });
+
+        Route::prefix('purchasing-admins')->name('purchasing-admins.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'index'])->name('index');
+            Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
+            Route::post('/{id}/toggle-report', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
+        });
+
+        Route::prefix('it-support-admins')->name('it-support-admins.')->group(function () {
+            Route::get('/', [ITSupportAssignmentController::class, 'index'])->name('index');
+            Route::post('/{id}/toggle', [ITSupportAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
+            Route::post('/{id}/toggle-report', [ITSupportAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
         });
 
         // Notification Settings (Super Admin Only)

@@ -37,6 +37,10 @@ class StockApprovalViewTest extends TestCase
             ->where('stockRequest.st_number', $stockRequest->st_number)
             ->where('approvalContext.approvalId', $stockApproval->id)
             ->where('approvalContext.canApprove', true)
+            ->where('approvalContext.approvalStatus', 'pending')
+            ->where('can.approve', true)
+            ->where('can.reject', true)
+            ->where('can.resendApprovalEmail', false)
         );
     }
 
@@ -49,6 +53,40 @@ class StockApprovalViewTest extends TestCase
         [$anotherUser] = $this->createUserContext();
         /** @var \Illuminate\Contracts\Auth\Authenticatable $anotherUser */
         $response = $this->actingAs($anotherUser)
+            ->get(route('stock-approvals.show', $stockApproval));
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function approver_cannot_open_stock_approval_detail_page_from_another_business_unit_context(): void
+    {
+        config(['inertia.testing.ensure_pages_exist' => false]);
+
+        [$approver, $stockApproval] = $this->createStockApprovalFixture();
+        $otherBusinessUnit = BusinessUnit::factory()->create();
+        $otherDepartment = Department::factory()->create([
+            'business_unit_id' => $otherBusinessUnit->id,
+        ]);
+        $otherPosition = Position::query()
+            ->where('department_id', $otherDepartment->id)
+            ->where('code', 'STAFF_'.strtoupper($otherDepartment->code))
+            ->firstOrFail();
+
+        UserBusinessUnit::create([
+            'user_id' => $approver->id,
+            'business_unit_id' => $otherBusinessUnit->id,
+            'department_id' => $otherDepartment->id,
+            'position_id' => $otherPosition->id,
+            'is_primary' => false,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($approver)
+            ->withSession([
+                'current_business_unit_id' => $otherBusinessUnit->id,
+                'current_department_id' => $otherDepartment->id,
+            ])
             ->get(route('stock-approvals.show', $stockApproval));
 
         $response->assertForbidden();

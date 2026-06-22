@@ -41,10 +41,17 @@ class ActivityAdminAssignmentController extends Controller
             ->groupBy('business_unit_id')
             ->pluck('count', 'business_unit_id');
 
+        $reportAccessCounts = UserBusinessUnit::where('is_active', true)
+            ->where('is_activity_report_access', true)
+            ->selectRaw('business_unit_id, COUNT(*) as count')
+            ->groupBy('business_unit_id')
+            ->pluck('count', 'business_unit_id');
+
         return Inertia::render('Admin/ActivityAdmins/Index', [
             'assignments' => $assignments,
             'businessUnits' => $businessUnits,
             'adminCounts' => $adminCounts,
+            'reportAccessCounts' => $reportAccessCounts,
             'filters' => [
                 'business_unit_id' => $buFilter,
                 'search' => $search,
@@ -58,14 +65,46 @@ class ActivityAdminAssignmentController extends Controller
     public function toggle(Request $request, int $id)
     {
         $ubu = UserBusinessUnit::findOrFail($id);
-        $ubu->update(['is_activity_admin' => ! $ubu->is_activity_admin]);
 
-        // Clear navigation cache for this user
-        cache()->forget("nav:{$ubu->user_id}:{$ubu->business_unit_id}");
+        $newAdminState = ! $ubu->is_activity_admin;
+        $updates = ['is_activity_admin' => $newAdminState];
+
+        // Auto-revoke report access when admin is turned OFF
+        if (! $newAdminState && $ubu->is_activity_report_access) {
+            $updates['is_activity_report_access'] = false;
+        }
+
+        $ubu->update($updates);
+
         cache()->forget("bu_list:{$ubu->user_id}");
 
-        $status = $ubu->is_activity_admin ? 'assigned as' : 'removed from';
+        $status = $newAdminState ? 'assigned as' : 'removed from';
 
-        return back()->with('success', "{$ubu->user?->name} {$status} Activity Admin.");
+        return redirect()->route('admin.activity-admins.index', request()->query())
+            ->with('success', "{$ubu->user?->name} {$status} Activity Admin.");
+    }
+
+    /**
+     * Toggle is_activity_report_access for a user-BU assignment.
+     * Only works if is_activity_admin is already true.
+     */
+    public function toggleReportAccess(Request $request, int $id)
+    {
+        $ubu = UserBusinessUnit::findOrFail($id);
+
+        // Cannot grant report access without admin access
+        if (! $ubu->is_activity_admin && ! $ubu->is_activity_report_access) {
+            return back()->with('error', 'User must be an Activity Admin first.');
+        }
+
+        $newState = ! $ubu->is_activity_report_access;
+        $ubu->update(['is_activity_report_access' => $newState]);
+
+        cache()->forget("bu_list:{$ubu->user_id}");
+
+        $status = $newState ? 'granted' : 'revoked';
+
+        return redirect()->route('admin.activity-admins.index', request()->query())
+            ->with('success', "Activity Report access {$status} for {$ubu->user?->name}.");
     }
 }

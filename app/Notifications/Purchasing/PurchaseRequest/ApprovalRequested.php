@@ -4,6 +4,7 @@ namespace App\Notifications\Purchasing\PurchaseRequest;
 
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
@@ -24,7 +25,15 @@ class ApprovalRequested extends Notification
      */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->toArray($notifiable));
     }
 
     /**
@@ -43,7 +52,7 @@ class ApprovalRequested extends Notification
         );
 
         return (new MailMessage)
-            ->subject('Purchase Request Approval Required - PR #' . $pr->pr_number)
+            ->subject('Purchase Request Approval Required - PR #'.$pr->pr_number)
             ->view('emails.purchasing.purchase-request.approval-requested', [
                 'approval' => $this->approval,
                 'pr' => $pr,
@@ -62,6 +71,8 @@ class ApprovalRequested extends Notification
 
         return [
             'type' => 'approval_requested',
+            'category' => 'purchasing',
+            'event' => 'purchase_request_approval_requested',
             'pr_id' => $pr->id,
             'pr_number' => $pr->pr_number,
             'approval_id' => $this->approval->id,
@@ -70,8 +81,11 @@ class ApprovalRequested extends Notification
             'amount' => $pr->total_amount,
             'requestor_name' => $pr->user->name,
             'due_date' => $this->approval->due_date?->toISOString(),
+            'title' => "Purchase Request {$pr->pr_number} is awaiting your approval",
             'message' => "Purchase Request #{$pr->pr_number} requires your approval",
             'action_url' => route('approvals.show', $this->approval->id),
+            'priority' => 'high',
+            'occurred_at' => $this->approval->assigned_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 }

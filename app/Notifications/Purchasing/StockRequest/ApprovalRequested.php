@@ -4,6 +4,7 @@ namespace App\Notifications\Purchasing\StockRequest;
 
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
@@ -24,7 +25,15 @@ class ApprovalRequested extends Notification
      */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->toArray($notifiable));
     }
 
     /**
@@ -43,7 +52,7 @@ class ApprovalRequested extends Notification
         );
 
         return (new MailMessage)
-            ->subject('Stock Request Approval Required - ST #' . $st->st_number)
+            ->subject('Stock Request Approval Required - ST #'.$st->st_number)
             ->view('emails.purchasing.stock-request.approval-requested', [
                 'approval' => $this->approval,
                 'st' => $st,
@@ -62,6 +71,8 @@ class ApprovalRequested extends Notification
 
         return [
             'type' => 'stock_approval_requested',
+            'category' => 'purchasing',
+            'event' => 'stock_request_approval_requested',
             'st_id' => $st->id,
             'st_number' => $st->st_number,
             'approval_id' => $this->approval->id,
@@ -69,8 +80,11 @@ class ApprovalRequested extends Notification
             'approval_type' => $this->approval->approval_type,
             'requestor_name' => $st->user->name,
             'due_date' => $this->approval->due_date?->toISOString(),
+            'title' => "Stock Request {$st->st_number} is awaiting your approval",
             'message' => "Stock Request #{$st->st_number} requires your approval",
             'action_url' => route('stock-approvals.show', $this->approval->id),
+            'priority' => 'high',
+            'occurred_at' => $this->approval->assigned_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 }

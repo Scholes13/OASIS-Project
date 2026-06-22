@@ -4,6 +4,7 @@ namespace App\Notifications\Activity;
 
 use App\Models\Modules\Activity\BackdatePermission;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -23,7 +24,15 @@ class BackdateRequestApproved extends Notification
      */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->toArray($notifiable));
     }
 
     /**
@@ -46,14 +55,19 @@ class BackdateRequestApproved extends Notification
     {
         return [
             'type' => 'backdate_request_approved',
+            'category' => 'backdate',
+            'event' => 'backdate_request_approved',
             'backdate_permission_id' => $this->backdatePermission->id,
             'approved_by_id' => $this->backdatePermission->approved_by,
             'approved_by_name' => $this->backdatePermission->approver->name ?? 'Department Head',
             'requested_date' => $this->backdatePermission->requested_date->toISOString(),
             'granted_until' => $this->backdatePermission->granted_until?->toISOString(),
             'approved_at' => $this->backdatePermission->approved_at?->toISOString(),
+            'title' => 'Your backdate request was approved',
             'message' => "Your backdate permission request for {$this->backdatePermission->requested_date->format('d M Y')} has been approved",
             'action_url' => route('activity.backdate.requests'),
+            'priority' => 'high',
+            'occurred_at' => $this->backdatePermission->approved_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 }

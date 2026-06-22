@@ -1,0 +1,186 @@
+name: deploy-cpanel
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: main
+        type: string
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Laravel release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, mysqli, pdo_mysql, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Prepare release archive
+        run: |
+          set -euo pipefail
+          mkdir -p build/release
+          rsync -a --delete ./ build/release/ \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules' \
+            --exclude='test-results' \
+            --exclude='tmp' \
+            --exclude='storage/app/*' \
+            --exclude='storage/framework/cache/*' \
+            --exclude='storage/framework/sessions/*' \
+            --exclude='storage/framework/testing/*' \
+            --exclude='storage/framework/views/*' \
+            --exclude='storage/logs/*'
+          tar -czf release.tar.gz -C build/release .
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpanel-release
+          path: release.tar.gz
+          retention-days: 3
+
+  deploy:
+    name: Deploy to cPanel
+    runs-on: ubuntu-latest
+    needs: build
+    concurrency:
+      group: cpanel-production-deploy
+      cancel-in-progress: false
+    environment: production
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cpanel-release
+
+      - name: Prepare remote directories
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          port: ${{ secrets.CPANEL_PORT }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          password: ${{ secrets.CPANEL_SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            set -e
+            APP_PATH="${{ secrets.CPANEL_APP_PATH }}"
+            mkdir -p "$APP_PATH/deploy" "$APP_PATH/releases" "$APP_PATH/shared"
+
+      - name: Upload release archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          port: ${{ secrets.CPANEL_PORT }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          password: ${{ secrets.CPANEL_SSH_PASSWORD }}
+          source: release.tar.gz
+          target: ${{ secrets.CPANEL_APP_PATH }}/deploy
+          overwrite: true
+
+      - name: Activate release
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          CPANEL_ENV_B64: ${{ secrets.CPANEL_ENV_B64 }}
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          port: ${{ secrets.CPANEL_PORT }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          password: ${{ secrets.CPANEL_SSH_PASSWORD }}
+          envs: CPANEL_ENV_B64
+          script_stop: true
+          script: |
+            set -e
+
+            APP_PATH="${{ secrets.CPANEL_APP_PATH }}"
+            PHP_BIN="${{ secrets.CPANEL_PHP_BIN }}"
+            if [ -z "$PHP_BIN" ]; then
+              PHP_BIN="php"
+            fi
+
+            RELEASE_ID="${{ github.sha }}-${{ github.run_number }}"
+            RELEASE_PATH="$APP_PATH/releases/$RELEASE_ID"
+            SHARED_PATH="$APP_PATH/shared"
+
+            mkdir -p "$RELEASE_PATH"
+            tar -xzf "$APP_PATH/deploy/release.tar.gz" -C "$RELEASE_PATH"
+
+            mkdir -p \
+              "$SHARED_PATH/storage/app/public" \
+              "$SHARED_PATH/storage/framework/cache" \
+              "$SHARED_PATH/storage/framework/sessions" \
+              "$SHARED_PATH/storage/framework/testing" \
+              "$SHARED_PATH/storage/framework/views" \
+              "$SHARED_PATH/storage/logs" \
+              "$SHARED_PATH/bootstrap-cache"
+
+            rm -rf "$RELEASE_PATH/storage"
+            ln -sfn "$SHARED_PATH/storage" "$RELEASE_PATH/storage"
+
+            rm -rf "$RELEASE_PATH/bootstrap/cache"
+            ln -sfn "$SHARED_PATH/bootstrap-cache" "$RELEASE_PATH/bootstrap/cache"
+
+            if [ -n "${CPANEL_ENV_B64:-}" ]; then
+              printf '%s' "$CPANEL_ENV_B64" | base64 -d > "$SHARED_PATH/.env"
+              chmod 600 "$SHARED_PATH/.env"
+            fi
+
+            if [ ! -f "$SHARED_PATH/.env" ]; then
+              echo "Missing $SHARED_PATH/.env. Add CPANEL_ENV_B64 secret or create .env manually on the server."
+              exit 1
+            fi
+
+            ln -sfn "$SHARED_PATH/.env" "$RELEASE_PATH/.env"
+
+            cd "$RELEASE_PATH"
+            "$PHP_BIN" artisan storage:link || true
+            "$PHP_BIN" artisan migrate --force
+            "$PHP_BIN" artisan optimize:clear
+            "$PHP_BIN" artisan config:cache
+            "$PHP_BIN" artisan route:cache
+            "$PHP_BIN" artisan view:cache
+            "$PHP_BIN" artisan queue:restart || true
+
+            ln -sfn "$RELEASE_PATH" "$APP_PATH/current"
+
+            find "$APP_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort -r | tail -n +6 | xargs -r rm -rf
+            rm -f "$APP_PATH/deploy/release.tar.gz"
+
+            echo "cPanel deploy complete: $RELEASE_ID"

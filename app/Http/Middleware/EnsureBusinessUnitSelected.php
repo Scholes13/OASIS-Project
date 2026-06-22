@@ -23,20 +23,20 @@ class EnsureBusinessUnitSelected
 
         // Super admins can bypass business unit requirement
         if ($user->global_role === 'super_admin') {
-            // Ensure super admin session context exists (check both code AND id)
-            // Also check if logo is missing and add it
-            $needsLogoUpdate = session('current_business_unit_id') && ! session('current_business_unit_logo');
+            $hasValidContext = session('current_business_unit_id') && session('current_business_unit_code');
+            $needsLogoRestore = $hasValidContext && ! $request->session()->exists('current_business_unit_logo');
 
-            if (! session('current_business_unit_code') || ! session('current_business_unit_id') || $needsLogoUpdate) {
-                // For super admins, use their primary business unit (usually WG)
+            if ($needsLogoRestore) {
+                // Only logo is missing — restore it for the current BU without changing selection
+                $currentBu = \App\Models\Core\BusinessUnit::find(session('current_business_unit_id'));
+                if ($currentBu) {
+                    session(['current_business_unit_logo' => $currentBu->logo]);
+                }
+            } elseif (! $hasValidContext) {
+                // Full context missing — initialize from primary BU
                 $primaryBu = null;
                 if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
                     $primaryBu = $user->primaryDepartment->businessUnit;
-                }
-
-                // If only logo is missing, fetch current BU
-                if ($needsLogoUpdate && ! $primaryBu) {
-                    $primaryBu = \App\Models\Core\BusinessUnit::find(session('current_business_unit_id'));
                 }
 
                 if ($primaryBu) {
@@ -64,6 +64,15 @@ class EnsureBusinessUnitSelected
                 }
             }
 
+            // Ensure department context is valid for the active BU
+            $activeBuId = (int) session('current_business_unit_id');
+            if ($activeBuId) {
+                $resolvedDeptId = $user->resolveDepartmentForBusinessUnit($activeBuId);
+                if (session('current_department_id') !== $resolvedDeptId) {
+                    session(['current_department_id' => $resolvedDeptId]);
+                }
+            }
+
             // Make current context available to views
             view()->share([
                 'currentBusinessUnitId' => session('current_business_unit_id'),
@@ -79,7 +88,7 @@ class EnsureBusinessUnitSelected
 
         // Check if user has current business unit context from login
         $currentBusinessUnitId = session('current_business_unit_id');
-        $needsLogoUpdate = $currentBusinessUnitId && ! session('current_business_unit_logo');
+        $needsLogoUpdate = $currentBusinessUnitId && ! $request->session()->exists('current_business_unit_logo');
 
         // If only logo is missing, add it without resetting session
         if ($needsLogoUpdate) {
@@ -135,8 +144,20 @@ class EnsureBusinessUnitSelected
             $hasAccess = $user->canAccessBusinessUnit($currentBusinessUnitId);
 
             if (! $hasAccess) {
-                // Remove invalid business unit from session and logout
-                session()->flush();
+                // Forget only the BU-scoped session entries before logging out.
+                // session()->flush() previously cleared CSRF, flash, and any
+                // other unrelated state, which made the redirect lose the
+                // intended error message and forced the next request to start
+                // from a completely empty session.
+                $request->session()->forget([
+                    'current_business_unit_id',
+                    'current_business_unit_code',
+                    'current_business_unit_name',
+                    'current_business_unit_logo',
+                    'current_user_role',
+                    'current_department_id',
+                ]);
+
                 Auth::logout();
 
                 return redirect()->route('login')

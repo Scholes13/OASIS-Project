@@ -12,18 +12,23 @@ class CashflowProjectionTemplateService
     private const ACTIONS = [
         'IN_ACC_PIUTANG_REVENUE' => ['label' => 'Piutang & Revenue', 'flow_type' => 'in'],
         'OUT_ACC_PAJAK' => ['label' => 'Pajak', 'flow_type' => 'out'],
-        'OUT_ACC_OPS' => ['label' => 'Operational ACC', 'flow_type' => 'out'],
+        'OUT_ACC_OPS' => ['label' => 'Operational Department ACC', 'flow_type' => 'out'],
 
-        'OUT_HR_GAJI_BENEFIT' => ['label' => 'Gaji & Benefit', 'flow_type' => 'out'],
+        'IN_TEP_ESTIMASI_UPCOMING_REVENUE' => ['label' => 'Estimasi Penerimaan dari Upcoming Revenue', 'flow_type' => 'in'],
+        'OUT_TEP_COST_OF_REVENUE' => ['label' => 'Cost of Revenue dari Upcoming Revenue', 'flow_type' => 'out'],
+        'OUT_TEP_OPS' => ['label' => 'Operational Department TEP', 'flow_type' => 'out'],
+
+        'OUT_HR_GAJI_BENEFIT' => ['label' => 'Gaji & Benefit Karyawan', 'flow_type' => 'out'],
+        'OUT_HR_OPS' => ['label' => 'Operational Department HR', 'flow_type' => 'out'],
         'OUT_HR_PEMBERIAN_PINJAMAN' => ['label' => 'Pemberian Pinjaman', 'flow_type' => 'out'],
-        'OUT_HR_OPS' => ['label' => 'Operational HR', 'flow_type' => 'out'],
 
-        'IN_CFC_PENERIMAAN_PENGEMBALIAN_PINJAMAN' => ['label' => 'Penerimaan Pengembalian Pinjaman', 'flow_type' => 'in'],
         'IN_CFC_SUNTIKAN_MODAL' => ['label' => 'Suntikan Modal', 'flow_type' => 'in'],
-        'OUT_CFC_CORPORATE_EXPENSES' => ['label' => 'Corporate Expenses', 'flow_type' => 'out'],
+        'IN_CFC_PENERIMAAN_PENGEMBALIAN_PINJAMAN' => ['label' => 'Penerimaan dari Pengembalian Pinjaman', 'flow_type' => 'in'],
+        'OUT_CFC_CORPORATE_EXPENSES' => ['label' => 'Corporate Expense', 'flow_type' => 'out'],
         'OUT_CFC_BUNGA_ANGSURAN' => ['label' => 'Bunga & Angsuran', 'flow_type' => 'out'],
-        'OUT_CFC_HUTANG_USAHA' => ['label' => 'Hutang Usaha', 'flow_type' => 'out'],
         'OUT_CFC_PENGEMBALIAN_SUNTIKAN_MODAL' => ['label' => 'Pengembalian Suntikan Modal', 'flow_type' => 'out'],
+        'OUT_CFC_HUTANG_USAHA' => ['label' => 'Hutang Usaha', 'flow_type' => 'out'],
+        'OUT_CFC_OPS' => ['label' => 'Operational Department CFC', 'flow_type' => 'out'],
     ];
 
     /**
@@ -39,19 +44,20 @@ class CashflowProjectionTemplateService
                 'OUT_ACC_PAJAK',
                 'OUT_ACC_OPS',
             ],
+            'tep' => [
+                'IN_TEP_ESTIMASI_UPCOMING_REVENUE',
+                'OUT_TEP_COST_OF_REVENUE',
+                'OUT_TEP_OPS',
+            ],
             'hr' => [
                 'OUT_HR_GAJI_BENEFIT',
-                'OUT_HR_PEMBERIAN_PINJAMAN',
                 'OUT_HR_OPS',
+                'OUT_HR_PEMBERIAN_PINJAMAN',
             ],
-            'cfc' => [
-                'IN_CFC_PENERIMAAN_PENGEMBALIAN_PINJAMAN',
-                'IN_CFC_SUNTIKAN_MODAL',
-                'OUT_CFC_CORPORATE_EXPENSES',
-                'OUT_CFC_BUNGA_ANGSURAN',
-                'OUT_CFC_HUTANG_USAHA',
-                'OUT_CFC_PENGEMBALIAN_SUNTIKAN_MODAL',
-            ],
+            'cfc' => array_values(array_unique(array_merge(
+                array_keys(self::ACTIONS),
+                [$this->standardOpsActionCode($department)],
+            ))),
             default => [$this->standardOpsActionCode($department)],
         };
     }
@@ -72,7 +78,7 @@ class CashflowProjectionTemplateService
 
             $options[] = [
                 'code' => $code,
-                'label' => $meta['label'],
+                'label' => $this->displayLabelForAction($code, $department) ?? $meta['label'],
                 'flow_type' => $meta['flow_type'],
             ];
         }
@@ -96,12 +102,25 @@ class CashflowProjectionTemplateService
 
         if ($department && $actionCode === $this->standardOpsActionCode($department)) {
             return [
-                'label' => 'Operational '.$department->code,
+                'label' => 'Operational Department '.$department->code,
                 'flow_type' => 'out',
             ];
         }
 
         return null;
+    }
+
+    public function displayLabelForAction(string $actionCode, ?Department $department = null): ?string
+    {
+        $meta = $this->metaForActionCode($actionCode, $department);
+
+        if (! $meta) {
+            return null;
+        }
+
+        $prefix = $this->actionPrefixFromCode($actionCode, $department);
+
+        return $prefix ? $prefix.' - '.$meta['label'] : $meta['label'];
     }
 
     public function templateTypeForDepartment(Department $department): string
@@ -110,6 +129,7 @@ class CashflowProjectionTemplateService
 
         return match ($code) {
             'ACC' => 'acc',
+            'TEP' => 'tep',
             'HR' => 'hr',
             'CFC', 'FIN' => 'cfc',
             default => 'standard',
@@ -119,6 +139,13 @@ class CashflowProjectionTemplateService
     public function standardOpsActionCode(Department $department): string
     {
         return 'OUT_'.$this->normalizeCode($department->code).'_OPS';
+    }
+
+    private function actionPrefixFromCode(string $actionCode, ?Department $department = null): ?string
+    {
+        $segments = explode('_', $actionCode, 4);
+
+        return $segments[1] ?? $department?->code;
     }
 
     private function normalizeCode(string $value): string

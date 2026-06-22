@@ -194,7 +194,7 @@ export default function Index({ contacts, stats, filters }: ContactsIndexProps) 
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.visit(route('sales-crm.contacts.show', row.original.id))}
+                        onClick={() => router.visit(route('sales-crm.contacts.show', { contact: row.original.id }))}
                         className="text-primary hover:text-primary"
                     >
                         View
@@ -202,7 +202,7 @@ export default function Index({ contacts, stats, filters }: ContactsIndexProps) 
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.visit(route('sales-crm.contacts.edit', row.original.id))}
+                        onClick={() => router.visit(route('sales-crm.contacts.edit', { contact: row.original.id }))}
                         className="text-gray-600 hover:text-gray-900"
                     >
                         Edit

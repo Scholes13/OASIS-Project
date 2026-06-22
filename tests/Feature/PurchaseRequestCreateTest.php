@@ -11,6 +11,7 @@ use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -128,7 +129,7 @@ class PurchaseRequestCreateTest extends TestCase
         Storage::fake('public');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_view_create_form()
     {
         $response = $this->actingAs($this->user)
@@ -143,7 +144,7 @@ class PurchaseRequestCreateTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function user_can_create_purchase_request_with_valid_data()
     {
         $requestData = [
@@ -204,7 +205,7 @@ class PurchaseRequestCreateTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function validation_fails_when_required_fields_are_missing()
     {
         $response = $this->actingAs($this->user)
@@ -218,7 +219,7 @@ class PurchaseRequestCreateTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function validation_fails_when_items_array_is_empty()
     {
         $requestData = [
@@ -242,7 +243,7 @@ class PurchaseRequestCreateTest extends TestCase
         $response->assertSessionHasErrors(['items']);
     }
 
-    /** @test */
+    #[Test]
     public function validation_fails_when_approval_workflow_is_empty()
     {
         $requestData = [
@@ -270,7 +271,7 @@ class PurchaseRequestCreateTest extends TestCase
         $response->assertSessionHasErrors(['approval_workflow']);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_upload_supporting_document()
     {
         $file = UploadedFile::fake()->create('document.pdf', 1024);
@@ -311,7 +312,7 @@ class PurchaseRequestCreateTest extends TestCase
         Storage::disk('public')->assertExists($pr->supporting_document_path);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_upload_item_images()
     {
         $image = UploadedFile::fake()->image('laptop.jpg', 800, 600);

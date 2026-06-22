@@ -7,12 +7,26 @@ use App\Models\Core\User;
 class CashflowProjectionAccessService
 {
     /**
-     * User can access module when they are Head Department or Finance/CFC in current BU.
+     * User can access module when they are super admin, top management
+     * (CEO/MD/Chief of Staff at executive level), Head Department, or
+     * Finance/CFC in current BU.
+     *
+     * Top management widening (PO 2026-05-26) keeps this gate consistent
+     * with `access-purchasing-admin`, `access-it-support`, `view-reports`
+     * etc. that already accept any active top-management position.
      */
     public function canAccess(User $user, ?int $businessUnitId): bool
     {
         if (! $businessUnitId) {
             return false;
+        }
+
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasTopManagementAccess()) {
+            return true;
         }
 
         return $this->isDepartmentHeadInBusinessUnit($user, $businessUnitId)
@@ -57,8 +71,12 @@ class CashflowProjectionAccessService
         return $user->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->whereHas('department', function ($query) {
-                $query->whereIn('code', ['CFC', 'FIN'])
-                    ->orWhere('name', 'like', '%Finance%');
+                // Strict whitelist on department `code`.  We previously also
+                // matched on a fuzzy `name LIKE '%Finance%'` clause, which
+                // accidentally granted finance access to any department
+                // whose display name happened to contain the word
+                // "Finance" (e.g. "Project Finance Reporting").
+                $query->whereIn('code', ['CFC', 'FIN']);
             })
             ->exists();
     }

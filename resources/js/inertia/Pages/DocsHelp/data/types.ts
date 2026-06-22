@@ -45,7 +45,8 @@ export type ArticleBlock =
     | CalloutBlock
     | StepListBlock
     | StatusListBlock
-    | FaqBlock;
+    | FaqBlock
+    | ImageBlock;
 
 export interface ParagraphBlock {
     type: 'paragraph';
@@ -99,4 +100,12 @@ export interface FaqBlock {
     type: 'faq';
     id?: string;
     items: { question: string; answer: string }[];
+}
+
+export interface ImageBlock {
+    type: 'image';
+    id?: string;
+    src: string; // public path or URL, e.g. /images/changelog/v4-beta/notification.png
+    alt: string;
+    caption?: string; // supports inline html (bilingual spans)
 }

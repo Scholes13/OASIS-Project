@@ -67,7 +67,7 @@ export default function Form({ contact }: ContactFormProps) {
         e.preventDefault();
 
         if (isEditMode && contact) {
-            put(route('sales-crm.contacts.update', contact.id));
+            put(route('sales-crm.contacts.update', { contact: contact.id }));
         } else {
             post(route('sales-crm.contacts.store'));
         }
@@ -76,7 +76,7 @@ export default function Form({ contact }: ContactFormProps) {
     // Handle cancel
     const handleCancel = () => {
         if (isEditMode && contact) {
-            router.visit(route('sales-crm.contacts.show', contact.id));
+            router.visit(route('sales-crm.contacts.show', { contact: contact.id }));
         } else {
             router.visit(route('sales-crm.contacts.index'));
         }

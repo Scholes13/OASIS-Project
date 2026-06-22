@@ -66,9 +66,9 @@ class AdminController extends Controller
 
         // Monthly PR trends (MySQL compatible)
         $monthlyPRs = DB::table('purchase_requests')
-            ->select(DB::raw("MONTH(created_at) as month"), DB::raw('COUNT(*) as count'))
+            ->select(DB::raw('MONTH(created_at) as month'), DB::raw('COUNT(*) as count'))
             ->whereYear('created_at', now()->year)
-            ->groupBy(DB::raw("MONTH(created_at)"))
+            ->groupBy(DB::raw('MONTH(created_at)'))
             ->orderBy('month')
             ->get()
             ->mapWithKeys(function ($item) {

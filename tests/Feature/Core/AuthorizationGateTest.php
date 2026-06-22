@@ -200,6 +200,28 @@ class AuthorizationGateTest extends TestCase
         $this->assertTrue(Gate::forUser($user)->allows('access-purchasing-admin'));
     }
 
+    public function test_top_management_in_child_bu_can_access_purchasing_admin(): void
+    {
+        // PO 2026-05-26: Chief of Staff sits at WNS/EXEC (child BU) but needs
+        // executive-tier visibility into Purchasing Admin. Gate must accept
+        // top-management positions in any active BU, not only parent BU.
+        $childExec = Position::create([
+            'department_id' => $this->childDept->id,
+            'name' => 'Chief of Staff',
+            'code' => 'TEST_COS_'.uniqid(),
+            'level' => 'c_level',
+            'access_level' => 'executive',
+            'hierarchy_level' => 0,
+            'is_active' => true,
+        ]);
+
+        $user = $this->createUserWithPosition($childExec, $this->childBU);
+
+        session(['current_business_unit_id' => $this->childBU->id]);
+
+        $this->assertTrue(Gate::forUser($user)->allows('access-purchasing-admin'));
+    }
+
     public function test_hod_in_parent_bu_can_access_purchasing_admin(): void
     {
         $parentHod = Position::create([

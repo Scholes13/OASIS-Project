@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Modules\Purchasing\StockRequest;
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Core\EmailNotificationService;
 use App\Services\Core\QrCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,9 +18,9 @@ class StockApprovalController extends Controller
     /**
      * Show approval page for a specific approval
      */
-    public function show($approvalId): Response
+    public function show(StockApproval $approval): Response
     {
-        $approval = StockApproval::with([
+        $approval->load([
             'stockRequest' => function ($query) {
                 $query->select('id', 'st_number', 'user_id', 'department_id', 'business_unit_id',
                     'purpose', 'status', 'date_of_request', 'expected_date',
@@ -39,11 +40,15 @@ class StockApprovalController extends Controller
             },
             'stockRequest.approvals.approver:id,name,email',
             'approver:id,name,email',
-        ])->findOrFail($approvalId);
+        ]);
 
         // Check if current user is the approver
         if ($approval->approver_id !== Auth::id()) {
             abort(403, 'You are not authorized to view this approval.');
+        }
+
+        if ($approval->stockRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this stock request approval.');
         }
 
         // Check if this approval is the current pending one
@@ -57,8 +62,10 @@ class StockApprovalController extends Controller
             'delete' => false,
             'void' => false,
             'resubmit' => false,
+            'resendApprovalEmail' => false,
             'downloadPdf' => true,
             'markOfflineApproved' => false,
+            'offlineApprovalDocument' => false,
         ];
 
         return Inertia::render('Purchasing/StockRequest/Show', [
@@ -81,7 +88,7 @@ class StockApprovalController extends Controller
     /**
      * Process approval action
      */
-    public function process(Request $request, $approvalId)
+    public function process(Request $request, StockApproval $approval)
     {
         $request->validate([
             'action' => 'required|in:approve,reject,approved,rejected',
@@ -96,13 +103,17 @@ class StockApprovalController extends Controller
             $action = 'rejected';
         }
 
-        $approval = StockApproval::with([
-            'stockRequest:id,st_number,status,user_id',
-        ])->findOrFail($approvalId);
+        $approval->load([
+            'stockRequest:id,st_number,status,user_id,business_unit_id',
+        ]);
 
         // Check if current user is the approver
         if ($approval->approver_id !== Auth::id()) {
             abort(403, 'You are not authorized to process this approval.');
+        }
+
+        if ($approval->stockRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this stock request approval.');
         }
 
         // Check if approval is still pending
@@ -136,6 +147,12 @@ class StockApprovalController extends Controller
      */
     protected function processStockApproval(StockApproval $approval, string $action, ?string $notes): void
     {
+        // Check if the assigned approver is still active
+        $approver = \App\Models\Core\User::find($approval->approver_id);
+        if (! $approver || ! ($approver->is_active ?? true)) {
+            throw new \Exception('The assigned approver is no longer active. Please contact an administrator to reassign the approval.');
+        }
+
         // Update approval status
         $approval->update([
             'status' => $action,
@@ -152,6 +169,9 @@ class StockApprovalController extends Controller
                 'rejected_at' => now(),
                 'rejection_notes' => $notes,
             ]);
+
+            app(EmailNotificationService::class)
+                ->sendStApprovalRejected($approval->fresh(['stockRequest', 'approver']));
         } elseif ($action === 'approved') {
             // Check if all approvals are complete
             $pendingApprovals = $stockRequest->approvals()->where('status', 'pending')->count();
@@ -162,6 +182,9 @@ class StockApprovalController extends Controller
                     'status' => 'approved',
                     'approved_at' => now(),
                 ]);
+
+                app(EmailNotificationService::class)
+                    ->sendStApprovalApproved($stockRequest->fresh());
             } else {
                 // Assign next approval step
                 $nextApproval = $stockRequest->approvals()
@@ -188,14 +211,8 @@ class StockApprovalController extends Controller
     {
         try {
             if ($approval->approver && ! $approval->email_sent) {
-                $approval->approver->notify(
-                    new \App\Notifications\Purchasing\StockRequest\ApprovalRequested($approval)
-                );
-
-                $approval->update([
-                    'email_sent' => true,
-                    'email_sent_at' => now(),
-                ]);
+                app(EmailNotificationService::class)
+                    ->sendStApprovalRequested($approval);
 
                 Log::info('Stock request approval notification sent to next approver', [
                     'st_number' => $approval->stockRequest->st_number,

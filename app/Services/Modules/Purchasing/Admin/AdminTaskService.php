@@ -2,7 +2,9 @@
 
 namespace App\Services\Modules\Purchasing\Admin;
 
+use App\Models\Core\User;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Notifications\Purchasing\Admin\TaskAssigned;
 use Illuminate\Support\Facades\DB;
 
 class AdminTaskService
@@ -37,6 +39,8 @@ class AdminTaskService
                 'savings_percentage' => null,
             ]);
 
+            $this->notifyAssignedAdmin($task);
+
             activity()
                 ->performedOn($task)
                 ->causedBy(auth()->user())
@@ -54,15 +58,23 @@ class AdminTaskService
      */
     public function startTask(AdminTask $task): AdminTask
     {
-        if ($task->status !== 'pending_followup') {
-            throw new \Exception('Task must be in pending_followup status to start');
-        }
-
-        if ($task->assigned_admin_id !== auth()->id()) {
-            throw new \Exception('Task must be assigned to you to start');
-        }
-
         return DB::transaction(function () use ($task) {
+            $task = AdminTask::where('id', $task->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $task) {
+                throw new \Exception('Task is no longer available');
+            }
+
+            if ($task->status !== 'pending_followup') {
+                throw new \Exception('Task must be in pending_followup status to start');
+            }
+
+            if ($task->assigned_admin_id !== auth()->id()) {
+                throw new \Exception('Task must be assigned to you to start');
+            }
+
             $startedAt = now();
 
             // Calculate follow-up time in minutes (entered_at to started_at, always positive)
@@ -94,19 +106,28 @@ class AdminTaskService
      */
     public function completeTask(AdminTask $task, float $realizedTotalPrice, ?string $notes = null): AdminTask
     {
-        if ($task->status !== 'in_progress') {
-            throw new \Exception('Task must be in_progress status to complete');
-        }
-
-        if ($task->assigned_admin_id !== auth()->id()) {
-            throw new \Exception('Task must be assigned to you to complete');
-        }
-
         if ($realizedTotalPrice <= 0) {
             throw new \Exception('Realized price must be greater than zero');
         }
 
         return DB::transaction(function () use ($task, $realizedTotalPrice, $notes) {
+            $task = AdminTask::where('id', $task->id)
+                ->lockForUpdate()
+                ->with('taskable')
+                ->first();
+
+            if (! $task) {
+                throw new \Exception('Task is no longer available');
+            }
+
+            if ($task->status !== 'in_progress') {
+                throw new \Exception('Task must be in_progress status to complete');
+            }
+
+            if ($task->assigned_admin_id !== auth()->id()) {
+                throw new \Exception('Task must be assigned to you to complete');
+            }
+
             $completedAt = now();
 
             // Calculate completion time in minutes (started_at to completed_at, always positive)
@@ -174,6 +195,8 @@ class AdminTaskService
                 'assigned_admin_id' => $adminId,
             ]);
 
+            $this->notifyAssignedAdmin($task);
+
             activity()
                 ->performedOn($task)
                 ->causedBy($adminId)
@@ -181,5 +204,20 @@ class AdminTaskService
 
             return $task->fresh();
         });
+    }
+
+    protected function notifyAssignedAdmin(AdminTask $task): void
+    {
+        if (! $task->assigned_admin_id) {
+            return;
+        }
+
+        $admin = User::query()->find($task->assigned_admin_id);
+
+        if (! $admin) {
+            return;
+        }
+
+        $admin->notify(new TaskAssigned($task->fresh(['taskable'])));
     }
 }

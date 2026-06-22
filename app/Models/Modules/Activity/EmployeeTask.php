@@ -6,6 +6,7 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Services\Modules\Activity\BackdatePermissionService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,9 +16,19 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class EmployeeTask extends Model
 {
+    use HasFactory;
     use LogsActivity;
 
     protected $table = 'employee_tasks';
+
+    protected static function booted(): void
+    {
+        static::deleting(function (EmployeeTask $task): void {
+            // Comments use SoftDeletes — force-delete on task removal
+            // Participants and attachments are handled by DB-level cascade
+            $task->comments()->forceDelete();
+        });
+    }
 
     protected $fillable = [
         'business_unit_id',
@@ -36,6 +47,8 @@ class EmployeeTask extends Model
         'completed_at',
         'completed_by',
         'duration_minutes',
+        'edited_at',
+        'edited_by',
         'source',
         'source_reference_id',
         'validation_status',
@@ -47,6 +60,7 @@ class EmployeeTask extends Model
         'due_date' => 'date',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'edited_at' => 'datetime',
         'duration_minutes' => 'integer',
     ];
 
@@ -96,6 +110,14 @@ class EmployeeTask extends Model
     }
 
     /**
+     * Get the user who last edited this task
+     */
+    public function editedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'edited_by');
+    }
+
+    /**
      * Get the activity type
      */
     public function activityType(): BelongsTo
@@ -119,6 +141,14 @@ class EmployeeTask extends Model
         return $this->belongsToMany(User::class, 'task_participants', 'employee_task_id', 'user_id')
             ->withPivot(['is_owner', 'joined_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * Get task comments
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TaskComment::class, 'employee_task_id');
     }
 
     /**
@@ -199,7 +229,13 @@ class EmployeeTask extends Model
     // ==================== HELPER METHODS ====================
 
     /**
-     * Check if task is overdue
+     * Check if task is overdue.
+     *
+     * `due_date` is a date-only column.  We treat the deadline as the end
+     * of the due day so a task with `due_date = 2024-01-15` only flips
+     * to "overdue" once we're already inside 2024-01-16.  Without this
+     * the dashboard previously marked everything due today as overdue
+     * the moment the clock crossed midnight.
      */
     public function isOverdue(): bool
     {
@@ -207,7 +243,7 @@ class EmployeeTask extends Model
             return false;
         }
 
-        return $this->due_date && $this->due_date->isPast();
+        return $this->due_date && $this->due_date->copy()->endOfDay()->isPast();
     }
 
     /**

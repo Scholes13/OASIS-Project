@@ -58,7 +58,11 @@ class UserBusinessUnit extends Model
         'allocation_percentage',
         'is_active',
         'is_purchasing_admin',
+        'is_purchasing_report_access',
         'is_activity_admin',
+        'is_activity_report_access',
+        'is_it_support_admin',
+        'is_it_support_report_access',
         'permissions',
     ];
 
@@ -67,7 +71,11 @@ class UserBusinessUnit extends Model
         'allocation_percentage' => 'decimal:2',
         'is_active' => 'boolean',
         'is_purchasing_admin' => 'boolean',
+        'is_purchasing_report_access' => 'boolean',
         'is_activity_admin' => 'boolean',
+        'is_activity_report_access' => 'boolean',
+        'is_it_support_admin' => 'boolean',
+        'is_it_support_report_access' => 'boolean',
         'permissions' => 'array',
     ];
 

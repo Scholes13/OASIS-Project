@@ -88,6 +88,16 @@ export interface TaskParticipantUser {
     user?: User;
 }
 
+export interface TaskComment {
+    id: number;
+    user: { id: number; name: string } | null;
+    body: string;
+    edited_at: string | null;
+    created_at: string;
+    can_edit: boolean;
+    can_delete: boolean;
+}
+
 export interface Task {
     id: number;
     task_title: string;
@@ -113,6 +123,7 @@ export interface Task {
     participants: TaskParticipantUser[];
     department: Department;
     attachments?: TaskAttachment[];
+    comments_data?: TaskComment[];
     created_at: string;
     updated_at: string;
 }
@@ -131,6 +142,8 @@ export interface TaskFilters {
     status: string;
     date_from: string;
     date_to: string;
+    member_user_id: string;
+    scope?: 'my' | 'department';
 }
 
 // Pagination types
@@ -163,11 +176,34 @@ export interface PaginatedData<T> {
 }
 
 // Flash messages
+export interface CashflowImportFlashError {
+    row: number | null;
+    column: string;
+    message: string;
+    value?: string | number | boolean | null;
+}
+
+export interface CashflowImportFlash {
+    status: 'success' | 'failed';
+    summary: string;
+    file_name: string;
+    total_rows: number;
+    processed_rows: number;
+    created_rows: number;
+    updated_rows: number;
+    failed_rows: number;
+    truncated: boolean;
+    errors: CashflowImportFlashError[];
+}
+
 export interface FlashMessages {
     success?: string;
     error?: string;
     warning?: string;
     info?: string;
+    cashflow_import?: CashflowImportFlash;
+    just_logged_in?: boolean;
+    created_task_id?: number | string | null;
 }
 
 // Shared page props (from Inertia middleware)
@@ -179,6 +215,9 @@ export interface PageProps {
     availableBusinessUnits: BusinessUnit[];
     navigation: NavigationMenu;
     flash: FlashMessages;
+    notifications: {
+        unread_count: number;
+    };
     appName: string;
     [key: string]: unknown; // Index signature for Inertia compatibility
 }
@@ -201,3 +240,5 @@ export interface ActivityStat {
 // Re-export types from other modules
 export * from './purchasing';
 export * from './admin';
+export * from './notifications';
+export * from './ticket';

@@ -16,6 +16,7 @@ interface BusinessUnit {
 interface Assignment {
     id: number;
     is_activity_admin: boolean;
+    is_activity_report_access: boolean;
     is_primary: boolean;
     user: { id: number; name: string; email: string } | null;
     business_unit: BusinessUnit | null;
@@ -27,14 +28,16 @@ interface Props extends PageProps {
     assignments: PaginatedData<Assignment>;
     businessUnits: BusinessUnit[];
     adminCounts: Record<number, number>;
+    reportAccessCounts: Record<number, number>;
     filters: { business_unit_id: string; search: string };
 }
 
-export default function Index({ assignments, businessUnits, adminCounts, filters }: Props) {
+export default function Index({ assignments, businessUnits, adminCounts, reportAccessCounts, filters }: Props) {
     const { flash } = usePage<PageProps>().props;
     const [search, setSearch] = useState(filters.search);
     const [buFilter, setBuFilter] = useState(filters.business_unit_id);
     const [togglingId, setTogglingId] = useState<number | null>(null);
+    const [togglingReportId, setTogglingReportId] = useState<number | null>(null);
 
     useEffect(() => {
         if (flash.success) toast.success(flash.success);
@@ -57,6 +60,14 @@ export default function Index({ assignments, businessUnits, adminCounts, filters
         });
     };
 
+    const handleToggleReport = (id: number) => {
+        setTogglingReportId(id);
+        router.post(route('admin.activity-admins.toggle-report', { id }), {}, {
+            preserveScroll: true,
+            onFinish: () => setTogglingReportId(null),
+        });
+    };
+
     const totalAdmins = Object.values(adminCounts).reduce((a, b) => a + b, 0);
 
     return (
@@ -73,7 +84,7 @@ export default function Index({ assignments, businessUnits, adminCounts, filters
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
                         <div className="p-3 bg-primary rounded-xl">
                             <ShieldCheck className="w-6 h-6 text-primary" strokeWidth={1.5} />
@@ -81,6 +92,15 @@ export default function Index({ assignments, businessUnits, adminCounts, filters
                         <div>
                             <p className="text-sm text-gray-500">Total Activity Admins</p>
                             <p className="text-xl font-bold text-gray-900">{totalAdmins}</p>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
+                        <div className="p-3 bg-purple-100 rounded-xl">
+                            <ShieldCheck className="w-6 h-6 text-purple-600" strokeWidth={1.5} />
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Report Access</p>
+                            <p className="text-xl font-bold text-gray-900">{Object.values(reportAccessCounts).reduce((a, b) => a + b, 0)}</p>
                         </div>
                     </div>
                     {businessUnits.slice(0, 2).map((bu) => (
@@ -129,7 +149,7 @@ export default function Index({ assignments, businessUnits, adminCounts, filters
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                {['User', 'Business Unit', 'Department', 'Position', 'Activity Admin'].map((h) => (
+                                {['User', 'Business Unit', 'Department', 'Position', 'Activity Admin', 'Report Access'].map((h) => (
                                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                                 ))}
                             </tr>
@@ -137,7 +157,7 @@ export default function Index({ assignments, businessUnits, adminCounts, filters
                         <tbody className="divide-y divide-gray-100">
                             {assignments.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-12 text-center text-gray-400">
+                                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
                                         <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                                         Tidak ada data ditemukan.
                                     </td>
@@ -182,6 +202,38 @@ export default function Index({ assignments, businessUnits, adminCounts, filters
                                                 )}
                                             />
                                         </button>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {a.is_activity_admin ? (
+                                            <button
+                                                onClick={() => handleToggleReport(a.id)}
+                                                disabled={togglingReportId === a.id}
+                                                className={cn(
+                                                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2',
+                                                    a.is_activity_report_access ? 'bg-purple-600' : 'bg-gray-200',
+                                                    togglingReportId === a.id && 'opacity-50 cursor-wait'
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                                                        a.is_activity_report_access ? 'translate-x-6' : 'translate-x-1'
+                                                    )}
+                                                />
+                                            </button>
+                                        ) : (
+                                            <div className="relative group">
+                                                <button
+                                                    disabled
+                                                    className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-100 opacity-50 cursor-not-allowed"
+                                                >
+                                                    <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-1" />
+                                                </button>
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                                    Aktifkan Activity Admin terlebih dahulu
+                                                </div>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

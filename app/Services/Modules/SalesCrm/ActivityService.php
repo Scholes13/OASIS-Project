@@ -11,6 +11,10 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @deprecated SalesCrm module is archived. Retained on disk for reference
+ *             only. See docs/exec_plans.md for archive log.
+ */
 class ActivityService
 {
     /**

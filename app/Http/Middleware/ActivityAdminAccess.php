@@ -35,10 +35,7 @@ class ActivityAdminAccess
             abort(403, 'No business unit selected.');
         }
 
-        $isActivityAdmin = $user->activeBusinessUnits()
-            ->where('business_unit_id', $currentBuId)
-            ->where('is_activity_admin', true)
-            ->exists();
+        $isActivityAdmin = $user->isAdminInBuOrAncestor('is_activity_admin', $currentBuId);
 
         if (! $isActivityAdmin) {
             abort(403, 'Unauthorized. Activity Admin access required.');

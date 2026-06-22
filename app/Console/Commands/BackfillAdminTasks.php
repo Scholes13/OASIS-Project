@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 class BackfillAdminTasks extends Command
 {
     protected $signature = 'admin:backfill-tasks';
+
     protected $description = 'Create admin tasks for approved PRs that don\'t have tasks yet';
 
     public function handle(): int
@@ -29,6 +30,7 @@ class BackfillAdminTasks extends Command
 
         if ($count === 0) {
             $this->info('Nothing to do.');
+
             return Command::SUCCESS;
         }
 
@@ -57,7 +59,7 @@ class BackfillAdminTasks extends Command
         $bar->finish();
         $this->newLine(2);
         $this->info("Created {$created} admin tasks.");
-        $this->info('Total admin_tasks: ' . AdminTask::count());
+        $this->info('Total admin_tasks: '.AdminTask::count());
 
         return Command::SUCCESS;
     }

@@ -6,9 +6,7 @@ use App\Models\Core\Department;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrItem;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseRequestService
@@ -17,149 +15,46 @@ class PurchaseRequestService
 
     protected ApprovalWorkflowService $workflowService;
 
+    protected PrStatusTransitioner $statusTransitioner;
+
+    protected PrCacheManager $cacheManager;
+
+    protected PrAccessibleQueryBuilder $accessibleQueryBuilder;
+
     public function __construct(
         UniversalPRNumberingService $numberingService,
-        ApprovalWorkflowService $workflowService
+        ApprovalWorkflowService $workflowService,
+        ?PrStatusTransitioner $statusTransitioner = null,
+        ?PrCacheManager $cacheManager = null,
+        ?PrAccessibleQueryBuilder $accessibleQueryBuilder = null,
     ) {
         $this->numberingService = $numberingService;
         $this->workflowService = $workflowService;
+        $this->statusTransitioner = $statusTransitioner ?? app(PrStatusTransitioner::class);
+        $this->cacheManager = $cacheManager ?? app(PrCacheManager::class);
+        $this->accessibleQueryBuilder = $accessibleQueryBuilder ?? app(PrAccessibleQueryBuilder::class);
     }
 
     /**
-     * Get Purchase Requests based on user hierarchy and filters
+     * Get Purchase Requests based on user hierarchy and filters.
+     *
+     * Delegates to {@see PrAccessibleQueryBuilder::forCurrentUser()}.
      */
     public function getPurchaseRequestsQuery(array $filters = []): \Illuminate\Database\Eloquent\Builder
     {
-        $user = Auth::user();
-        $accessLevel = $user->getAccessLevel();
-
-        // Get business unit context
-        $currentBusinessUnitId = session('current_business_unit_id');
-        $currentBusinessUnit = \App\Models\Core\BusinessUnit::find($currentBusinessUnitId);
-        // Base query with business unit hierarchy consideration
-        $query = PurchaseRequest::with(['department', 'user', 'items', 'approvals']);
-
-        // Apply business unit filtering based on hierarchy
-        if ($currentBusinessUnit) {
-            if (in_array($accessLevel, ['super_admin', 'executive'])) {
-                $accessibleBusinessUnits = $currentBusinessUnit->getAccessibleBusinessUnits();
-                $query->whereIn('business_unit_id', $accessibleBusinessUnits);
-            } elseif ($accessLevel === 'general_manager') {
-                $managedBusinessUnits = $user->generalManagerBusinessUnitIds();
-                if (! empty($managedBusinessUnits)) {
-                    $query->whereIn('business_unit_id', $managedBusinessUnits);
-                } else {
-                    $query->where('business_unit_id', $currentBusinessUnitId);
-                }
-            } else {
-                $query->where('business_unit_id', $currentBusinessUnitId);
-            }
-        } else {
-            // Fallback: only current business unit
-            $query->where('business_unit_id', $currentBusinessUnitId);
-        }
-
-        // Apply hierarchy-based filtering
-        switch ($accessLevel) {
-            case 'super_admin':
-            case 'executive':
-            case 'general_manager':
-                // Can see all PRs in accessible business units (already filtered above)
-                break;
-
-            case 'department_head':
-                // Department head can see all PRs in their department
-                $query->where('department_id', $user->primary_department_id);
-                break;
-
-            case 'team_leader':
-                // Team leader can see their own + subordinates' PRs
-                $subordinateIds = $user->activeSubordinates()->pluck('id')->toArray();
-                $subordinateIds[] = $user->id; // Include own PRs
-                $query->whereIn('user_id', $subordinateIds);
-                break;
-
-            case 'staff':
-            default:
-                // Staff can only see their own PRs
-                $query->byUser($user->id);
-                break;
-        }
-
-        // Apply additional filters
-        if (isset($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-
-        if (isset($filters['user_id'])) {
-            $query->where('user_id', $filters['user_id']);
-        }
-
-        if (isset($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
-        }
-
-        if (isset($filters['date_from'])) {
-            $query->whereDate('date_of_request', '>=', $filters['date_from']);
-        }
-
-        if (isset($filters['date_to'])) {
-            $query->whereDate('date_of_request', '<=', $filters['date_to']);
-        }
-
-        // Apply sorting
-        $sortBy = $filters['sort_by'] ?? 'created_at';
-        $sortOrder = $filters['sort_order'] ?? 'desc';
-        $query->orderBy($sortBy, $sortOrder);
-
-        return $query;
+        return $this->accessibleQueryBuilder->forCurrentUser($filters);
     }
 
     /**
      * Get ALL Purchase Requests in current business unit without hierarchy filtering.
-     * Used for "All Requests" page where all users in a BU can see all PRs.
+     *
+     * Delegates to {@see PrAccessibleQueryBuilder::forCurrentBusinessUnit()}.
      *
      * @param  array  $filters  Optional filters (status, date_from, date_to, etc.)
      */
     public function getAllPurchaseRequestsQuery(array $filters = []): \Illuminate\Database\Eloquent\Builder
     {
-        $currentBusinessUnitId = session('current_business_unit_id');
-
-        // Base query - ALL PRs in current business unit (no hierarchy filtering)
-        $query = PurchaseRequest::with(['department', 'user', 'items', 'approvals', 'category'])
-            ->where('business_unit_id', $currentBusinessUnitId);
-
-        // Apply optional filters
-        if (isset($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-
-        if (isset($filters['user_id'])) {
-            $query->where('user_id', $filters['user_id']);
-        }
-
-        if (isset($filters['department_id'])) {
-            $query->where('department_id', $filters['department_id']);
-        }
-
-        if (isset($filters['category_id'])) {
-            $query->where('category_id', $filters['category_id']);
-        }
-
-        if (isset($filters['date_from'])) {
-            $query->whereDate('date_of_request', '>=', $filters['date_from']);
-        }
-
-        if (isset($filters['date_to'])) {
-            $query->whereDate('date_of_request', '<=', $filters['date_to']);
-        }
-
-        // Apply sorting
-        $sortBy = $filters['sort_by'] ?? 'created_at';
-        $sortOrder = $filters['sort_order'] ?? 'desc';
-        $query->orderBy($sortBy, $sortOrder);
-
-        return $query;
+        return $this->accessibleQueryBuilder->forCurrentBusinessUnit($filters);
     }
 
     /**
@@ -270,84 +165,35 @@ class PurchaseRequestService
     }
 
     /**
-     * Submit an EXISTING DRAFT Purchase Request for approval
+     * Submit an EXISTING DRAFT Purchase Request for approval.
      *
-     * ⚠️ CURRENTLY UNUSED - Kept for future "Save as Draft" feature
-     *
-     * Purpose: Transitions EXISTING draft PR from 'draft' → 'submitted' status
-     * Different from: Livewire Create::submitPurchaseRequest() (creates NEW PRs)
-     *
-     * Current Flow: App creates PRs directly as 'submitted' (no draft step)
-     * Future Use: If "Save as Draft" feature added, this submits those drafts
-     *
-     * @param  PurchaseRequest  $purchaseRequest  MUST be in 'draft' status
-     * @return PurchaseRequest Updated PR in 'submitted' status with workflow
+     * Delegates to {@see PrStatusTransitioner::submit()}.
      *
      * @throws \Exception If PR not in submittable state
      */
     public function submitPurchaseRequest(PurchaseRequest $purchaseRequest): PurchaseRequest
     {
-        if (! $purchaseRequest->canBeSubmitted()) {
-            throw new \Exception('This purchase request cannot be submitted.');
-        }
-
-        return DB::transaction(function () use ($purchaseRequest) {
-            // Update status to submitted
-            $purchaseRequest->update([
-                'status' => 'submitted',
-                'submitted_at' => now(),
-            ]);
-
-            // Create approval workflow
-            $this->workflowService->createWorkflow($purchaseRequest);
-
-            return $purchaseRequest;
-        });
+        return $this->statusTransitioner->submit($purchaseRequest);
     }
 
     /**
-     * Resubmit a rejected Purchase Request (reset workflow)
+     * Resubmit a rejected Purchase Request (reset workflow).
+     *
+     * Delegates to {@see PrStatusTransitioner::resubmit()}.
      */
     public function resubmitPurchaseRequest(PurchaseRequest $purchaseRequest): PurchaseRequest
     {
-        if ($purchaseRequest->status !== 'rejected') {
-            throw new \Exception('Only rejected purchase requests can be resubmitted.');
-        }
-
-        return DB::transaction(function () use ($purchaseRequest) {
-            // Preserve original submitted_at timestamp (for QR token reusability)
-            $originalSubmittedAt = $purchaseRequest->submitted_at;
-
-            // Reset the workflow (delete old approvals)
-            $this->workflowService->resetWorkflow($purchaseRequest);
-
-            // Update PR status and timestamps
-            // CRITICAL: Keep original submitted_at to ensure QR tokens remain valid
-            $purchaseRequest->update([
-                'status' => 'submitted',
-                'submitted_at' => $originalSubmittedAt ?? now(), // Reuse original timestamp
-                'rejected_at' => null,
-            ]);
-
-            // Create new approval workflow (will use preserved JSON if available)
-            $this->workflowService->createWorkflow($purchaseRequest);
-
-            return $purchaseRequest;
-        });
+        return $this->statusTransitioner->resubmit($purchaseRequest);
     }
 
     /**
-     * Void a Purchase Request
+     * Void a Purchase Request.
+     *
+     * Delegates to {@see PrStatusTransitioner::void()}.
      */
     public function voidPurchaseRequest(PurchaseRequest $purchaseRequest, string $reason): PurchaseRequest
     {
-        if (! $purchaseRequest->canBeVoided()) {
-            throw new \Exception('This purchase request cannot be voided.');
-        }
-
-        $purchaseRequest->void(Auth::user(), $reason);
-
-        return $purchaseRequest;
+        return $this->statusTransitioner->void($purchaseRequest, $reason);
     }
 
     /**
@@ -429,139 +275,21 @@ class PurchaseRequestService
     }
 
     /**
-     * Clear dashboard cache for affected users when PR is created/updated
-     * ✅ Call this after any PR mutation (create, update, delete, approve, reject)
+     * Clear dashboard cache for affected users when PR is created/updated.
+     *
+     * Delegates to {@see PrCacheManager::clearForPurchaseRequest()}.
      *
      * @param  PurchaseRequest  $pr  The purchase request that was modified
      */
     public function clearDashboardCache(PurchaseRequest $pr): void
     {
-        // Clear cache for PR creator
-        $this->clearUserDashboardCache($pr->user_id);
-
-        // Clear cache for all approvers involved
-        $approvers = $pr->approvals()->pluck('approver_id')->unique();
-        foreach ($approvers as $approverId) {
-            $this->clearUserDashboardCache($approverId);
-        }
-
-        // Clear cache for last modifier if exists
-        if ($pr->last_modified_by) {
-            $this->clearUserDashboardCache($pr->last_modified_by);
-        }
+        $this->cacheManager->clearForPurchaseRequest($pr);
     }
 
     /**
-     * Clear dashboard cache for a specific user
+     * Mark a Purchase Request as approved offline/manually.
      *
-     * @param  int  $userId  The user ID whose cache should be cleared
-     */
-    protected function clearUserDashboardCache(int $userId): void
-    {
-        // Get user to access their business units
-        $user = \App\Models\Core\User::find($userId);
-        if (! $user) {
-            return;
-        }
-
-        // Clear all date filter variations
-        $dateFilters = ['today', 'this_week', 'this_month', 'this_year', 'last_7_days', 'last_30_days', 'custom'];
-
-        // Get all possible business unit combinations for this user
-        $businessUnits = $user->businessUnits()->with('businessUnit.children')->get();
-        $buIds = [];
-        foreach ($businessUnits as $userBU) {
-            if ($userBU->businessUnit) {
-                $buIds[] = $userBU->businessUnit->id;
-            }
-        }
-
-        if (empty($buIds)) {
-            return;
-        }
-
-        $buHash = md5(implode(',', $buIds));
-
-        // Clear stats cache for all date filters
-        foreach ($dateFilters as $filter) {
-            $dates = $this->getFilterDates($filter);
-            $key = sprintf(
-                'dashboard.stats.u%s.bu%s.f%s.d%s-%s',
-                $userId,
-                $buHash,
-                $filter,
-                $dates['start'],
-                $dates['end']
-            );
-            Cache::forget($key);
-        }
-
-        // Clear activities cache
-        Cache::forget(sprintf('dashboard.activities.u%s.bu%s', $userId, $buHash));
-
-        // Clear chart cache
-        foreach ($dateFilters as $filter) {
-            $dates = $this->getFilterDates($filter);
-            $key = sprintf(
-                'dashboard.chart.bu%s.f%s.d%s-%s',
-                $buHash,
-                $filter,
-                $dates['start'],
-                $dates['end']
-            );
-            Cache::forget($key);
-        }
-
-        // Clear business units cache
-        Cache::forget(sprintf('dashboard.business_units.u%s', $userId));
-
-        \Log::info("✅ Dashboard cache cleared for user {$userId}");
-    }
-
-    /**
-     * Get start and end dates for a given filter
-     * Helper method for cache key generation
-     */
-    protected function getFilterDates(string $filter): array
-    {
-        return match ($filter) {
-            'today' => [
-                'start' => now()->format('Y-m-d'),
-                'end' => now()->format('Y-m-d'),
-            ],
-            'this_week' => [
-                'start' => now()->startOfWeek()->format('Y-m-d'),
-                'end' => now()->endOfWeek()->format('Y-m-d'),
-            ],
-            'this_month' => [
-                'start' => now()->startOfMonth()->format('Y-m-d'),
-                'end' => now()->endOfMonth()->format('Y-m-d'),
-            ],
-            'this_year' => [
-                'start' => now()->startOfYear()->format('Y-m-d'),
-                'end' => now()->endOfYear()->format('Y-m-d'),
-            ],
-            'last_7_days' => [
-                'start' => now()->subDays(7)->format('Y-m-d'),
-                'end' => now()->format('Y-m-d'),
-            ],
-            'last_30_days' => [
-                'start' => now()->subDays(30)->format('Y-m-d'),
-                'end' => now()->format('Y-m-d'),
-            ],
-            default => [
-                'start' => now()->startOfMonth()->format('Y-m-d'),
-                'end' => now()->endOfMonth()->format('Y-m-d'),
-            ],
-        };
-    }
-
-    /**
-     * Mark a Purchase Request as approved offline/manually
-     *
-     * This is used when the digital approval process is too slow and the user
-     * has exported the PR for manual/offline approval. This marks the entire PR
-     * as approved in one action (not step by step).
+     * Delegates to {@see PrStatusTransitioner::markAsOfflineApproved()}.
      *
      * @param  string|null  $notes  Optional notes explaining why offline approval was used
      * @param  string|null  $documentPath  Path to uploaded offline approval document
@@ -569,51 +297,11 @@ class PurchaseRequestService
      */
     public function markAsOfflineApproved(PurchaseRequest $purchaseRequest, ?string $notes = null, ?string $documentPath = null, ?string $documentName = null): PurchaseRequest
     {
-        return DB::transaction(function () use ($purchaseRequest, $notes, $documentPath, $documentName) {
-            $user = Auth::user();
-
-            // Update all pending approvals to approved (mark as offline)
-            // Note: pr_approvals uses 'responded_at' not 'approved_at'
-            $purchaseRequest->approvals()
-                ->where('status', 'pending')
-                ->update([
-                    'status' => 'approved',
-                    'responded_at' => now(),
-                    'notes' => 'Approved offline/manually',
-                ]);
-
-            // Update the PR status to approved with offline approval info
-            $updateData = [
-                'status' => 'approved',
-                'approved_at' => now(),
-                'offline_approved_at' => now(),
-                'offline_approved_by' => $user->id,
-                'offline_approval_notes' => $notes,
-            ];
-
-            // Add document info if uploaded
-            if ($documentPath) {
-                $updateData['offline_approval_document_path'] = $documentPath;
-                $updateData['offline_approval_document_name'] = $documentName;
-            }
-
-            $purchaseRequest->update($updateData);
-
-            // Log activity
-            activity()
-                ->performedOn($purchaseRequest)
-                ->causedBy($user)
-                ->withProperties([
-                    'action' => 'offline_approved',
-                    'notes' => $notes,
-                    'document_path' => $documentPath,
-                    'previous_status' => $purchaseRequest->getOriginal('status'),
-                ])
-                ->log('PR marked as approved offline/manually');
-
-            \Log::info("PR #{$purchaseRequest->pr_number} marked as offline approved by user {$user->id}");
-
-            return $purchaseRequest->fresh();
-        });
+        return $this->statusTransitioner->markAsOfflineApproved(
+            $purchaseRequest,
+            $notes,
+            $documentPath,
+            $documentName
+        );
     }
 }

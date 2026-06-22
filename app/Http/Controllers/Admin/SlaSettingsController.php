@@ -21,12 +21,12 @@ class SlaSettingsController extends Controller
      */
     public function index()
     {
-        if (!Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()->isSuperAdmin()) {
             abort(403, 'Only Super Administrators can access SLA settings.');
         }
 
         // Get all business units
-        $businessUnits = BusinessUnit::orderBy('name')->get()->map(fn($bu) => [
+        $businessUnits = BusinessUnit::orderBy('name')->get()->map(fn ($bu) => [
             'id' => $bu->id,
             'name' => $bu->name,
             'code' => $bu->code,
@@ -34,7 +34,7 @@ class SlaSettingsController extends Controller
         ]);
 
         // Get SLA settings for each business unit
-        $slaSettings = SlaSettings::with('businessUnit')->get()->keyBy('business_unit_id')->map(fn($setting) => [
+        $slaSettings = SlaSettings::with('businessUnit')->get()->keyBy('business_unit_id')->map(fn ($setting) => [
             'id' => $setting->id,
             'business_unit_id' => $setting->business_unit_id,
             'followup_sla_hours' => $setting->followup_sla_hours,
@@ -72,8 +72,8 @@ class SlaSettingsController extends Controller
 
             // Get SLA settings for this business unit
             $slaSettings = SlaSettings::where('business_unit_id', $businessUnit['id'])->first();
-            
-            if (!$slaSettings) {
+
+            if (! $slaSettings) {
                 continue;
             }
 
@@ -112,7 +112,7 @@ class SlaSettingsController extends Controller
      */
     public function update(Request $request)
     {
-        if (!Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()->isSuperAdmin()) {
             abort(403, 'Only Super Administrators can modify SLA settings.');
         }
 
@@ -136,6 +136,6 @@ class SlaSettingsController extends Controller
             $validated
         );
 
-        return back()->with('success', 'SLA settings updated successfully for ' . $slaSettings->businessUnit->name . '.');
+        return back()->with('success', 'SLA settings updated successfully for '.$slaSettings->businessUnit->name.'.');
     }
 }

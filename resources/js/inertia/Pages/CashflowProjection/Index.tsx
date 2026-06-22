@@ -1,42 +1,32 @@
-import { Head, Link } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import DashboardHeader from './components/DashboardHeader';
 import ProjectionChartCard from './components/ProjectionChartCard';
 import RecentTransactionsTable from './components/RecentTransactionsTable';
-import StatsCards from './components/StatsCards';
+import StatsCards, { type StatsCardItem } from './components/StatsCards';
 import './cashflow-dashboard.css';
-import type { CashflowProjectionPageProps, DailySummaryRow } from './types';
+import type {
+    CashflowProjectionPageProps,
+    DashboardFilterMode,
+    DailySummaryRow,
+    MonthlySummaryRow,
+} from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-function buildTrend(current: number, previous: number | null, positiveIsGood = true): { label: string; tone: 'up' | 'down' | 'neutral' } {
-    if (!previous || previous === 0) {
-        return { label: '0% vs baseline', tone: 'neutral' };
-    }
-
-    const deltaPct = ((current - previous) / Math.abs(previous)) * 100;
-    const display = `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(1)}%`;
-
-    if (deltaPct === 0) {
-        return { label: `${display} no change`, tone: 'neutral' };
-    }
-
-    const improvement = positiveIsGood ? deltaPct > 0 : deltaPct < 0;
-    return {
-        label: improvement ? `${display} improved` : `${display} lower spend`,
-        tone: improvement ? 'up' : 'down',
-    };
-}
-
-function toIsoDate(year: number, month: number, day: number): string {
-    const safeMonth = String(Math.max(1, Math.min(12, month))).padStart(2, '0');
-    const safeDay = String(Math.max(1, day)).padStart(2, '0');
-    return `${year}-${safeMonth}-${safeDay}`;
-}
+type ChartRow = {
+    key: string;
+    label: string;
+    inflow: number;
+    outflow: number;
+    closingBalance?: number;
+};
 
 function parseIsoDateParts(dateValue: string): { year: number; month: number; day: number } {
     const [year, month, day] = dateValue.split('-').map(Number);
+
     return {
         year: Number.isFinite(year) ? year : 0,
         month: Number.isFinite(month) ? month : 0,
@@ -44,183 +34,390 @@ function parseIsoDateParts(dateValue: string): { year: number; month: number; da
     };
 }
 
-function formatDayPillLabel(dateValue: string): string {
+function formatIsoDate(dateValue: string, options: Intl.DateTimeFormatOptions): string {
     const { year, month, day } = parseIsoDateParts(dateValue);
-    if (!year || !month || !day) return dateValue;
 
-    const date = new Date(year, month - 1, day);
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-    const dayNum = String(day).padStart(2, '0');
-    return `${dayName} ${dayNum}`;
+    if (!year || !month || !day) {
+        return dateValue;
+    }
+
+    return new Date(year, month - 1, day).toLocaleDateString('id-ID', options);
 }
 
-export default function CashflowProjectionIndex({
-    year,
-    selectedMonth,
-    monthlySummary,
-    dailySummary,
-    lineItems,
-}: CashflowProjectionPageProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const [selectedDayKey, setSelectedDayKey] = useState<string>('all');
+function formatPeriodTitle(mode: DashboardFilterMode, year: number, month: number, startDate: string, endDate: string): string {
+    if (mode === 'year') {
+        return `FY ${year}`;
+    }
 
-    const daysInSelectedMonth = useMemo(() => new Date(year, selectedMonth, 0).getDate(), [year, selectedMonth]);
+    if (mode === 'range') {
+        return `${formatIsoDate(startDate, { day: '2-digit', month: 'short' })} - ${formatIsoDate(endDate, { day: '2-digit', month: 'short', year: 'numeric' })}`;
+    }
 
-    const selectedMonthProjection = useMemo(() => {
-        return monthlySummary.find((row) => row.month === selectedMonth) ?? null;
-    }, [monthlySummary, selectedMonth]);
+    return `${formatMonthLabel(month)} ${year}`;
+}
 
-    const previousMonthProjection = useMemo(() => {
-        return monthlySummary.find((row) => row.month === selectedMonth - 1) ?? null;
-    }, [monthlySummary, selectedMonth]);
+function formatPeriodCaption(mode: DashboardFilterMode, year: number, month: number, startDate: string, endDate: string): string {
+    if (mode === 'year') {
+        return `Yearly portfolio view across Jan-Dec ${year}.`;
+    }
 
-    const dailyRowsForMonth = useMemo(() => {
-        const byDay = new Map<number, DailySummaryRow>();
-        dailySummary.forEach((row) => {
-            const { day } = parseIsoDateParts(row.date);
-            if (day < 1 || day > daysInSelectedMonth) return;
-            byDay.set(day, row);
-        });
+    if (mode === 'range') {
+        return `Custom window from ${formatIsoDate(startDate, { day: '2-digit', month: 'long', year: 'numeric' })} to ${formatIsoDate(endDate, { day: '2-digit', month: 'long', year: 'numeric' })}.`;
+    }
 
-        return Array.from({ length: daysInSelectedMonth }, (_, index) => {
-            const day = index + 1;
-            const fallbackDate = toIsoDate(year, selectedMonth, day);
-            const row = byDay.get(day);
-            return {
-                key: row?.date ?? fallbackDate,
-                label: String(day).padStart(2, '0'),
-                inflow: row?.plus ?? 0,
-                outflow: row?.minus ?? 0,
-            };
-        });
-    }, [dailySummary, daysInSelectedMonth, year, selectedMonth]);
+    return `${formatMonthLabel(month)} ${year} monthly focus with daily cash movement detail.`;
+}
 
-    const dailyInflowTotal = useMemo(() => dailyRowsForMonth.reduce((sum, row) => sum + row.inflow, 0), [dailyRowsForMonth]);
-    const dailyOutflowTotal = useMemo(() => dailyRowsForMonth.reduce((sum, row) => sum + row.outflow, 0), [dailyRowsForMonth]);
-    const dailyNetTotal = dailyInflowTotal - dailyOutflowTotal;
+function monthsInScope(startDate: string, endDate: string): number[] {
+    const start = parseIsoDateParts(startDate);
+    const end = parseIsoDateParts(endDate);
 
-    const totalBalanceTrend = buildTrend(selectedMonthProjection?.closing_balance ?? 0, previousMonthProjection?.closing_balance ?? null, true);
-    const inflowTrend = buildTrend(selectedMonthProjection?.plus ?? 0, previousMonthProjection?.plus ?? null, true);
-    const outflowTrend = buildTrend(selectedMonthProjection?.minus ?? 0, previousMonthProjection?.minus ?? null, false);
+    if (!start.year || !start.month || !end.year || !end.month) {
+        return [];
+    }
 
-    const netTrendLabel = useMemo(() => {
-        if (dailyNetTotal === 0) return 'Stable daily trend';
-        return dailyNetTotal > 0 ? 'Positive daily trend' : 'Negative daily trend';
-    }, [dailyNetTotal]);
+    const months: number[] = [];
+    const cursor = new Date(start.year, start.month - 1, 1);
+    const last = new Date(end.year, end.month - 1, 1);
 
-    const dayPills = useMemo(() => {
-        return dailySummary.map((row) => ({
+    while (cursor <= last) {
+        months.push(cursor.getMonth() + 1);
+        cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return months;
+}
+
+function formatSignedCurrency(value: number): string {
+    if (value === 0) {
+        return formatCurrency(0);
+    }
+
+    return `${value > 0 ? '+' : '-'}${formatCurrency(Math.abs(value))}`;
+}
+
+function buildDailyRows(dailySummary: DailySummaryRow[], monthlySummary: MonthlySummaryRow[], compact: boolean): ChartRow[] {
+    let currentBalance = 0;
+    let currentMonth = -1;
+
+    return dailySummary.map((row) => {
+        const { month } = parseIsoDateParts(row.date);
+
+        if (month !== currentMonth) {
+            currentMonth = month;
+            const monthData = monthlySummary.find((m) => m.month === month);
+            if (monthData) {
+                currentBalance = monthData.opening_balance + monthData.finance_income;
+            } else {
+                currentBalance = 0;
+            }
+        }
+
+        currentBalance += row.net;
+
+        return {
             key: row.date,
-            label: formatDayPillLabel(row.date),
-        }));
-    }, [dailySummary]);
+            label: compact
+                ? formatIsoDate(row.date, { day: '2-digit', month: 'short' })
+                : formatIsoDate(row.date, { day: '2-digit' }),
+            inflow: row.plus,
+            outflow: row.minus,
+            closingBalance: currentBalance,
+        };
+    });
+}
 
-    const monthlyChartRows = useMemo(() => {
-        return monthlySummary.map((row) => ({
+function buildWeeklyRows(dailyRows: ChartRow[]): ChartRow[] {
+    const buckets: ChartRow[] = [];
+
+    for (let index = 0; index < dailyRows.length; index += 7) {
+        const slice = dailyRows.slice(index, index + 7);
+
+        if (slice.length === 0) {
+            continue;
+        }
+
+        const first = slice[0];
+        const last = slice[slice.length - 1];
+
+        buckets.push({
+            key: `${first.key}-${last.key}`,
+            label: `${formatIsoDate(first.key, { day: '2-digit', month: 'short' })} - ${formatIsoDate(last.key, { day: '2-digit', month: 'short' })}`,
+            inflow: slice.reduce((sum, row) => sum + row.inflow, 0),
+            outflow: slice.reduce((sum, row) => sum + row.outflow, 0),
+            closingBalance: last.closingBalance,
+        });
+    }
+
+    return buckets;
+}
+
+function buildMonthlyRows(monthlySummary: MonthlySummaryRow[], visibleMonths: number[]): ChartRow[] {
+    return monthlySummary
+        .filter((row) => visibleMonths.includes(row.month))
+        .map((row) => ({
+            key: String(row.month),
             label: formatMonthLabel(row.month),
             inflow: row.plus + row.finance_income,
             outflow: row.minus,
+            closingBalance: row.closing_balance,
         }));
-    }, [monthlySummary]);
+}
 
-    const weeklyChartRows = useMemo(() => {
-        const weekCount = Math.ceil(daysInSelectedMonth / 7);
-        const buckets = Array.from({ length: weekCount }, (_, index) => ({
-            label: `W${index + 1}`,
-            inflow: 0,
-            outflow: 0,
-        }));
+function resolveDefaultViewMode(mode: DashboardFilterMode): ViewMode {
+    return mode === 'year' ? 'month' : 'day';
+}
 
-        dailyRowsForMonth.forEach((row, index) => {
-            const bucketIndex = Math.floor(index / 7);
-            buckets[bucketIndex].inflow += row.inflow;
-            buckets[bucketIndex].outflow += row.outflow;
-        });
+export default function CashflowProjectionIndex({
+    filters,
+    summary,
+    dailySummary,
+    monthlySummary,
+    lineItems,
+    minimumBalanceGlobal,
+    scope,
+    linkedBusinessUnits,
+}: CashflowProjectionPageProps) {
+    const minimumBalanceThreshold = minimumBalanceGlobal > 0 ? minimumBalanceGlobal : 200_000_000;
+    const hasLinkedUnits = linkedBusinessUnits && linkedBusinessUnits.length > 0;
+    const [viewMode, setViewMode] = useState<ViewMode>(resolveDefaultViewMode(filters.mode));
+    const [selectedDayKey, setSelectedDayKey] = useState<string>('all');
+    const [draftMode, setDraftMode] = useState<DashboardFilterMode>(filters.mode);
+    const [draftYear, setDraftYear] = useState<string>(String(filters.year));
+    const [draftMonth, setDraftMonth] = useState<string>(String(filters.month));
+    const [draftStartDate, setDraftStartDate] = useState<string>(filters.start_date);
+    const [draftEndDate, setDraftEndDate] = useState<string>(filters.end_date);
 
-        return buckets;
-    }, [dailyRowsForMonth, daysInSelectedMonth]);
+    useEffect(() => {
+        setDraftMode(filters.mode);
+        setDraftYear(String(filters.year));
+        setDraftMonth(String(filters.month));
+        setDraftStartDate(filters.start_date);
+        setDraftEndDate(filters.end_date);
+        setViewMode(resolveDefaultViewMode(filters.mode));
+        setSelectedDayKey('all');
+    }, [filters.end_date, filters.mode, filters.month, filters.start_date, filters.year]);
+
+    const periodTitle = useMemo(() => {
+        return formatPeriodTitle(filters.mode, filters.year, filters.month, filters.start_date, filters.end_date);
+    }, [filters.end_date, filters.mode, filters.month, filters.start_date, filters.year]);
+
+    const periodCaption = useMemo(() => {
+        return formatPeriodCaption(filters.mode, filters.year, filters.month, filters.start_date, filters.end_date);
+    }, [filters.end_date, filters.mode, filters.month, filters.start_date, filters.year]);
+
+    const draftPeriodTitle = useMemo(() => {
+        return formatPeriodTitle(draftMode, Number(draftYear) || filters.year, Number(draftMonth) || filters.month, draftStartDate || filters.start_date, draftEndDate || filters.end_date);
+    }, [draftEndDate, draftMode, draftMonth, draftStartDate, draftYear, filters.end_date, filters.month, filters.start_date, filters.year]);
+
+    const visibleMonths = useMemo(() => monthsInScope(filters.start_date, filters.end_date), [filters.end_date, filters.start_date]);
+
+    const dailyRows = useMemo(() => {
+        const compact = filters.mode !== 'month';
+
+        return buildDailyRows(dailySummary, monthlySummary, compact);
+    }, [dailySummary, monthlySummary, filters.mode]);
+
+    const weeklyRows = useMemo(() => buildWeeklyRows(dailyRows), [dailyRows]);
+    const monthlyRows = useMemo(() => buildMonthlyRows(monthlySummary, visibleMonths), [monthlySummary, visibleMonths]);
+
+    const dayPills = useMemo(() => {
+        if (dailyRows.length > 45) {
+            return [];
+        }
+
+        return dailyRows
+            .filter((row) => row.inflow > 0 || row.outflow > 0)
+            .map((row) => ({
+                key: row.key,
+                label: formatIsoDate(row.key, { weekday: 'short', day: '2-digit' }),
+            }));
+    }, [dailyRows]);
 
     const dailyChartRows = useMemo(() => {
         if (selectedDayKey === 'all') {
-            return dailyRowsForMonth.map((row) => ({
-                label: row.label,
-                inflow: row.inflow,
-                outflow: row.outflow,
-            }));
+            return dailyRows;
         }
 
-        const selectedRow = dailyRowsForMonth.find((row) => row.key === selectedDayKey);
-        if (!selectedRow) return [];
+        const selectedRow = dailyRows.find((row) => row.key === selectedDayKey);
 
-        return [{ label: selectedRow.label, inflow: selectedRow.inflow, outflow: selectedRow.outflow }];
-    }, [dailyRowsForMonth, selectedDayKey]);
+        return selectedRow ? [selectedRow] : [];
+    }, [dailyRows, selectedDayKey]);
 
     const chartData = useMemo(() => {
-        if (viewMode === 'day') return dailyChartRows;
-        if (viewMode === 'week') return weeklyChartRows;
-        return monthlyChartRows;
-    }, [viewMode, dailyChartRows, weeklyChartRows, monthlyChartRows]);
+        if (viewMode === 'day') {
+            return dailyChartRows;
+        }
 
-    const chartMaxValue = useMemo(() => {
-        const maxValue = chartData.reduce((max, row) => Math.max(max, row.inflow, row.outflow), 0);
-        return Math.max(maxValue, 1);
-    }, [chartData]);
+        if (viewMode === 'week') {
+            return weeklyRows;
+        }
+
+        return monthlyRows;
+    }, [dailyChartRows, monthlyRows, viewMode, weeklyRows]);
+
+    const cards = useMemo<StatsCardItem[]>(() => {
+        const isBelowMinimumBalance = summary.total_balance < minimumBalanceThreshold;
+
+        return [
+            {
+                label: 'Saldo Proyeksi',
+                value: formatCurrency(summary.total_balance),
+                caption: isBelowMinimumBalance
+                    ? `Estimasi saldo akhir berada di bawah batas minimum ${formatCurrency(minimumBalanceThreshold)} untuk periode ini.`
+                    : 'Estimasi saldo akhir pada periode yang dipilih.',
+                tone: isBelowMinimumBalance ? 'negative' : 'positive',
+            },
+            {
+                label: 'Period Inflow',
+                value: formatCurrency(summary.inflow),
+                caption: 'Operational cash inflow captured from projection entries.',
+                tone: summary.inflow > 0 ? 'positive' : 'neutral',
+            },
+            {
+                label: 'Period Outflow',
+                value: formatCurrency(summary.outflow),
+                caption: 'Committed spend and outgoing cash for the selected window.',
+                tone: summary.outflow > summary.inflow ? 'negative' : 'neutral',
+            },
+            {
+                label: 'Net Cashflow',
+                value: formatSignedCurrency(summary.net_cashflow),
+                caption: `${formatCurrency(summary.finance_income)} finance income included in this net position.`,
+                tone: summary.net_cashflow > 0 ? 'positive' : summary.net_cashflow < 0 ? 'negative' : 'neutral',
+            },
+        ];
+    }, [minimumBalanceThreshold, summary.finance_income, summary.inflow, summary.net_cashflow, summary.outflow, summary.total_balance]);
 
     const recentLineItems = useMemo(() => lineItems.slice(0, 5), [lineItems]);
+    const rangeSelectionIncomplete = draftMode === 'range' && (!draftStartDate || !draftEndDate);
+    const exportParams = useMemo(() => {
+        const params: Record<string, string | number> = {
+            filter: filters.mode,
+            year: filters.year,
+        };
+
+        if (filters.mode === 'month') {
+            params.month = filters.month;
+        }
+
+        if (filters.mode === 'range') {
+            params.start_date = filters.start_date;
+            params.end_date = filters.end_date;
+        }
+
+        if (hasLinkedUnits) {
+            params.scope = scope;
+        }
+
+        return params;
+    }, [filters.end_date, filters.mode, filters.month, filters.start_date, filters.year, hasLinkedUnits, scope]);
+
+    const applyFilters = (overrideScope?: 'own' | 'consolidated') => {
+        const params: Record<string, number | string> = {
+            filter: draftMode,
+            year: Number(draftYear) || filters.year,
+        };
+
+        if (draftMode === 'month') {
+            params.month = Number(draftMonth) || filters.month;
+        }
+
+        if (draftMode === 'range') {
+            if (rangeSelectionIncomplete) {
+                return;
+            }
+
+            params.start_date = draftStartDate;
+            params.end_date = draftEndDate;
+        }
+
+        if (hasLinkedUnits) {
+            params.scope = overrideScope ?? scope;
+        }
+
+        router.get(route('cashflow-projection.index'), params, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    };
+
+    const resetToCurrentMonth = () => {
+        const now = new Date();
+
+        router.get(route('cashflow-projection.index'), {
+            filter: 'month',
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    };
 
     return (
         <>
             <Head title="Cashflow Projection" />
 
-            <div className="w-full px-6 py-8 lg:px-8 2xl:px-10">
-                <div className="mx-auto w-full max-w-screen-2xl space-y-8">
-                    <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                            <p className="text-sm font-semibold text-slate-700">Finance</p>
-                            <h1 className="text-[2rem] font-bold text-foreground">Cashflow Projection</h1>
-                            <p className="text-sm text-muted-foreground">
-                                {formatMonthLabel(selectedMonth)} {year} &mdash; Monitor inflow, outflow, and projected balances.
-                            </p>
-                        </div>
-                        <Link
-                            href={route('cashflow-projection.entries')}
-                            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#16599c] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#124a82]"
-                        >
-                            <span>Add Entry</span>
-                            <ArrowRight className="h-4 w-4" />
-                        </Link>
-                    </div>
-
-                    <StatsCards
-                        totalBalanceLabel={formatCurrency(selectedMonthProjection?.closing_balance ?? 0)}
-                        dailyInflowLabel={formatCurrency(dailyInflowTotal)}
-                        dailyOutflowLabel={formatCurrency(dailyOutflowTotal)}
-                        netCashflowLabel={`${dailyNetTotal >= 0 ? '+' : ''}${formatCurrency(dailyNetTotal)}`}
-                        totalTrendLabel={`${totalBalanceTrend.label} vs last month`}
-                        totalTrendTone={totalBalanceTrend.tone}
-                        inflowTrendLabel={`${inflowTrend.label} vs average`}
-                        inflowTrendTone={inflowTrend.tone}
-                        outflowTrendLabel={`${outflowTrend.label} lower spend`}
-                        outflowTrendTone={outflowTrend.tone}
-                        netTrendLabel={netTrendLabel}
+            <div className="w-full font-sans text-slate-900 pb-12">
+                <main className="w-full px-6 py-6 lg:px-8">
+                    <div className="mx-auto w-full max-w-screen-2xl space-y-6">
+                    <DashboardHeader
+                        periodTitle={periodTitle}
+                        periodCaption={periodCaption}
+                        filteredEntryCount={lineItems.length}
+                        financeIncome={summary.finance_income}
+                        draftMode={draftMode}
+                        draftYear={draftYear}
+                        draftMonth={draftMonth}
+                        draftStartDate={draftStartDate}
+                        draftEndDate={draftEndDate}
+                        draftPeriodTitle={draftPeriodTitle}
+                        availableYears={filters.available_years}
+                        filtersYear={filters.year}
+                        filtersMonth={filters.month}
+                        filtersStartDate={filters.start_date}
+                        filtersEndDate={filters.end_date}
+                        rangeSelectionIncomplete={rangeSelectionIncomplete}
+                        hasLinkedUnits={hasLinkedUnits}
+                        scope={scope}
+                        exportParams={exportParams}
+                        formatIsoDate={formatIsoDate}
+                        onDraftModeChange={setDraftMode}
+                        onDraftYearChange={setDraftYear}
+                        onDraftMonthChange={setDraftMonth}
+                        onDraftStartDateChange={setDraftStartDate}
+                        onDraftEndDateChange={setDraftEndDate}
+                        onApplyFilters={applyFilters}
+                        onResetToCurrentMonth={resetToCurrentMonth}
                     />
 
+                    <StatsCards cards={cards} />
+
                     <ProjectionChartCard
+                        title="Cashflow Projection"
+                        subtitle={`Granular trend for ${periodTitle}. Switch between day, week, or month to inspect movement density.`}
                         chartData={chartData}
-                        chartMaxValue={chartMaxValue}
                         viewMode={viewMode}
                         onViewModeChange={setViewMode}
                         dayPills={dayPills}
                         selectedDayKey={selectedDayKey}
                         onDayFilterChange={setSelectedDayKey}
+                        minimumBalanceThreshold={minimumBalanceThreshold}
                     />
 
                     <div>
-                        <RecentTransactionsTable lineItems={recentLineItems} />
+                        <RecentTransactionsTable
+                            lineItems={recentLineItems}
+                            title="Selected Transactions"
+                            caption="Most recent entries that match the active dashboard filter."
+                        />
                         {lineItems.length > 5 && (
                             <div className="mt-3 flex justify-end">
                                 <Link
-                                    href={route('cashflow-projection.entries')}
+                                    href={route('cashflow-projection.entries', { year: filters.year, month: filters.month })}
                                     className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
                                 >
                                     View all {lineItems.length} entries
@@ -230,6 +427,7 @@ export default function CashflowProjectionIndex({
                         )}
                     </div>
                 </div>
+                </main>
             </div>
         </>
     );

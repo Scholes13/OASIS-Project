@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Support\ViteHotFileGuard;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->cleanupStaleViteHotFile();
+
         // Register PDF Layout Component
         Blade::component('pdf-layout', \App\View\Components\PdfLayout::class);
 
@@ -28,8 +32,10 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom([
             database_path('migrations'),
             database_path('migrations/modules/activity'),
+            database_path('migrations/modules/purchasing'),
             // database_path('migrations/modules/sales-crm'), // Temporarily disabled due to duplicate migrations
             database_path('migrations/modules/stock-request'),
+            database_path('migrations/modules/ticket'),
         ]);
 
         // Configure dynamic SMTP settings from database
@@ -42,11 +48,34 @@ class AppServiceProvider extends ServiceProvider
         $this->registerObservers();
     }
 
+    protected function cleanupStaleViteHotFile(): void
+    {
+        $hotFilePath = public_path('hot');
+        $environment = (string) config('app.env');
+
+        if (! app(ViteHotFileGuard::class)->cleanup($environment, $hotFilePath)) {
+            return;
+        }
+
+        Log::warning('Removed stale Vite hot file outside local runtime.', [
+            'environment' => $environment,
+            'hot_file' => $hotFilePath,
+        ]);
+    }
+
     /**
      * Register model observers
      */
     protected function registerObservers(): void
     {
+        \App\Models\Core\UserBusinessUnit::observe(
+            \App\Observers\UserBusinessUnitObserver::class
+        );
+
+        \App\Models\Core\BusinessUnit::observe(
+            \App\Observers\BusinessUnitObserver::class
+        );
+
         \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest::observe(
             \App\Observers\PurchaseRequestObserver::class
         );
@@ -122,7 +151,15 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            return $user->hasTopManagementAccess();
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            // Activity admin with report access toggle ON (same row must have both flags)
+            return $user->activeBusinessUnits()
+                ->where('is_activity_admin', true)
+                ->where('is_activity_report_access', true)
+                ->exists();
         });
 
         // View Department Analytics Gate - For department heads and above
@@ -134,7 +171,7 @@ class AppServiceProvider extends ServiceProvider
             return $user->primary_department_id !== null;
         });
 
-        // Access Purchasing Admin Gate - For purchasing admins, super admin, and parent BU top management
+        // Access Purchasing Admin Gate - For purchasing admins, super admin, and top management
         Gate::define('access-purchasing-admin', function ($user) {
             $currentBuId = session('current_business_unit_id');
 
@@ -142,8 +179,11 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            // Top management in parent BU can access all child BU purchasing
-            if ($user->hasTopManagementInParentBU()) {
+            // Top management in any active BU can access purchasing admin
+            // (consistent with view-purchasing-reports, access-it-support, etc.).
+            // PO 2026-05-26: Chief of Staff at WNS/EXEC sits at child BU but
+            // still needs executive-tier visibility into Purchasing Admin.
+            if ($user->hasTopManagementAccess()) {
                 return true;
             }
 
@@ -157,18 +197,71 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            // Check if user is a purchasing admin in current BU
+            // Check if user is a purchasing admin in current BU or any ancestor BU
             if ($currentBuId) {
-                return $user->activeBusinessUnits()
-                    ->where('business_unit_id', $currentBuId)
-                    ->where('is_purchasing_admin', true)
-                    ->whereHas('department', function ($query) {
-                        $query->where('is_purchasing_department', true);
-                    })
-                    ->exists();
+                return $user->isAdminInBuOrAncestor('is_purchasing_admin', $currentBuId);
             }
 
             return false;
+        });
+
+        // View Purchasing Reports Gate - For purchasing admins with report access toggle
+        Gate::define('view-purchasing-reports', function ($user) {
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            // Parent BU manager-and-above
+            $hasManagerInParentBU = $user->activeBusinessUnits()
+                ->whereHas('businessUnit', fn ($q) => $q->whereNull('parent_id'))
+                ->whereHas('position', fn ($q) => $q->managerAndAbove())
+                ->exists();
+
+            if ($hasManagerInParentBU) {
+                return true;
+            }
+
+            // Purchasing admin with report access toggle ON (same row must have both flags)
+            return $user->activeBusinessUnits()
+                ->where('is_purchasing_admin', true)
+                ->where('is_purchasing_report_access', true)
+                ->exists();
+        });
+
+        // Access IT Support Gate - For IT support admins, super admin, and top management
+        Gate::define('access-it-support', function ($user) {
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            $currentBuId = session('current_business_unit_id');
+
+            return $currentBuId && $user->isAdminInBuOrAncestor('is_it_support_admin', $currentBuId);
+        });
+
+        // View IT Support Reports Gate - For IT support admins with report access toggle
+        Gate::define('view-it-support-reports', function ($user) {
+            if ($user->isSuperAdmin()) {
+                return true;
+            }
+
+            if ($user->hasTopManagementAccess()) {
+                return true;
+            }
+
+            // IT support admin with report access toggle ON (same row must have both flags)
+            return $user->activeBusinessUnits()
+                ->where('is_it_support_admin', true)
+                ->where('is_it_support_report_access', true)
+                ->exists();
         });
 
         // Access Cashflow Projection Gate - For department heads and finance/CFC users

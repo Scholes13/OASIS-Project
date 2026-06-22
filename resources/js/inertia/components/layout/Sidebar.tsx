@@ -24,6 +24,7 @@ import {
     PenSquare,
     Settings,
     Droplets,
+    ShieldCheck,
 } from 'lucide-react';
 import { PageProps } from '../../types';
 import { cn } from '../../lib/utils';
@@ -56,6 +57,7 @@ const iconMap: Record<string, any> = {
     'chart-pie': PieChart,
     'pencil-square': PenSquare,
     'cog-6-tooth': Settings,
+    'shield-check': ShieldCheck,
 };
 
 export default function Sidebar({ minimized, onToggle }: SidebarProps) {

@@ -24,6 +24,6 @@ describe('ActivityTimeline create entry', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Activity' }));
 
-        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.create');
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/activity.task.index?modal=create');
     });
 });

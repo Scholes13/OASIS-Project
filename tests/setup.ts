@@ -12,6 +12,7 @@ vi.mock('@inertiajs/react', async () => {
   const actual = await vi.importActual('@inertiajs/react');
   return {
     ...actual,
+    Head: () => null,
     router: {
       visit: vi.fn(),
       get: vi.fn(),
@@ -55,6 +56,7 @@ vi.mock('@inertiajs/react', async () => {
         },
         flash: {},
         appName: 'Oasis',
+        serverDate: '2026-04-23',
       },
     })),
   };
@@ -62,9 +64,22 @@ vi.mock('@inertiajs/react', async () => {
 
 // Mock window.route (Ziggy)
 global.route = vi.fn((name: string, params?: any) => {
-  if (params) {
+  if (params && typeof params === 'object' && !Array.isArray(params)) {
+    return `/${name}?${new URLSearchParams(
+      Object.entries(params).reduce<Record<string, string>>((carry, [key, value]) => {
+        if (value !== undefined && value !== null) {
+          carry[key] = String(value);
+        }
+
+        return carry;
+      }, {})
+    ).toString()}`;
+  }
+
+  if (params !== undefined) {
     return `/${name}/${params}`;
   }
+
   return `/${name}`;
 });
 

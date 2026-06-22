@@ -1,11 +1,15 @@
-import { ReactNode, useState, useEffect, useCallback } from 'react';
-import { Head } from '@inertiajs/react';
+import { ReactNode, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import BuTransitionOverlay from '../components/layout/BuTransitionOverlay';
 import LogoutOverlay from '../components/layout/LogoutOverlay';
 import { Toaster } from '../components/ui/toast';
 import { cn } from '../lib/utils';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useNotifications } from '@/hooks/useNotifications';
+import type { NotificationListItem, PageProps } from '@/types';
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -13,8 +17,20 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children, title }: AppLayoutProps) {
+    const page = usePage<PageProps>();
     const [sidebarMinimized, setSidebarMinimized] = useState(false);
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const notificationRef = useRef<HTMLDivElement>(null);
+
+    const recentNotifications = (page.props.recentNotifications ?? []) as NotificationListItem[];
+    const {
+        unreadCount,
+        recentItems,
+        refreshNotifications,
+        hasNewNotification,
+        clearNewFlag,
+    } = useNotifications(recentNotifications);
 
     // Load sidebar state from localStorage
     useEffect(() => {
@@ -24,17 +40,30 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         }
     }, []);
 
-    // Close mobile sidebar on route change or Escape key
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && mobileSidebarOpen) {
+    const escapeShortcuts = useMemo(() => [{
+        key: 'Escape',
+        action: () => {
+            if (notifOpen) {
+                setNotifOpen(false);
+            } else if (mobileSidebarOpen) {
                 setMobileSidebarOpen(false);
             }
-        };
+        },
+        description: 'Close open navigation overlays',
+    }], [mobileSidebarOpen, notifOpen]);
 
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [mobileSidebarOpen]);
+    useKeyboardShortcuts(escapeShortcuts);
+
+    // Close notification dropdown on route change
+    useEffect(() => {
+        return router.on('navigate', () => {
+            setNotifOpen(false);
+        });
+    }, []);
+
+    useClickOutside(notificationRef, () => {
+        if (notifOpen) setNotifOpen(false);
+    });
 
     // Lock body scroll when mobile sidebar is open
     useEffect(() => {
@@ -112,10 +141,24 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     )}
                 >
                     {/* Navbar */}
-                    <Navbar
-                        onMenuClick={toggleMobileSidebar}
-                        sidebarMinimized={sidebarMinimized}
-                    />
+                    <div ref={notificationRef}>
+                        <Navbar
+                            onMenuClick={toggleMobileSidebar}
+                            sidebarMinimized={sidebarMinimized}
+                            unreadCount={unreadCount}
+                            notificationItems={recentItems}
+                            hasNewNotification={hasNewNotification}
+                            notificationDropdownOpen={notifOpen}
+                            onNotificationToggle={() => {
+                                setNotifOpen((v) => !v);
+                                if (hasNewNotification) clearNewFlag();
+                            }}
+                            onNotificationOpen={() => {
+                                void refreshNotifications();
+                                if (hasNewNotification) clearNewFlag();
+                            }}
+                        />
+                    </div>
 
                     {/* Main Content — scrollable area */}
                     <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">

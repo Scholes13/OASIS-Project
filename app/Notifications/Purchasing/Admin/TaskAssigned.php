@@ -4,6 +4,7 @@ namespace App\Notifications\Purchasing\Admin;
 
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -23,7 +24,15 @@ class TaskAssigned extends Notification
      */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'broadcast'];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage($this->toArray($notifiable));
     }
 
     /**
@@ -57,6 +66,8 @@ class TaskAssigned extends Notification
 
         return [
             'type' => 'task_assigned',
+            'category' => 'purchasing',
+            'event' => 'admin_task_assigned',
             'task_id' => $this->task->id,
             'taskable_type' => $this->task->taskable_type,
             'taskable_id' => $this->task->taskable_id,
@@ -66,8 +77,11 @@ class TaskAssigned extends Notification
             'department_id' => $this->task->department_id,
             'estimated_amount' => $this->task->estimated_total_price,
             'entered_at' => $this->task->entered_at->toISOString(),
+            'title' => "{$taskType} admin task {$taskNumber} was assigned to you",
             'message' => "New {$taskType} admin task #{$taskNumber} has been assigned to you",
-            'action_url' => url('/purchasing/admin/tasks/' . $this->task->id),
+            'action_url' => url('/purchasing/admin/tasks/'.$this->task->id),
+            'priority' => 'high',
+            'occurred_at' => $this->task->updated_at?->toISOString() ?? now()->toISOString(),
         ];
     }
 

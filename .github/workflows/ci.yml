@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - v4-beta
+      - staging
   pull_request:
     branches:
       - main
-      - v4-beta
+      - staging
 
 jobs:
   backend-tests:

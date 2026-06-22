@@ -8,9 +8,6 @@ on:
         required: true
         default: main
         type: string
-  push:
-    branches:
-      - main
 
 jobs:
   build:
@@ -36,6 +33,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      - name: Prepare Laravel writable directories
+        run: |
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs
 
       - name: Install Composer dependencies
         run: composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader

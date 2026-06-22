@@ -41,7 +41,7 @@ Confirm the hosting provider allows symlinks for document roots. If not, use a f
 ```dotenv
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://your-domain.example
+APP_URL=https://oasis.werkudara.com
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306

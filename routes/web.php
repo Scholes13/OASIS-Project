@@ -90,6 +90,59 @@ if (app()->environment('local')) {
         return '<html><body><h1>Test Page</h1><p>This is a simple test page for Browsershot.</p></body></html>';
     })->name('test.browsershot');
 
+    Route::get('/dev/email-preview/purchase-request-approval', function () {
+        $pr = new \App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest([
+            'pr_number' => request('pr_number', 'PR.WNS/202606/067'),
+            'currency' => request('currency', 'IDR'),
+            'total_amount' => (float) request('total_amount', 1500008),
+            'submitted_at' => now()->setDate(2026, 6, 18)->setTime(14, 31),
+        ]);
+
+        $pr->keperluan = request('keperluan', 'Pengadaan perlengkapan operasional untuk mendukung kebutuhan tim pada periode berjalan.');
+
+        $approval = new \App\Models\Modules\Purchasing\PurchaseRequest\PrApproval([
+            'due_date' => now()->setDate(2026, 6, 22)->setTime(14, 31),
+        ]);
+        $approval->id = 900001;
+
+        $requester = new \App\Models\Core\User([
+            'name' => request('requester', 'Yulia Eka Crystanti'),
+        ]);
+
+        $approver = new \App\Models\Core\User([
+            'name' => request('approver', 'I Gusti Putu Yaktianuraga'),
+        ]);
+
+        preg_match('/^PR\.([^\/]+)/', $pr->pr_number, $businessUnitCodeMatch);
+        $businessUnitCode = request('business_unit_code', $businessUnitCodeMatch[1] ?? 'WNS');
+        $businessUnit = \App\Models\Core\BusinessUnit::query()
+            ->where('code', $businessUnitCode)
+            ->first() ?? new \App\Models\Core\BusinessUnit([
+                'code' => $businessUnitCode,
+                'name' => request('business_unit', 'Werkudara Nirwana Sakti'),
+                'logo' => request('business_unit_logo'),
+            ]);
+
+        $pr->setRelation('user', $requester);
+        $pr->setRelation('businessUnit', $businessUnit);
+        $approval->setRelation('purchaseRequest', $pr);
+
+        return view('emails.purchasing.purchase-request.approval-requested', [
+            'approval' => $approval,
+            'pr' => $pr,
+            'approver' => $approver,
+            'publicUrl' => url('/dev/email-preview/purchase-request-approval'),
+            'approveUrl' => url('/dev/email-preview/purchase-request-approval?intent=approve'),
+            'rejectUrl' => url('/dev/email-preview/purchase-request-approval?intent=reject'),
+            'detailsUrl' => url('/dev/email-preview/purchase-request-approval'),
+            'dashboardUrl' => route('approvals.index'),
+            'expiryDays' => (int) request('expiry_days', 3),
+            'darkModePreview' => request()->boolean('dark'),
+            'emailPreviewControls' => true,
+            'hideEmailHeader' => true,
+        ]);
+    })->name('dev.email-preview.purchase-request-approval');
+
     // Error Logging Test - Test error logging system
     Route::get('/error-test', function () {
         return \Inertia\Inertia::render('ErrorTest');

@@ -49,7 +49,7 @@ class CashflowFriendlyImportParserTest extends TestCase
         $path = $this->saveSpreadsheet($spreadsheet);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Sheet Data CFC tidak ditemukan.');
+        $this->expectExceptionMessage('Sheet Data CFC atau Template tidak ditemukan.');
 
         app(CashflowFriendlyImportParser::class)->parse($path);
     }

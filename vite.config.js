@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
     plugins: [
@@ -19,8 +20,8 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            '@echo': '/resources/js/echo.ts',
-            '@': '/resources/js/inertia',
+            '@echo': fileURLToPath(new URL('./resources/js/echo.ts', import.meta.url)),
+            '@': fileURLToPath(new URL('./resources/js/inertia', import.meta.url)),
         },
     },
     build: {

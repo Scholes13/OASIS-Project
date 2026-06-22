@@ -51,6 +51,18 @@ class ApprovalRequested extends Notification
             ['approval' => $this->approval->id]
         );
 
+        $approveUrl = URL::temporarySignedRoute(
+            'approvals.public.approve',
+            now()->addDays($expiryDays),
+            ['approval' => $this->approval->id, 'intent' => 'approve']
+        );
+
+        $rejectUrl = URL::temporarySignedRoute(
+            'approvals.public.approve',
+            now()->addDays($expiryDays),
+            ['approval' => $this->approval->id, 'intent' => 'reject']
+        );
+
         return (new MailMessage)
             ->subject('Purchase Request Approval Required - PR #'.$pr->pr_number)
             ->view('emails.purchasing.purchase-request.approval-requested', [
@@ -58,7 +70,12 @@ class ApprovalRequested extends Notification
                 'pr' => $pr,
                 'approver' => $notifiable,
                 'publicUrl' => $publicUrl,
+                'approveUrl' => $approveUrl,
+                'rejectUrl' => $rejectUrl,
+                'detailsUrl' => $publicUrl,
+                'dashboardUrl' => route('approvals.show', $this->approval->id),
                 'expiryDays' => $expiryDays,
+                'hideEmailHeader' => true,
             ]);
     }
 

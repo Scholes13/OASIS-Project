@@ -97,6 +97,7 @@ jobs:
           username: ${{ secrets.CPANEL_USERNAME }}
           port: ${{ secrets.CPANEL_PORT }}
           key: ${{ secrets.CPANEL_SSH_KEY }}
+          passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
           script_stop: true
           script: |
@@ -111,6 +112,7 @@ jobs:
           username: ${{ secrets.CPANEL_USERNAME }}
           port: ${{ secrets.CPANEL_PORT }}
           key: ${{ secrets.CPANEL_SSH_KEY }}
+          passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
           source: release.tar.gz
           target: ${{ secrets.CPANEL_APP_PATH }}/deploy
@@ -125,6 +127,7 @@ jobs:
           username: ${{ secrets.CPANEL_USERNAME }}
           port: ${{ secrets.CPANEL_PORT }}
           key: ${{ secrets.CPANEL_SSH_KEY }}
+          passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
           envs: CPANEL_ENV_B64
           script_stop: true

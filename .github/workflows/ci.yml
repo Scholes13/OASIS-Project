@@ -5,15 +5,19 @@ on:
     branches:
       - main
       - staging
-  pull_request:
+  pull_request_target:
     branches:
       - main
       - staging
+
+permissions:
+  contents: read
 
 jobs:
   backend-tests:
     name: Backend Tests (Laravel)
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
 
     env:
       APP_ENV: testing
@@ -30,6 +34,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -69,10 +75,13 @@ jobs:
   frontend-build:
     name: Frontend Build (Vite)
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4

@@ -13,6 +13,7 @@ Required:
 - `CPANEL_USERNAME`: cPanel username
 - `CPANEL_APP_PATH`: app base path, for example `/home/USER/oasis.werkudara.com`
 - `CPANEL_PHP_BIN`: PHP binary path, for example `/opt/cpanel/ea-php84/root/usr/bin/php` or `php`
+- `RELEASE_PAT`: GitHub token used by the staging release workflow to auto-merge into `main` and trigger the production deploy workflow
 
 Authentication, choose one:
 

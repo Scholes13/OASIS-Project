@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Create or update staging PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail

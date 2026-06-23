@@ -8,6 +8,16 @@ on:
         required: true
         default: main
         type: string
+      run_migrations:
+        description: Run production migrations
+        required: true
+        default: true
+        type: boolean
+      backup_database:
+        description: Backup database before migrations
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   build:
@@ -82,7 +92,9 @@ jobs:
     concurrency:
       group: cpanel-production-deploy
       cancel-in-progress: false
-    environment: production
+    environment:
+      name: production
+      url: https://oasis.werkudara.com
 
     steps:
       - name: Download release artifact
@@ -99,11 +111,10 @@ jobs:
           key: ${{ secrets.CPANEL_SSH_KEY }}
           passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
-          script_stop: true
           script: |
             set -e
             APP_PATH="${{ secrets.CPANEL_APP_PATH }}"
-            mkdir -p "$APP_PATH/deploy" "$APP_PATH/releases" "$APP_PATH/shared"
+            mkdir -p "$APP_PATH/deploy" "$APP_PATH/releases" "$APP_PATH/shared" "$APP_PATH/backups"
 
       - name: Upload release archive
         uses: appleboy/scp-action@v0.1.7
@@ -122,6 +133,8 @@ jobs:
         uses: appleboy/ssh-action@v1.2.2
         env:
           CPANEL_ENV_B64: ${{ secrets.CPANEL_ENV_B64 }}
+          RUN_MIGRATIONS: ${{ inputs.run_migrations }}
+          BACKUP_DATABASE: ${{ inputs.backup_database }}
         with:
           host: ${{ secrets.CPANEL_HOST }}
           username: ${{ secrets.CPANEL_USERNAME }}
@@ -129,8 +142,7 @@ jobs:
           key: ${{ secrets.CPANEL_SSH_KEY }}
           passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
-          envs: CPANEL_ENV_B64
-          script_stop: true
+          envs: CPANEL_ENV_B64,RUN_MIGRATIONS,BACKUP_DATABASE
           script: |
             set -e
 
@@ -143,6 +155,26 @@ jobs:
             RELEASE_ID="${{ github.sha }}-${{ github.run_number }}"
             RELEASE_PATH="$APP_PATH/releases/$RELEASE_ID"
             SHARED_PATH="$APP_PATH/shared"
+            PREVIOUS_RELEASE=""
+
+            if [ -L "$APP_PATH/current" ]; then
+              PREVIOUS_RELEASE="$(readlink "$APP_PATH/current" || true)"
+            fi
+
+            rollback() {
+              EXIT_CODE=$?
+              if [ "$EXIT_CODE" -ne 0 ] && [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+                echo "Deploy failed. Rolling back current symlink to $PREVIOUS_RELEASE"
+                ln -sfn "$PREVIOUS_RELEASE" "$APP_PATH/current"
+                cd "$APP_PATH/current"
+                "$PHP_BIN" artisan optimize:clear || true
+                "$PHP_BIN" artisan config:cache || true
+                "$PHP_BIN" artisan route:cache || true
+                "$PHP_BIN" artisan view:cache || true
+              fi
+              exit "$EXIT_CODE"
+            }
+            trap rollback EXIT
 
             mkdir -p "$RELEASE_PATH"
             tar -xzf "$APP_PATH/deploy/release.tar.gz" -C "$RELEASE_PATH"
@@ -154,7 +186,8 @@ jobs:
               "$SHARED_PATH/storage/framework/testing" \
               "$SHARED_PATH/storage/framework/views" \
               "$SHARED_PATH/storage/logs" \
-              "$SHARED_PATH/bootstrap-cache"
+              "$SHARED_PATH/bootstrap-cache" \
+              "$APP_PATH/backups"
 
             rm -rf "$RELEASE_PATH/storage"
             ln -sfn "$SHARED_PATH/storage" "$RELEASE_PATH/storage"
@@ -176,7 +209,30 @@ jobs:
 
             cd "$RELEASE_PATH"
             "$PHP_BIN" artisan storage:link || true
-            "$PHP_BIN" artisan migrate --force
+
+            if [ "${BACKUP_DATABASE:-true}" = "true" ]; then
+              DB_NAME="$("$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "";' "$SHARED_PATH/.env")"
+              DB_USER="$("$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env["DB_USERNAME"] ?? "";' "$SHARED_PATH/.env")"
+              DB_PASS="$("$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env["DB_PASSWORD"] ?? "";' "$SHARED_PATH/.env")"
+              DB_HOST="$("$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env["DB_HOST"] ?? "127.0.0.1";' "$SHARED_PATH/.env")"
+              BACKUP_FILE="$APP_PATH/backups/${DB_NAME:-database}-$(date +%Y%m%d%H%M%S)-${{ github.run_number }}.sql.gz"
+
+              if command -v mysqldump >/dev/null 2>&1; then
+                MYSQL_PWD="$DB_PASS" mysqldump --single-transaction --quick --host="$DB_HOST" --user="$DB_USER" "$DB_NAME" | gzip > "$BACKUP_FILE"
+                echo "Database backup created: $BACKUP_FILE"
+                find "$APP_PATH/backups" -name '*.sql.gz' -type f -mtime +14 -delete
+              else
+                echo "mysqldump is required for production database backup."
+                exit 1
+              fi
+            fi
+
+            if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+              "$PHP_BIN" artisan migrate --force
+            else
+              echo "Skipping migrations because run_migrations=false"
+            fi
+
             "$PHP_BIN" artisan optimize:clear
             "$PHP_BIN" artisan config:cache
             "$PHP_BIN" artisan route:cache
@@ -184,6 +240,15 @@ jobs:
             "$PHP_BIN" artisan queue:restart || true
 
             ln -sfn "$RELEASE_PATH" "$APP_PATH/current"
+
+            HEALTH_URL="https://oasis.werkudara.com/api/v1/health"
+            HTTP_CODE="$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 20 "$HEALTH_URL" || echo "000")"
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "Health check failed for $HEALTH_URL (HTTP $HTTP_CODE)."
+              exit 1
+            fi
+
+            trap - EXIT
 
             find "$APP_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort -r | tail -n +6 | xargs -r rm -rf
             rm -f "$APP_PATH/deploy/release.tar.gz"

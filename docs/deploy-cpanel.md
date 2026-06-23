@@ -66,11 +66,11 @@ On macOS:
 base64 .env | tr -d '\n'
 ```
 
-4. Run workflow **deploy-cpanel** from GitHub Actions.
+4. Push to `staging`. CI opens/updates the release PR, auto-merges it into `main` after checks pass, then **deploy-cpanel** deploys production automatically. You can still run **deploy-cpanel** manually from GitHub Actions when needed.
 
 ## Production Hardening
 
-The `deploy-cpanel` workflow is intentionally manual for production. When you run it, keep:
+The `deploy-cpanel` workflow runs automatically after changes reach `main`. When you run it manually, keep:
 
 - `branch`: `main`
 - `run_migrations`: `true` for normal releases, `false` only when you explicitly do not want database changes

@@ -1,0 +1,68 @@
+name: auto-staging-pr
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-pr:
+    name: Open staging to main PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create or update staging PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          existing_pr="$(
+            gh pr list \
+              --repo "$REPO" \
+              --base main \
+              --head staging \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )"
+
+          if [ -n "$existing_pr" ]; then
+            gh pr edit "$existing_pr" \
+              --repo "$REPO" \
+              --title "Release: staging to main" \
+              --body-file - <<'BODY'
+          Automated release PR from `staging` to `main`.
+
+          Review checklist:
+          - CI is green
+          - changed files are expected
+          - production deploy is run manually after merge
+          BODY
+            echo "Updated PR #$existing_pr"
+            exit 0
+          fi
+
+          if gh pr create \
+            --repo "$REPO" \
+            --base main \
+            --head staging \
+            --title "Release: staging to main" \
+            --body-file - <<'BODY'
+          Automated release PR from `staging` to `main`.
+
+          Review checklist:
+          - CI is green
+          - changed files are expected
+          - production deploy is run manually after merge
+          BODY
+          then
+            echo "Created staging to main PR"
+          else
+            echo "No PR created. This usually means staging has no changes compared with main."
+          fi

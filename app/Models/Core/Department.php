@@ -64,12 +64,14 @@ class Department extends Model
         'name',
         'is_active',
         'is_purchasing_department',
+        'is_ga_stock_review_department',
         'default_purchasing_admin_id',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_purchasing_department' => 'boolean',
+        'is_ga_stock_review_department' => 'boolean',
     ];
 
     /**

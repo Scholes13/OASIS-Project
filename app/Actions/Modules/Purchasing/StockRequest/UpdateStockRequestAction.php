@@ -63,10 +63,9 @@ class UpdateStockRequestAction
                 $request->approval_notes ?? null
             );
 
-            // Update status to submitted
             $stockRequest->update([
-                'status' => 'submitted',
-                'submitted_at' => $stockRequest->submitted_at ?? now(), // Preserve original if exists
+                'status' => 'in_approval',
+                'submitted_at' => $stockRequest->submitted_at ?? now(),
                 'rejected_at' => null,
             ]);
 
@@ -133,7 +132,7 @@ class UpdateStockRequestAction
                 'stock_request_id' => $stockRequest->id,
                 'item_order' => $index + 1,
                 'item_name' => $itemData['item_name'],
-                'item_description' => $itemData['item_description'] ?? null,
+                'specifications' => $itemData['item_description'] ?? null,
                 'quantity' => $itemData['quantity'],
                 'unit' => $itemData['unit'],
                 'image_path' => $imagePath,

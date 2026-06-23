@@ -26,6 +26,23 @@ class PurchasingAdminController extends Controller
         protected AdminTaskReportService $reportService,
     ) {}
 
+    private function currentUserIsPurchasingReadonly(): bool
+    {
+        $user = auth()->user();
+        $buId = (int) session('current_business_unit_id');
+        if (! $user || ! $buId) {
+            return false;
+        }
+
+        return \App\Models\Core\UserBusinessUnit::query()
+            ->where('user_id', $user->id)
+            ->where('business_unit_id', $buId)
+            ->where('is_active', true)
+            ->where('is_purchasing_admin', true)
+            ->where('is_purchasing_readonly', true)
+            ->exists();
+    }
+
     /**
      * Display the purchasing admin dashboard.
      */
@@ -53,6 +70,7 @@ class PurchasingAdminController extends Controller
             ],
             'userRole' => [
                 'is_purchasing_admin' => $user->isAdminInBuOrAncestor('is_purchasing_admin', $buId),
+                'is_purchasing_readonly' => $this->currentUserIsPurchasingReadonly(),
                 'is_management' => $user->hasTopManagementAccess() || $user->isSuperAdmin(),
             ],
         ]);
@@ -121,6 +139,10 @@ class PurchasingAdminController extends Controller
             abort(403, 'You do not have access to this task.');
         }
 
+        if ($this->currentUserIsPurchasingReadonly()) {
+            return back()->with('error', 'Read-only purchasing access cannot claim tasks.');
+        }
+
         try {
             $this->adminTaskService->claimTask($task, (int) auth()->id());
 
@@ -152,6 +174,10 @@ class PurchasingAdminController extends Controller
             abort(403, 'You do not have access to this task.');
         }
 
+        if ($this->currentUserIsPurchasingReadonly()) {
+            return back()->with('error', 'Read-only purchasing access cannot start tasks.');
+        }
+
         try {
             $this->adminTaskService->startTask($task);
 
@@ -175,6 +201,10 @@ class PurchasingAdminController extends Controller
         // Check business unit access
         if ($task->business_unit_id !== session('current_business_unit_id')) {
             abort(403, 'You do not have access to this task.');
+        }
+
+        if ($this->currentUserIsPurchasingReadonly()) {
+            return back()->with('error', 'Read-only purchasing access cannot update tasks.');
         }
 
         $newStatus = $request->input('status');
@@ -230,6 +260,10 @@ class PurchasingAdminController extends Controller
         // Check business unit access
         if ($task->business_unit_id !== session('current_business_unit_id')) {
             abort(403, 'You do not have access to this task.');
+        }
+
+        if ($this->currentUserIsPurchasingReadonly()) {
+            return back()->with('error', 'Read-only purchasing access cannot complete tasks.');
         }
 
         try {

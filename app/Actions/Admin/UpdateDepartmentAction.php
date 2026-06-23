@@ -22,7 +22,22 @@ class UpdateDepartmentAction
     public function execute(Request $request, Department $department, array $validated): void
     {
         $payload = $this->buildDepartmentPayload($request, $validated);
+        $beforeCapabilities = $this->capabilitySnapshot($department);
+
         $department->update($payload);
+
+        $afterCapabilities = $this->capabilitySnapshot($department->refresh());
+
+        if ($beforeCapabilities !== $afterCapabilities) {
+            activity()
+                ->performedOn($department)
+                ->causedBy($request->user())
+                ->withProperties([
+                    'before' => $beforeCapabilities,
+                    'after' => $afterCapabilities,
+                ])
+                ->log('department capabilities updated');
+        }
 
         $this->syncSubActivities($department, (array) $request->input('sub_activity_ids', []));
 
@@ -39,11 +54,13 @@ class UpdateDepartmentAction
     {
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['is_purchasing_department'] = $request->boolean('is_purchasing_enabled', false);
+        $validated['is_ga_stock_review_department'] = $request->boolean('is_ga_stock_review_enabled', false);
         $validated['default_purchasing_admin_id'] = $request->purchasing_admin_id;
 
         // Remove fields that don't exist in departments table
         unset(
             $validated['is_purchasing_enabled'],
+            $validated['is_ga_stock_review_enabled'],
             $validated['purchasing_admin_id'],
             $validated['positions'],
             $validated['sub_activity_ids'],
@@ -55,6 +72,14 @@ class UpdateDepartmentAction
     /**
      * @param  array<int, int|string>  $subActivityIds
      */
+    private function capabilitySnapshot(Department $department): array
+    {
+        return [
+            'purchasing' => (bool) $department->is_purchasing_department,
+            'ga_stock_review' => (bool) $department->is_ga_stock_review_department,
+        ];
+    }
+
     private function syncSubActivities(Department $department, array $subActivityIds): void
     {
         $syncData = [];

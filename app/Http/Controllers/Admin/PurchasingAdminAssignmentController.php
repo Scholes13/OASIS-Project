@@ -47,11 +47,18 @@ class PurchasingAdminAssignmentController extends Controller
             ->groupBy('business_unit_id')
             ->pluck('count', 'business_unit_id');
 
+        $readonlyCounts = UserBusinessUnit::where('is_active', true)
+            ->where('is_purchasing_readonly', true)
+            ->selectRaw('business_unit_id, COUNT(*) as count')
+            ->groupBy('business_unit_id')
+            ->pluck('count', 'business_unit_id');
+
         return Inertia::render('Admin/PurchasingAdmins/Index', [
             'assignments' => $assignments,
             'businessUnits' => $businessUnits,
             'adminCounts' => $adminCounts,
             'reportAccessCounts' => $reportAccessCounts,
+            'readonlyCounts' => $readonlyCounts,
             'filters' => [
                 'business_unit_id' => $buFilter,
                 'search' => $search,
@@ -72,6 +79,10 @@ class PurchasingAdminAssignmentController extends Controller
         // Auto-revoke report access when admin is turned OFF
         if (! $newAdminState && $ubu->is_purchasing_report_access) {
             $updates['is_purchasing_report_access'] = false;
+        }
+
+        if (! $newAdminState && $ubu->is_purchasing_readonly) {
+            $updates['is_purchasing_readonly'] = false;
         }
 
         $ubu->update($updates);
@@ -106,5 +117,24 @@ class PurchasingAdminAssignmentController extends Controller
 
         return redirect()->route('admin.purchasing-admins.index', request()->query())
             ->with('success', "Purchasing Report access {$status} for {$ubu->user?->name}.");
+    }
+
+    public function toggleReadonly(Request $request, int $id)
+    {
+        $ubu = UserBusinessUnit::findOrFail($id);
+
+        if (! $ubu->is_purchasing_admin && ! $ubu->is_purchasing_readonly) {
+            return back()->with('error', 'User must be a Purchasing Admin first.');
+        }
+
+        $newState = ! $ubu->is_purchasing_readonly;
+        $ubu->update(['is_purchasing_readonly' => $newState]);
+
+        cache()->forget("bu_list:{$ubu->user_id}");
+
+        $status = $newState ? 'enabled' : 'disabled';
+
+        return redirect()->route('admin.purchasing-admins.index', request()->query())
+            ->with('success', "Purchasing read-only access {$status} for {$ubu->user?->name}.");
     }
 }

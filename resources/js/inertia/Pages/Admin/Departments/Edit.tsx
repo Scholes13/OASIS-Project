@@ -38,6 +38,7 @@ function Edit({ department, businessUnits, users, subActivities, errors }: EditP
     is_active: department.is_active,
     sort_order: department.sort_order || 0,
     is_purchasing_enabled: department.is_purchasing_enabled || false,
+    is_ga_stock_review_enabled: department.is_ga_stock_review_enabled || false,
     purchasing_admin_id: department.purchasing_admin_id || department.purchasing_admin?.id,
     sub_activity_ids: department.sub_activity_ids || [],
   });
@@ -279,6 +280,19 @@ function Edit({ department, businessUnits, users, subActivities, errors }: EditP
                 />
                 <Label htmlFor="is_purchasing_enabled" className="cursor-pointer">
                   Enable Purchasing for this Department
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_ga_stock_review_enabled"
+                  checked={data.is_ga_stock_review_enabled}
+                  onChange={(e) => setData('is_ga_stock_review_enabled', e.target.checked)}
+                  className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+                />
+                <Label htmlFor="is_ga_stock_review_enabled" className="cursor-pointer">
+                  Enable General Affair Stock Review for this Department
                 </Label>
               </div>
 

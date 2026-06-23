@@ -1,0 +1,68 @@
+name: auto-staging-pr
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-pr:
+    name: Open staging to main PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create or update staging PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body_file="$(mktemp)"
+          cat > "$body_file" <<'BODY'
+          Automated release PR from `staging` to `main`.
+
+          This PR is configured for auto-merge after required CI checks pass.
+
+          Production deploy runs automatically after the merge to `main`.
+          BODY
+
+          existing_pr="$(
+            gh pr list \
+              --repo "$REPO" \
+              --base main \
+              --head staging \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          )"
+
+          if [ -n "$existing_pr" ]; then
+            gh pr edit "$existing_pr" \
+              --repo "$REPO" \
+              --title "Release: staging to main" \
+              --body-file "$body_file"
+            echo "Updated PR #$existing_pr"
+            pr_number="$existing_pr"
+          else
+            if ! pr_url="$(
+              gh pr create \
+                --repo "$REPO" \
+                --base main \
+                --head staging \
+                --title "Release: staging to main" \
+                --body-file "$body_file"
+            )"; then
+              echo "No PR created. This usually means staging has no changes compared with main."
+              exit 0
+            fi
+
+            pr_number="$(gh pr view "$pr_url" --repo "$REPO" --json number --jq '.number')"
+            echo "Created PR #$pr_number"
+          fi
+
+          gh pr merge "$pr_number" --repo "$REPO" --auto --merge \
+            || echo "Auto-merge is already enabled or cannot be enabled yet."

@@ -20,6 +20,7 @@ interface PurchasingTaskCardProps {
     showActions?: boolean;
     onClaim?: (taskId: number) => void;
     onStart?: (taskId: number) => void;
+    readonly?: boolean;
 }
 
 // Status styling
@@ -72,6 +73,7 @@ export function PurchasingTaskCard({
     showActions = true,
     onClaim,
     onStart,
+    readonly = false,
 }: PurchasingTaskCardProps) {
     const statusStyle = statusStyles[task.status] || statusStyles.pending_followup;
     const taskable = task.taskable;
@@ -196,7 +198,7 @@ export function PurchasingTaskCard({
             {/* Actions */}
             {showActions && (
                 <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex gap-2">
-                    {canClaim && onClaim && (
+                    {!readonly && canClaim && onClaim && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -207,7 +209,7 @@ export function PurchasingTaskCard({
                             Claim Task
                         </button>
                     )}
-                    {canStart && onStart && (
+                    {!readonly && canStart && onStart && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();

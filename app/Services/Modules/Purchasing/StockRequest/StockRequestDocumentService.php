@@ -150,6 +150,10 @@ class StockRequestDocumentService
             $qrCodes['approvals'][$approval->id] = $qrCodeService->generateStockApprovalQrCodeDataUrl($approval);
         }
 
+        if ($stockRequest->ga_reviewed_by && $stockRequest->ga_reviewed_at) {
+            $qrCodes['ga_reviewer'] = $qrCodeService->generateStockGaReviewerQrCodeDataUrl($stockRequest);
+        }
+
         return $qrCodes;
     }
 }

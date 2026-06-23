@@ -50,8 +50,20 @@ class MenuSectionBuilder
                 'name' => 'Stock Requests',
                 'href' => route('stock-requests.index'),
                 'icon' => 'package',
-                'active' => request()->routeIs('stock-requests.*'),
+                'active' => request()->routeIs('stock-requests.*') && ! request()->routeIs('stock-requests.ga-review.*'),
             ],
+        ];
+
+        if ($this->visibility->canAccessGaStockReview($user, $businessUnitId)) {
+            $purchasingChildren[] = [
+                'name' => 'Stock Review',
+                'href' => route('stock-requests.ga-review.index'),
+                'icon' => 'shield-check',
+                'active' => request()->routeIs('stock-requests.ga-review.*'),
+            ];
+        }
+
+        $purchasingChildren = array_merge($purchasingChildren, [
             [
                 'name' => 'All Requests',
                 'href' => route('purchase-requests.all'),
@@ -64,7 +76,7 @@ class MenuSectionBuilder
                 'icon' => 'check-circle',
                 'active' => request()->routeIs('approvals.*'),
             ],
-        ];
+        ]);
 
         $items[] = [
             'name' => 'Purchasing',

@@ -21,6 +21,7 @@ interface PurchasingTaskTimelineProps {
     tasks: AdminTask[];
     onTaskClick?: (task: AdminTask) => void;
     showDateHeaders?: boolean;
+    readonly?: boolean;
 }
 
 // Status styling

@@ -5,6 +5,7 @@ namespace App\Services\Modules\Purchasing\Admin;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Notifications\Purchasing\Admin\TaskAssigned;
+use App\Notifications\Purchasing\Admin\TaskAvailable;
 use Illuminate\Support\Facades\DB;
 
 class AdminTaskService
@@ -40,6 +41,7 @@ class AdminTaskService
             ]);
 
             $this->notifyAssignedAdmin($task);
+            $this->broadcastAvailableTask($task);
 
             activity()
                 ->performedOn($task)
@@ -219,5 +221,34 @@ class AdminTaskService
         }
 
         $admin->notify(new TaskAssigned($task->fresh(['taskable'])));
+    }
+
+    /**
+     * Broadcast an "available to claim" notification to all purchasing admins
+     * in the same department (excluding any user who is the assigned admin
+     * and excluding read-only admins).
+     */
+    protected function broadcastAvailableTask(AdminTask $task): void
+    {
+        $recipients = User::query()
+            ->whereHas('businessUnits', function ($q) use ($task) {
+                $q->where('business_unit_id', $task->business_unit_id)
+                    ->where('department_id', $task->department_id)
+                    ->where('is_purchasing_admin', true)
+                    ->where('is_purchasing_readonly', false)
+                    ->where('is_active', true);
+            })
+            ->where('users.id', '!=', $task->assigned_admin_id ?? 0)
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        $notification = new TaskAvailable($task->fresh(['taskable']));
+
+        foreach ($recipients as $recipient) {
+            $recipient->notify($notification);
+        }
     }
 }

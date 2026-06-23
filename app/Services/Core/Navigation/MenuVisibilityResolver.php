@@ -2,6 +2,7 @@
 
 namespace App\Services\Core\Navigation;
 
+use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAccessService;
 
@@ -47,6 +48,25 @@ class MenuVisibilityResolver
         }
 
         return $user->isAdminInBuOrAncestor('is_purchasing_admin', $businessUnitId);
+    }
+
+    public function canAccessGaStockReview(User $user, int $businessUnitId): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $departmentId = (int) session('current_department_id');
+
+        if ($departmentId <= 0) {
+            return false;
+        }
+
+        return Department::query()
+            ->where('id', $departmentId)
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_ga_stock_review_department', true)
+            ->exists();
     }
 
     /** Activity tracking module visibility. */

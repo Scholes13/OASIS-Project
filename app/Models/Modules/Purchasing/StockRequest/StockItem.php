@@ -24,6 +24,9 @@ class StockItem extends Model
         'specifications',
         'item_code',
         'image_path',
+        'ga_review_result',
+        'ga_review_note',
+        'warehouse_available_qty',
     ];
 
     protected $casts = [
@@ -31,6 +34,7 @@ class StockItem extends Model
         'quantity' => 'integer',
         'price' => 'decimal:2',
         'total' => 'decimal:2',
+        'warehouse_available_qty' => 'integer',
     ];
 
     /**

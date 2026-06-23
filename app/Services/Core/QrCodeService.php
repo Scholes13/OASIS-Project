@@ -302,11 +302,66 @@ class QrCodeService
     }
 
     /**
+     * Generate QR code for GA reviewer (stock request direct review)
+     */
+    public function generateStockGaReviewerQrCode(StockRequest $stockRequest): string
+    {
+        if (! $stockRequest->ga_reviewed_at) {
+            return $this->generatePlaceholderQr();
+        }
+
+        $verificationToken = $this->generateStockGaReviewerToken($stockRequest);
+
+        $publicUrl = route('stock-requests.public', [
+            'sr' => $stockRequest->id,
+            'token' => $verificationToken,
+            'ga_reviewer' => $stockRequest->ga_reviewed_by,
+        ]);
+
+        return QrCode::format('svg')
+            ->size(120)
+            ->margin(1)
+            ->generate($publicUrl);
+    }
+
+    /**
+     * Generate base64 data URL for GA reviewer QR code
+     */
+    public function generateStockGaReviewerQrCodeDataUrl(StockRequest $stockRequest): string
+    {
+        $qrCodeSvg = $this->generateStockGaReviewerQrCode($stockRequest);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
+    }
+
+    /**
+     * Generate verification token for GA reviewer
+     */
+    public function generateStockGaReviewerToken(StockRequest $stockRequest): string
+    {
+        $data = [
+            'sr_id' => $stockRequest->id,
+            'ga_reviewed_by' => $stockRequest->ga_reviewed_by,
+            'ga_reviewed_at' => $stockRequest->ga_reviewed_at?->timestamp,
+            'type' => 'ga_reviewer',
+        ];
+
+        return hash('sha256', json_encode($data).config('app.key'));
+    }
+
+    /**
      * Verify stock requestor token
      */
     public function verifyStockRequestorToken(StockRequest $stockRequest, string $token): bool
     {
         $expectedToken = $this->generateStockRequestorToken($stockRequest);
+
+        return hash_equals($expectedToken, $token);
+    }
+
+    public function verifyStockGaReviewerToken(StockRequest $stockRequest, string $token): bool
+    {
+        $expectedToken = $this->generateStockGaReviewerToken($stockRequest);
 
         return hash_equals($expectedToken, $token);
     }

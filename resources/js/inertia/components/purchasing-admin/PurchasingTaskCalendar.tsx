@@ -18,6 +18,7 @@ import type { AdminTask } from './types';
 interface PurchasingTaskCalendarProps {
     tasks: AdminTask[];
     onTaskClick?: (task: AdminTask) => void;
+    readonly?: boolean;
 }
 
 type CalendarView = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';

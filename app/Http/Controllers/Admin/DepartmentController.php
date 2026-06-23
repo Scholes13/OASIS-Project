@@ -63,6 +63,7 @@ class DepartmentController extends Controller
                 'name' => $department->name,
                 'is_active' => $department->is_active,
                 'is_purchasing_enabled' => $department->is_purchasing_department ?? false,
+                'is_ga_stock_review_enabled' => $department->is_ga_stock_review_department ?? false,
                 'purchasing_admin_id' => $department->default_purchasing_admin_id,
                 'business_unit' => $department->businessUnit ? [
                     'id' => $department->businessUnit->id,
@@ -152,18 +153,29 @@ class DepartmentController extends Controller
             'name' => 'required|string|max:255',
             'is_active' => 'boolean',
             'is_purchasing_enabled' => 'boolean',
+            'is_ga_stock_review_enabled' => 'boolean',
             'purchasing_admin_id' => 'nullable|exists:users,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['is_purchasing_department'] = $request->boolean('is_purchasing_enabled', false);
+        $validated['is_ga_stock_review_department'] = $request->boolean('is_ga_stock_review_enabled', false);
         $validated['default_purchasing_admin_id'] = $request->purchasing_admin_id;
 
-        // Remove fields that don't exist in departments table
-        unset($validated['is_purchasing_enabled'], $validated['purchasing_admin_id']);
+        unset($validated['is_purchasing_enabled'], $validated['is_ga_stock_review_enabled'], $validated['purchasing_admin_id']);
 
-        // Create department - default positions (HOD, Leader, Staff) are auto-generated via model event
-        Department::create($validated);
+        $department = Department::create($validated);
+
+        activity()
+            ->performedOn($department)
+            ->causedBy($request->user())
+            ->withProperties([
+                'capabilities' => [
+                    'purchasing' => $department->is_purchasing_department,
+                    'ga_stock_review' => $department->is_ga_stock_review_department,
+                ],
+            ])
+            ->log('department capabilities configured');
 
         return redirect()
             ->route('admin.departments.index')
@@ -207,6 +219,7 @@ class DepartmentController extends Controller
                 'name' => $department->name,
                 'is_active' => $department->is_active,
                 'is_purchasing_enabled' => $department->is_purchasing_department ?? false,
+                'is_ga_stock_review_enabled' => $department->is_ga_stock_review_department ?? false,
                 'purchasing_admin_id' => $department->default_purchasing_admin_id,
                 'business_unit_id' => $department->business_unit_id,
                 'head_id' => $department->head_id,
@@ -300,6 +313,7 @@ class DepartmentController extends Controller
                 'name' => $department->name,
                 'is_active' => $department->is_active,
                 'is_purchasing_enabled' => $department->is_purchasing_department ?? false,
+                'is_ga_stock_review_enabled' => $department->is_ga_stock_review_department ?? false,
                 'purchasing_admin_id' => $department->default_purchasing_admin_id,
                 'business_unit_id' => $department->business_unit_id,
                 'head_id' => $department->head_id,
@@ -338,6 +352,7 @@ class DepartmentController extends Controller
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer',
             'is_purchasing_enabled' => 'boolean',
+            'is_ga_stock_review_enabled' => 'boolean',
             'purchasing_admin_id' => 'nullable|exists:users,id',
             'positions' => 'nullable|array',
             'positions.*.id' => 'nullable|exists:positions,id',

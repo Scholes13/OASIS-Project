@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
 import { StockRequestActionModals } from '@/components/purchasing/show/StockRequestActionModals';
 import { StockRequestHeader } from '@/components/purchasing/show/StockRequestHeader';
-import { StockRequestItemsTable } from '@/components/purchasing/show/StockRequestItemsTable';
+import { StockRequestItemsTable, type StockRequestGaReviewItem } from '@/components/purchasing/show/StockRequestItemsTable';
 import { StockRequestSummaryPanel } from '@/components/purchasing/show/StockRequestSummaryPanel';
 import type { STPermissions, STShowProps } from '@/types/purchasing';
 
@@ -22,12 +22,24 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
     const [offlineNotes, setOfflineNotes] = useState('');
     const [offlineDocument, setOfflineDocument] = useState<File | null>(null);
     const [approvalNotes, setApprovalNotes] = useState('');
+    const [gaReviewNotes, setGaReviewNotes] = useState('');
+    const [gaRejectReason, setGaRejectReason] = useState('');
+    const [gaReviewItems, setGaReviewItems] = useState<StockRequestGaReviewItem[]>(() =>
+        (stockRequest.items || []).map((item) => ({
+            id: item.id,
+            ga_review_result: item.ga_review_result || 'pending_review',
+            ga_review_note: item.ga_review_note || '',
+            warehouse_available_qty: item.warehouse_available_qty?.toString() || '',
+            procurement_quantity: item.ga_review_result === 'need_procurement' ? item.quantity.toString() : '',
+        }))
+    );
     const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResendingEmail, setIsResendingEmail] = useState(false);
 
     const permissions: Partial<STPermissions> = can || stockRequest.can || {};
     const isApprovalView = Boolean(approvalContext?.approvalId);
+    const canReviewGa = stockRequest.status === 'ga_review' && Boolean(permissions.gaReviewApprove || permissions.gaReviewReject);
 
     // Handle void action
     const handleVoid = () => {
@@ -64,7 +76,7 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
 
         router.post(
             route('stock-requests.mark-offline-approved', { stockRequest: stockRequest.id }),
-            formData as any,
+            formData,
             {
                 onSuccess: () => {
                     toast.success('Stock request marked as offline approved');
@@ -138,10 +150,93 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
         );
     };
 
+    const handleGaReviewItemChange = (id: number, field: keyof Omit<StockRequestGaReviewItem, 'id'>, value: string) => {
+        const stockItem = stockRequest.items?.find((item) => item.id === id);
+
+        setGaReviewItems((items) => items.map((item) => {
+            if (item.id !== id) {
+                return item;
+            }
+
+            const nextItem = { ...item, [field]: value };
+
+            if (stockItem && field === 'warehouse_available_qty') {
+                const warehouseQty = Number(value || 0);
+                nextItem.procurement_quantity = value === '' ? '' : Math.max(stockItem.quantity - warehouseQty, 0).toString();
+            }
+
+            if (stockItem && field === 'procurement_quantity') {
+                const procurementQty = Number(value || 0);
+                nextItem.warehouse_available_qty = value === '' ? '' : Math.max(stockItem.quantity - procurementQty, 0).toString();
+            }
+
+            if (field === 'ga_review_result' && value === 'warehouse_stock') {
+                nextItem.warehouse_available_qty = stockItem?.quantity.toString() || '';
+                nextItem.procurement_quantity = '0';
+            }
+
+            if (field === 'ga_review_result' && value === 'need_procurement') {
+                nextItem.procurement_quantity = stockItem?.quantity.toString() || '';
+                nextItem.warehouse_available_qty = '0';
+            }
+
+            return nextItem;
+        }));
+    };
+
+    const handleGaReviewApprove = () => {
+        if (gaReviewItems.some((item) => item.ga_review_result === 'pending_review')) {
+            toast.error('All items must be reviewed');
+            return;
+        }
+
+        setIsDecisionSubmitting(true);
+
+        router.post(
+            route('stock-requests.ga-review.approve', { stockRequest: stockRequest.id }),
+            {
+                ga_review_notes: gaReviewNotes,
+                items: gaReviewItems.map((item) => ({
+                    id: item.id,
+                    ga_review_result: item.ga_review_result,
+                    ga_review_note: item.ga_review_note,
+                    warehouse_available_qty: item.warehouse_available_qty === '' ? null : item.warehouse_available_qty,
+                    procurement_quantity: item.procurement_quantity === '' ? null : item.procurement_quantity,
+                })),
+            },
+            {
+                onSuccess: () => toast.success('GA review approved'),
+                onError: () => toast.error('Failed to approve GA review'),
+                onFinish: () => setIsDecisionSubmitting(false),
+            }
+        );
+    };
+
+    const handleGaReviewReject = () => {
+        if (!gaRejectReason.trim()) {
+            toast.error('Please provide GA rejection reason');
+            return;
+        }
+
+        setIsDecisionSubmitting(true);
+
+        router.post(
+            route('stock-requests.ga-review.reject', { stockRequest: stockRequest.id }),
+            { reason: gaRejectReason },
+            {
+                onSuccess: () => toast.success('GA review rejected'),
+                onError: () => toast.error('Failed to reject GA review'),
+                onFinish: () => setIsDecisionSubmitting(false),
+            }
+        );
+    };
+
     const getOfflineApprovalDocumentUrl = () => {
-        const ziggy = route as unknown as {
-            (...args: any[]): any;
+        type RouteHelper = {
+            (): { has?: (name: string) => boolean } | undefined;
+            (name: string, params?: Record<string, number | string>): string;
         };
+        const ziggy = route as unknown as RouteHelper;
         const routeName = 'stock-requests.offline-approval-document';
         const fallbackPath = `/stock-requests/${stockRequest.id}/offline-approval-document`;
 
@@ -204,12 +299,75 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
                         {/* Main Content (2/3) */}
                         <div className="xl:col-span-2 space-y-6">
                             <StockRequestSummaryPanel stockRequest={stockRequest} />
-                            <StockRequestItemsTable stockRequest={stockRequest} />
+                            <StockRequestItemsTable
+                                stockRequest={stockRequest}
+                                canReviewGa={canReviewGa}
+                                gaReviewItems={gaReviewItems}
+                                onGaReviewItemChange={handleGaReviewItemChange}
+                            />
                         </div>
 
 
                         {/* Sidebar (1/3) */}
                         <div className="space-y-6">
+                            {canReviewGa && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.25 }}
+                                    className="bg-white rounded-xl border border-gray-100 overflow-hidden"
+                                >
+                                    <div className="px-5 py-4 border-b border-gray-100">
+                                        <h3 className="text-base font-semibold text-gray-900">Stock Review</h3>
+                                    </div>
+                                    <div className="p-5 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                                            <textarea
+                                                value={gaReviewNotes}
+                                                onChange={(event) => setGaReviewNotes(event.target.value)}
+                                                rows={3}
+                                                placeholder="Add GA review notes"
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Reject Reason</label>
+                                            <textarea
+                                                value={gaRejectReason}
+                                                onChange={(event) => setGaRejectReason(event.target.value)}
+                                                rows={3}
+                                                placeholder="Required when rejecting"
+                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {permissions.gaReviewApprove && (
+                                                <Button
+                                                    type="button"
+                                                    onClick={handleGaReviewApprove}
+                                                    disabled={isDecisionSubmitting}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                >
+                                                    {isDecisionSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                    Approve
+                                                </Button>
+                                            )}
+                                            {permissions.gaReviewReject && (
+                                                <Button
+                                                    type="button"
+                                                    onClick={handleGaReviewReject}
+                                                    disabled={isDecisionSubmitting}
+                                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                                >
+                                                    {isDecisionSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                    Reject
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
                             {approvalContext && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}

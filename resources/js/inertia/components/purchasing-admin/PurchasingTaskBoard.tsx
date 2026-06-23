@@ -32,6 +32,7 @@ interface PurchasingTaskBoardProps {
     onClaim?: (taskId: number) => void;
     onStart?: (taskId: number) => void;
     onComplete?: (task: AdminTask) => void; // Called when task dropped to Complete column
+    readonly?: boolean;
 }
 
 // Column configuration
@@ -71,6 +72,7 @@ export function PurchasingTaskBoard({
     onStatusChange,
     onTaskClick,
     onComplete,
+    readonly = false,
 }: PurchasingTaskBoardProps) {
     const [activeTask, setActiveTask] = React.useState<AdminTask | null>(null);
     const [localTasks, setLocalTasks] = React.useState<AdminTask[]>(tasks);
@@ -108,12 +110,14 @@ export function PurchasingTaskBoard({
     };
 
     const handleDragStart = (event: DragStartEvent) => {
+        if (readonly) return;
         // Store the task with its ORIGINAL status before any drag updates
         const task = tasks.find(t => t.id === event.active.id); // Use props.tasks, not localTasks
         if (task) setActiveTask({ ...task }); // Clone to preserve original status
     };
 
     const handleDragOver = (event: DragOverEvent) => {
+        if (readonly) return;
         const { active, over } = event;
         if (!over) return;
 
@@ -128,6 +132,10 @@ export function PurchasingTaskBoard({
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
+        if (readonly) {
+            setActiveTask(null);
+            return;
+        }
         const { active, over } = event;
         const originalTask = activeTask; // This has the ORIGINAL status from props.tasks
         setActiveTask(null);

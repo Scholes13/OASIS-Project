@@ -6,6 +6,8 @@ export interface User {
     role: string;
     avatar_url?: string;
     primary_department_id?: number;
+    is_purchasing_admin?: boolean;
+    is_purchasing_readonly?: boolean;
 }
 
 // Business Unit types

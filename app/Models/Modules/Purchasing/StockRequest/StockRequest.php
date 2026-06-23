@@ -33,6 +33,11 @@ class StockRequest extends Model
         'submitted_at',
         'approved_at',
         'rejected_at',
+        'ga_review_started_at',
+        'ga_reviewed_at',
+        'ga_reviewed_by',
+        'ga_review_notes',
+        'ga_rejected_reason',
         'voided_at',
         'offline_approved_at',
         'offline_approved_by',
@@ -52,6 +57,8 @@ class StockRequest extends Model
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'ga_review_started_at' => 'datetime',
+        'ga_reviewed_at' => 'datetime',
         'voided_at' => 'datetime',
         'offline_approved_at' => 'datetime',
         'approval_workflow' => 'array',
@@ -174,6 +181,16 @@ class StockRequest extends Model
         return $query->where('status', 'rejected');
     }
 
+    public function scopeGaReview($query)
+    {
+        return $query->where('status', 'ga_review');
+    }
+
+    public function scopeReadyForPurchasing($query)
+    {
+        return $query->where('status', 'ready_for_purchasing');
+    }
+
     /**
      * Scope for voided stock requests
      */
@@ -211,7 +228,7 @@ class StockRequest extends Model
      */
     public function isEditable(): bool
     {
-        return in_array($this->status, ['draft', 'rejected']);
+        return in_array($this->status, ['draft', 'rejected', 'ga_rejected'], true);
     }
 
     /**

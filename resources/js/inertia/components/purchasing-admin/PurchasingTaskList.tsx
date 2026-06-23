@@ -24,6 +24,7 @@ interface PurchasingTaskListProps {
     counts: TaskCounts;
     onClaim?: (taskId: number) => void;
     onStart?: (taskId: number) => void;
+    readonly?: boolean;
 }
 
 const tabs = [
@@ -50,6 +51,7 @@ export function PurchasingTaskList({
     counts,
     onClaim,
     onStart,
+    readonly = false,
 }: PurchasingTaskListProps) {
     const [activeTab, setActiveTab] = React.useState(filters.status || 'pending');
     const [searchQuery, setSearchQuery] = React.useState(filters.search || '');
@@ -181,6 +183,7 @@ export function PurchasingTaskList({
                                 task={task}
                                 onClaim={onClaim}
                                 onStart={onStart}
+                                readonly={readonly}
                             />
                         ))}
                     </motion.div>

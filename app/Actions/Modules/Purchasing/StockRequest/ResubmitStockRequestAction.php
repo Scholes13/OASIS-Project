@@ -36,12 +36,23 @@ class ResubmitStockRequestAction
             'email_sent_at' => null,
         ]);
 
+        $stockRequest->items()->update([
+            'ga_review_result' => 'pending_review',
+            'ga_review_note' => null,
+            'warehouse_available_qty' => null,
+        ]);
+
         // Reset workflow status
         $stockRequest->update([
             'status' => 'in_approval',
             'submitted_at' => now(),
             'rejected_at' => null,
             'rejection_notes' => null,
+            'ga_review_started_at' => null,
+            'ga_reviewed_at' => null,
+            'ga_reviewed_by' => null,
+            'ga_review_notes' => null,
+            'ga_rejected_reason' => null,
         ]);
 
         // Notify the first approver

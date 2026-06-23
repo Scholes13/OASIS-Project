@@ -2,6 +2,7 @@
 
 namespace App\Services\Modules\Purchasing\StockRequest;
 
+use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\StockRequest\StockNumberReservation;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
@@ -66,6 +67,61 @@ class StockRequestQueryService
 
         $stockRequests = $query
             ->orderBy($sortColumn, $sortDirection)
+            ->paginate($request->get('per_page', 10))
+            ->withQueryString();
+
+        $stockRequests->through(fn ($st) => $this->transformStockRequest($st, $user));
+
+        return $stockRequests;
+    }
+
+    public function paginateForGaReview(Request $request, User $user, int $businessUnitId, int $departmentId): LengthAwarePaginator
+    {
+        $isGaDepartment = Department::query()
+            ->where('id', $departmentId)
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_ga_stock_review_department', true)
+            ->exists();
+
+        abort_unless($isGaDepartment || $user->isSuperAdmin(), 403, 'Only GA review department can access this list.');
+
+        $filters = [
+            'search' => $request->get('search', ''),
+            'status' => $request->get('status', 'ga_review'),
+            'date_from' => $request->get('date_from', ''),
+            'date_to' => $request->get('date_to', ''),
+        ];
+
+        $query = StockRequest::with([
+            'department:id,name,code',
+            'user:id,name,email',
+        ])
+            ->withCount('items')
+            ->where('business_unit_id', $businessUnitId)
+            ->whereIn('status', ['ga_review', 'ga_rejected', 'ready_for_purchasing']);
+
+        if ($filters['search']) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('st_number', 'like', "%{$search}%")
+                    ->orWhere('purpose', 'like', "%{$search}%");
+            });
+        }
+
+        if ($filters['status']) {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($filters['date_from']) {
+            $query->whereDate('date_of_request', '>=', $filters['date_from']);
+        }
+
+        if ($filters['date_to']) {
+            $query->whereDate('date_of_request', '<=', $filters['date_to']);
+        }
+
+        $stockRequests = $query
+            ->orderBy($request->get('sort', 'created_at'), $request->get('direction', 'desc'))
             ->paginate($request->get('per_page', 10))
             ->withQueryString();
 
@@ -162,13 +218,21 @@ class StockRequestQueryService
             && $st->status === 'in_approval'
             && $currentApproval
             && $currentApproval->status === 'pending';
+        $canGaReview = $st->status === 'ga_review'
+            && ($isSuperAdmin || \App\Models\Core\Department::query()
+                ->where('id', (int) session('current_department_id'))
+                ->where('business_unit_id', $currentBusinessUnitId)
+                ->where('is_ga_stock_review_department', true)
+                ->exists());
 
         return [
             'edit' => $isOwner && $st->isEditable(),
             'delete' => $isOwner && $st->status === 'draft',
             'void' => ($isOwner || $isSuperAdmin) && $st->canBeVoided(),
-            'resubmit' => $isOwner && $st->status === 'rejected',
+            'resubmit' => $isOwner && in_array($st->status, ['rejected', 'ga_rejected'], true),
             'resendApprovalEmail' => $canResendApprovalEmail,
+            'gaReviewApprove' => $canGaReview,
+            'gaReviewReject' => $canGaReview,
             'approve' => $canApprove,
             'reject' => $canApprove,
             'downloadPdf' => true, // All users can download PDF

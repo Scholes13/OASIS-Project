@@ -69,6 +69,7 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
     const isItemActive = (href: string): boolean => {
         const itemPath = new URL(href, window.location.origin).pathname;
         if (itemPath === '/dashboard') return currentPath === '/dashboard';
+        if (itemPath === '/stock-requests' && currentPath.startsWith('/stock-requests/ga-review')) return false;
         return currentPath === itemPath || currentPath.startsWith(itemPath + '/');
     };
 

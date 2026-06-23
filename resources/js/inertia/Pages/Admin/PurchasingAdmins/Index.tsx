@@ -17,6 +17,7 @@ interface Assignment {
     id: number;
     is_purchasing_admin: boolean;
     is_purchasing_report_access: boolean;
+    is_purchasing_readonly: boolean;
     is_primary: boolean;
     user: { id: number; name: string; email: string } | null;
     business_unit: BusinessUnit | null;
@@ -29,15 +30,17 @@ interface Props extends PageProps {
     businessUnits: BusinessUnit[];
     adminCounts: Record<number, number>;
     reportAccessCounts: Record<number, number>;
+    readonlyCounts: Record<number, number>;
     filters: { business_unit_id: string; search: string };
 }
 
-export default function Index({ assignments, businessUnits, adminCounts, reportAccessCounts, filters }: Props) {
+export default function Index({ assignments, businessUnits, adminCounts, reportAccessCounts, readonlyCounts, filters }: Props) {
     const { flash } = usePage<PageProps>().props;
     const [search, setSearch] = useState(filters.search);
     const [buFilter, setBuFilter] = useState(filters.business_unit_id);
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [togglingReportId, setTogglingReportId] = useState<number | null>(null);
+    const [togglingReadonlyId, setTogglingReadonlyId] = useState<number | null>(null);
 
     useEffect(() => {
         if (flash.success) toast.success(flash.success);
@@ -65,6 +68,14 @@ export default function Index({ assignments, businessUnits, adminCounts, reportA
         router.post(route('admin.purchasing-admins.toggle-report', { id }), {}, {
             preserveScroll: true,
             onFinish: () => setTogglingReportId(null),
+        });
+    };
+
+    const handleToggleReadonly = (id: number) => {
+        setTogglingReadonlyId(id);
+        router.post(route('admin.purchasing-admins.toggle-readonly', { id }), {}, {
+            preserveScroll: true,
+            onFinish: () => setTogglingReadonlyId(null),
         });
     };
 
@@ -103,7 +114,16 @@ export default function Index({ assignments, businessUnits, adminCounts, reportA
                             <p className="text-xl font-bold text-gray-900">{Object.values(reportAccessCounts).reduce((a, b) => a + b, 0)}</p>
                         </div>
                     </div>
-                    {businessUnits.slice(0, 2).map((bu) => (
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
+                        <div className="p-3 bg-amber-100 rounded-xl">
+                            <ShoppingCart className="w-6 h-6 text-amber-600" strokeWidth={1.5} />
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Read Only</p>
+                            <p className="text-xl font-bold text-gray-900">{Object.values(readonlyCounts).reduce((a, b) => a + b, 0)}</p>
+                        </div>
+                    </div>
+                    {businessUnits.slice(0, 1).map((bu) => (
                         <div key={bu.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
                             <div className="p-3 bg-emerald-50 rounded-xl">
                                 <Building2 className="w-6 h-6 text-emerald-600" strokeWidth={1.5} />
@@ -149,7 +169,7 @@ export default function Index({ assignments, businessUnits, adminCounts, reportA
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                {['User', 'Business Unit', 'Department', 'Position', 'Purchasing Admin', 'Report Access'].map((h) => (
+                                {['User', 'Business Unit', 'Department', 'Position', 'Purchasing Admin', 'Report Access', 'Read Only'].map((h) => (
                                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                                 ))}
                             </tr>
@@ -157,7 +177,7 @@ export default function Index({ assignments, businessUnits, adminCounts, reportA
                         <tbody className="divide-y divide-gray-100">
                             {assignments.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                                         <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                                         Tidak ada data ditemukan.
                                     </td>
@@ -233,6 +253,33 @@ export default function Index({ assignments, businessUnits, adminCounts, reportA
                                                     Aktifkan Purchasing Admin terlebih dahulu
                                                 </div>
                                             </div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {a.is_purchasing_admin ? (
+                                            <button
+                                                onClick={() => handleToggleReadonly(a.id)}
+                                                disabled={togglingReadonlyId === a.id}
+                                                className={cn(
+                                                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2',
+                                                    a.is_purchasing_readonly ? 'bg-amber-500' : 'bg-gray-200',
+                                                    togglingReadonlyId === a.id && 'opacity-50 cursor-wait'
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                                                        a.is_purchasing_readonly ? 'translate-x-6' : 'translate-x-1'
+                                                    )}
+                                                />
+                                            </button>
+                                        ) : (
+                                            <button
+                                                disabled
+                                                className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-100 opacity-50 cursor-not-allowed"
+                                            >
+                                                <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-1" />
+                                            </button>
                                         )}
                                     </td>
                                 </tr>

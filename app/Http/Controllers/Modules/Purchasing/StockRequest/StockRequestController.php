@@ -56,6 +56,32 @@ class StockRequestController extends Controller
         ]);
     }
 
+    public function gaReviewIndex(Request $request): Response
+    {
+        $user = Auth::user();
+        $businessUnitId = (int) session('current_business_unit_id');
+        $departmentId = (int) session('current_department_id');
+
+        $stockRequests = $this->queryService->paginateForGaReview($request, $user, $businessUnitId, $departmentId);
+
+        return Inertia::render('Purchasing/StockRequest/Index', [
+            'stockRequests' => $stockRequests,
+            'reservations' => null,
+            'filters' => [
+                'search' => $request->get('search', ''),
+                'status' => $request->get('status', 'ga_review'),
+                'date_from' => $request->get('date_from', ''),
+                'date_to' => $request->get('date_to', ''),
+            ],
+            'mode' => 'ga_review',
+            'can' => [
+                'create' => false,
+                'viewAll' => true,
+                'export' => false,
+            ],
+        ]);
+    }
+
     /**
      * Show the form for creating a new stock request.
      * Requirements: 6.2, 6.3
@@ -320,7 +346,7 @@ class StockRequestController extends Controller
             abort(403, 'Only the request creator can resubmit.');
         }
 
-        if ($stockRequest->status !== 'rejected') {
+        if (! in_array($stockRequest->status, ['rejected', 'ga_rejected'], true)) {
             return back()->with('error', 'Only rejected stock requests can be resubmitted.');
         }
 
@@ -329,6 +355,78 @@ class StockRequestController extends Controller
         return redirect()
             ->route('stock-requests.show', $stockRequest)
             ->with('success', "Stock request {$stockRequest->st_number} has been resubmitted for approval.");
+    }
+
+    public function approveGaReview(
+        Request $request,
+        StockRequest $stockRequest,
+        \App\Actions\Modules\Purchasing\StockRequest\ProcessStockRequestGaReviewAction $action,
+    ) {
+        $this->authorizeGaReview($stockRequest);
+
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.id' => [
+                'required',
+                'integer',
+                \Illuminate\Validation\Rule::exists('stock_items', 'id')
+                    ->where('stock_request_id', $stockRequest->id),
+            ],
+            'items.*.ga_review_result' => ['required', 'string', 'in:warehouse_stock,need_procurement'],
+            'items.*.ga_review_note' => ['nullable', 'string', 'max:1000'],
+            'items.*.warehouse_available_qty' => ['nullable', 'integer', 'min:0'],
+            'items.*.procurement_quantity' => ['nullable', 'integer', 'min:0'],
+            'ga_review_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $action->approve($stockRequest->load('items'), Auth::user(), $validated);
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Stock request GA review approved.');
+    }
+
+    public function rejectGaReview(
+        Request $request,
+        StockRequest $stockRequest,
+        \App\Actions\Modules\Purchasing\StockRequest\ProcessStockRequestGaReviewAction $action,
+    ) {
+        $this->authorizeGaReview($stockRequest);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $action->reject($stockRequest, Auth::user(), $validated['reason']);
+
+        return back()->with('success', 'Stock request GA review rejected.');
+    }
+
+    private function authorizeGaReview(StockRequest $stockRequest): void
+    {
+        if ($stockRequest->business_unit_id !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this stock request.');
+        }
+
+        if ($stockRequest->status !== 'ga_review') {
+            abort(422, 'Only stock requests waiting for GA review can be processed.');
+        }
+
+        if (Auth::user()?->isSuperAdmin()) {
+            return;
+        }
+
+        $department = \App\Models\Core\Department::query()
+            ->where('id', (int) session('current_department_id'))
+            ->where('business_unit_id', $stockRequest->business_unit_id)
+            ->where('is_ga_stock_review_department', true)
+            ->first();
+
+        if (! $department) {
+            abort(403, 'Only GA review department can process this stock request.');
+        }
     }
 
     /**

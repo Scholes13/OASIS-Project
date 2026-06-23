@@ -139,6 +139,7 @@ export interface DepartmentWithStats extends Department {
     
     // Purchasing config
     is_purchasing_enabled?: boolean;
+    is_ga_stock_review_enabled?: boolean;
     purchasing_admin_id?: number;
     purchasing_admin?: User;
 }
@@ -304,6 +305,7 @@ export interface DepartmentFormData {
     is_active: boolean;
     sort_order: number;
     is_purchasing_enabled: boolean;
+    is_ga_stock_review_enabled: boolean;
     purchasing_admin_id?: number;
 }
 

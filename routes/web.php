@@ -245,6 +245,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
     Route::prefix('stock-requests')->name('stock-requests.')->group(function () {
         // List Routes - Inertia for modern SPA experience
         Route::get('/', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'index'])->name('index');
+        Route::get('/ga-review', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'gaReviewIndex'])->name('ga-review.index');
 
         // Create Route - Inertia form for creating new Stock Request
         Route::get('/create', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'createInertia'])->name('create');
@@ -259,6 +260,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::delete('/{stockRequest}', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'destroy'])->name('destroy');
         Route::post('/{stockRequest}/resubmit', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resubmit'])->name('resubmit');
         Route::post('/{stockRequest}/void', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'void'])->name('void');
+        Route::post('/{stockRequest}/ga-review/approve', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'approveGaReview'])->name('ga-review.approve');
+        Route::post('/{stockRequest}/ga-review/reject', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'rejectGaReview'])->name('ga-review.reject');
         Route::post('/{stockRequest}/mark-offline-approved', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
         Route::post('/{stockRequest}/resend-approval-email', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
         Route::get('/{stockRequest}/offline-approval-document', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
@@ -578,6 +581,7 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
             Route::get('/', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'index'])->name('index');
             Route::post('/{id}/toggle', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggle'])->name('toggle')->whereNumber('id');
             Route::post('/{id}/toggle-report', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggleReportAccess'])->name('toggle-report')->whereNumber('id');
+            Route::post('/{id}/toggle-readonly', [\App\Http\Controllers\Admin\PurchasingAdminAssignmentController::class, 'toggleReadonly'])->name('toggle-readonly')->whereNumber('id');
         });
 
         Route::prefix('it-support-admins')->name('it-support-admins.')->group(function () {

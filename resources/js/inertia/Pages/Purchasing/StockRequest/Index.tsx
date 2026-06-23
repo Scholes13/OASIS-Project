@@ -39,6 +39,10 @@ interface STIndexPageProps extends PageProps {
         date_from?: string;
         date_to?: string;
     };
+    mode?: 'mine' | 'ga_review';
+    can?: {
+        create?: boolean;
+    };
 }
 
 // Status badge configuration
@@ -48,6 +52,9 @@ const getStatusConfig = (status: string) => {
         submitted: { label: 'Submitted', className: 'text-blue-600' },
         in_approval: { label: 'In Approval', className: 'text-blue-600' },
         approved: { label: 'Approved', className: 'text-emerald-600' },
+        ga_review: { label: 'Stock Review', className: 'text-sky-600' },
+        ga_rejected: { label: 'GA Rejected', className: 'text-red-600' },
+        ready_for_purchasing: { label: 'Ready for Purchasing', className: 'text-indigo-600' },
         rejected: { label: 'Rejected', className: 'text-red-600' },
         voided: { label: 'Voided', className: 'text-gray-500' },
     };
@@ -59,6 +66,9 @@ const statuses = [
     { value: 'submitted', label: 'Submitted' },
     { value: 'in_approval', label: 'In Approval' },
     { value: 'approved', label: 'Approved' },
+    { value: 'ga_review', label: 'Stock Review' },
+    { value: 'ga_rejected', label: 'GA Rejected' },
+    { value: 'ready_for_purchasing', label: 'Ready for Purchasing' },
     { value: 'rejected', label: 'Rejected' },
     { value: 'voided', label: 'Voided' },
 ];
@@ -66,7 +76,9 @@ const statuses = [
 export default function Index({
     stockRequests,
     filters,
-    currentBusinessUnit
+    currentBusinessUnit,
+    mode = 'mine',
+    can,
 }: STIndexPageProps) {
     // Defensive defaults for stockRequests to prevent undefined errors
     // Inertia v2 serializes Laravel paginator at root level (not nested under meta)
@@ -114,7 +126,7 @@ export default function Index({
         if (dateFrom) params.date_from = dateFrom;
         if (dateTo) params.date_to = dateTo;
 
-        router.get(route('stock-requests.index'), params, {
+        router.get(route(mode === 'ga_review' ? 'stock-requests.ga-review.index' : 'stock-requests.index'), params, {
             preserveState: true,
             preserveScroll: true,
             only: ['stockRequests'],
@@ -139,7 +151,7 @@ export default function Index({
 
     return (
         <>
-            <Head title="My Stock Requests" />
+            <Head title={mode === 'ga_review' ? 'Stock Review' : 'My Stock Requests'} />
 
             <div className="w-full px-6 py-6 lg:px-8">
                     {/* Header */}
@@ -147,20 +159,24 @@ export default function Index({
                         <div className="flex items-center justify-between">
                             <div>
                                 <h1 className="text-xl font-semibold text-gray-900">
-                                    My Stock Requests
+                                    {mode === 'ga_review' ? 'Stock Review' : 'My Stock Requests'}
                                 </h1>
                                 <p className="text-sm text-gray-500 mt-0.5">
-                                    {currentBusinessUnit?.name || 'Current Business Unit'}
+                                    {mode === 'ga_review'
+                                        ? 'Review stock availability before purchasing process'
+                                        : currentBusinessUnit?.name || 'Current Business Unit'}
                                 </p>
                             </div>
-                            <div className="flex items-center space-x-3">
-                                <Link href={route('stock-requests.create')}>
-                                    <Button className="bg-primary hover:bg-blue-600">
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Create New ST
-                                    </Button>
-                                </Link>
-                            </div>
+                            {can?.create !== false && (
+                                <div className="flex items-center space-x-3">
+                                    <Link href={route('stock-requests.create')}>
+                                        <Button className="bg-primary hover:bg-blue-600">
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            Create New ST
+                                        </Button>
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -385,17 +401,21 @@ export default function Index({
                                         <Package className="w-8 h-8 text-gray-300" />
                                     </div>
                                     <h3 className="text-base font-medium text-gray-600 mb-2">
-                                        No Stock Request History
+                                        {mode === 'ga_review' ? 'No Stock Review Queue' : 'No Stock Request History'}
                                     </h3>
                                     <p className="text-sm text-gray-400 mb-6">
-                                        You haven't created any stock requests yet.
+                                        {mode === 'ga_review'
+                                            ? 'No stock requests are waiting for review.'
+                                            : "You haven't created any stock requests yet."}
                                     </p>
-                                    <Link href={route('stock-requests.create')}>
-                                        <Button>
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Create Your First ST
-                                        </Button>
-                                    </Link>
+                                    {mode !== 'ga_review' && (
+                                        <Link href={route('stock-requests.create')}>
+                                            <Button>
+                                                <Plus className="w-4 h-4 mr-2" />
+                                                Create Your First ST
+                                            </Button>
+                                        </Link>
+                                    )}
                                 </div>
                             </motion.div>
                         )}

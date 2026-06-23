@@ -119,9 +119,10 @@ export default function TaskDetail({ task }: TaskDetailProps) {
     const isPR = task.taskable_type?.includes('PurchaseRequest');
     const number = isPR ? task.taskable?.pr_number : task.taskable?.st_number;
     const isAssignedToMe = task.assigned_admin_id === auth?.user?.id;
-    const canClaim = task.status === 'pending_followup' && !task.assigned_admin_id;
-    const canStart = task.status === 'pending_followup' && isAssignedToMe;
-    const canComplete = task.status === 'in_progress' && isAssignedToMe;
+    const isReadonly = Boolean(auth?.user?.is_purchasing_readonly);
+    const canClaim = !isReadonly && task.status === 'pending_followup' && !task.assigned_admin_id;
+    const canStart = !isReadonly && task.status === 'pending_followup' && isAssignedToMe;
+    const canComplete = !isReadonly && task.status === 'in_progress' && isAssignedToMe;
 
     const handleClaim = () => {
         setIsLoading(true);

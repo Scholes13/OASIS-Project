@@ -307,6 +307,9 @@ export type StockRequestStatus =
     | 'submitted'
     | 'in_approval'
     | 'approved'
+    | 'ga_review'
+    | 'ga_rejected'
+    | 'ready_for_purchasing'
     | 'rejected'
     | 'voided';
 
@@ -315,9 +318,13 @@ export interface StockItem {
     id: number;
     item_name: string;
     item_description: string | null;
+    specifications?: string | null;
     quantity: number;
     unit: string;
     image_path: string | null;
+    ga_review_result?: 'pending_review' | 'warehouse_stock' | 'need_procurement';
+    ga_review_note?: string | null;
+    warehouse_available_qty?: number | null;
 }
 
 // Stock Request Approval
@@ -345,6 +352,11 @@ export interface StockRequest {
     submitted_at: string | null;
     approved_at: string | null;
     rejected_at: string | null;
+    ga_review_started_at?: string | null;
+    ga_reviewed_at?: string | null;
+    ga_reviewed_by?: number | null;
+    ga_review_notes?: string | null;
+    ga_rejected_reason?: string | null;
     voided_at: string | null;
     offline_approved_at: string | null;
     offline_approval_document_path: string | null;
@@ -371,6 +383,8 @@ export interface STPermissions {
     downloadPdf: boolean;
     markOfflineApproved?: boolean;
     offlineApprovalDocument?: boolean;
+    gaReviewApprove?: boolean;
+    gaReviewReject?: boolean;
 }
 
 // Approval Context for ST

@@ -125,7 +125,7 @@ class CreateStockRequestAction
                 'stock_request_id' => $stockRequest->id,
                 'item_order' => $index + 1,
                 'item_name' => $itemData['item_name'],
-                'item_description' => $itemData['item_description'] ?? null,
+                'specifications' => $itemData['item_description'] ?? null,
                 'quantity' => $itemData['quantity'],
                 'unit' => $itemData['unit'],
                 'image_path' => $imagePath,

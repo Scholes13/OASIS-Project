@@ -42,6 +42,8 @@ export default function Tasks({ tasks, allTasks, filters, counts }: TasksProps) 
     const initialView = (url.searchParams.get('view') as ViewMode) || 'list';
     const [viewMode, setViewMode] = useState<ViewMode>(initialView);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const { props } = usePage<PageProps>();
+    const isReadonly = Boolean(props?.auth?.user?.is_purchasing_readonly);
 
     // Handle view mode change
     const handleViewChange = (view: ViewMode) => {
@@ -151,6 +153,7 @@ export default function Tasks({ tasks, allTasks, filters, counts }: TasksProps) 
                             counts={counts}
                             onClaim={handleClaim}
                             onStart={handleStart}
+                            readonly={isReadonly}
                         />
                     )}
 
@@ -159,18 +162,21 @@ export default function Tasks({ tasks, allTasks, filters, counts }: TasksProps) 
                             tasks={allTasksData}
                             onClaim={handleClaim}
                             onStart={handleStart}
+                            readonly={isReadonly}
                         />
                     )}
 
                     {viewMode === 'calendar' && (
                         <PurchasingTaskCalendar
                             tasks={allTasksData}
+                            readonly={isReadonly}
                         />
                     )}
 
                     {viewMode === 'timeline' && (
                         <PurchasingTaskTimeline
                             tasks={allTasksData}
+                            readonly={isReadonly}
                         />
                     )}
                 </div>

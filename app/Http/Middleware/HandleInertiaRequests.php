@@ -82,6 +82,7 @@ class HandleInertiaRequests extends Middleware
                     'avatar_url' => $user->avatar_url ?? null,
                     'primary_department_id' => $user->primary_department_id,
                     'current_department_id' => $user->getCurrentDepartmentId(),
+                    'is_purchasing_readonly' => $this->isPurchasingReadonly($user, $currentBusinessUnitId),
                 ] : null,
             ],
             'currentBusinessUnit' => fn () => $this->getCurrentBusinessUnit($currentBusinessUnitId),
@@ -188,8 +189,7 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
-        $depts = $user->getDepartmentsInCurrentBusinessUnit()
-            ->loadMissing('parent:id,code,name');
+        $depts = $user->getDepartmentsInCurrentBusinessUnit();
 
         $byParent = $depts->groupBy('parent_department_id');
 
@@ -293,5 +293,20 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $this->navigationService->buildMenuForUser($user, $businessUnitId);
+    }
+
+    protected function isPurchasingReadonly($user, $businessUnitId): bool
+    {
+        if (! $user || ! $businessUnitId) {
+            return false;
+        }
+
+        return \App\Models\Core\UserBusinessUnit::query()
+            ->where('user_id', $user->id)
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->where('is_purchasing_admin', true)
+            ->where('is_purchasing_readonly', true)
+            ->exists();
     }
 }

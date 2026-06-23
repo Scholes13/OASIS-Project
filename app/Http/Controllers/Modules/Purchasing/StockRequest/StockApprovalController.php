@@ -259,6 +259,7 @@ class StockApprovalController extends Controller
         $token = $request->get('token');
         $approverId = $request->get('approver');
         $requestorId = $request->get('requestor');
+        $gaReviewerId = $request->get('ga_reviewer');
 
         if (! $token) {
             abort(404, 'Invalid verification link.');
@@ -290,6 +291,21 @@ class StockApprovalController extends Controller
                 'verified_by' => $stockRequest->user,
                 'verified_at' => $stockRequest->submitted_at,
                 'role' => 'Stock Request Creator',
+            ];
+        } elseif ($gaReviewerId) {
+            if ($gaReviewerId != $stockRequest->ga_reviewed_by || ! $stockRequest->ga_reviewed_at) {
+                abort(404, 'GA review verification not found.');
+            }
+
+            if (! $qrCodeService->verifyStockGaReviewerToken($stockRequest, $token)) {
+                abort(403, 'Invalid verification token.');
+            }
+
+            $verificationData = [
+                'type' => 'ga_review',
+                'verified_by' => \App\Models\Core\User::findOrFail($stockRequest->ga_reviewed_by),
+                'verified_at' => $stockRequest->ga_reviewed_at,
+                'role' => 'GA Stock Reviewer',
             ];
         }
         // Check if this is approver verification

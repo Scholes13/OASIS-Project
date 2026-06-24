@@ -59,6 +59,7 @@ class WNSKayanaUserSeeder extends Seeder
             ['email' => $email],
             [
                 'name' => 'I.D.A. Kayana Abhipraya P.B.',
+                'phone_number' => '-',
                 'password' => Hash::make('werkudara88'),
                 'global_role' => 'user',
                 'primary_department_id' => $cmc->id,

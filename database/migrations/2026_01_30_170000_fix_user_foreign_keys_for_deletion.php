@@ -14,6 +14,10 @@ return new class extends Migration
     public function up(): void
     {
         $dropForeignIfExists = function (string $tableName, string $columnName): void {
+            if (! in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+                return;
+            }
+
             $constraint = DB::selectOne(
                 "SELECT CONSTRAINT_NAME
                 FROM information_schema.KEY_COLUMN_USAGE

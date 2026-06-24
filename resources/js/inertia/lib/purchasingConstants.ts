@@ -28,10 +28,11 @@ export const ST_STATUS_CONFIG: Record<StStatus, PurchasingStatusConfig> = {
     ready_for_purchasing: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200', icon: Check, label: 'Ready for Purchasing' },
 };
 
-export const APPROVAL_BADGE_COLORS: Record<'pending' | 'approved' | 'rejected' | 'voided' | 'offline', { bg: string; text: string }> = {
+export const APPROVAL_BADGE_COLORS: Record<'pending' | 'approved' | 'rejected' | 'skipped' | 'voided' | 'offline', { bg: string; text: string }> = {
     pending: { bg: 'bg-amber-100', text: 'text-amber-600' },
     approved: { bg: 'bg-emerald-100', text: 'text-emerald-600' },
     rejected: { bg: 'bg-red-100', text: 'text-red-600' },
+    skipped: { bg: 'bg-gray-100', text: 'text-gray-500' },
     voided: { bg: 'bg-gray-100', text: 'text-gray-600' },
     offline: { bg: 'bg-purple-100', text: 'text-purple-600' },
 };

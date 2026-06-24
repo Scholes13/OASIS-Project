@@ -13,6 +13,25 @@ import { StockRequestItemsTable, type StockRequestGaReviewItem } from '@/compone
 import { StockRequestSummaryPanel } from '@/components/purchasing/show/StockRequestSummaryPanel';
 import type { STPermissions, STShowProps } from '@/types/purchasing';
 
+function ApprovalAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
+    const initials = name
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+
+    if (avatarUrl) {
+        return <img src={avatarUrl} alt={name} className="h-9 w-9 rounded-full object-cover" />;
+    }
+
+    return (
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+            {initials || 'U'}
+        </div>
+    );
+}
+
 export default function Show({ stockRequest, can, approvalContext }: STShowProps) {
     const [showVoidModal, setShowVoidModal] = useState(false);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
@@ -437,29 +456,30 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
                                 </div>
                                 <div className="p-5">
                                     {stockRequest.approvals && stockRequest.approvals.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {stockRequest.approvals.map((approval, index) => (
-                                                <div key={approval.id} className="flex items-start space-x-3">
-                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                                                        APPROVAL_BADGE_COLORS[approval.status]?.bg || APPROVAL_BADGE_COLORS.pending.bg
-                                                    } ${
-                                                        APPROVAL_BADGE_COLORS[approval.status]?.text || APPROVAL_BADGE_COLORS.pending.text
-                                                    }`}>
-                                                        {approval.status === 'approved' ? <Check className="w-4 h-4" /> :
-                                                         approval.status === 'rejected' ? <X className="w-4 h-4" /> :
-                                                         index + 1}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-gray-900">{approval.approver?.name || 'N/A'}</p>
-                                                        <p className="text-xs text-gray-500 capitalize">{approval.status}</p>
-                                                        {approval.responded_at && (
-                                                            <p className="text-xs text-gray-400 mt-1">
-                                                                {formatDate(approval.responded_at)}
+                                        <div className="space-y-3">
+                                            <p className="text-xs text-gray-500">HOD / Leader approval is parallel. Any one approval moves this request to Stock Review.</p>
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                {stockRequest.approvals.map((approval) => (
+                                                    <div key={approval.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
+                                                        <ApprovalAvatar name={approval.approver?.name || 'N/A'} avatarUrl={approval.approver?.avatar_url} />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-gray-900 truncate">{approval.approver?.name || 'N/A'}</p>
+                                                            <p className={`mt-0.5 inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                                                                APPROVAL_BADGE_COLORS[approval.status]?.bg || APPROVAL_BADGE_COLORS.pending.bg
+                                                            } ${
+                                                                APPROVAL_BADGE_COLORS[approval.status]?.text || APPROVAL_BADGE_COLORS.pending.text
+                                                            }`}>
+                                                                {approval.status}
                                                             </p>
-                                                        )}
+                                                            {approval.responded_at && (
+                                                                <p className="text-xs text-gray-400 mt-1">
+                                                                    {formatDate(approval.responded_at)}
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
                                     ) : (
                                         <p className="text-sm text-gray-500 text-center py-4">No approval workflow</p>

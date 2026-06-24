@@ -96,7 +96,7 @@ export interface PRApproval {
     purchase_request_id: number;
     approver_id: number;
     step_order: number;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'skipped';
     notes: string | null;
     assigned_at: string;
     responded_at: string | null;
@@ -272,7 +272,7 @@ export interface ApprovalItem {
     purchase_request: PurchaseRequest;
     step_order: number;
     approval_type: 'approval' | 'paraf';
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'skipped';
     waiting_since: string;
     can: {
         approve: boolean;
@@ -332,7 +332,7 @@ export interface StockApproval {
     id: number;
     approver_id: number;
     step_order: number;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'skipped';
     notes: string | null;
     responded_at: string | null;
     approver: User;

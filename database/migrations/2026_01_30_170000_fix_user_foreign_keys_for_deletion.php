@@ -13,8 +13,32 @@ return new class extends Migration
      */
     public function up(): void
     {
+        $dropForeignIfExists = function (string $tableName, string $columnName): void {
+            if (! in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+                return;
+            }
+
+            $constraint = DB::selectOne(
+                "SELECT CONSTRAINT_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = ?
+                    AND COLUMN_NAME = ?
+                    AND REFERENCED_TABLE_NAME IS NOT NULL
+                LIMIT 1",
+                [$tableName, $columnName]
+            );
+
+            if ($constraint?->CONSTRAINT_NAME) {
+                Schema::table($tableName, function (Blueprint $table) use ($constraint) {
+                    $table->dropForeign($constraint->CONSTRAINT_NAME);
+                });
+            }
+        };
+
         // 1. contacts.created_by - FK was dropped, need to make nullable and recreate
         if (Schema::hasTable('contacts')) {
+            $dropForeignIfExists('contacts', 'created_by');
             Schema::table('contacts', function (Blueprint $table) {
                 $table->unsignedBigInteger('created_by')->nullable()->change();
             });
@@ -25,9 +49,7 @@ return new class extends Migration
 
         // 2. company_visit_history.user_id - CASCADE -> SET NULL
         if (Schema::hasTable('company_visit_history')) {
-            Schema::table('company_visit_history', function (Blueprint $table) {
-                $table->dropForeign(['user_id']);
-            });
+            $dropForeignIfExists('company_visit_history', 'user_id');
             Schema::table('company_visit_history', function (Blueprint $table) {
                 $table->unsignedBigInteger('user_id')->nullable()->change();
             });
@@ -38,10 +60,8 @@ return new class extends Migration
 
         // 3. pr_number_reservations - RESTRICT -> SET NULL
         if (Schema::hasTable('pr_number_reservations')) {
-            Schema::table('pr_number_reservations', function (Blueprint $table) {
-                $table->dropForeign(['user_id']);
-                $table->dropForeign(['voided_by']);
-            });
+            $dropForeignIfExists('pr_number_reservations', 'user_id');
+            $dropForeignIfExists('pr_number_reservations', 'voided_by');
             Schema::table('pr_number_reservations', function (Blueprint $table) {
                 $table->unsignedBigInteger('user_id')->nullable()->change();
             });
@@ -53,10 +73,8 @@ return new class extends Migration
 
         // 4. stock_number_reservations - RESTRICT -> SET NULL
         if (Schema::hasTable('stock_number_reservations')) {
-            Schema::table('stock_number_reservations', function (Blueprint $table) {
-                $table->dropForeign(['user_id']);
-                $table->dropForeign(['voided_by']);
-            });
+            $dropForeignIfExists('stock_number_reservations', 'user_id');
+            $dropForeignIfExists('stock_number_reservations', 'voided_by');
             Schema::table('stock_number_reservations', function (Blueprint $table) {
                 $table->unsignedBigInteger('user_id')->nullable()->change();
             });
@@ -68,9 +86,7 @@ return new class extends Migration
 
         // 5. task_attachments.uploaded_by - CASCADE -> SET NULL
         if (Schema::hasTable('task_attachments')) {
-            Schema::table('task_attachments', function (Blueprint $table) {
-                $table->dropForeign(['uploaded_by']);
-            });
+            $dropForeignIfExists('task_attachments', 'uploaded_by');
             Schema::table('task_attachments', function (Blueprint $table) {
                 $table->unsignedBigInteger('uploaded_by')->nullable()->change();
             });

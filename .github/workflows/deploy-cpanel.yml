@@ -253,7 +253,12 @@ jobs:
 
             trap - EXIT
 
-            find "$APP_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort -r | tail -n +6 | xargs -r rm -rf
+            CURRENT_RELEASE="$(readlink -f "$APP_PATH/current" || true)"
+            ls -1dt "$APP_PATH/releases"/* 2>/dev/null | tail -n +6 | while IFS= read -r OLD_RELEASE; do
+              if [ "$(readlink -f "$OLD_RELEASE")" != "$CURRENT_RELEASE" ]; then
+                rm -rf "$OLD_RELEASE"
+              fi
+            done
             rm -f "$APP_PATH/deploy/release.tar.gz"
 
             echo "cPanel deploy complete: $RELEASE_ID"

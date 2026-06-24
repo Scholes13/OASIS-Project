@@ -221,6 +221,8 @@ export interface PageProps {
         unread_count: number;
     };
     appName: string;
+    appEnvironment: string;
+    isStaging: boolean;
     [key: string]: unknown; // Index signature for Inertia compatibility
 }
 

@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect, useCallback, useMemo, useRef } from 're
 import { Head, router, usePage } from '@inertiajs/react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
+import StagingBanner from '../components/layout/StagingBanner';
 import BuTransitionOverlay from '../components/layout/BuTransitionOverlay';
 import LogoutOverlay from '../components/layout/LogoutOverlay';
 import { Toaster } from '../components/ui/toast';
@@ -18,6 +19,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title }: AppLayoutProps) {
     const page = usePage<PageProps>();
+    const isStaging = Boolean(page.props.isStaging);
     const [sidebarMinimized, setSidebarMinimized] = useState(false);
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
@@ -161,6 +163,8 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     </div>
 
                     {/* Main Content — scrollable area */}
+                    {isStaging && <StagingBanner />}
+
                     <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">
                         {children}
                     </main>

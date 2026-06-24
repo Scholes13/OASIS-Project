@@ -1,9 +1,11 @@
 import { FormEvent, useState } from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
+import { Head, useForm, Link, usePage } from '@inertiajs/react';
 import { Droplets, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLoginStore } from '@/stores/loginStore';
 import LoginOverlay from '@/components/auth/LoginOverlay';
+import StagingBanner from '@/components/layout/StagingBanner';
+import type { PageProps } from '@/types';
 
 interface Props {
     canResetPassword: boolean;
@@ -12,6 +14,7 @@ interface Props {
 function Login({ canResetPassword }: Props) {
     const [showPassword, setShowPassword] = useState(false);
     const { startLogin, isLoggingIn } = useLoginStore();
+    const { isStaging } = usePage<PageProps>().props;
     
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
@@ -42,7 +45,10 @@ function Login({ canResetPassword }: Props) {
             
             <LoginOverlay />
             
-            <div className="min-h-screen flex font-inter bg-white overflow-hidden">
+            <div className="min-h-screen flex flex-col font-inter bg-white overflow-hidden">
+                {isStaging && <StagingBanner />}
+
+                <div className="flex min-h-0 flex-1">
                 {/* Brand Side */}
                 <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative overflow-hidden bg-gradient-to-br from-[#eff6ff] to-[#dbeafe]">
                     {/* Pattern */}
@@ -74,7 +80,7 @@ function Login({ canResetPassword }: Props) {
                 </div>
 
                 {/* Form Side */}
-                <div className="w-full lg:w-[560px] bg-white flex flex-col p-8 lg:p-12 lg:border-l border-slate-200 relative min-h-screen lg:min-h-0">
+                <div className="w-full lg:w-[560px] bg-white flex flex-col p-8 lg:p-12 lg:border-l border-slate-200 relative min-h-full">
                     <div className="flex-1 flex flex-col justify-center items-center w-full">
                         <div className="w-full max-w-[360px] flex flex-col gap-8">
                             {/* Mobile Logo */}
@@ -175,6 +181,7 @@ function Login({ canResetPassword }: Props) {
                             <Link href="#" className="text-slate-500 hover:text-slate-800 no-underline transition-colors">Terms of Service</Link>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </>

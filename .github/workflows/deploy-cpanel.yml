@@ -245,7 +245,17 @@ jobs:
             ln -sfn "$RELEASE_PATH" "$APP_PATH/current"
 
             HEALTH_URL="https://oasis.werkudara.com/api/v1/health"
-            HTTP_CODE="$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 20 "$HEALTH_URL" || echo "000")"
+            HTTP_CODE="000"
+            for ATTEMPT in 1 2 3 4 5 6; do
+              HTTP_CODE="$(curl -L -s -o /dev/null -w "%{http_code}" --max-time 20 "$HEALTH_URL" || echo "000")"
+              if [ "$HTTP_CODE" = "200" ]; then
+                break
+              fi
+
+              echo "Health check attempt $ATTEMPT failed for $HEALTH_URL (HTTP $HTTP_CODE). Retrying..."
+              sleep 5
+            done
+
             if [ "$HTTP_CODE" != "200" ]; then
               echo "Health check failed for $HEALTH_URL (HTTP $HTTP_CODE)."
               exit 1

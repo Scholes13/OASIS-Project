@@ -177,6 +177,10 @@ jobs:
             "$PHP_BIN" artisan view:cache
             "$PHP_BIN" artisan queue:restart || true
 
+            if [ -d "$APP_PATH/current" ] && [ ! -L "$APP_PATH/current" ]; then
+              mv "$APP_PATH/current" "$APP_PATH/current.bootstrap.$(date +%Y%m%d%H%M%S)"
+            fi
+
             ln -sfn "$RELEASE_PATH" "$APP_PATH/current"
 
             find "$APP_PATH/releases" -mindepth 1 -maxdepth 1 -type d | sort -r | tail -n +4 | xargs -r rm -rf

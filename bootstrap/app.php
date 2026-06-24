@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../routes/channels.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(\App\Http\Middleware\PreventSearchIndexing::class);
+
         // Global middleware for Inertia
         // EnsureBusinessUnitSelected MUST run before HandleInertiaRequests
         // so that navigation data has access to current_business_unit_id

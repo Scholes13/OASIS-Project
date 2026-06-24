@@ -61,6 +61,7 @@ class WNSEtikUserSeeder extends Seeder
             ['email' => $email],
             [
                 'name' => 'Etik Andriyanti',
+                'phone_number' => '-',
                 'password' => Hash::make('werkudara88'),
                 'global_role' => 'user',
                 'primary_department_id' => $sm->id,

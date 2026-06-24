@@ -8,6 +8,7 @@ use App\Models\Modules\Purchasing\StockRequest\StockNumberReservation;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Listing/query helpers for Stock Requests.
@@ -178,12 +179,14 @@ class StockRequestQueryService
      */
     public function getShowData(StockRequest $stockRequest, User $user, int $currentBusinessUnitId): array
     {
+        $approverColumns = implode(',', $this->approverColumns());
+
         $stockRequest->load([
             'businessUnit:id,name,code',
             'department:id,name,code',
             'user:id,name,email',
             'items',
-            'approvals.approver:id,name,email',
+            "approvals.approver:{$approverColumns}",
             'lastModifiedBy:id,name',
             'offlineApprovedBy:id,name',
         ]);
@@ -261,6 +264,7 @@ class StockRequestQueryService
                 ->pluck('businessUnit')
                 ->filter(),
             'availableApprovers' => $formDataProvider->getAvailableApprovers($user, $businessUnitId),
+            'requiresSupervisorApproval' => $user->getAccessLevel($businessUnitId) === 'staff',
             'currentBusinessUnitId' => $businessUnitId,
             'currentDepartmentId' => $departmentId,
         ];
@@ -275,10 +279,11 @@ class StockRequestQueryService
         \App\Services\Modules\Purchasing\Shared\RequestFormDataProvider $formDataProvider,
     ): array {
         $businessUnitId = $stockRequest->business_unit_id;
+        $approverColumns = implode(',', $this->approverColumns());
 
         $stockRequest->load([
             'items',
-            'approvals.approver:id,name,email',
+            "approvals.approver:{$approverColumns}",
         ]);
 
         $approvalWorkflow = $stockRequest->approvals->map(function ($approval) {
@@ -300,8 +305,20 @@ class StockRequestQueryService
                 ->pluck('businessUnit')
                 ->filter(),
             'availableApprovers' => $formDataProvider->getAvailableApprovers($user, $businessUnitId),
+            'requiresSupervisorApproval' => $user->getAccessLevel($businessUnitId) === 'staff',
             'currentBusinessUnitId' => $businessUnitId,
             'currentDepartmentId' => $stockRequest->department_id,
         ];
+    }
+
+    private function approverColumns(): array
+    {
+        $columns = ['id', 'name', 'email'];
+
+        if (Schema::hasColumn('users', 'avatar_url')) {
+            $columns[] = 'avatar_url';
+        }
+
+        return $columns;
     }
 }

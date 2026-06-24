@@ -10,6 +10,7 @@ interface CreatePageProps extends PageProps {
     departments: Department[];
     businessUnits: BusinessUnit[];
     availableApprovers: Approver[];
+    requiresSupervisorApproval: boolean;
     currentBusinessUnitId: number;
     currentDepartmentId: number;
 }
@@ -18,6 +19,7 @@ export default function Create({
     departments,
     businessUnits,
     availableApprovers,
+    requiresSupervisorApproval,
     errors,
     currentBusinessUnit,
     currentBusinessUnitId,
@@ -54,14 +56,6 @@ export default function Create({
 
         if (data.approval_notes) {
             formData.append('approval_notes', data.approval_notes);
-        }
-
-        // Append approval workflow
-        if (data.approval_workflow && data.approval_workflow.length > 0) {
-            data.approval_workflow.forEach((step, index) => {
-                formData.append(`approval_workflow[${index}][approver_id]`, String(step.approver_id));
-                formData.append(`approval_workflow[${index}][task_type]`, step.task_type);
-            });
         }
 
         // Append items
@@ -176,6 +170,7 @@ export default function Create({
                         departments={departments}
                         businessUnits={businessUnits}
                         availableApprovers={availableApprovers}
+                        requiresSupervisorApproval={requiresSupervisorApproval}
                         onSubmit={handleSubmit}
                         initialData={initialData}
                     />

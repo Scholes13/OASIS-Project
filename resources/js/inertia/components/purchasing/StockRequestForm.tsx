@@ -3,8 +3,7 @@ import { useForm } from '@inertiajs/react';
 import { Plus, Send, Loader2, Upload, X, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Department, BusinessUnit, Approver, CustomApprovalStep } from '../../types/purchasing';
-import { ApprovalWorkflowBuilder } from './ApprovalWorkflowBuilder';
+import { Department, BusinessUnit, Approver } from '../../types/purchasing';
 import { OfflineApprovalUpload } from './OfflineApprovalUpload';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -29,7 +28,6 @@ export interface STFormData {
     items: STItemFormData[];
     offline_approval_document?: File;
     approval_notes?: string;
-    approval_workflow?: CustomApprovalStep[];
 }
 
 interface StockRequestFormProps {
@@ -37,6 +35,7 @@ interface StockRequestFormProps {
     businessUnits: BusinessUnit[];
     availableApprovers: Approver[];
     initialData?: Partial<STFormData>;
+    requiresSupervisorApproval?: boolean;
     isEdit?: boolean;
     onSubmit: (data: STFormData) => void;
 }
@@ -44,8 +43,8 @@ interface StockRequestFormProps {
 export const StockRequestForm: React.FC<StockRequestFormProps> = ({
     departments,
     businessUnits,
-    availableApprovers,
     initialData,
+    requiresSupervisorApproval = false,
     isEdit = false,
     onSubmit,
 }) => {
@@ -58,10 +57,6 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
                 unit: 'pcs',
             },
         ]
-    );
-
-    const [customApprovalList, setCustomApprovalList] = useState<CustomApprovalStep[]>(
-        initialData?.approval_workflow || [{ approver_id: '', task_type: 'approval' }]
     );
 
     const [offlineDocument, setOfflineDocument] = useState<File | null>(null);
@@ -128,30 +123,6 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
         handleUpdateItem(index, 'image_path', undefined);
     };
 
-    // Add approval step
-    const handleAddApprovalStep = () => {
-        setCustomApprovalList((prev) => [
-            ...prev,
-            { approver_id: '', task_type: 'approval' },
-        ]);
-    };
-
-    // Remove approval step
-    const handleRemoveApprovalStep = (index: number) => {
-        if (customApprovalList.length > 1) {
-            setCustomApprovalList((prev) => prev.filter((_, i) => i !== index));
-        }
-    };
-
-    // Update approval step
-    const handleUpdateApprovalStep = (index: number, field: keyof CustomApprovalStep, value: any) => {
-        setCustomApprovalList((prev) => {
-            const newList = [...prev];
-            newList[index] = { ...newList[index], [field]: value };
-            return newList;
-        });
-    };
-
     // Handle form submission
     const handleSubmit = () => {
         // Validate items
@@ -160,25 +131,10 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
             return;
         }
 
-        // Validate approval workflow
-        const validApprovals = customApprovalList.filter((step) => step.approver_id);
-        if (validApprovals.length === 0) {
-            toast.error('Please select at least one approver');
-            return;
-        }
-
-        // Check for duplicate approvers
-        const approverIds = validApprovals.map((step) => step.approver_id);
-        if (new Set(approverIds).size !== approverIds.length) {
-            toast.error('Cannot select the same approver for multiple steps');
-            return;
-        }
-
         const formData: STFormData = {
             ...data,
             items,
             offline_approval_document: offlineDocument || undefined,
-            approval_workflow: validApprovals,
         };
 
         onSubmit(formData);
@@ -439,14 +395,11 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
                 </div>
             </div>
 
-            <ApprovalWorkflowBuilder
-                approvers={customApprovalList}
-                availableApprovers={availableApprovers}
-                onAdd={handleAddApprovalStep}
-                onRemove={handleRemoveApprovalStep}
-                onUpdate={(index, field, value) => handleUpdateApprovalStep(index, field, value as 'approval' | 'paraf')}
-                disabled={processing}
-            />
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                {requiresSupervisorApproval
+                    ? 'This request will go to HOD / Leader approval before Stock Review.'
+                    : 'This request will go directly to Stock Review.'}
+            </div>
 
             {/* Form Actions */}
             <div className="flex items-center justify-end gap-3">
@@ -464,7 +417,7 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
                     ) : (
                         <>
                             <Send className="w-4 h-4 mr-2" />
-                            Submit for Approval
+                            Submit for Stock Review
                         </>
                     )}
                 </Button>

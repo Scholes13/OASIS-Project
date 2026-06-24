@@ -173,6 +173,17 @@ class StockApprovalController extends Controller
             app(EmailNotificationService::class)
                 ->sendStApprovalRejected($approval->fresh(['stockRequest', 'approver']));
         } elseif ($action === 'approved') {
+            if ($approval->approval_type === 'department_lead') {
+                $stockRequest->approvals()
+                    ->where('id', '!=', $approval->id)
+                    ->where('approval_type', 'department_lead')
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'skipped',
+                        'responded_at' => now(),
+                    ]);
+            }
+
             // Check if all approvals are complete
             $pendingApprovals = $stockRequest->approvals()->where('status', 'pending')->count();
 

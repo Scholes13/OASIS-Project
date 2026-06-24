@@ -35,9 +35,9 @@ class StoreStockRequestRequest extends FormRequest
             'offline_approval_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'], // 10MB max
 
             // Approval Workflow
-            'approval_workflow' => ['required', 'array', 'min:1'],
-            'approval_workflow.*.approver_id' => ['required', 'integer', 'exists:users,id', 'distinct'],
-            'approval_workflow.*.task_type' => ['required', 'string', 'in:approval,paraf'],
+            'approval_workflow' => ['nullable', 'array'],
+            'approval_workflow.*.approver_id' => ['nullable', 'integer', 'exists:users,id', 'distinct'],
+            'approval_workflow.*.task_type' => ['nullable', 'string', 'in:approval,paraf'],
             'approval_notes' => ['nullable', 'string', 'max:1000'],
 
             // Items

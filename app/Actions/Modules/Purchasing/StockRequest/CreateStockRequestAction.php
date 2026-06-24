@@ -46,6 +46,9 @@ class CreateStockRequestAction
             // Handle offline approval document upload
             [$offlineDocumentPath, $offlineDocumentName] = $this->storeOfflineDocument($request);
 
+            $approvalWorkflow = $this->resolveInitialApprovalWorkflow($user, (int) $request->business_unit_id);
+            $initialStatus = $approvalWorkflow === [] ? 'ga_review' : 'in_approval';
+
             // Create stock request
             $stockRequest = StockRequest::create([
                 'st_number' => $stNumber['formatted_number'],
@@ -56,8 +59,9 @@ class CreateStockRequestAction
                 'purpose' => $request->purpose,
                 'date_of_request' => $request->date_of_request,
                 'expected_date' => $request->expected_date,
-                'status' => 'submitted', // Directly submit (no draft step)
+                'status' => $initialStatus,
                 'submitted_at' => now(),
+                'ga_review_started_at' => $approvalWorkflow === [] ? now() : null,
                 'offline_approval_document_path' => $offlineDocumentPath,
                 'offline_approval_document_name' => $offlineDocumentName,
                 'last_modified_by' => $user->id,
@@ -66,12 +70,13 @@ class CreateStockRequestAction
             // Create ST items
             $this->createItems($stockRequest, $request->items);
 
-            // Create approval workflow + notify first approver
-            $this->createWorkflowFromRequest(
-                $stockRequest,
-                $request->approval_workflow,
-                $request->approval_notes ?? null
-            );
+            if ($approvalWorkflow !== []) {
+                $this->createWorkflowFromRequest(
+                    $stockRequest,
+                    $approvalWorkflow,
+                    $request->approval_notes ?? null
+                );
+            }
 
             DB::commit();
 
@@ -188,6 +193,43 @@ class CreateStockRequestAction
         return $result;
     }
 
+    private function resolveInitialApprovalWorkflow(User $user, int $businessUnitId): array
+    {
+        if ($user->getAccessLevel($businessUnitId) !== 'staff') {
+            return [];
+        }
+
+        $approvers = $this->resolveStaffApprovers($user, $businessUnitId);
+
+        if ($approvers->isEmpty()) {
+            throw new \Exception('HOD or Leader approver is required for staff stock requests.');
+        }
+
+        return $approvers
+            ->map(fn (User $approver) => [
+                'approver_id' => $approver->id,
+                'task_type' => 'department_lead',
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function resolveStaffApprovers(User $user, int $businessUnitId)
+    {
+        return User::where('primary_department_id', $user->primary_department_id)
+            ->where('id', '!=', $user->id)
+            ->whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
+                $query->where('business_unit_id', $businessUnitId)
+                    ->whereHas('position', function ($positionQuery) {
+                        $positionQuery->whereIn('level', ['leader', 'hod'])
+                            ->orWhereIn('access_level', ['team_leader', 'department_head']);
+                    });
+            })
+            ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$user->supervisor_id ?? 0])
+            ->orderBy('name')
+            ->get();
+    }
+
     /**
      * Create approval workflow records and notify the first approver.
      */
@@ -212,33 +254,32 @@ class CreateStockRequestAction
         // Update stock request status to in_approval
         $stockRequest->update(['status' => 'in_approval']);
 
-        // Send notification to the first approver
-        $this->notifyFirstApprover($stockRequest);
+        $this->notifyPendingApprovers($stockRequest);
     }
 
     /**
      * Send notification to the first pending approver of a stock request.
      */
-    private function notifyFirstApprover(StockRequest $stockRequest): void
+    private function notifyPendingApprovers(StockRequest $stockRequest): void
     {
-        $firstApproval = $stockRequest->approvals()
+        $stockRequest->approvals()
             ->where('status', 'pending')
+            ->with('approver', 'stockRequest.user')
             ->orderBy('step_order')
-            ->first();
+            ->get()
+            ->each(function (StockApproval $approval) use ($stockRequest) {
+                if (! $approval->approver) {
+                    return;
+                }
 
-        if (! $firstApproval || ! $firstApproval->approver) {
-            return;
-        }
+                $this->emailService->sendStApprovalRequested($approval);
 
-        $firstApproval->loadMissing('approver', 'stockRequest.user');
-
-        $this->emailService->sendStApprovalRequested($firstApproval);
-
-        Log::info('Stock request first approver notification sent', [
-            'st_number' => $stockRequest->st_number,
-            'approver_id' => $firstApproval->approver_id,
-            'approver_name' => $firstApproval->approver->name,
-            'step_order' => $firstApproval->step_order,
-        ]);
+                Log::info('Stock request approver notification sent', [
+                    'st_number' => $stockRequest->st_number,
+                    'approver_id' => $approval->approver_id,
+                    'approver_name' => $approval->approver->name,
+                    'step_order' => $approval->step_order,
+                ]);
+            });
     }
 }

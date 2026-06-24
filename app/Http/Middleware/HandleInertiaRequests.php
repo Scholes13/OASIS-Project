@@ -109,6 +109,8 @@ class HandleInertiaRequests extends Middleware
                     : 0,
             ],
             'appName' => config('app.name'),
+            'appEnvironment' => config('app.env'),
+            'isStaging' => app()->environment('staging'),
             'serverDate' => now()->format('Y-m-d'),
         ]);
     }

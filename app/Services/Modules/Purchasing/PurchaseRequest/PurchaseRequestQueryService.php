@@ -165,6 +165,7 @@ class PurchaseRequestQueryService
             'user:id,name,email',
             'items.expenseDepartment:id,name,code',
             'approvals.approver:id,name,email',
+            'adminTask.assignedAdmin:id,name,email',
             'lastModifiedBy:id,name',
             'offlineApprovedBy:id,name',
         ]);

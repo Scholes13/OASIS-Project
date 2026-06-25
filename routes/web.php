@@ -516,13 +516,17 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // Reports Routes (Top Management Only - Coming Soon)
         Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
             Route::get('/purchase-requests', function () {
-                return view('reports.purchase-requests', [
-                    'message' => 'Report feature will be available soon for top management.',
+                return \Inertia\Inertia::render('Reports/Placeholder', [
+                    'title' => 'Purchase Request Reports',
+                    'description' => 'Analyze purchase request volume, approval status, department demand, and procurement trends.',
+                    'message' => 'Purchase request report feature will be available soon for top management.',
                 ]);
             })->name('purchase-requests');
             Route::get('/approvals', function () {
-                return view('reports.approvals', [
-                    'message' => 'Report feature will be available soon for top management.',
+                return \Inertia\Inertia::render('Reports/Placeholder', [
+                    'title' => 'Approval Reports',
+                    'description' => 'Monitor approval throughput, pending approvals, bottlenecks, and response time trends.',
+                    'message' => 'Approval report feature will be available soon for top management.',
                 ]);
             })->name('approvals');
         });

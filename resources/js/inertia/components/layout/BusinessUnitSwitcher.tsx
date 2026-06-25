@@ -212,9 +212,9 @@ export function BusinessUnitSwitcher() {
     // Single BU - just display
     if (!hasMultipleBUs) {
         return (
-            <div className="flex items-center gap-2 px-3 py-2">
+            <div className="flex h-10 items-center gap-2 px-2">
                 <BuLogo bu={currentBusinessUnit} size="sm" />
-                <span className="text-sm font-medium text-gray-700">
+                <span className="hidden text-sm font-medium text-slate-700 sm:block">
                     {currentBusinessUnit.name}
                 </span>
             </div>
@@ -228,7 +228,7 @@ export function BusinessUnitSwitcher() {
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isSwitching}
                 className={cn(
-                    "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
+                    "flex h-10 items-center gap-2 rounded-lg border px-3 transition-all",
                     isOpen 
                         ? "border-primary bg-white shadow-sm" 
                         : "border-gray-200 bg-white hover:border-gray-300",
@@ -238,7 +238,7 @@ export function BusinessUnitSwitcher() {
             >
                 <BuLogo bu={currentBusinessUnit} size="sm" />
                 
-                <span className="text-sm font-medium text-gray-900 hidden sm:block">
+                <span className="hidden max-w-56 truncate text-sm font-medium text-slate-900 sm:block">
                     {currentBusinessUnit.name}
                 </span>
                 

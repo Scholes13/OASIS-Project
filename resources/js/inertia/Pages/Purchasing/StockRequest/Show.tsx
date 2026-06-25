@@ -1,33 +1,204 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, Download, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDate } from '@/lib/formatters';
-import { APPROVAL_BADGE_COLORS } from '@/lib/purchasingConstants';
+
 import { toast } from 'sonner';
 import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
+import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { StockRequestActionModals } from '@/components/purchasing/show/StockRequestActionModals';
 import { StockRequestHeader } from '@/components/purchasing/show/StockRequestHeader';
 import { StockRequestItemsTable, type StockRequestGaReviewItem } from '@/components/purchasing/show/StockRequestItemsTable';
 import { StockRequestSummaryPanel } from '@/components/purchasing/show/StockRequestSummaryPanel';
 import type { STPermissions, STShowProps } from '@/types/purchasing';
 
-function ApprovalAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
-    const initials = name
-        .split(' ')
-        .map((part) => part[0])
-        .join('')
-        .substring(0, 2)
-        .toUpperCase();
+function SectionHeading({ children, hint }: { children: React.ReactNode; hint?: string }) {
+    return (
+        <div className="flex items-baseline justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{children}</h2>
+            {hint && <span className="text-xs text-slate-400">{hint}</span>}
+        </div>
+    );
+}
 
-    if (avatarUrl) {
-        return <img src={avatarUrl} alt={name} className="h-9 w-9 rounded-full object-cover" />;
-    }
+function SidebarCard({ children }: { children: React.ReactNode }) {
+    return (
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50">
+            {children}
+        </section>
+    );
+}
+
+function StockRequestSidebarSummary({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
+    const itemCount = stockRequest.items?.length || 0;
+    const initialTotalAmount = stockRequest.items?.reduce((sum, item) => {
+        const quantity = Number(item.quantity || 0);
+        const price = Number(item.price || 0);
+        const total = Number(item.total || 0);
+
+        return sum + (price > 0 ? quantity * price : total);
+    }, 0) || 0;
+    const totalAmount = stockRequest.status === 'in_approval' ? initialTotalAmount : Number(stockRequest.total_amount || initialTotalAmount);
+    const approvedSteps = stockRequest.approvals?.filter((approval) => approval.status === 'approved').length || 0;
+    const totalSteps = stockRequest.approvals?.length || 0;
+    const progress = totalSteps > 0 ? Math.round((approvedSteps / totalSteps) * 100) : 100;
 
     return (
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
-            {initials || 'U'}
+        <SidebarCard>
+            <SectionHeading>Request Summary</SectionHeading>
+            <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">Request ID</dt>
+                    <dd className="font-medium text-slate-950">{stockRequest.st_number}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">Items</dt>
+                    <dd className="font-medium text-slate-950">{itemCount}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">Total Amount</dt>
+                    <dd className="font-medium text-slate-950">{formatCurrency(totalAmount)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">Current Step</dt>
+                    <dd className="font-medium capitalize text-blue-700">{stockRequest.status.replace(/_/g, ' ')}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">Progress</dt>
+                    <dd className="font-medium text-slate-950">{progress}%</dd>
+                </div>
+            </dl>
+            <div className="mt-4 h-2 rounded-full bg-slate-100">
+                <div className="h-2 rounded-full bg-blue-600" style={{ width: `${progress}%` }} />
+            </div>
+        </SidebarCard>
+    );
+}
+
+function getStockRequestSteps(stockRequest: STShowProps['stockRequest']) {
+    const approvalDone = Boolean(stockRequest.approved_at || ['ga_review', 'ready_for_purchasing'].includes(stockRequest.status));
+    const gaDone = stockRequest.status === 'ready_for_purchasing';
+    const purchasingActive = stockRequest.status === 'ready_for_purchasing';
+    const approvedApprovals = stockRequest.approvals?.filter((approval) => approval.status === 'approved') || [];
+    const lastApproval = approvedApprovals[approvedApprovals.length - 1];
+    const totalSteps = stockRequest.approvals?.length || 0;
+    const requester = stockRequest.user?.name || 'Requester';
+    const requestedAt = formatDateTime(stockRequest.submitted_at || stockRequest.created_at);
+    const approvalActor = approvalDone && lastApproval ? lastApproval.approver?.name || 'Approver' : 'Department approval';
+    const approvalTime = totalSteps === 0
+        ? 'Pending'
+        : approvalDone && lastApproval
+            ? formatDateTime(lastApproval.responded_at)
+            : 'In progress';
+    const gaActor = gaDone ? stockRequest.ga_reviewer?.name || 'GA reviewer' : 'General Affairs';
+    const gaTime = gaDone
+        ? formatDateTime(stockRequest.ga_reviewed_at)
+        : stockRequest.status === 'ga_review'
+            ? 'In progress'
+            : 'Pending';
+    const purchasingTime = purchasingActive ? 'In progress' : 'Pending';
+
+    return [
+        {
+            title: 'Request Initiated',
+            actor: requester,
+            time: requestedAt,
+            state: 'done',
+        },
+        {
+            title: 'Department Approval',
+            actor: approvalActor,
+            time: approvalTime,
+            state: approvalDone ? 'done' : 'active',
+        },
+        {
+            title: 'General Affairs Review',
+            actor: gaActor,
+            time: gaTime,
+            state: gaDone ? 'done' : stockRequest.status === 'ga_review' ? 'active' : 'pending',
+        },
+        {
+            title: 'Purchasing Follow-up',
+            actor: 'Purchasing team',
+            time: purchasingTime,
+            state: purchasingActive ? 'active' : 'pending',
+        },
+        {
+            title: 'Done',
+            actor: 'Completed',
+            time: 'Pending',
+            state: 'pending',
+        },
+    ];
+}
+
+function StockRequestProcessBar({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
+    const steps = getStockRequestSteps(stockRequest);
+
+    return (
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50">
+            <SectionHeading hint="Workflow">Process Overview</SectionHeading>
+            <ol className="mt-4 grid gap-3 lg:grid-cols-5">
+                {steps.map((step, index) => {
+                    const isDone = step.state === 'done';
+                    const isActive = step.state === 'active';
+                    const Icon = isDone ? CheckCircle2 : Circle;
+
+                    return (
+                        <li key={step.title} className="relative min-w-0">
+                            {index < steps.length - 1 && <div className="absolute left-9 right-[-1rem] top-3.5 hidden h-px border-t border-dashed border-slate-200 lg:block" />}
+                            <div className="relative flex items-start gap-3">
+                                <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${isDone ? 'bg-emerald-50' : isActive ? 'bg-blue-600' : 'bg-slate-100'}`}>
+                                    <Icon className={`h-4 w-4 ${isDone ? 'text-emerald-600' : isActive ? 'text-white' : 'text-slate-300'}`} />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className={`text-sm font-semibold ${isDone || isActive ? 'text-slate-950' : 'text-slate-400'}`}>{step.title}</p>
+                                    <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-500">
+                                        <p>{step.actor}</p>
+                                        <p className={isActive ? 'text-blue-700' : ''}>{step.time}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
+        </section>
+    );
+}
+
+function StockRequestPipeline({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
+    const steps = getStockRequestSteps(stockRequest);
+
+    return (
+        <div className="space-y-4">
+            <SectionHeading hint="Pipeline">Approval Progress</SectionHeading>
+            <ol className="relative space-y-4">
+                {steps.map((step, index) => {
+                    const isDone = step.state === 'done';
+                    const isActive = step.state === 'active';
+                    const Icon = isDone ? CheckCircle2 : Circle;
+
+                    return (
+                        <li key={step.title} className="relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3">
+                            {index < steps.length - 1 && <div className="absolute left-3.5 top-7 h-[calc(100%_+_0.5rem)] w-px bg-slate-200" />}
+                            <div className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full ${isDone ? 'bg-emerald-50' : isActive ? 'bg-blue-50' : 'bg-slate-100'}`}>
+                                <Icon className={`h-4 w-4 ${isDone ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-slate-300'}`} />
+                            </div>
+                            <div className="min-w-0 rounded-xl bg-white/70 px-3 py-2.5 shadow-sm shadow-slate-200/40 ring-1 ring-slate-200/70">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className={`text-sm font-medium ${isDone || isActive ? 'text-slate-950' : 'text-slate-400'}`}>{step.title}</p>
+                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${isDone ? 'bg-emerald-50 text-emerald-700' : isActive ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>
+                                        {isDone ? 'Done' : isActive ? 'In progress' : 'Pending'}
+                                    </span>
+                                </div>
+                                <p className="mt-1 truncate text-xs text-slate-500" title={`${step.actor} · ${step.time}`}>{step.actor} · {step.time}</p>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
         </div>
     );
 }
@@ -60,7 +231,6 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
     const isApprovalView = Boolean(approvalContext?.approvalId);
     const canReviewGa = stockRequest.status === 'ga_review' && Boolean(permissions.gaReviewApprove || permissions.gaReviewReject);
 
-    // Handle void action
     const handleVoid = () => {
         if (!voidReason.trim()) {
             toast.error('Please provide a reason for voiding');
@@ -81,7 +251,6 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
         );
     };
 
-    // Handle offline approval
     const handleOfflineApproval = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (!offlineDocument) {
@@ -107,7 +276,6 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
         );
     };
 
-    // Handle resubmit
     const handleResubmit = () => {
         if (!window.confirm('Resubmitting will reset the approval workflow. All previous approval decisions will be cleared. Continue?')) {
             return;
@@ -124,17 +292,12 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
 
     const handleResendApprovalEmail = () => {
         setIsResendingEmail(true);
-
         router.post(
             route('stock-requests.resend-approval-email', { stockRequest: stockRequest.id }),
             {},
             {
-                onSuccess: () => {
-                    toast.success('Approval email resent to current approver');
-                },
-                onError: () => {
-                    toast.error('Failed to resend approval email');
-                },
+                onSuccess: () => toast.success('Approval email resent to current approver'),
+                onError: () => toast.error('Failed to resend approval email'),
                 onFinish: () => setIsResendingEmail(false),
             }
         );
@@ -144,15 +307,10 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
         if (!approvalContext?.approvalId) {
             return;
         }
-
         setIsDecisionSubmitting(true);
-
         router.post(
             route('stock-approvals.process', { approval: approvalContext.approvalId }),
-            {
-                action,
-                notes: approvalNotes,
-            },
+            { action, notes: approvalNotes },
             {
                 onSuccess: () => {
                     toast.success(action === 'approve' ? 'Stock request approved successfully' : 'Stock request rejected');
@@ -162,9 +320,7 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
                 onError: () => {
                     toast.error(action === 'approve' ? 'Failed to approve stock request' : 'Failed to reject stock request');
                 },
-                onFinish: () => {
-                    setIsDecisionSubmitting(false);
-                },
+                onFinish: () => setIsDecisionSubmitting(false),
             }
         );
     };
@@ -208,9 +364,7 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
             toast.error('All items must be reviewed');
             return;
         }
-
         setIsDecisionSubmitting(true);
-
         router.post(
             route('stock-requests.ga-review.approve', { stockRequest: stockRequest.id }),
             {
@@ -236,9 +390,7 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
             toast.error('Please provide GA rejection reason');
             return;
         }
-
         setIsDecisionSubmitting(true);
-
         router.post(
             route('stock-requests.ga-review.reject', { stockRequest: stockRequest.id }),
             { reason: gaRejectReason },
@@ -262,23 +414,20 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
         try {
             const routeList = ziggy();
             if (routeList?.has?.(routeName)) {
-                return ziggy(routeName, {
-                    stockRequest: stockRequest.id,
-                });
+                return ziggy(routeName, { stockRequest: stockRequest.id });
             }
         } catch {
-            // Fall back to the authenticated application path if Ziggy route metadata is unavailable.
+            // Fall back to authenticated application path when Ziggy metadata unavailable.
         }
 
         return fallbackPath;
     };
 
-
     return (
         <>
             <Head title={`ST ${stockRequest.st_number}`} />
 
-            <div className="bg-white">
+            <div className="min-h-screen">
                 <StockRequestHeader
                     stockRequest={stockRequest}
                     permissions={permissions}
@@ -290,227 +439,181 @@ export default function Show({ stockRequest, can, approvalContext }: STShowProps
                     onVoid={() => setShowVoidModal(true)}
                 />
 
-
-                {/* Alert for Rejected STs */}
                 {stockRequest.status === 'rejected' && (
                     <motion.div
-                        initial={{ opacity: 0, y: -10 }}
+                        initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg"
+                        className="mx-7 mb-2 flex items-start gap-3 rounded-lg border border-red-100 bg-red-50/70 px-4 py-3"
                     >
-                        <div className="flex items-start">
-                            <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
-                            <div className="ml-3">
-                                <h3 className="text-sm font-medium text-red-800">
-                                    This Stock Request was Rejected
-                                </h3>
-                                <p className="text-sm text-red-700 mt-1">
-                                    You can edit this ST and resubmit it for approval using the "Resubmit" button above.
-                                </p>
-                            </div>
+                        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+                        <div className="text-sm">
+                            <p className="font-medium text-red-800">This stock request was rejected</p>
+                            <p className="mt-0.5 text-red-700">Edit and resubmit using the Resubmit action above.</p>
                         </div>
                     </motion.div>
                 )}
 
-                {/* Content Grid */}
-                <div className="px-6 py-6">
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                        {/* Main Content (2/3) */}
-                        <div className="xl:col-span-2 space-y-6">
-                            <StockRequestSummaryPanel stockRequest={stockRequest} />
-                            <StockRequestItemsTable
-                                stockRequest={stockRequest}
-                                canReviewGa={canReviewGa}
-                                gaReviewItems={gaReviewItems}
-                                onGaReviewItemChange={handleGaReviewItemChange}
-                            />
+                <div className="px-7 pb-12 pt-1">
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+                        <div className="space-y-6">
+                            <StockRequestProcessBar stockRequest={stockRequest} />
+                            <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50">
+                                <StockRequestSummaryPanel stockRequest={stockRequest} />
+                            </section>
+                            <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50">
+                                <StockRequestItemsTable
+                                    stockRequest={stockRequest}
+                                    canReviewGa={canReviewGa}
+                                    gaReviewItems={gaReviewItems}
+                                    onGaReviewItemChange={handleGaReviewItemChange}
+                                />
+                            </section>
                         </div>
 
+                        <aside className="space-y-5">
+                            <StockRequestSidebarSummary stockRequest={stockRequest} />
 
-                        {/* Sidebar (1/3) */}
-                        <div className="space-y-6">
                             {canReviewGa && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
+                                <motion.section
+                                    initial={{ opacity: 0, y: 12 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.25 }}
-                                    className="bg-white rounded-xl border border-gray-100 overflow-hidden"
+                                    transition={{ delay: 0.1 }}
+                                    className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50"
                                 >
-                                    <div className="px-5 py-4 border-b border-gray-100">
-                                        <h3 className="text-base font-semibold text-gray-900">Stock Review</h3>
-                                    </div>
-                                    <div className="p-5 space-y-4">
+                                    <SectionHeading hint="GA only">Stock Review</SectionHeading>
+                                    <div className="space-y-3">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                                            <label className="mb-1.5 block text-xs font-medium text-slate-700">Notes (optional)</label>
                                             <textarea
                                                 value={gaReviewNotes}
                                                 onChange={(event) => setGaReviewNotes(event.target.value)}
                                                 rows={3}
                                                 placeholder="Add GA review notes"
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary"
+                                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Reject Reason</label>
+                                            <label className="mb-1.5 block text-xs font-medium text-slate-700">Reject reason</label>
                                             <textarea
                                                 value={gaRejectReason}
                                                 onChange={(event) => setGaRejectReason(event.target.value)}
                                                 rows={3}
                                                 placeholder="Required when rejecting"
-                                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary"
+                                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                             />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-2 pt-1">
                                             {permissions.gaReviewApprove && (
-                                                <Button
-                                                    type="button"
-                                                    onClick={handleGaReviewApprove}
-                                                    disabled={isDecisionSubmitting}
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                >
-                                                    {isDecisionSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                <Button type="button" onClick={handleGaReviewApprove} disabled={isDecisionSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                                    {isDecisionSubmitting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
                                                     Approve
                                                 </Button>
                                             )}
                                             {permissions.gaReviewReject && (
-                                                <Button
-                                                    type="button"
-                                                    onClick={handleGaReviewReject}
-                                                    disabled={isDecisionSubmitting}
-                                                    className="bg-red-600 hover:bg-red-700 text-white"
-                                                >
-                                                    {isDecisionSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                <Button type="button" onClick={handleGaReviewReject} disabled={isDecisionSubmitting} className="bg-red-600 hover:bg-red-700 text-white">
+                                                    {isDecisionSubmitting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
                                                     Reject
                                                 </Button>
                                             )}
                                         </div>
                                     </div>
-                                </motion.div>
-                            )}
-                            {approvalContext && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.25 }}
-                                    className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                                >
-                                    <div className="px-5 py-4 border-b border-gray-100">
-                                        <h3 className="text-base font-semibold text-gray-900">Your Approval</h3>
-                                    </div>
-                                    <div className="p-5 space-y-4">
-                                        {approvalContext.approvalStatus !== 'pending' ? (
-                                            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                                This approval has been processed.
-                                            </div>
-                                        ) : !approvalContext.canApprove ? (
-                                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                                This is not the active approval step yet.
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
-                                                    <textarea
-                                                        value={approvalNotes}
-                                                        onChange={(event) => setApprovalNotes(event.target.value)}
-                                                        rows={3}
-                                                        placeholder="Add approval notes"
-                                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => setShowApproveModal(true)}
-                                                        disabled={isDecisionSubmitting}
-                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                    >
-                                                        {isDecisionSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                                        Approve
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => setShowRejectModal(true)}
-                                                        disabled={isDecisionSubmitting}
-                                                        className="bg-red-600 hover:bg-red-700 text-white"
-                                                    >
-                                                        {isDecisionSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                                        Reject
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </motion.div>
+                                </motion.section>
                             )}
 
-                            {/* Approval Progress Card */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                            >
-                                <div className="px-5 py-4 border-b border-gray-100">
-                                    <h3 className="text-base font-semibold text-gray-900">Approval Progress</h3>
-                                </div>
-                                <div className="p-5">
-                                    {stockRequest.approvals && stockRequest.approvals.length > 0 ? (
+                            {approvalContext && (
+                                <motion.section
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.15 }}
+                                    className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50"
+                                >
+                                    <SectionHeading hint="Your step">Your Approval</SectionHeading>
+                                    {approvalContext.approvalStatus !== 'pending' ? (
+                                        <p className="text-sm text-slate-500">This approval has been processed.</p>
+                                    ) : !approvalContext.canApprove ? (
+                                        <p className="text-sm text-amber-700">This is not the active approval step yet.</p>
+                                    ) : (
                                         <div className="space-y-3">
-                                            <p className="text-xs text-gray-500">HOD / Leader approval is parallel. Any one approval moves this request to Stock Review.</p>
-                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                {stockRequest.approvals.map((approval) => (
-                                                    <div key={approval.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
-                                                        <ApprovalAvatar name={approval.approver?.name || 'N/A'} avatarUrl={approval.approver?.avatar_url} />
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium text-gray-900 truncate">{approval.approver?.name || 'N/A'}</p>
-                                                            <p className={`mt-0.5 inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                                                                APPROVAL_BADGE_COLORS[approval.status]?.bg || APPROVAL_BADGE_COLORS.pending.bg
-                                                            } ${
-                                                                APPROVAL_BADGE_COLORS[approval.status]?.text || APPROVAL_BADGE_COLORS.pending.text
-                                                            }`}>
-                                                                {approval.status}
-                                                            </p>
-                                                            {approval.responded_at && (
-                                                                <p className="text-xs text-gray-400 mt-1">
-                                                                    {formatDate(approval.responded_at)}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                            <div>
+                                                <label className="mb-1.5 block text-xs font-medium text-slate-700">Notes (optional)</label>
+                                                <textarea
+                                                    value={approvalNotes}
+                                                    onChange={(event) => setApprovalNotes(event.target.value)}
+                                                    rows={3}
+                                                    placeholder="Add approval notes"
+                                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 pt-1">
+                                                <Button type="button" onClick={() => setShowApproveModal(true)} disabled={isDecisionSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                                    {isDecisionSubmitting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                                                    Approve
+                                                </Button>
+                                                <Button type="button" onClick={() => setShowRejectModal(true)} disabled={isDecisionSubmitting} className="bg-red-600 hover:bg-red-700 text-white">
+                                                    {isDecisionSubmitting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                                                    Reject
+                                                </Button>
                                             </div>
                                         </div>
-                                    ) : (
-                                        <p className="text-sm text-gray-500 text-center py-4">No approval workflow</p>
                                     )}
-                                </div>
-                            </motion.div>
-
-                            {/* Offline Approval Document */}
-                            {stockRequest.offline_approval_document_path && permissions?.offlineApprovalDocument && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.4 }}
-                                    className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                                >
-                                    <div className="px-5 py-4 border-b border-gray-100">
-                                        <h3 className="text-base font-semibold text-gray-900">Offline Approval Document</h3>
-                                    </div>
-                                    <div className="p-5">
-                                        <SupportingDocumentLink
-                                            filename={stockRequest.offline_approval_document_name}
-                                            url={getOfflineApprovalDocumentUrl()}
-                                            className="bg-purple-50 rounded-lg border border-purple-200"
-                                        />
-                                    </div>
-                                </motion.div>
+                                </motion.section>
                             )}
-                        </div>
+
+                            <motion.section
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50"
+                            >
+                                <StockRequestPipeline stockRequest={stockRequest} />
+                            </motion.section>
+
+                            <SidebarCard>
+                                <SectionHeading>Request Actions</SectionHeading>
+                                <div className="mt-4 divide-y divide-slate-100 text-sm">
+                                    <a
+                                        href={route('stock-requests.pdf-public', { stockRequest: stockRequest.id })}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-between py-3 text-slate-600 transition-colors hover:text-slate-950"
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <Download className="h-4 w-4" />
+                                            Download request
+                                        </span>
+                                        <span className="text-slate-300">›</span>
+                                    </a>
+                                    <a
+                                        href={isApprovalView ? route('stock-approvals.index') : route('stock-requests.index')}
+                                        className="flex items-center justify-between py-3 text-slate-600 transition-colors hover:text-slate-950"
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <Eye className="h-4 w-4" />
+                                            View list
+                                        </span>
+                                        <span className="text-slate-300">›</span>
+                                    </a>
+                                </div>
+                            </SidebarCard>
+
+                            {stockRequest.offline_approval_document_path && permissions?.offlineApprovalDocument && (
+                                <motion.section
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.25 }}
+                                    className="space-y-4"
+                                >
+                                    <SectionHeading>Offline Approval Document</SectionHeading>
+                                    <SupportingDocumentLink
+                                        filename={stockRequest.offline_approval_document_name}
+                                        url={getOfflineApprovalDocumentUrl()}
+                                        className="rounded-lg border border-violet-100 bg-violet-50/60"
+                                    />
+                                </motion.section>
+                            )}
+                        </aside>
                     </div>
                 </div>
-
 
                 <StockRequestActionModals
                     itemNumber={stockRequest.st_number}

@@ -188,6 +188,7 @@ class StockRequestQueryService
             'items',
             "approvals.approver:{$approverColumns}",
             'lastModifiedBy:id,name',
+            'gaReviewer:id,name',
             'offlineApprovedBy:id,name',
         ]);
 
@@ -198,6 +199,7 @@ class StockRequestQueryService
                 $stockRequest->toArray(),
                 [
                     'approval_progress' => $stockRequest->getApprovalProgress(),
+                    'total_amount' => $stockRequest->total_amount,
                     'can' => $authorization,
                 ]
             ),

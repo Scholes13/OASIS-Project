@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, Ban, Check, Download, Edit, Loader2, RotateCcw, Send, Shield, X } from 'lucide-react';
+import { Ban, Check, Download, Edit, Loader2, RotateCcw, Send, Shield, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PR_STATUS_CONFIG } from '@/lib/purchasingConstants';
 import type { PRShowProps } from '@/types/purchasing';
@@ -33,35 +33,35 @@ export function PurchaseRequestHeader({
     const StatusIcon = currentStatus.icon || Edit;
 
     return (
-        <div className="border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <Link href={route('purchase-requests.index')} className="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <div>
-                        <div className="flex items-center space-x-3">
-                            <h1 className="text-xl font-semibold text-gray-900">{purchaseRequest.pr_number}</h1>
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${currentStatus.bg} ${currentStatus.text}`}>
-                                <StatusIcon className="w-3.5 h-3.5 mr-1" />
-                                {currentStatus.label}
+        <header className="px-9 pb-2 pt-3">
+            <div className="flex items-start justify-between gap-6">
+                <div className="min-w-0">
+                    <nav className="mb-3 flex items-center gap-2 text-xs font-medium text-slate-500" aria-label="Breadcrumb">
+                        <Link href={route('purchase-requests.index')} className="hover:text-slate-800">Purchase Request</Link>
+                        <span className="text-slate-300">/</span>
+                        <span className="truncate text-slate-800">{purchaseRequest.pr_number}</span>
+                    </nav>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Purchase Request Approval</h1>
+                        <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-medium ${currentStatus.bg} ${currentStatus.text}`}>
+                            <StatusIcon className="h-3 w-3" />
+                            {currentStatus.label}
+                        </span>
+                        {purchaseRequest.offline_approved_at && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">
+                                <Shield className="h-3 w-3" />
+                                Offline approved
                             </span>
-                            {purchaseRequest.offline_approved_at && (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                                    <Shield className="w-3.5 h-3.5 mr-1" />
-                                    Offline Approved
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-0.5">
-                            {purchaseRequest.business_unit?.name || 'N/A'} • {purchaseRequest.department?.name || 'N/A'}
-                        </p>
+                        )}
                     </div>
+                    <p className="mt-2 text-sm text-slate-500">
+                        Multi-tier approval process for purchase request {purchaseRequest.pr_number}.
+                    </p>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center justify-end gap-1 pt-14">
                     {permissions?.approve && (
-                        <Button variant="default" size="sm" onClick={onApprove} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                        <Button variant="default" size="sm" onClick={onApprove} className="bg-emerald-600 text-white hover:bg-emerald-700">
                             <Check className="w-4 h-4 mr-1.5" />
                             Approve
                         </Button>
@@ -75,7 +75,7 @@ export function PurchaseRequestHeader({
                     )}
 
                     {permissions?.edit && (
-                        <Link href={route('purchase-requests.edit', { purchaseRequest: purchaseRequest.id })} className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                        <Link href={route('purchase-requests.edit', { purchaseRequest: purchaseRequest.id })} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
                             <Edit className="w-4 h-4 mr-1.5" />
                             Edit
                         </Link>
@@ -96,7 +96,7 @@ export function PurchaseRequestHeader({
                     )}
 
                     {permissions?.downloadPdf && (
-                        <a href={route('purchase-requests.pdf-public', { purchaseRequest: purchaseRequest.id })} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                        <a href={route('purchase-requests.pdf-public', { purchaseRequest: purchaseRequest.id })} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
                             <Download className="w-4 h-4 mr-1.5" />
                             Download PDF
                         </a>
@@ -117,6 +117,6 @@ export function PurchaseRequestHeader({
                     )}
                 </div>
             </div>
-        </div>
+        </header>
     );
 }

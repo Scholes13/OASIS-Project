@@ -1,6 +1,6 @@
+import type React from 'react';
 import { motion } from 'framer-motion';
-import { Check, Clock, X } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
+import { CheckCircle2, Circle } from 'lucide-react';
 import { formatDateTime } from '@/lib/formatters';
 import type { PurchaseRequest } from '@/types/purchasing';
 
@@ -9,94 +9,113 @@ interface PurchaseRequestApprovalsTimelineProps {
 }
 
 export function PurchaseRequestApprovalsTimeline({ purchaseRequest }: PurchaseRequestApprovalsTimelineProps) {
+    const steps = getPurchaseRequestApprovalSteps(purchaseRequest);
+
     return (
-        <>
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100">
-                    <h3 className="text-base font-semibold text-gray-900">Approval Progress</h3>
-                </div>
-                <div className="p-5">
-                    {purchaseRequest.approvals && purchaseRequest.approvals.length > 0 ? (
-                        <div className="space-y-0">
-                            {purchaseRequest.approvals.map((approval, index) => (
-                                <motion.div key={approval.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + index * 0.1 }} className="flex items-start gap-3 pb-6 last:pb-0">
-                                    <div className="flex-shrink-0 relative">
-                                        {approval.status === 'approved' ? (
-                                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                <Check className="w-4 h-4 text-emerald-600" />
-                                            </div>
-                                        ) : approval.status === 'rejected' ? (
-                                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                                                <X className="w-4 h-4 text-red-600" />
-                                            </div>
-                                        ) : (
-                                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                                <Clock className="w-4 h-4 text-gray-400" />
-                                            </div>
-                                        )}
-                                        {index < purchaseRequest.approvals!.length - 1 && <div className="absolute top-8 left-4 w-0.5 h-6 bg-gray-200" />}
-                                    </div>
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
+            <SectionHeading hint="Pipeline">Approval Progress</SectionHeading>
+            <ol className="relative space-y-4">
+                {steps.map((step, index) => {
+                    const isDone = step.state === 'done';
+                    const isActive = step.state === 'active';
+                    const Icon = isDone ? CheckCircle2 : Circle;
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-gray-900">{approval.approver?.name || 'Unknown'}</p>
-                                                <p className="text-xs text-gray-500 mt-0.5">{approval.approver?.email || ''}</p>
-                                            </div>
-                                            <Badge variant={approval.status === 'approved' ? 'success' : approval.status === 'rejected' ? 'danger' : 'default'} className="ml-2">
-                                                {approval.status === 'approved' ? 'Approved' : approval.status === 'rejected' ? 'Rejected' : 'Pending'}
-                                            </Badge>
-                                        </div>
-                                        {approval.responded_at && <p className="text-xs text-gray-400 mt-1">{formatDateTime(approval.responded_at)}</p>}
-                                        {approval.notes && <p className="text-xs text-gray-600 mt-2 p-2 bg-gray-50 rounded">{approval.notes}</p>}
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-6">
-                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <Check className="w-6 h-6 text-gray-400" />
+                    return (
+                        <li key={step.title} className="relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3">
+                            {index < steps.length - 1 && <div className="absolute left-3.5 top-7 h-[calc(100%_+_0.5rem)] w-px bg-slate-200" />}
+                            <div className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full ${isDone ? 'bg-emerald-50' : isActive ? 'bg-blue-50' : 'bg-slate-100'}`}>
+                                <Icon className={`h-4 w-4 ${isDone ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-slate-300'}`} />
                             </div>
-                            <p className="text-sm text-gray-500">No approval workflow</p>
-                            <p className="text-xs text-gray-400 mt-1">Submit this PR to start approval</p>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100">
-                    <h3 className="text-base font-semibold text-gray-900">Timeline</h3>
-                </div>
-                <div className="p-5 space-y-3">
-                    <TimelineRow label="Created" value={formatDateTime(purchaseRequest.created_at)} />
-                    {purchaseRequest.submitted_at && <TimelineRow label="Submitted" value={formatDateTime(purchaseRequest.submitted_at)} />}
-                    {purchaseRequest.approved_at && <TimelineRow label="Approved" value={formatDateTime(purchaseRequest.approved_at)} labelClassName="text-emerald-600" />}
-                    {purchaseRequest.rejected_at && <TimelineRow label="Rejected" value={formatDateTime(purchaseRequest.rejected_at)} labelClassName="text-red-600" />}
-                    {purchaseRequest.voided_at && <TimelineRow label="Voided" value={formatDateTime(purchaseRequest.voided_at)} />}
-                    {purchaseRequest.offline_approved_at && (
-                        <>
-                            <TimelineRow label="Offline Approved" value={formatDateTime(purchaseRequest.offline_approved_at)} labelClassName="text-purple-600" />
-                            {purchaseRequest.offline_approval_notes && (
-                                <div className="text-sm">
-                                    <span className="text-gray-500">Notes:</span>
-                                    <p className="text-gray-700 mt-1 p-2 bg-gray-50 rounded text-xs">{purchaseRequest.offline_approval_notes}</p>
+                            <div className="min-w-0 rounded-xl bg-white/70 px-3 py-2.5 shadow-sm shadow-slate-200/40 ring-1 ring-slate-200/70">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className={`text-sm font-medium ${isDone || isActive ? 'text-slate-950' : 'text-slate-400'}`}>{step.title}</p>
+                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${isDone ? 'bg-emerald-50 text-emerald-700' : isActive ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>
+                                        {isDone ? 'Done' : isActive ? 'In progress' : 'Pending'}
+                                    </span>
                                 </div>
-                            )}
-                        </>
-                    )}
-                </div>
-            </motion.div>
-        </>
+                                <p className="mt-1 truncate text-xs text-slate-500" title={`${step.actor} · ${step.time}`}>{step.actor} · {step.time}</p>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
+        </motion.div>
     );
 }
 
-function TimelineRow({ label, value, labelClassName = 'text-gray-500' }: { label: string; value: string; labelClassName?: string }) {
+function SectionHeading({ children, hint }: { children: React.ReactNode; hint?: string }) {
     return (
-        <div className="flex items-center justify-between text-sm">
-            <span className={labelClassName}>{label}</span>
-            <span className="text-gray-900">{value}</span>
+        <div className="flex items-baseline justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{children}</h2>
+            {hint && <span className="text-xs text-slate-400">{hint}</span>}
         </div>
     );
+}
+
+function getPurchaseRequestApprovalSteps(purchaseRequest: PurchaseRequest) {
+    const approvals = purchaseRequest.approvals || [];
+    const allApproved = approvals.length > 0 && approvals.every((approval) => approval.status === 'approved');
+    const requestedAt = formatDateTime(purchaseRequest.submitted_at || purchaseRequest.created_at);
+    const adminTask = purchaseRequest.admin_task;
+    const purchasingFollowUp = adminTask
+        ? {
+            title: 'Purchasing Follow-up',
+            actor: adminTask.assigned_admin?.name || 'Purchasing team',
+            time: adminTask.completed_at ? formatDateTime(adminTask.completed_at) : adminTask.started_at ? 'In progress' : 'Pending',
+            state: adminTask.status === 'done' ? 'done' : adminTask.status === 'in_progress' ? 'active' : 'pending',
+        }
+        : {
+            title: 'Purchasing Follow-up',
+            actor: 'Purchasing team',
+            time: allApproved ? 'In progress' : 'Pending',
+            state: allApproved ? 'active' : 'pending',
+        };
+    const doneStep = adminTask?.status === 'done'
+        ? {
+            title: 'Done',
+            actor: 'Goods received',
+            time: adminTask.completed_at ? formatDateTime(adminTask.completed_at) : 'Done',
+            state: 'done',
+        }
+        : {
+            title: 'Done',
+            actor: 'Goods received',
+            time: 'Pending',
+            state: 'pending',
+        };
+    const approvalStage = (index: number, pendingLabel: string) => {
+        const approval = approvals[index];
+
+        if (!approval) {
+            return {
+                title: pendingLabel,
+                actor: pendingLabel,
+                time: 'Pending',
+                state: 'pending',
+            };
+        }
+
+        return {
+            title: pendingLabel,
+            actor: approval.approver?.name || pendingLabel,
+            time: approval.status === 'approved' || approval.status === 'rejected'
+                ? formatDateTime(approval.responded_at)
+                : 'In progress',
+            state: approval.status === 'approved' ? 'done' : 'active',
+        };
+    };
+
+    return [
+        {
+            title: 'Request Initiated',
+            actor: purchaseRequest.user?.name || 'Requester',
+            time: requestedAt,
+            state: 'done',
+        },
+        approvalStage(0, 'Internal Department'),
+        approvalStage(1, 'Purchasing Approval'),
+        approvalStage(2, 'Management / BOD'),
+        purchasingFollowUp,
+        doneStep,
+    ];
 }

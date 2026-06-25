@@ -106,6 +106,11 @@ class StockRequest extends Model
         return $this->belongsTo(User::class, 'last_modified_by');
     }
 
+    public function gaReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'ga_reviewed_by');
+    }
+
     /**
      * Get stock request items
      */

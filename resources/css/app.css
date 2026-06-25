@@ -779,7 +779,8 @@
     }
 
     body {
-        @apply font-sans antialiased;
+        @apply antialiased;
+        font-family: 'Manrope', 'Plus Jakarta Sans', Inter, Figtree, ui-sans-serif, system-ui, sans-serif;
         font-size: 0.875rem; /* 14px — standard SaaS Enterprise base */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;

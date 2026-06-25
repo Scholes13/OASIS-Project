@@ -40,9 +40,15 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
         ]
     );
 
-    const [customApprovalList, setCustomApprovalList] = useState<CustomApprovalStep[]>([
-        { approver_id: '', task_type: 'approval' },
-    ]);
+    const [customApprovalList, setCustomApprovalList] = useState<CustomApprovalStep[]>(
+        initialData?.approval_workflow?.length
+            ? initialData.approval_workflow
+            : [
+                { approver_id: '', task_type: 'approval' },
+                { approver_id: '', task_type: 'approval' },
+                { approver_id: '', task_type: 'approval' },
+            ]
+    );
 
     const [supportingDocument, setSupportingDocument] = useState<File | null>(null);
     const [supportingDocumentPreview, setSupportingDocumentPreview] = useState<string | null>(null);

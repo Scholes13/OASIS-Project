@@ -10,7 +10,7 @@ declare global {
 // Make Pusher available globally for Echo
 window.Pusher = Pusher;
 
-let echo: Echo | null = null;
+let echo: Echo<any> | null = null;
 
 const reverbKey = import.meta.env.VITE_REVERB_APP_KEY;
 
@@ -26,4 +26,4 @@ if (reverbKey) {
     });
 }
 
-export default echo as Echo;
+export default echo as Echo<any>;

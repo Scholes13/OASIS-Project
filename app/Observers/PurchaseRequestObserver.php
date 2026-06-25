@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Models\Core\Department;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\Purchasing\Admin\AdminTaskAssignmentService;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
@@ -23,39 +24,48 @@ class PurchaseRequestObserver
         // Check if status changed to 'approved'
         if ($purchaseRequest->isDirty('status') && $purchaseRequest->status === 'approved') {
             try {
-                $departmentId = $purchaseRequest->department_id;
                 $businessUnitId = $purchaseRequest->business_unit_id;
 
-                if (! $departmentId || ! $businessUnitId) {
+                if (! $businessUnitId) {
                     $fresh = PurchaseRequest::query()
-                        ->select(['id', 'department_id', 'business_unit_id'])
+                        ->select(['id', 'business_unit_id'])
                         ->find($purchaseRequest->id);
 
-                    $departmentId = $departmentId ?: $fresh?->department_id;
-                    $businessUnitId = $businessUnitId ?: $fresh?->business_unit_id;
+                    $businessUnitId = $fresh?->business_unit_id;
                 }
 
-                if (! $departmentId || ! $businessUnitId) {
-                    Log::warning('Skip admin task creation due to missing PR context', [
+                if (! $businessUnitId) {
+                    Log::warning('Skip admin task creation due to missing PR business unit context', [
                         'pr_id' => $purchaseRequest->id,
-                        'department_id' => $departmentId,
                         'business_unit_id' => $businessUnitId,
                     ]);
 
                     return;
                 }
 
-                // Determine if task should be auto-assigned
+                $purchasingDepartment = Department::query()
+                    ->where('business_unit_id', $businessUnitId)
+                    ->where('is_purchasing_department', true)
+                    ->first();
+
+                if (! $purchasingDepartment) {
+                    Log::warning('Skip admin task creation due to missing purchasing department', [
+                        'pr_id' => $purchaseRequest->id,
+                        'business_unit_id' => $businessUnitId,
+                    ]);
+
+                    return;
+                }
+
                 $assignedAdminId = $this->assignmentService->determineAssignment(
-                    (int) $departmentId,
+                    $purchasingDepartment->id,
                     (int) $businessUnitId
                 );
 
-                // Create admin task
                 $this->adminTaskService->createTask(
                     $purchaseRequest,
                     (int) $businessUnitId,
-                    (int) $departmentId,
+                    $purchasingDepartment->id,
                     $assignedAdminId
                 );
 

@@ -24,6 +24,7 @@ class AdminTaskAssignmentService
         $adminCount = UserBusinessUnit::where('department_id', $departmentId)
             ->where('business_unit_id', $businessUnitId)
             ->where('is_purchasing_admin', true)
+            ->where('is_purchasing_readonly', false)
             ->where('is_active', true)
             ->count();
 
@@ -33,6 +34,7 @@ class AdminTaskAssignmentService
             $admin = UserBusinessUnit::where('department_id', $departmentId)
                 ->where('business_unit_id', $businessUnitId)
                 ->where('is_purchasing_admin', true)
+                ->where('is_purchasing_readonly', false)
                 ->where('is_active', true)
                 ->first();
 

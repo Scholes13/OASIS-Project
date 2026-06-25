@@ -8,10 +8,10 @@
         <title inertia>{{ config('app.name', 'Oasis') }}</title>
         <meta name="description" content="Enterprise Office Administration System">
 
-        <!-- Fonts: Plus Jakarta Sans (primary) + Inter (fallback body) -->
+        <!-- Fonts: Manrope (primary) + Plus Jakarta Sans (fallback body) -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link rel="dns-prefetch" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700|inter:400,500,600,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=manrope:400,500,600,700|plus-jakarta-sans:400,500,600,700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -44,7 +44,7 @@
             .sidebar-minimized .main-content { margin-left: 4rem !important; }
         </style>
     </head>
-    <body class="h-full font-inter antialiased bg-gray-50">
+    <body class="h-full font-sans antialiased bg-gray-50">
         {{-- React/Inertia App - Layout is handled by React AppLayout component --}}
         @inertia
     </body>

@@ -23,7 +23,6 @@ import {
     PieChart,
     PenSquare,
     Settings,
-    Droplets,
     ShieldCheck,
 } from 'lucide-react';
 import { PageProps } from '../../types';
@@ -124,37 +123,15 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
     return (
         <aside
             className={cn(
-                'fixed left-0 top-0 h-full bg-white border-r border-gray-200/80 transition-all duration-300 z-30 font-sans',
+                'fixed left-0 top-14 h-[calc(100vh-3.5rem)] bg-white border-r border-gray-200/80 transition-all duration-300 z-30 font-sans',
                 minimized ? 'w-16' : 'w-60'
             )}
             aria-label="Main navigation"
         >
-            {/* Logo Section */}
-            <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200/80">
-                {!minimized && (
-                    <Link href="/dashboard" className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 bg-[#16599c] rounded-md flex items-center justify-center shadow-sm">
-                            <Droplets className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex flex-col leading-none">
-                            <span className="font-bold text-[14px] text-gray-900 tracking-wide uppercase">OASIS</span>
-                            <span className="text-[10px] text-gray-400 tracking-wide">workspace</span>
-                        </div>
-                    </Link>
-                )}
-                {minimized && (
-                    <Link href="/dashboard" className="flex items-center justify-center w-full">
-                        <div className="w-7 h-7 bg-[#16599c] rounded-md flex items-center justify-center shadow-sm">
-                            <Droplets className="w-4 h-4 text-white" />
-                        </div>
-                    </Link>
-                )}
-            </div>
-
             {/* Toggle Button */}
             <button
                 onClick={onToggle}
-                className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 shadow-sm transition-colors"
+                className="absolute -right-3 top-6 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 shadow-sm transition-colors"
             >
                 {minimized ? (
                     <ChevronRight className="w-3 h-3 text-gray-400" />
@@ -167,7 +144,7 @@ export default function Sidebar({ minimized, onToggle }: SidebarProps) {
             <nav className="flex-1 overflow-y-auto pt-5 pb-4" aria-label="Sidebar navigation">
                 {navigation.sections.map((section, sectionIndex) => (
                     <div key={sectionIndex} className="mb-5">
-                        {!minimized && (
+                        {!minimized && section.name !== 'Dashboard' && (
                             <div className="px-4 mb-1.5">
                                 <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
                                     {section.name}

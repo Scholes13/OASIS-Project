@@ -12,7 +12,7 @@ export function PurchaseRequestItemsTable({ purchaseRequest }: PurchaseRequestIt
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl border border-gray-100 overflow-hidden"
+            className="overflow-hidden"
         >
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">Items</h3>

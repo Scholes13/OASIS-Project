@@ -67,12 +67,7 @@ class DashboardController extends Controller
             ->get()
             ->pluck('count', 'global_role');
 
-        return view('admin.dashboard', compact(
-            'stats',
-            'recentUsers',
-            'businessUnitStats',
-            'roleStats'
-        ));
+        return redirect()->route('admin.dashboard');
     }
 
     /**

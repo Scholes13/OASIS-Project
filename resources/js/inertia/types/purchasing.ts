@@ -8,6 +8,16 @@ interface User {
     role: string;
     avatar_url?: string;
     primary_department_id?: number;
+    primary_position_id?: number;
+    primary_department?: Department;
+    primary_position?: Position;
+}
+
+interface Position {
+    id: number;
+    name: string;
+    code: string;
+    level?: string;
 }
 
 interface Department {
@@ -143,6 +153,15 @@ export interface PurchaseRequest {
     category?: PRCategory;
     items?: PRItem[];
     approvals?: PRApproval[];
+    admin_task?: {
+        id: number;
+        assigned_admin_id: number | null;
+        status: 'pending_followup' | 'in_progress' | 'done';
+        entered_at: string | null;
+        started_at: string | null;
+        completed_at: string | null;
+        assigned_admin?: User | null;
+    } | null;
 
     // Aggregates from withCount
     items_count?: number;
@@ -321,6 +340,8 @@ export interface StockItem {
     specifications?: string | null;
     quantity: number;
     unit: string;
+    price?: number | string | null;
+    total?: number | string | null;
     image_path: string | null;
     ga_review_result?: 'pending_review' | 'warehouse_stock' | 'need_procurement';
     ga_review_note?: string | null;
@@ -355,12 +376,14 @@ export interface StockRequest {
     ga_review_started_at?: string | null;
     ga_reviewed_at?: string | null;
     ga_reviewed_by?: number | null;
+    ga_reviewer?: User | null;
     ga_review_notes?: string | null;
     ga_rejected_reason?: string | null;
     voided_at: string | null;
     offline_approved_at: string | null;
     offline_approval_document_path: string | null;
     offline_approval_document_name: string | null;
+    total_amount?: number;
     created_at: string;
     updated_at: string;
     user: User;

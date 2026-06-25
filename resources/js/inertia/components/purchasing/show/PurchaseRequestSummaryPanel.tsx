@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { formatDate } from '@/lib/formatters';
 import type { PurchaseRequest } from '@/types/purchasing';
 
@@ -7,42 +6,69 @@ interface PurchaseRequestSummaryPanelProps {
 }
 
 export function PurchaseRequestSummaryPanel({ purchaseRequest }: PurchaseRequestSummaryPanelProps) {
+    const itemCount = purchaseRequest.items?.length || 0;
+    const progress = purchaseRequest.approval_progress
+        ? `${purchaseRequest.approval_progress.approved}/${purchaseRequest.approval_progress.total}`
+        : `${purchaseRequest.approvals?.filter((approval) => approval.status === 'approved').length || 0}/${purchaseRequest.approvals?.length || 0}`;
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-        >
-            <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-base font-semibold text-gray-900">Request Details</h3>
+        <section className="space-y-5">
+            <div className="border-b border-slate-200 pb-3">
+                <h2 className="text-sm font-semibold text-slate-950">Request Details</h2>
             </div>
-            <div className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-                    <div className="mb-6">
-                        <p className="text-sm font-medium text-gray-500">Requested By</p>
-                        <p className="mt-1 text-sm text-gray-900">{purchaseRequest.user?.name || 'N/A'}</p>
-                    </div>
-                    <div className="mb-6">
-                        <p className="text-sm font-medium text-gray-500">Department</p>
-                        <p className="mt-1 text-sm text-gray-900">
-                            {purchaseRequest.department?.name || 'N/A'} ({purchaseRequest.department?.code || 'N/A'})
-                        </p>
-                    </div>
-                    <div className="mb-6">
-                        <p className="text-sm font-medium text-gray-500">Date of Request</p>
-                        <p className="mt-1 text-sm text-gray-900">{formatDate(purchaseRequest.date_of_request)}</p>
-                    </div>
-                    <div className="mb-6">
-                        <p className="text-sm font-medium text-gray-500">Expected Date</p>
-                        <p className="mt-1 text-sm text-gray-900">{formatDate(purchaseRequest.expected_date) || 'Not specified'}</p>
-                    </div>
-                    <div className="sm:col-span-2">
-                        <p className="text-sm font-medium text-gray-500">Purpose / Used For</p>
-                        <p className="mt-1 text-sm text-gray-900">{purchaseRequest.used_for || 'Not specified'}</p>
-                    </div>
+            <dl className="grid gap-x-16 gap-y-4 lg:grid-cols-2">
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Request ID</dt>
+                    <dd className="text-sm font-medium text-slate-950">{purchaseRequest.pr_number}</dd>
                 </div>
-            </div>
-        </motion.div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Business Unit</dt>
+                    <dd className="text-sm font-medium text-slate-950">{purchaseRequest.business_unit?.name || 'N/A'}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Request Type</dt>
+                    <dd className="text-sm font-medium text-slate-950">Purchase Request</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Item Count</dt>
+                    <dd className="text-sm font-medium text-slate-950">{itemCount}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Department</dt>
+                    <dd className="text-sm font-medium text-slate-950">
+                        {purchaseRequest.department?.name || 'N/A'}
+                        {purchaseRequest.department?.code && (
+                            <span className="ml-1.5 text-slate-400">({purchaseRequest.department.code})</span>
+                        )}
+                    </dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Current Step</dt>
+                    <dd className="text-sm font-medium capitalize text-slate-950">{purchaseRequest.status.replace(/_/g, ' ')}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Requested By</dt>
+                    <dd className="text-sm font-medium text-slate-950">{purchaseRequest.user?.name || 'N/A'}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Approval Progress</dt>
+                    <dd className="text-sm font-medium text-slate-950">{progress}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Request Date</dt>
+                    <dd className="text-sm font-medium text-slate-950">{formatDate(purchaseRequest.date_of_request)}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Purpose</dt>
+                    <dd className="text-sm font-medium text-slate-950">{purchaseRequest.used_for || <span className="text-slate-400">Not specified</span>}</dd>
+                </div>
+                <div className="grid grid-cols-[10rem_minmax(0,1fr)] gap-x-6">
+                    <dt className="text-sm text-slate-500">Expected Date</dt>
+                    <dd className="text-sm font-medium text-slate-950">
+                        {formatDate(purchaseRequest.expected_date) || <span className="text-slate-400">Not specified</span>}
+                    </dd>
+                </div>
+            </dl>
+        </section>
     );
 }

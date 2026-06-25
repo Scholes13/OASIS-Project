@@ -272,7 +272,7 @@ export function DepartmentSwitcher() {
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isSwitching}
                 className={cn(
-                    "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
+                    "flex h-10 items-center gap-2 rounded-lg border px-3 transition-all",
                     isOpen 
                         ? "border-primary bg-white shadow-sm" 
                         : "border-gray-200 bg-white hover:border-gray-300",
@@ -282,7 +282,7 @@ export function DepartmentSwitcher() {
             >
                 <Building2 className="w-5 h-5 text-gray-500" />
                 
-                <span className="text-sm font-medium text-gray-900 hidden sm:block">
+                <span className="hidden max-w-48 truncate text-sm font-medium text-slate-900 sm:block">
                     {currentDepartment.name}
                 </span>
                 

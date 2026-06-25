@@ -49,9 +49,10 @@ export default {
                 },
             },
             fontFamily: {
-                sans: ['"Plus Jakarta Sans"', 'Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Manrope', '"Plus Jakarta Sans"', 'Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
                 inter: ['Inter', ...defaultTheme.fontFamily.sans],
                 jakarta: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
+                manrope: ['Manrope', ...defaultTheme.fontFamily.sans],
             },
             boxShadow: {
                 '3xl': '0 35px 60px -12px rgba(0, 0, 0, 0.25)',

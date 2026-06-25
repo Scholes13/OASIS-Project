@@ -1,5 +1,5 @@
-import { Menu } from 'lucide-react';
-import { format } from 'date-fns';
+import { Link } from '@inertiajs/react';
+import { Droplets, Menu } from 'lucide-react';
 import BusinessUnitSwitcher from './BusinessUnitSwitcher';
 import DepartmentSwitcher from './DepartmentSwitcher';
 import NotificationBell from './NotificationBell';
@@ -26,32 +26,32 @@ export default function Navbar({
     onNotificationToggle,
     onNotificationOpen,
 }: NavbarProps) {
-    // Format current date: "Wednesday, January 28, 2026"
-    const today = format(new Date(), 'EEEE, MMMM d, yyyy');
-
     return (
         <header
-            className="sticky top-0 h-14 flex-shrink-0 bg-white border-b border-gray-200/80 z-20"
+            className="sticky top-0 z-20 h-14 flex-shrink-0 border-b border-slate-300/70 bg-white/60 pt-2 backdrop-blur-sm"
             role="banner"
         >
-            <div className="h-full px-5 flex items-center justify-between">
-                {/* Left side - Mobile menu button */}
-                <div className="flex items-center">
+            <div className="flex h-full items-center justify-between px-5">
+                <div className="flex min-w-0 items-center gap-3">
                     <button
                         onClick={onMenuClick}
-                        className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary lg:hidden"
                         aria-label="Toggle navigation menu"
                     >
-                        <Menu className="w-5 h-5" />
+                        <Menu className="h-5 w-5" />
                     </button>
+                    <Link href="/dashboard" className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#16599c] shadow-sm">
+                            <Droplets className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex flex-col leading-none">
+                            <span className="text-sm font-bold uppercase tracking-wide text-gray-900">OASIS</span>
+                            <span className="text-xs tracking-wide text-gray-400">workspace</span>
+                        </div>
+                    </Link>
                 </div>
 
-                {/* Right side - Date, Business Unit Switcher & User Menu */}
-                <div className="flex items-center gap-4">
-                    {/* Date display - right next to BU switcher */}
-                    <span className="hidden md:block text-sm text-gray-500 font-medium">
-                        {today}
-                    </span>
+                <div className="flex items-center gap-2">
                     <BusinessUnitSwitcher />
                     <DepartmentSwitcher />
                     <NotificationBell

@@ -15,6 +15,7 @@ interface ApprovalWorkflowBuilderProps {
 }
 
 const blankApprover: AvailableApprover = { id: 0, name: '' };
+const defaultStageLabels = ['Internal Department', 'Purchasing Approval', 'Management / BOD'];
 
 export const ApprovalWorkflowBuilder: React.FC<ApprovalWorkflowBuilderProps> = ({
     approvers,
@@ -31,7 +32,7 @@ export const ApprovalWorkflowBuilder: React.FC<ApprovalWorkflowBuilderProps> = (
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                     <h3 className="text-base font-semibold text-gray-900">Approval Workflow</h3>
-                    <p className="text-sm text-gray-500 mt-1">Select approvers in sequential order</p>
+                    <p className="text-sm text-gray-500 mt-1">Default order: Internal Department → Purchasing Approval → Management / BOD → Purchasing Follow-up → Done / Barang Sampai</p>
                 </div>
                 <Button
                     type="button"
@@ -41,7 +42,7 @@ export const ApprovalWorkflowBuilder: React.FC<ApprovalWorkflowBuilderProps> = (
                     disabled={disabled}
                 >
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Step
+                    Add approver
                 </Button>
             </div>
             <div className="p-6 space-y-3">
@@ -50,6 +51,10 @@ export const ApprovalWorkflowBuilder: React.FC<ApprovalWorkflowBuilderProps> = (
                         <div className="flex items-center gap-3">
                             <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
                                 {index + 1}
+                            </div>
+                            <div className="w-44 flex-shrink-0">
+                                <p className="text-sm font-medium text-gray-900">{defaultStageLabels[index] || `Extra approval ${index - defaultStageLabels.length + 1}`}</p>
+                                <p className="text-xs text-gray-500">Approval step</p>
                             </div>
                             <div className="flex-1">
                                 <select

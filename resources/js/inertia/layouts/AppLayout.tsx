@@ -112,62 +112,63 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {/* Logout Overlay */}
             <LogoutOverlay />
 
-            <div className="flex h-screen overflow-hidden bg-background">
-                {/* Sidebar — hidden on mobile, shown on lg+ */}
-                <div className="hidden lg:block">
-                    <Sidebar minimized={sidebarMinimized} onToggle={toggleSidebar} />
+            <div className="flex h-screen flex-col overflow-hidden bg-background">
+                <div ref={notificationRef}>
+                    <Navbar
+                        onMenuClick={toggleMobileSidebar}
+                        sidebarMinimized={sidebarMinimized}
+                        unreadCount={unreadCount}
+                        notificationItems={recentItems}
+                        hasNewNotification={hasNewNotification}
+                        notificationDropdownOpen={notifOpen}
+                        onNotificationToggle={() => {
+                            setNotifOpen((v) => !v);
+                            if (hasNewNotification) clearNewFlag();
+                        }}
+                        onNotificationOpen={() => {
+                            void refreshNotifications();
+                            if (hasNewNotification) clearNewFlag();
+                        }}
+                    />
                 </div>
 
-                {/* Mobile Sidebar Overlay + Drawer */}
-                {mobileSidebarOpen && (
-                    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
-                        {/* Backdrop */}
-                        <div
-                            className="fixed inset-0 bg-black/50 transition-opacity"
-                            onClick={closeMobileSidebar}
-                            aria-hidden="true"
-                        />
-                        {/* Drawer */}
-                        <div className="fixed inset-y-0 left-0 w-60 z-50">
-                            <Sidebar minimized={false} onToggle={closeMobileSidebar} />
+                <div className="flex min-h-0 flex-1 overflow-hidden">
+                    {/* Sidebar — hidden on mobile, shown on lg+ */}
+                    <div className="hidden lg:block">
+                        <Sidebar minimized={sidebarMinimized} onToggle={toggleSidebar} />
+                    </div>
+
+                    {/* Mobile Sidebar Overlay + Drawer */}
+                    {mobileSidebarOpen && (
+                        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
+                            {/* Backdrop */}
+                            <div
+                                className="fixed inset-0 bg-black/50 transition-opacity"
+                                onClick={closeMobileSidebar}
+                                aria-hidden="true"
+                            />
+                            {/* Drawer */}
+                            <div className="fixed inset-y-14 left-0 z-50 w-60">
+                                <Sidebar minimized={false} onToggle={closeMobileSidebar} />
+                            </div>
                         </div>
-                    </div>
-                )}
-
-                {/* Main Wrapper — responsive margin: 0 on mobile, ml-16/ml-64 on lg+ */}
-                <div
-                    className={cn(
-                        'flex flex-1 flex-col overflow-hidden transition-all duration-300',
-                        'lg:ml-16',
-                        !sidebarMinimized && 'lg:ml-60'
                     )}
-                >
-                    {/* Navbar */}
-                    <div ref={notificationRef}>
-                        <Navbar
-                            onMenuClick={toggleMobileSidebar}
-                            sidebarMinimized={sidebarMinimized}
-                            unreadCount={unreadCount}
-                            notificationItems={recentItems}
-                            hasNewNotification={hasNewNotification}
-                            notificationDropdownOpen={notifOpen}
-                            onNotificationToggle={() => {
-                                setNotifOpen((v) => !v);
-                                if (hasNewNotification) clearNewFlag();
-                            }}
-                            onNotificationOpen={() => {
-                                void refreshNotifications();
-                                if (hasNewNotification) clearNewFlag();
-                            }}
-                        />
+
+                    {/* Main Wrapper — responsive margin: 0 on mobile, ml-16/ml-64 on lg+ */}
+                    <div
+                        className={cn(
+                            'flex min-h-0 flex-1 flex-col overflow-hidden transition-all duration-300',
+                            'lg:ml-16',
+                            !sidebarMinimized && 'lg:ml-60'
+                        )}
+                    >
+                        {/* Main Content — scrollable area */}
+                        {isStaging && <StagingBanner />}
+
+                        <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">
+                            {children}
+                        </main>
                     </div>
-
-                    {/* Main Content — scrollable area */}
-                    {isStaging && <StagingBanner />}
-
-                    <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">
-                        {children}
-                    </main>
                 </div>
             </div>
         </>

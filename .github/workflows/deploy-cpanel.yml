@@ -71,6 +71,7 @@ jobs:
             --exclude='.env' \
             --exclude='.env.*' \
             --exclude='node_modules' \
+            --exclude='public/storage' \
             --exclude='test-results' \
             --exclude='tmp' \
             --exclude='storage/app/*' \
@@ -191,6 +192,7 @@ jobs:
               "$SHARED_PATH/storage/logs" \
               "$SHARED_PATH/bootstrap-cache" \
               "$APP_PATH/backups"
+            chmod 755 "$SHARED_PATH"
 
             rm -rf "$RELEASE_PATH/storage"
             ln -sfn "$SHARED_PATH/storage" "$RELEASE_PATH/storage"
@@ -211,6 +213,7 @@ jobs:
             ln -sfn "$SHARED_PATH/.env" "$RELEASE_PATH/.env"
 
             cd "$RELEASE_PATH"
+            rm -rf public/storage
             "$PHP_BIN" artisan storage:link || true
 
             if [ "${BACKUP_DATABASE:-true}" = "true" ]; then

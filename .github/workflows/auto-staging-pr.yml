@@ -29,6 +29,8 @@ jobs:
 
           This PR is intentionally manual.
 
+          @coderabbitai ignore
+
           UAT flow:
           - Validate the staging deployment first.
           - Confirm the changes are approved by the requester/user.

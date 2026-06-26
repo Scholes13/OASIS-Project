@@ -1,0 +1,16 @@
+reviews:
+  auto_review:
+    enabled: false
+    auto_incremental_review: false
+  review_status: false
+  high_level_summary: false
+  poem: false
+  pre_merge_checks:
+    docstrings:
+      mode: off
+    title:
+      mode: off
+    description:
+      mode: off
+    issue_assessment:
+      mode: off

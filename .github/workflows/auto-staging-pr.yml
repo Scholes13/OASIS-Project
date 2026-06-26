@@ -23,11 +23,16 @@ jobs:
           set -euo pipefail
           body_file="$(mktemp)"
           cat > "$body_file" <<'BODY'
-          Automated release PR from `staging` to `main`.
+          Release PR from `staging` to `main`.
 
-          This PR is configured for auto-merge after required CI checks pass.
+          This PR is intentionally manual.
 
-          Production deploy runs automatically after the merge to `main`.
+          UAT flow:
+          - Validate the staging deployment first.
+          - Confirm the changes are approved by the requester/user.
+          - Merge this PR only when the release is approved for production.
+
+          Production deploy runs automatically after this PR is merged to `main`.
           BODY
 
           existing_pr="$(
@@ -64,5 +69,4 @@ jobs:
             echo "Created PR #$pr_number"
           fi
 
-          gh pr merge "$pr_number" --repo "$REPO" --auto --merge \
-            || echo "Auto-merge is already enabled or cannot be enabled yet."
+          echo "PR #$pr_number is ready for manual UAT approval. Auto-merge is intentionally disabled."

@@ -214,7 +214,7 @@ jobs:
 
             cd "$RELEASE_PATH"
             rm -rf public/storage
-            "$PHP_BIN" artisan storage:link || true
+            ln -sfn "$SHARED_PATH/storage/app/public" public/storage
 
             if [ "${BACKUP_DATABASE:-true}" = "true" ]; then
               DB_NAME="$("$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env["DB_DATABASE"] ?? "";' "$SHARED_PATH/.env")"

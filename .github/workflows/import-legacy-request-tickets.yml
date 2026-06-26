@@ -1,0 +1,148 @@
+name: Import Legacy Request Tickets
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target OASIS environment
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+      dry_run:
+        description: Preview only, do not write OASIS data
+        required: true
+        default: true
+        type: boolean
+      copy_attachments:
+        description: Copy legacy attachment files
+        required: true
+        default: true
+        type: boolean
+      update_existing:
+        description: Update tickets that already exist by ticket number
+        required: true
+        default: false
+        type: boolean
+      limit:
+        description: Optional ticket limit. Leave empty for all tickets.
+        required: false
+        default: "10"
+        type: string
+      business_unit:
+        description: Target OASIS business unit code or id
+        required: true
+        default: WG
+        type: string
+      fallback_user:
+        description: Fallback OASIS user email or id
+        required: true
+        default: super@werkudara.com
+        type: string
+      fallback_department:
+        description: Fallback OASIS department code or id
+        required: true
+        default: SYSADMIN
+        type: string
+
+jobs:
+  import:
+    name: Import legacy tickets
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.target == 'production' && 'production' || 'staging' }}
+      url: ${{ inputs.target == 'production' && 'https://oasis.werkudaragroup.com' || 'https://staging.oasis.werkudaragroup.com' }}
+
+    steps:
+      - name: Run legacy ticket import on cPanel
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          TARGET: ${{ inputs.target }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          COPY_ATTACHMENTS: ${{ inputs.copy_attachments }}
+          UPDATE_EXISTING: ${{ inputs.update_existing }}
+          LIMIT: ${{ inputs.limit }}
+          BUSINESS_UNIT: ${{ inputs.business_unit }}
+          FALLBACK_USER: ${{ inputs.fallback_user }}
+          FALLBACK_DEPARTMENT: ${{ inputs.fallback_department }}
+          PRODUCTION_APP_PATH: ${{ secrets.CPANEL_APP_PATH }}
+          CPANEL_PHP_BIN: ${{ secrets.CPANEL_PHP_BIN }}
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          port: ${{ secrets.CPANEL_PORT }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
+          password: ${{ secrets.CPANEL_SSH_PASSWORD }}
+          envs: TARGET,DRY_RUN,COPY_ATTACHMENTS,UPDATE_EXISTING,LIMIT,BUSINESS_UNIT,FALLBACK_USER,FALLBACK_DEPARTMENT,PRODUCTION_APP_PATH,CPANEL_PHP_BIN
+          script: |
+            set -euo pipefail
+
+            PHP_BIN="${CPANEL_PHP_BIN:-php}"
+            LEGACY_APP_PATH="/home/werkuda1/request.werkudara.com"
+            LEGACY_ENV="$LEGACY_APP_PATH/.env"
+
+            if [ "$TARGET" = "production" ]; then
+              APP_PATH="$PRODUCTION_APP_PATH"
+            else
+              APP_PATH="/home/werkuda1/staging.oasis.werkudara.com"
+            fi
+
+            if [ -z "${APP_PATH:-}" ] || [ ! -d "$APP_PATH/current" ]; then
+              echo "Target app current release was not found."
+              exit 1
+            fi
+
+            if [ ! -f "$LEGACY_ENV" ]; then
+              echo "Legacy request.werkudara.com .env was not found."
+              exit 1
+            fi
+
+            read_env() {
+              "$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env[$argv[2]] ?? "";' "$LEGACY_ENV" "$1"
+            }
+
+            LEGACY_DB_HOST="$(read_env DB_HOST)"
+            LEGACY_DB_PORT="$(read_env DB_PORT)"
+            LEGACY_DB_DATABASE="$(read_env DB_DATABASE)"
+            LEGACY_DB_USERNAME="$(read_env DB_USERNAME)"
+            LEGACY_DB_PASSWORD="$(read_env DB_PASSWORD)"
+
+            if [ -z "$LEGACY_DB_HOST" ]; then LEGACY_DB_HOST="127.0.0.1"; fi
+            if [ -z "$LEGACY_DB_PORT" ]; then LEGACY_DB_PORT="3306"; fi
+
+            cd "$APP_PATH/current"
+
+            COMMAND=(
+              "$PHP_BIN" artisan ticket:import-legacy-request
+              "--legacy-host=$LEGACY_DB_HOST"
+              "--legacy-port=$LEGACY_DB_PORT"
+              "--legacy-database=$LEGACY_DB_DATABASE"
+              "--legacy-username=$LEGACY_DB_USERNAME"
+              "--business-unit=$BUSINESS_UNIT"
+              "--fallback-user=$FALLBACK_USER"
+              "--fallback-department=$FALLBACK_DEPARTMENT"
+            )
+
+            if [ "$COPY_ATTACHMENTS" = "true" ]; then
+              COMMAND+=(
+                "--copy-attachments"
+                "--legacy-storage=$LEGACY_APP_PATH/storage/app/public"
+              )
+            fi
+
+            if [ "$UPDATE_EXISTING" = "true" ]; then
+              COMMAND+=("--update-existing")
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              COMMAND+=("--dry-run")
+            fi
+
+            if [ -n "${LIMIT:-}" ]; then
+              COMMAND+=("--limit=$LIMIT")
+            fi
+
+            LEGACY_TICKETING_DB_PASSWORD="$LEGACY_DB_PASSWORD" "${COMMAND[@]}"

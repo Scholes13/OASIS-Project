@@ -111,7 +111,7 @@ function getPurchaseRequestSteps(purchaseRequest: PRShowProps['purchaseRequest']
     const adminTask = purchaseRequest.admin_task;
     const purchasingFollowUp = adminTask
         ? {
-            actor: adminTask.assigned_admin?.name || 'Purchasing team',
+            actor: adminTask.status === 'pending_followup' ? 'Purchasing team' : adminTask.assigned_admin?.name || 'Purchasing team',
             time: adminTask.completed_at ? formatDateTime(adminTask.completed_at) : adminTask.started_at ? 'In progress' : 'Pending',
             state: adminTask.status === 'done' ? 'done' : adminTask.status === 'in_progress' ? 'active' : 'pending',
         }

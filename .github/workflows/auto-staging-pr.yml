@@ -21,14 +21,45 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          compare_json="$(gh api "repos/$REPO/compare/main...staging")"
+
           body_file="$(mktemp)"
           cat > "$body_file" <<'BODY'
-          Automated release PR from `staging` to `main`.
+          Release PR from `staging` to `main`.
 
-          This PR is configured for auto-merge after required CI checks pass.
+          This PR is intentionally manual.
 
-          Production deploy runs automatically after the merge to `main`.
+          @coderabbitai ignore
+
+          UAT flow:
+          - Validate the staging deployment first.
+          - Confirm the changes are approved by the requester/user.
+          - Merge this PR only when the release is approved for production.
+
+          Production deploy runs automatically after this PR is merged to `main`.
           BODY
+          {
+            echo
+            echo "## Commits included"
+            echo "$compare_json" | jq -r '
+              if (.commits | length) == 0 then
+                "- No commits are currently pending between `staging` and `main`."
+              else
+                .commits[]
+                | "- `" + (.sha[0:8]) + "` " + (.commit.message | split("\n")[0])
+              end
+            '
+            echo
+            echo "## Files changed"
+            echo "$compare_json" | jq -r '
+              if (.files | length) == 0 then
+                "- No file changes are currently pending."
+              else
+                .files[]
+                | "- `" + .filename + "` (" + .status + ")"
+              end
+            '
+          } >> "$body_file"
 
           existing_pr="$(
             gh pr list \
@@ -64,5 +95,4 @@ jobs:
             echo "Created PR #$pr_number"
           fi
 
-          gh pr merge "$pr_number" --repo "$REPO" --auto --merge \
-            || echo "Auto-merge is already enabled or cannot be enabled yet."
+          echo "PR #$pr_number is ready for manual UAT approval. Auto-merge is intentionally disabled."

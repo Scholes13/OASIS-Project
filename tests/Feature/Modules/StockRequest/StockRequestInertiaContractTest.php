@@ -10,7 +10,9 @@ use App\Models\Core\NumberSequence;
 use App\Models\Core\Position;
 use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
+use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Modules\Purchasing\StockRequest\StockRequestDocumentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Response as InertiaResponse;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -104,6 +106,49 @@ class StockRequestInertiaContractTest extends TestCase
         $controllerResponse = app(StockRequestController::class)->edit($stockRequest);
 
         $this->assertInstanceOf(InertiaResponse::class, $controllerResponse);
+    }
+
+    #[Test]
+    public function stock_request_pdf_acknowledger_query_resolves_department_head_without_ambiguous_columns(): void
+    {
+        [$admin, $businessUnit, $department] = $this->createUserContext();
+        $stockRequest = $this->createDraftStockRequest($admin, $businessUnit, $department);
+
+        $headPosition = Position::query()
+            ->where('department_id', $department->id)
+            ->where('code', 'HOD_'.strtoupper($department->code))
+            ->firstOrFail();
+
+        $departmentHead = User::factory()->create([
+            'primary_department_id' => $department->id,
+            'primary_position_id' => $headPosition->id,
+            'email_verified_at' => now(),
+        ]);
+
+        UserBusinessUnit::create([
+            'user_id' => $departmentHead->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'position_id' => $headPosition->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        AdminTask::create([
+            'taskable_type' => StockRequest::class,
+            'taskable_id' => $stockRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'assigned_admin_id' => $admin->id,
+            'status' => 'in_progress',
+            'entered_at' => now(),
+            'estimated_total_price' => 100000,
+        ]);
+
+        $acknowledger = app(StockRequestDocumentService::class)
+            ->resolvePurchasingAcknowledger($stockRequest->fresh('adminTask.assignedAdmin'));
+
+        $this->assertTrue($departmentHead->is($acknowledger));
     }
 
     /**

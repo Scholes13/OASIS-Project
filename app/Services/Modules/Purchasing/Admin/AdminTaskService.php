@@ -110,7 +110,10 @@ class AdminTaskService
      */
     public function completeTask(AdminTask $task, float $realizedTotalPrice, ?string $notes = null): AdminTask
     {
-        if ($realizedTotalPrice <= 0) {
+        $task->loadMissing('taskable');
+        $isStockRequest = $task->taskable instanceof StockRequest;
+
+        if (! $isStockRequest && $realizedTotalPrice <= 0) {
             throw new \Exception('Realized price must be greater than zero');
         }
 

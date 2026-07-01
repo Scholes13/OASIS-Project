@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Modules\Purchasing\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Modules\Purchasing\Admin\AdminTaskCsvExporter;
 use App\Services\Modules\Purchasing\Admin\AdminTaskHistoryService;
 use App\Services\Modules\Purchasing\Admin\AdminTaskListService;
@@ -239,13 +240,14 @@ class PurchasingAdminController extends Controller
      */
     public function completeTask(Request $request, $taskId): RedirectResponse
     {
+        $task = AdminTask::with('taskable')->findOrFail($taskId);
+        $isStockRequest = $task->taskable instanceof StockRequest;
+
         $request->validate([
-            'realized_total_price' => 'required|numeric|min:1',
+            'realized_total_price' => [$isStockRequest ? 'nullable' : 'required', 'numeric', $isStockRequest ? 'min:0' : 'min:1'],
             'vendor_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
         ]);
-
-        $task = AdminTask::with('taskable')->findOrFail($taskId);
 
         // Check if task is assigned to current user
         if ($task->assigned_admin_id !== auth()->id()) {
@@ -269,7 +271,9 @@ class PurchasingAdminController extends Controller
         try {
             $this->adminTaskService->completeTask(
                 $task,
-                (float) $request->input('realized_total_price'),
+                $isStockRequest
+                    ? (float) ($request->input('realized_total_price') ?? $task->estimated_total_price ?? 0)
+                    : (float) $request->input('realized_total_price'),
                 $request->input('notes')
             );
 

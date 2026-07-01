@@ -62,6 +62,7 @@ class PurchaseRequestWorkflowTest extends TestCase
             'code' => 'GA',
             'business_unit_id' => $this->businessUnit->id,
             'is_active' => true,
+            'is_purchasing_department' => true,
         ]);
 
         $this->staffPosition = Position::where('department_id', $this->department->id)

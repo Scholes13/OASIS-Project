@@ -1,0 +1,117 @@
+name: Release Main Command
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-main:
+    name: Open production PR from staging PR branch
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/release-main')
+
+    steps:
+      - name: Create production PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sourcePrNumber = context.payload.issue.number;
+
+            const { data: sourcePr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: sourcePrNumber,
+            });
+
+            if (sourcePr.base.ref !== 'staging') {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: sourcePrNumber,
+                body: '`/release-main` is only valid on module PRs targeting `staging`.',
+              });
+              return;
+            }
+
+            if (sourcePr.head.repo.full_name !== `${owner}/${repo}`) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: sourcePrNumber,
+                body: 'Cannot open production PR from a forked branch.',
+              });
+              return;
+            }
+
+            if (['main', 'staging'].includes(sourcePr.head.ref)) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: sourcePrNumber,
+                body: 'Cannot release from `main` or `staging` directly. Use a feature/fix branch.',
+              });
+              return;
+            }
+
+            const existing = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              base: 'main',
+              head: `${owner}:${sourcePr.head.ref}`,
+              per_page: 100,
+            });
+
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: sourcePrNumber,
+                body: `Production PR already exists: #${existing[0].number}`,
+              });
+              return;
+            }
+
+            const title = sourcePr.title.startsWith('Release:')
+              ? sourcePr.title
+              : `Release: ${sourcePr.title}`;
+
+            const body = [
+              `Production PR opened from staging PR #${sourcePrNumber}.`,
+              '',
+              'Manual production gate:',
+              '- Confirm the staging PR has passed CI.',
+              '- Confirm UAT on staging.oasis.werkudaragroup.com is approved.',
+              '- Merge this PR only when this specific module/change is approved for production.',
+              '',
+              `Source branch: \`${sourcePr.head.ref}\``,
+              `Source PR: #${sourcePrNumber}`,
+              '',
+              '<!-- oasis-pr-classifier:start -->',
+              'Classifier will update this section shortly.',
+              '<!-- oasis-pr-classifier:end -->',
+            ].join('\n');
+
+            const { data: productionPr } = await github.rest.pulls.create({
+              owner,
+              repo,
+              title,
+              head: sourcePr.head.ref,
+              base: 'main',
+              body,
+              maintainer_can_modify: true,
+            });
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: sourcePrNumber,
+              body: `Production PR created: #${productionPr.number}`,
+            });

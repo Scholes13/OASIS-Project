@@ -142,9 +142,34 @@ class TicketCrudTest extends TestCase
             'title' => 'My laptop is broken',
             'requester_id' => $this->requester->id,
             'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
             'priority' => 'high',
             'status' => 'waiting',
         ]);
+    }
+
+    #[Test]
+    public function it_rejects_category_outside_current_business_unit(): void
+    {
+        $otherCategory = TicketCategory::create([
+            'business_unit_id' => $this->otherBusinessUnit->id,
+            'name' => 'Other Hardware',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->requester)
+            ->withSession([
+                'current_business_unit_id' => $this->businessUnit->id,
+                'current_department_id' => $this->department->id,
+            ])
+            ->post(route('it-support.submit.store'), [
+                'title' => 'Wrong BU category',
+                'description' => 'Should fail validation',
+                'priority' => 'high',
+                'category_id' => $otherCategory->id,
+            ]);
+
+        $response->assertSessionHasErrors('category_id');
     }
 
     #[Test]

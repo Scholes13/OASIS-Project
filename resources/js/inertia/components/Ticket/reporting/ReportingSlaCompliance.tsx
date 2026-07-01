@@ -5,9 +5,9 @@ import type { SlaCompliance } from './types';
 export default function ReportingSlaCompliance({ sla }: { sla: SlaCompliance }) {
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="border border-gray-200/80 rounded-lg p-5 bg-white">
-                    <p className="text-[13px] font-medium text-gray-500 mb-1">SLA Compliance Rate</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-none">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">SLA Compliance Rate</p>
                     <p
                         className={cn(
                             'text-3xl font-bold tabular-nums',
@@ -18,21 +18,21 @@ export default function ReportingSlaCompliance({ sla }: { sla: SlaCompliance }) 
                         {sla.rate}%
                     </p>
                 </div>
-                <div className="border border-gray-200/80 rounded-lg p-5 bg-white">
-                    <p className="text-[13px] font-medium text-gray-500 mb-1">Total Resolved</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-none">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Total Resolved</p>
                     <p className="text-3xl font-bold tabular-nums text-gray-900">{sla.total_resolved}</p>
                 </div>
-                <div className="border border-gray-200/80 rounded-lg p-5 bg-white">
-                    <p className="text-[13px] font-medium text-gray-500 mb-1">Within SLA</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-none">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Within SLA</p>
                     <p className="text-3xl font-bold tabular-nums text-emerald-600">{sla.within_sla}</p>
                 </div>
-                <div className="border border-gray-200/80 rounded-lg p-5 bg-white">
-                    <p className="text-[13px] font-medium text-gray-500 mb-1">SLA Breached</p>
+                <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-none">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">SLA Breached</p>
                     <p className="text-3xl font-bold tabular-nums text-red-600">{sla.breached}</p>
                 </div>
             </div>
 
-            <Card className="shadow-sm border-gray-200/80">
+            <Card className="border-gray-200 bg-white shadow-none">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base font-semibold text-gray-900">SLA Performance by Priority</CardTitle>
                 </CardHeader>

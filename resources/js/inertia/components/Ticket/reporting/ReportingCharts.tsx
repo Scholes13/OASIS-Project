@@ -61,7 +61,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
     return (
         <>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 border border-gray-200 rounded-lg">
+                <Card className="lg:col-span-2 border-gray-200 bg-white shadow-none">
                     <CardHeader className="pb-4">
                         <CardTitle className="text-base font-semibold text-gray-900">Tickets Over Time</CardTitle>
                     </CardHeader>
@@ -110,7 +110,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
                                         type="monotone"
                                         dataKey="total"
                                         name="Total"
-                                        stroke="#6366f1"
+                                        stroke="#16599c"
                                         strokeWidth={2}
                                         dot={false}
                                     />
@@ -118,7 +118,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
                                         type="monotone"
                                         dataKey="resolved"
                                         name="Resolved"
-                                        stroke="#10b981"
+                                        stroke="#6b7280"
                                         strokeWidth={2}
                                         dot={false}
                                     />
@@ -128,7 +128,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
                     </CardContent>
                 </Card>
 
-                <Card className="border border-gray-200 rounded-lg">
+                <Card className="border-gray-200 bg-white shadow-none">
                     <CardHeader className="pb-0">
                         <CardTitle className="text-base font-semibold text-gray-900">By Status</CardTitle>
                     </CardHeader>
@@ -142,7 +142,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
                             />
                         ) : (
                             <div className="flex items-center justify-center gap-4">
-                                <div className="w-[180px] h-[180px]">
+                                <div className="h-44 w-44">
                                     <ResponsiveContainer
                                         width="100%"
                                         height="100%"
@@ -162,7 +162,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
                                                 {statusPieData.map((entry, index) => (
                                                     <Cell
                                                         key={index}
-                                                        fill={entry.color}
+                                                        fill={['#94a3b8', '#16599c', '#d97706', '#dc2626'][index % 4]}
                                                     />
                                                 ))}
                                             </Pie>
@@ -214,7 +214,7 @@ export default function ReportingCharts({ reportData }: { reportData: ReportData
 
 function ReportBarCard({ title, data, empty, emptyDescription, coloredBars = false }: any) {
     return (
-        <Card className="border border-gray-200 rounded-lg">
+        <Card className="border-gray-200 bg-white shadow-none">
             <CardHeader className="pb-4">
                 <CardTitle className="text-base font-semibold text-gray-900">{title}</CardTitle>
             </CardHeader>
@@ -248,12 +248,12 @@ function ReportBarCard({ title, data, empty, emptyDescription, coloredBars = fal
                                 dataKey="count"
                                 name="Tickets"
                                 radius={[4, 4, 0, 0]}
-                                fill="#6366f1"
+                                fill="#16599c"
                             >
                                 {coloredBars && data.map((entry: any, index: number) => (
                                     <Cell
                                         key={index}
-                                        fill={entry.color}
+                                        fill={['#94a3b8', '#16599c', '#d97706', '#dc2626'][index % 4]}
                                     />
                                 ))}
                             </Bar>
@@ -267,7 +267,7 @@ function ReportBarCard({ title, data, empty, emptyDescription, coloredBars = fal
 
 function ReportStaffCard({ data }: any) {
     return (
-        <Card className="border border-gray-200 rounded-lg">
+        <Card className="border-gray-200 bg-white shadow-none">
             <CardHeader className="pb-4">
                 <CardTitle className="text-base font-semibold text-gray-900">By Staff</CardTitle>
             </CardHeader>
@@ -289,7 +289,7 @@ function ReportStaffCard({ data }: any) {
                             <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" allowDecimals={false} axisLine={false} tickLine={false} />
                             <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} width={70} />
                             <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="count" name="Tickets" radius={[0, 4, 4, 0]} fill="#6366f1" />
+                            <Bar dataKey="count" name="Tickets" radius={[0, 4, 4, 0]} fill="#16599c" />
                         </BarChart>
                     </ResponsiveContainer>
                 )}

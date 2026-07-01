@@ -3,6 +3,7 @@
 namespace App\Services\Modules\Purchasing\StockRequest;
 
 use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\Shared\PdfGenerationService;
@@ -33,6 +34,8 @@ class StockRequestDocumentService
             'businessUnit',
             'items',
             'approvals.approver',
+            'adminTask.assignedAdmin.primaryDepartment',
+            'adminTask.assignedAdmin.primaryDepartment',
         ]);
 
         $qrCodeService = new QrCodeService;
@@ -52,6 +55,8 @@ class StockRequestDocumentService
             'businessUnit',
             'items',
             'approvals.approver',
+            'adminTask.assignedAdmin.primaryDepartment',
+            'adminTask.assignedAdmin.primaryDepartment',
         ]);
 
         $qrCodeService = new QrCodeService;
@@ -154,6 +159,35 @@ class StockRequestDocumentService
             $qrCodes['ga_reviewer'] = $qrCodeService->generateStockGaReviewerQrCodeDataUrl($stockRequest);
         }
 
+        $acknowledger = $this->resolvePurchasingAcknowledger($stockRequest);
+        if ($acknowledger) {
+            $qrCodes['purchasing_acknowledger'] = $qrCodeService->generateStockPurchasingAcknowledgerQrCodeDataUrl($stockRequest, $acknowledger);
+            $qrCodes['purchasing_acknowledger_user'] = $acknowledger;
+        }
+
         return $qrCodes;
+    }
+
+    public function resolvePurchasingAcknowledger(StockRequest $stockRequest): ?User
+    {
+        $assignedAdmin = $stockRequest->adminTask?->assignedAdmin;
+        if (! $assignedAdmin) {
+            return null;
+        }
+
+        $assignment = UserBusinessUnit::with(['user.primaryDepartment', 'position'])
+            ->where('user_business_units.business_unit_id', $stockRequest->business_unit_id)
+            ->where('user_business_units.department_id', $stockRequest->adminTask->department_id)
+            ->where('user_business_units.is_active', true)
+            ->whereHas('user', fn ($query) => $query->where('is_active', true))
+            ->whereHas('position', fn ($query) => $query
+                ->whereIn('level', ['hod', 'leader'])
+                ->orWhereIn('access_level', ['department_head', 'team_leader']))
+            ->join('positions', 'positions.id', '=', 'user_business_units.position_id')
+            ->orderByRaw("CASE WHEN positions.level = 'hod' OR positions.access_level = 'department_head' THEN 0 ELSE 1 END")
+            ->select('user_business_units.*')
+            ->first();
+
+        return $assignment?->user;
     }
 }

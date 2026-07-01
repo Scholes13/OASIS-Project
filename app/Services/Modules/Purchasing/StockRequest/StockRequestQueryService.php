@@ -2,7 +2,6 @@
 
 namespace App\Services\Modules\Purchasing\StockRequest;
 
-use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\StockRequest\StockNumberReservation;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
@@ -78,11 +77,7 @@ class StockRequestQueryService
 
     public function paginateForGaReview(Request $request, User $user, int $businessUnitId, int $departmentId): LengthAwarePaginator
     {
-        $isGaDepartment = Department::query()
-            ->where('id', $departmentId)
-            ->where('business_unit_id', $businessUnitId)
-            ->where('is_ga_stock_review_department', true)
-            ->exists();
+        $isGaDepartment = $this->userHasGaReviewAssignment($user, $businessUnitId);
 
         abort_unless($isGaDepartment || $user->isSuperAdmin(), 403, 'Only GA review department can access this list.');
 
@@ -187,6 +182,7 @@ class StockRequestQueryService
             'user:id,name,email',
             'items',
             "approvals.approver:{$approverColumns}",
+            'adminTask.assignedAdmin:id,name',
             'lastModifiedBy:id,name',
             'gaReviewer:id,name',
             'offlineApprovedBy:id,name',
@@ -224,11 +220,7 @@ class StockRequestQueryService
             && $currentApproval
             && $currentApproval->status === 'pending';
         $canGaReview = $st->status === 'ga_review'
-            && ($isSuperAdmin || \App\Models\Core\Department::query()
-                ->where('id', (int) session('current_department_id'))
-                ->where('business_unit_id', $currentBusinessUnitId)
-                ->where('is_ga_stock_review_department', true)
-                ->exists());
+            && ($isSuperAdmin || $this->userHasGaReviewAssignment($user, $currentBusinessUnitId));
 
         return [
             'edit' => $isOwner && $st->isEditable(),
@@ -245,6 +237,16 @@ class StockRequestQueryService
             'offlineApprovalDocument' => $st->offline_approval_document_path !== null
                 && $this->documentService->canAccessOfflineApprovalDocument($st, $user, $currentBusinessUnitId),
         ];
+    }
+
+    private function userHasGaReviewAssignment(User $user, int $businessUnitId): bool
+    {
+        return $user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->whereHas('department', fn ($query) => $query
+                ->where('business_unit_id', $businessUnitId)
+                ->where('is_ga_stock_review_department', true))
+            ->exists();
     }
 
     /**

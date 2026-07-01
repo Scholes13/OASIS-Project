@@ -66,7 +66,8 @@ export type PurchaseRequestStatus =
     | 'in_approval'
     | 'approved'
     | 'rejected'
-    | 'voided';
+    | 'voided'
+    | 'done';
 
 // PR Category
 export interface PRCategory {
@@ -330,7 +331,8 @@ export type StockRequestStatus =
     | 'ga_rejected'
     | 'ready_for_purchasing'
     | 'rejected'
-    | 'voided';
+    | 'voided'
+    | 'done';
 
 // Stock Request Item
 export interface StockItem {
@@ -391,6 +393,15 @@ export interface StockRequest {
     business_unit: BusinessUnit;
     items?: StockItem[];
     approvals?: StockApproval[];
+    admin_task?: {
+        id: number;
+        assigned_admin_id: number | null;
+        status: 'pending_followup' | 'in_progress' | 'done';
+        entered_at: string | null;
+        started_at: string | null;
+        completed_at: string | null;
+        assigned_admin?: User | null;
+    } | null;
     approval_progress?: { approved: number; total: number };
 }
 

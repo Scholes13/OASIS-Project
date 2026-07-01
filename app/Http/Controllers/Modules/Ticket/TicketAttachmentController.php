@@ -59,7 +59,7 @@ class TicketAttachmentController extends Controller
      */
     private function canAccessTicketAttachment(Ticket $ticket, User $user): bool
     {
-        if ((int) $ticket->requester_id === (int) $user->id) {
+        if ($this->isRequesterInCurrentScope($ticket, $user)) {
             return true;
         }
 
@@ -71,6 +71,24 @@ class TicketAttachmentController extends Controller
 
         return in_array((int) $ticket->business_unit_id, $scopedBuIds, true)
             && $this->isItSupportAdminInScope($user, $scopedBuIds);
+    }
+
+    private function isRequesterInCurrentScope(Ticket $ticket, User $user): bool
+    {
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        if ((int) $ticket->requester_id !== (int) $user->id || $businessUnitId <= 0) {
+            return false;
+        }
+
+        $assignment = $user->businessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->first();
+
+        return (int) $ticket->business_unit_id === $businessUnitId
+            && $assignment !== null
+            && (int) $ticket->department_id === (int) $assignment->department_id;
     }
 
     /**

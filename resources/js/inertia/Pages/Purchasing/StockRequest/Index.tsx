@@ -57,6 +57,7 @@ const getStatusConfig = (status: string) => {
         ready_for_purchasing: { label: 'Ready for Purchasing', className: 'text-indigo-600' },
         rejected: { label: 'Rejected', className: 'text-red-600' },
         voided: { label: 'Voided', className: 'text-gray-500' },
+        done: { label: 'Done', className: 'text-emerald-700' },
     };
     return configs[status] || configs.draft;
 };
@@ -71,6 +72,7 @@ const statuses = [
     { value: 'ready_for_purchasing', label: 'Ready for Purchasing' },
     { value: 'rejected', label: 'Rejected' },
     { value: 'voided', label: 'Voided' },
+    { value: 'done', label: 'Done' },
 ];
 
 export default function Index({

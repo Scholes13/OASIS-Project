@@ -69,7 +69,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $currentBusinessUnitId = session('current_business_unit_id');
-        $currentDepartmentId = session('current_department_id');
+        $currentDepartmentId = $this->resolveCurrentDepartmentId($user, $currentBusinessUnitId);
 
         return array_merge(parent::share($request), [
             'auth' => [
@@ -310,5 +310,45 @@ class HandleInertiaRequests extends Middleware
             ->where('is_purchasing_admin', true)
             ->where('is_purchasing_readonly', true)
             ->exists();
+    }
+
+    protected function resolveCurrentDepartmentId($user, $businessUnitId): ?int
+    {
+        if (! $user || ! $businessUnitId) {
+            return session('current_department_id');
+        }
+
+        $currentDepartmentId = session('current_department_id');
+        $currentAssignment = $currentDepartmentId
+            ? $user->activeBusinessUnits()
+                ->where('business_unit_id', $businessUnitId)
+                ->where('department_id', $currentDepartmentId)
+                ->with('department')
+                ->first()
+            : null;
+
+        if ($currentAssignment?->department) {
+            return (int) $currentDepartmentId;
+        }
+
+        $fallbackAssignment = $user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->whereNotNull('department_id')
+            ->with('department')
+            ->first();
+
+        if (! $fallbackAssignment?->department) {
+            session()->forget(['current_department_id', 'current_department_name', 'current_department_code']);
+
+            return null;
+        }
+
+        session()->put([
+            'current_department_id' => $fallbackAssignment->department->id,
+            'current_department_name' => $fallbackAssignment->department->name,
+            'current_department_code' => $fallbackAssignment->department->code,
+        ]);
+
+        return (int) $fallbackAssignment->department->id;
     }
 }

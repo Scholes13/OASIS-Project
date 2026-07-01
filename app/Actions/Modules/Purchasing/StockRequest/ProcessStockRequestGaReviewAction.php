@@ -6,7 +6,6 @@ use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
-use App\Services\Modules\Purchasing\Admin\AdminTaskAssignmentService;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +13,6 @@ class ProcessStockRequestGaReviewAction
 {
     public function __construct(
         private AdminTaskService $adminTaskService,
-        private AdminTaskAssignmentService $assignmentService,
     ) {}
 
     /**
@@ -120,16 +118,11 @@ class ProcessStockRequestGaReviewAction
             return;
         }
 
-        $assignedAdminId = $this->assignmentService->determineAssignment(
-            $department->id,
-            $stockRequest->business_unit_id
-        );
-
         $this->adminTaskService->createTask(
             $stockRequest,
             $stockRequest->business_unit_id,
             $department->id,
-            $assignedAdminId
+            null
         );
     }
 

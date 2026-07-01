@@ -28,17 +28,17 @@ export default function ReportingFilters({
     onApply,
 }: ReportingFiltersProps) {
     return (
-        <Card className="p-3 shadow-sm border-gray-200/80">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <Card className="border-gray-200 bg-white p-2 shadow-none">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {periodPresets.map((preset) => (
                         <button
                             key={preset.label}
                             onClick={() => onPreset(preset)}
                             className={cn(
-                                'h-7 px-3 text-xs font-medium rounded-md border transition-all cursor-pointer',
+                                'h-8 rounded-md border px-3 text-xs font-medium transition-colors',
                                 dateFrom === preset.getRange().from && dateTo === preset.getRange().to
-                                    ? 'bg-primary text-white border-primary shadow-sm'
+                                    ? 'border-primary/20 bg-primary/10 text-primary'
                                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                             )}
                         >
@@ -47,25 +47,25 @@ export default function ReportingFilters({
                     ))}
                 </div>
 
-                <div className="w-px h-7 bg-gray-200 hidden lg:block" />
+                <div className="hidden h-7 w-px bg-gray-200 lg:block" />
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 border-t border-gray-100 pt-2 lg:border-t-0 lg:pt-0">
                     <Calendar
-                        className="w-4 h-4 text-gray-400 flex-shrink-0"
+                        className="h-4 w-4 flex-shrink-0 text-gray-400"
                         strokeWidth={1.5}
                     />
                     <input
                         type="date"
                         value={dateFrom}
                         onChange={(event) => onDateFromChange(event.target.value)}
-                        className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+                        className="h-8 w-32 rounded-md border border-gray-200 bg-white px-2 text-xs focus:border-gray-400 focus:outline-none focus:ring-0"
                     />
                     <span className="text-xs text-gray-300 font-medium">—</span>
                     <input
                         type="date"
                         value={dateTo}
                         onChange={(event) => onDateToChange(event.target.value)}
-                        className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
+                        className="h-8 w-32 rounded-md border border-gray-200 bg-white px-2 text-xs focus:border-gray-400 focus:outline-none focus:ring-0"
                     />
                     <Button
                         size="sm"

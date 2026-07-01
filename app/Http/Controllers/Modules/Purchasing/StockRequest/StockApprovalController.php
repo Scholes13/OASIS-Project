@@ -271,6 +271,7 @@ class StockApprovalController extends Controller
         $approverId = $request->get('approver');
         $requestorId = $request->get('requestor');
         $gaReviewerId = $request->get('ga_reviewer');
+        $purchasingAcknowledgerId = $request->get('purchasing_acknowledger');
 
         if (! $token) {
             abort(404, 'Invalid verification link.');
@@ -282,6 +283,7 @@ class StockApprovalController extends Controller
             'businessUnit',
             'items',
             'approvals.approver',
+            'adminTask.assignedAdmin',
         ])->findOrFail($srId);
 
         $qrCodeService = new QrCodeService;
@@ -317,6 +319,24 @@ class StockApprovalController extends Controller
                 'verified_by' => \App\Models\Core\User::findOrFail($stockRequest->ga_reviewed_by),
                 'verified_at' => $stockRequest->ga_reviewed_at,
                 'role' => 'GA Stock Reviewer',
+            ];
+        } elseif ($purchasingAcknowledgerId) {
+            $acknowledger = app(\App\Services\Modules\Purchasing\StockRequest\StockRequestDocumentService::class)
+                ->resolvePurchasingAcknowledger($stockRequest);
+
+            if (! $acknowledger || (int) $purchasingAcknowledgerId !== (int) $acknowledger->id) {
+                abort(404, 'Purchasing acknowledgement verification not found.');
+            }
+
+            if (! $qrCodeService->verifyStockPurchasingAcknowledgerToken($stockRequest, $acknowledger, $token)) {
+                abort(403, 'Invalid verification token.');
+            }
+
+            $verificationData = [
+                'type' => 'purchasing_acknowledgement',
+                'verified_by' => $acknowledger,
+                'verified_at' => $stockRequest->adminTask?->entered_at,
+                'role' => 'Purchasing HOD Acknowledgement',
             ];
         }
         // Check if this is approver verification

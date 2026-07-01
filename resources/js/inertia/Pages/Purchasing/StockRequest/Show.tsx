@@ -77,9 +77,9 @@ function StockRequestSidebarSummary({ stockRequest }: { stockRequest: STShowProp
 }
 
 function getStockRequestSteps(stockRequest: STShowProps['stockRequest']) {
-    const approvalDone = Boolean(stockRequest.approved_at || ['ga_review', 'ready_for_purchasing'].includes(stockRequest.status));
-    const gaDone = stockRequest.status === 'ready_for_purchasing';
-    const purchasingActive = stockRequest.status === 'ready_for_purchasing';
+    const approvalDone = Boolean(stockRequest.approved_at || ['ga_review', 'ready_for_purchasing', 'done'].includes(stockRequest.status));
+    const gaDone = ['ready_for_purchasing', 'done'].includes(stockRequest.status);
+    const purchasingActive = ['ready_for_purchasing', 'done'].includes(stockRequest.status);
     const approvedApprovals = stockRequest.approvals?.filter((approval) => approval.status === 'approved') || [];
     const lastApproval = approvedApprovals[approvedApprovals.length - 1];
     const totalSteps = stockRequest.approvals?.length || 0;
@@ -97,7 +97,26 @@ function getStockRequestSteps(stockRequest: STShowProps['stockRequest']) {
         : stockRequest.status === 'ga_review'
             ? 'In progress'
             : 'Pending';
-    const purchasingTime = purchasingActive ? 'In progress' : 'Pending';
+    const purchasingTask = stockRequest.admin_task;
+    const purchasingActor = purchasingTask?.assigned_admin?.name || 'Purchasing team';
+    const purchasingTime = purchasingTask?.status === 'done'
+        ? formatDateTime(purchasingTask.completed_at)
+        : purchasingTask?.status === 'in_progress'
+            ? `In progress${purchasingTask.started_at ? ` since ${formatDateTime(purchasingTask.started_at)}` : ''}`
+            : purchasingTask?.assigned_admin
+                ? 'Claimed'
+                : purchasingActive
+                    ? 'In progress'
+                    : 'Pending';
+    const purchasingState = purchasingTask?.status === 'done'
+        ? 'done'
+        : purchasingActive || Boolean(purchasingTask)
+            ? 'active'
+            : 'pending';
+    const doneState = stockRequest.status === 'done' || purchasingTask?.status === 'done' ? 'done' : 'pending';
+    const doneTime = purchasingTask?.status === 'done' && purchasingTask.completed_at
+        ? formatDateTime(purchasingTask.completed_at)
+        : 'Pending';
 
     return [
         {
@@ -120,15 +139,15 @@ function getStockRequestSteps(stockRequest: STShowProps['stockRequest']) {
         },
         {
             title: 'Purchasing Follow-up',
-            actor: 'Purchasing team',
+            actor: purchasingActor,
             time: purchasingTime,
-            state: purchasingActive ? 'active' : 'pending',
+            state: purchasingState,
         },
         {
             title: 'Done',
             actor: 'Completed',
-            time: 'Pending',
-            state: 'pending',
+            time: doneTime,
+            state: doneState,
         },
     ];
 }

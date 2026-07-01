@@ -1017,9 +1017,10 @@
                     $gaReviewer = $stockRequest->ga_reviewed_by instanceof \App\Models\Core\User 
                         ? $stockRequest->ga_reviewed_by 
                         : \App\Models\Core\User::find($stockRequest->ga_reviewed_by);
+                    $purchasingAcknowledger = $qrCodes['purchasing_acknowledger_user'] ?? null;
                 @endphp
                 @if($gaReviewer)
-                <div class="approval-box last-approval">
+                <div class="approval-box {{ $purchasingAcknowledger ? '' : 'last-approval' }}">
                     <div class="approval-title">Reviewer</div>
 
                     @if($stockRequest->ga_reviewed_at && isset($qrCodes['ga_reviewer']))
@@ -1036,6 +1037,27 @@
                     </div>
                 </div>
                 @endif
+            @endif
+
+            <!-- Purchasing HOD Acknowledgement Section -->
+            @if(isset($qrCodes['purchasing_acknowledger_user']))
+                @php($purchasingAcknowledger = $qrCodes['purchasing_acknowledger_user'])
+                <div class="approval-box last-approval">
+                    <div class="approval-title">Acknowledged by</div>
+
+                    @if(isset($qrCodes['purchasing_acknowledger']))
+                        <div class="qr-code-container">
+                            <img src="{{ $qrCodes['purchasing_acknowledger'] }}" alt="Purchasing Acknowledgement QR Code" style="width: 50px; height: 50px;">
+                        </div>
+                    @else
+                        <div class="qr-code-container empty">&nbsp;</div>
+                    @endif
+
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $purchasingAcknowledger->name }}</div>
+                        <div class="approver-dept">{{ $purchasingAcknowledger->primaryDepartment->code ?? 'PUR' }}</div>
+                    </div>
+                </div>
             @endif
 
             <!-- No empty slots - only show completed approvals from database -->

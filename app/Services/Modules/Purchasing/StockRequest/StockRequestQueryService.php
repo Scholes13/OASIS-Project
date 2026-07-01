@@ -182,6 +182,7 @@ class StockRequestQueryService
             'user:id,name,email',
             'items',
             "approvals.approver:{$approverColumns}",
+            'adminTask.assignedAdmin:id,name',
             'lastModifiedBy:id,name',
             'gaReviewer:id,name',
             'offlineApprovedBy:id,name',

@@ -65,10 +65,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             // Handle common HTTP errors with proper Inertia error page
-            // Show custom error pages in all environments for a polished user experience
-            // (Laravel Debugbar still provides debug info in local via the bottom toolbar)
+            // Show custom error pages unless debug mode is intentionally enabled.
             if (in_array($response->getStatusCode(), [403, 404, 503])
-                || (! app()->environment(['local', 'testing']) && $response->getStatusCode() === 500)
+                || (! config('app.debug') && ! app()->environment(['local', 'testing']) && $response->getStatusCode() === 500)
             ) {
                 // Set root view explicitly since HandleInertiaRequests middleware
                 // may not have run (e.g., 404 on non-existent routes)

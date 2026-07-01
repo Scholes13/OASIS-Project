@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 
 import { toast } from 'sonner';
 import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
-import { formatCurrency, formatDateTime } from '@/lib/formatters';
+import { formatDateTime } from '@/lib/formatters';
 import { StockRequestActionModals } from '@/components/purchasing/show/StockRequestActionModals';
 import { StockRequestHeader } from '@/components/purchasing/show/StockRequestHeader';
 import { StockRequestItemsTable, type StockRequestGaReviewItem } from '@/components/purchasing/show/StockRequestItemsTable';
@@ -32,17 +32,24 @@ function SidebarCard({ children }: { children: React.ReactNode }) {
 
 function StockRequestSidebarSummary({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
     const itemCount = stockRequest.items?.length || 0;
-    const initialTotalAmount = stockRequest.items?.reduce((sum, item) => {
-        const quantity = Number(item.quantity || 0);
-        const price = Number(item.price || 0);
-        const total = Number(item.total || 0);
-
-        return sum + (price > 0 ? quantity * price : total);
-    }, 0) || 0;
-    const totalAmount = stockRequest.status === 'in_approval' ? initialTotalAmount : Number(stockRequest.total_amount || initialTotalAmount);
     const approvedSteps = stockRequest.approvals?.filter((approval) => approval.status === 'approved').length || 0;
     const totalSteps = stockRequest.approvals?.length || 0;
-    const progress = totalSteps > 0 ? Math.round((approvedSteps / totalSteps) * 100) : 100;
+    const approvalProgress = totalSteps > 0 ? Math.round((approvedSteps / totalSteps) * 40) : 40;
+    const progress = stockRequest.status === 'done'
+        ? 100
+        : stockRequest.admin_task?.status === 'done'
+            ? 100
+            : stockRequest.status === 'ready_for_purchasing'
+                ? 80
+                : stockRequest.status === 'ga_review'
+                    ? 60
+                    : ['approved', 'ga_rejected'].includes(stockRequest.status)
+                        ? 40
+                        : stockRequest.status === 'in_approval'
+                            ? approvalProgress
+                            : stockRequest.status === 'submitted'
+                                ? 20
+                                : 0;
 
     return (
         <SidebarCard>
@@ -55,10 +62,6 @@ function StockRequestSidebarSummary({ stockRequest }: { stockRequest: STShowProp
                 <div className="flex items-center justify-between gap-3">
                     <dt className="text-slate-500">Items</dt>
                     <dd className="font-medium text-slate-950">{itemCount}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                    <dt className="text-slate-500">Total Amount</dt>
-                    <dd className="font-medium text-slate-950">{formatCurrency(totalAmount)}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                     <dt className="text-slate-500">Current Step</dt>

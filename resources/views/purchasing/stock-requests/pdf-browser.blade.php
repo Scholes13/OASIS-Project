@@ -956,7 +956,9 @@
     <!-- Modern Approval Section using Flexbox -->
     <div class="approval-section">
         @php
-            $approvals = $stockRequest->approvals->sortBy('step_order');
+            $approvals = $stockRequest->approvals
+                ->where('status', 'approved')
+                ->sortBy('step_order');
             $totalApprovals = $approvals->count();
         @endphp
 
@@ -979,36 +981,9 @@
                 </div>
             </div>
 
-            <!-- Reviewer Section -->
-            @if($stockRequest->ga_reviewed_by)
-                @php
-                    $gaReviewer = $stockRequest->ga_reviewed_by instanceof \App\Models\Core\User 
-                        ? $stockRequest->ga_reviewed_by 
-                        : \App\Models\Core\User::find($stockRequest->ga_reviewed_by);
-                @endphp
-                @if($gaReviewer)
-                <div class="approval-box">
-                    <div class="approval-title">Reviewer</div>
-
-                    @if($stockRequest->ga_reviewed_at && isset($qrCodes['ga_reviewer']))
-                        <div class="qr-code-container">
-                            <img src="{{ $qrCodes['ga_reviewer'] }}" alt="QR Code" style="width: 50px; height: 50px;">
-                        </div>
-                    @else
-                        <div class="qr-code-container empty">&nbsp;</div>
-                    @endif
-
-                    <div class="approver-info">
-                        <div class="approver-name">{{ $gaReviewer->name }}</div>
-                        <div class="approver-dept">{{ $gaReviewer->primaryDepartment->code ?? 'GA' }}</div>
-                    </div>
-                </div>
-                @endif
-            @endif
-
-            <!-- Dynamic Approval Sections based on actual approval data -->
+            <!-- Dynamic Approval Sections based on approved approval data -->
             @foreach($approvals as $index => $approval)
-                <div class="approval-box {{ $loop->last ? 'last-approval' : '' }}">
+                <div class="approval-box">
                     @php
                         // Determine title based on approval_type from database directly
                         $title = match($approval->approval_type) {
@@ -1036,7 +1011,34 @@
                 </div>
             @endforeach
 
-            <!-- No empty slots - only show actual approvals from database -->
+            <!-- Reviewer Section -->
+            @if($stockRequest->ga_reviewed_by)
+                @php
+                    $gaReviewer = $stockRequest->ga_reviewed_by instanceof \App\Models\Core\User 
+                        ? $stockRequest->ga_reviewed_by 
+                        : \App\Models\Core\User::find($stockRequest->ga_reviewed_by);
+                @endphp
+                @if($gaReviewer)
+                <div class="approval-box last-approval">
+                    <div class="approval-title">Reviewer</div>
+
+                    @if($stockRequest->ga_reviewed_at && isset($qrCodes['ga_reviewer']))
+                        <div class="qr-code-container">
+                            <img src="{{ $qrCodes['ga_reviewer'] }}" alt="QR Code" style="width: 50px; height: 50px;">
+                        </div>
+                    @else
+                        <div class="qr-code-container empty">&nbsp;</div>
+                    @endif
+
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $gaReviewer->name }}</div>
+                        <div class="approver-dept">{{ $gaReviewer->primaryDepartment->code ?? 'GA' }}</div>
+                    </div>
+                </div>
+                @endif
+            @endif
+
+            <!-- No empty slots - only show completed approvals from database -->
         </div>
     </div>
 

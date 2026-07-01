@@ -362,13 +362,11 @@
         
         /* Column Widths */
         .col-no { width: 4%; }
-        .col-item { width: 18%; }
-        .col-description { width: 22%; }
-        .col-qty { width: 6%; }
-        .col-unit { width: 6%; }
-        .col-price { width: 10%; }
-        .col-total { width: 10%; }
-        .col-image { width: 12%; }
+        .col-item { width: 22%; }
+        .col-description { width: 38%; }
+        .col-qty { width: 8%; }
+        .col-unit { width: 8%; }
+        .col-image { width: 20%; }
         
         .row-even {
             background: #ffffff;
@@ -867,18 +865,17 @@
                     <th class="col-description">SPECIFICATIONS</th>
                     <th class="col-qty">QTY</th>
                     <th class="col-unit">UNIT</th>
-                    <th class="col-price">PRICE</th>
-                    <th class="col-total">TOTAL</th>
                     <th class="col-image">IMAGE</th>
                 </tr>
             </thead>
             <tbody>
+                @php($totalQuantity = 0)
                 @foreach($stockRequest->items as $index => $item)
                 @php
                     $isWarehouseStock = $item->ga_review_result === 'warehouse_stock';
                     $isNeedProcurement = $item->ga_review_result === 'need_procurement';
                     $displayQty = $isWarehouseStock ? ($item->warehouse_available_qty ?? $item->quantity) : $item->quantity;
-                    $displayTotal = $isWarehouseStock ? 0 : $item->total;
+                    $totalQuantity += (float) $displayQty;
                     $reviewInfo = match($item->ga_review_result) {
                         'warehouse_stock' => 'Warehouse Stock: '.number_format($item->warehouse_available_qty ?? $item->quantity, 0).' '.$item->unit,
                         'need_procurement' => 'Need Procurement: '.number_format($item->quantity, 0).' '.$item->unit.($item->warehouse_available_qty ? ' | Warehouse Stock: '.number_format($item->warehouse_available_qty, 0).' '.$item->unit : ''),
@@ -896,8 +893,6 @@
                     </td>
                     <td class="text-center">{{ number_format($displayQty, 0) }}</td>
                     <td class="text-center">{{ $item->unit }}</td>
-                    <td class="text-right">{{ $isWarehouseStock ? '-' : number_format($item->price, 0) }}</td>
-                    <td class="text-right">{{ $isWarehouseStock ? '-' : number_format($displayTotal, 0) }}</td>
                     <td class="text-center" style="padding: 4px;">
                         @if($item->image_path)
                             @php
@@ -944,15 +939,10 @@
                 </tr>
                 @endforeach
                 
-                <!-- Grand Total Row -->
-                @php
-                    $grandTotal = $stockRequest->items
-                        ->reject(fn ($item) => $item->ga_review_result === 'warehouse_stock')
-                        ->sum('total');
-                @endphp
+                <!-- Total Quantity Row -->
                 <tr class="total-row">
-                    <td colspan="6" class="total-label"><strong>Grand Total:</strong></td>
-                    <td class="text-right total-amount"><strong>{{ number_format($grandTotal, 0) }}</strong></td>
+                    <td colspan="3" class="total-label"><strong>Total Quantity:</strong></td>
+                    <td class="text-center total-amount"><strong>{{ number_format($totalQuantity, 0) }}</strong></td>
                     <td colspan="2"></td>
                 </tr>
             </tbody>

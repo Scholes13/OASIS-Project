@@ -4,6 +4,8 @@ namespace App\Services\Modules\Purchasing\Admin;
 
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
+use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Notifications\Purchasing\Admin\TaskAssigned;
 use App\Notifications\Purchasing\Admin\TaskAvailable;
 use Illuminate\Support\Facades\DB;
@@ -150,6 +152,10 @@ class AdminTaskService
                 'savings_percentage' => $savingsData['savings_percentage'],
                 'notes' => $notes,
             ]);
+
+            if ($task->taskable instanceof PurchaseRequest || $task->taskable instanceof StockRequest) {
+                $task->taskable->forceFill(['status' => 'done'])->saveQuietly();
+            }
 
             activity()
                 ->performedOn($task)

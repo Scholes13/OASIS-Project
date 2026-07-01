@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Ban, Check, Clock, Edit, X } from 'lucide-react';
 
-export type PrStatus = 'draft' | 'submitted' | 'in_approval' | 'approved' | 'rejected' | 'voided';
+export type PrStatus = 'draft' | 'submitted' | 'in_approval' | 'approved' | 'rejected' | 'voided' | 'done';
 export type StStatus = PrStatus | 'ga_review' | 'ga_rejected' | 'ready_for_purchasing';
 
 export interface PurchasingStatusConfig {
@@ -19,6 +19,7 @@ export const PR_STATUS_CONFIG: Record<PrStatus, PurchasingStatusConfig> = {
     approved: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', icon: Check, label: 'Approved' },
     rejected: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: X, label: 'Rejected' },
     voided: { bg: 'bg-gray-100', text: 'text-gray-500', border: 'border-gray-200', icon: Ban, label: 'Voided' },
+    done: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', icon: Check, label: 'Done' },
 };
 
 export const ST_STATUS_CONFIG: Record<StStatus, PurchasingStatusConfig> = {

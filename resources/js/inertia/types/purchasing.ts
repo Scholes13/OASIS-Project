@@ -66,7 +66,8 @@ export type PurchaseRequestStatus =
     | 'in_approval'
     | 'approved'
     | 'rejected'
-    | 'voided';
+    | 'voided'
+    | 'done';
 
 // PR Category
 export interface PRCategory {
@@ -330,7 +331,8 @@ export type StockRequestStatus =
     | 'ga_rejected'
     | 'ready_for_purchasing'
     | 'rejected'
-    | 'voided';
+    | 'voided'
+    | 'done';
 
 // Stock Request Item
 export interface StockItem {

@@ -2,7 +2,6 @@
 
 namespace App\Services\Core\Navigation;
 
-use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAccessService;
 
@@ -56,16 +55,11 @@ class MenuVisibilityResolver
             return true;
         }
 
-        $departmentId = (int) session('current_department_id');
-
-        if ($departmentId <= 0) {
-            return false;
-        }
-
-        return Department::query()
-            ->where('id', $departmentId)
+        return $user->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
-            ->where('is_ga_stock_review_department', true)
+            ->whereHas('department', fn ($query) => $query
+                ->where('business_unit_id', $businessUnitId)
+                ->where('is_ga_stock_review_department', true))
             ->exists();
     }
 

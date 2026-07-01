@@ -869,7 +869,9 @@
                 </tr>
             </thead>
             <tbody>
-                @php($totalQuantity = 0)
+                @php
+                    $totalQuantity = 0;
+                @endphp
                 @foreach($stockRequest->items as $index => $item)
                 @php
                     $isWarehouseStock = $item->ga_review_result === 'warehouse_stock';
@@ -1037,7 +1039,9 @@
 
             <!-- Purchasing HOD Acknowledgement Section -->
             @if(isset($qrCodes['purchasing_acknowledger_user']))
-                @php($purchasingAcknowledger = $qrCodes['purchasing_acknowledger_user'])
+                @php
+                    $purchasingAcknowledger = $qrCodes['purchasing_acknowledger_user'];
+                @endphp
                 <div class="approval-box last-approval">
                     <div class="approval-title">Acknowledged by</div>
 

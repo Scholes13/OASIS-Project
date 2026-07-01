@@ -460,22 +460,28 @@
         }
 
         .qr-code-container {
-            height: 50px;
+            width: 54px;
+            height: 54px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 4px auto;
+            line-height: 0;
         }
 
         .qr-code-container img {
-            max-width: 45px;
-            max-height: 45px;
+            width: 50px !important;
+            height: 50px !important;
+            max-width: none;
+            max-height: none;
+            object-fit: contain;
             display: block;
         }
 
         .qr-code-container.empty {
             background: transparent;
-            height: 50px;
+            width: 54px;
+            height: 54px;
         }
 
         .approver-info {

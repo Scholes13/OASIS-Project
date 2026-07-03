@@ -39,6 +39,42 @@ Start here, then follow the referenced files instead of adding new monolithic in
 ## Repo Notes
 - `SalesCrm` is deprecated and must remain disabled unless the Product Owner explicitly asks to restore it.
 
+## Branch, PR, and Release Workflow
+
+This repository uses two review layers:
+
+1. **Module/UAT PRs** target `staging`.
+   - Use short-lived branches such as `feature/ticket-legacy-import`, `fix/stock-request-pdf`, `chore/ci-debug-staging`.
+   - A branch/PR should represent one module, bug, feature, or operational purpose.
+   - PRs into `staging` are for CI, audit trail, and staging user review.
+   - After a PR is merged to `staging`, CI/CD deploys `staging.oasis.werkudaragroup.com` for UAT.
+
+2. **Production PRs** target `main`.
+   - Production release must stay manual.
+   - Open production PRs from the same feature/fix branch, not from `staging`, when the owner wants a one-purpose production review.
+   - On a module PR targeting `staging`, comment `/release-main` after UAT approval to let GitHub create the matching production PR from that branch to `main`.
+   - Merge to `main` only after the specific module/change is approved for production.
+
+Avoid direct commits to `staging` when the user wants separate audit trails. Direct `staging` commits are acceptable only for tiny operational fixes when the user explicitly agrees that they may join the active staging release batch.
+
+### PR Classifier
+
+GitHub workflow `.github/workflows/pr-classifier.yml` maintains an `Auto Detected Scope` section on PRs and labels them automatically.
+
+Detection is dynamic and based on:
+- changed file paths,
+- commit messages,
+- branch name.
+
+The classifier recognizes current modules such as Purchasing, Purchase Request, Stock Request, Cashflow Projection, Activity, IT Ticketing, and it should also infer new modules as the project grows from paths under:
+- `app/*/Modules/<Module>/...`
+- `resources/js/inertia/Pages/<Module>/...`
+- `resources/js/inertia/components/<module>/...`
+- `tests/*/Modules/<Module>/...`
+- module-specific migration names.
+
+Do not hand-edit the classifier-managed PR body block except for temporary investigation notes; the workflow will overwrite that block on the next PR update.
+
 ## File Size & Write Operation Standards (Project-Wide)
 
 ### Hard size caps per file type

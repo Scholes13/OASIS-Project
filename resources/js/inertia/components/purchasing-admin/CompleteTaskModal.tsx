@@ -41,6 +41,7 @@ export function CompleteTaskModal({ task, open, onClose, onComplete }: CompleteT
 
     if (!open || !task) return null;
 
+    const isStockRequest = task.taskable_type.includes('StockRequest') || Boolean(task.taskable?.st_number);
     const estimatedPrice = task.estimated_total_price || 0;
     const realizedPrice = parseFloat(realizedTotalPrice) || 0;
     const savingsAmount = estimatedPrice - realizedPrice;
@@ -51,7 +52,7 @@ export function CompleteTaskModal({ task, open, onClose, onComplete }: CompleteT
 
         // Validation
         const newErrors: Record<string, string> = {};
-        if (!realizedTotalPrice || parseFloat(realizedTotalPrice) <= 0) {
+        if (!isStockRequest && (!realizedTotalPrice || parseFloat(realizedTotalPrice) <= 0)) {
             newErrors.realizedTotalPrice = 'Realized price is required and must be greater than 0';
         }
 
@@ -62,7 +63,7 @@ export function CompleteTaskModal({ task, open, onClose, onComplete }: CompleteT
 
         setIsSubmitting(true);
         router.post(route('purchasing.admin.tasks.complete', { taskId: task.id }), {
-            realized_total_price: parseFloat(realizedTotalPrice),
+            realized_total_price: isStockRequest ? null : parseFloat(realizedTotalPrice),
             vendor_name: vendorName || null,
             notes: notes || null,
         }, {
@@ -110,61 +111,65 @@ export function CompleteTaskModal({ task, open, onClose, onComplete }: CompleteT
                     {/* Form */}
                     <form onSubmit={handleSubmit}>
                         <div className="px-6 py-4 space-y-4">
-                            {/* Realized Price Input */}
-                            <div>
-                                <label htmlFor="realizedTotalPrice" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Realized Total Price <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                                        Rp
-                                    </span>
-                                    <input
-                                        type="number"
-                                        id="realizedTotalPrice"
-                                        value={realizedTotalPrice}
-                                        onChange={(e) => setRealizedTotalPrice(e.target.value)}
-                                        step="1"
-                                        min="1"
-                                        className={cn(
-                                            "w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
-                                            errors.realizedTotalPrice ? "border-red-300" : "border-gray-300"
+                            {!isStockRequest && (
+                                <>
+                                    {/* Realized Price Input */}
+                                    <div>
+                                        <label htmlFor="realizedTotalPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Realized Total Price <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                                Rp
+                                            </span>
+                                            <input
+                                                type="number"
+                                                id="realizedTotalPrice"
+                                                value={realizedTotalPrice}
+                                                onChange={(e) => setRealizedTotalPrice(e.target.value)}
+                                                step="1"
+                                                min="1"
+                                                className={cn(
+                                                    "w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+                                                    errors.realizedTotalPrice ? "border-red-300" : "border-gray-300"
+                                                )}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        {errors.realizedTotalPrice && (
+                                            <p className="mt-1 text-sm text-red-600">{errors.realizedTotalPrice}</p>
                                         )}
-                                        placeholder="0"
-                                    />
-                                </div>
-                                {errors.realizedTotalPrice && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.realizedTotalPrice}</p>
-                                )}
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Estimated: {formatCurrency(estimatedPrice)}
-                                </p>
-                            </div>
-
-                            {/* Calculated Savings Preview */}
-                            {realizedPrice > 0 && (
-                                <div className="p-3 bg-gray-50 rounded-lg">
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div>
-                                            <span className="text-gray-500">Savings Amount:</span>
-                                            <p className={cn(
-                                                "font-semibold",
-                                                savingsAmount >= 0 ? "text-emerald-600" : "text-red-600"
-                                            )}>
-                                                {formatCurrency(savingsAmount)}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-500">Savings Percentage:</span>
-                                            <p className={cn(
-                                                "font-semibold",
-                                                savingsPercentage >= 0 ? "text-emerald-600" : "text-red-600"
-                                            )}>
-                                                {savingsPercentage.toFixed(2)}%
-                                            </p>
-                                        </div>
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Estimated: {formatCurrency(estimatedPrice)}
+                                        </p>
                                     </div>
-                                </div>
+
+                                    {/* Calculated Savings Preview */}
+                                    {realizedPrice > 0 && (
+                                        <div className="p-3 bg-gray-50 rounded-lg">
+                                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                                <div>
+                                                    <span className="text-gray-500">Savings Amount:</span>
+                                                    <p className={cn(
+                                                        "font-semibold",
+                                                        savingsAmount >= 0 ? "text-emerald-600" : "text-red-600"
+                                                    )}>
+                                                        {formatCurrency(savingsAmount)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Savings Percentage:</span>
+                                                    <p className={cn(
+                                                        "font-semibold",
+                                                        savingsPercentage >= 0 ? "text-emerald-600" : "text-red-600"
+                                                    )}>
+                                                        {savingsPercentage.toFixed(2)}%
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
 
                             {/* Vendor Name Input */}
@@ -187,7 +192,7 @@ export function CompleteTaskModal({ task, open, onClose, onComplete }: CompleteT
                                     <p className="mt-1 text-sm text-red-600">{errors.vendor_name}</p>
                                 )}
                                 <p className="mt-1 text-xs text-gray-500">
-                                    This will update the vendor/supplier on the purchase request
+                                    This will update the vendor/supplier on the {isStockRequest ? 'stock request' : 'purchase request'}
                                 </p>
                             </div>
 

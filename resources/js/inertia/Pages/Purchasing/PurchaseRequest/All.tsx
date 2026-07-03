@@ -45,6 +45,7 @@ const getStatusConfig = (status: string) => {
         approved: { label: 'Approved', className: 'text-emerald-600' },
         rejected: { label: 'Rejected', className: 'text-red-600' },
         voided: { label: 'Voided', className: 'text-gray-500' },
+        done: { label: 'Done', className: 'text-emerald-700' },
     };
     return configs[status] || configs.draft;
 };
@@ -56,6 +57,7 @@ const statuses = [
     { value: 'approved', label: 'Approved' },
     { value: 'rejected', label: 'Rejected' },
     { value: 'voided', label: 'Voided' },
+    { value: 'done', label: 'Done' },
 ];
 
 export default function All({

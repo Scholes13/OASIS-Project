@@ -1,0 +1,277 @@
+name: PR Classifier
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to classify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  classify:
+    name: Classify PR scope
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Detect scope and update PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = context.eventName === 'workflow_dispatch'
+              ? Number(core.getInput('pr_number'))
+              : context.payload.pull_request.number;
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: prNumber,
+            });
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner,
+              repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+
+            const moduleMap = new Map();
+            const areas = new Set();
+            const types = new Set();
+
+            const knownModuleAliases = new Map([
+              ['Admin', 'Purchasing Admin'],
+              ['CashflowProjection', 'Cashflow Projection'],
+              ['PurchaseRequest', 'Purchase Request'],
+              ['StockRequest', 'Stock Request'],
+              ['Ticket', 'IT Ticketing'],
+            ]);
+
+            const addModule = (raw) => {
+              if (!raw) return;
+              const normalized = knownModuleAliases.get(raw) || raw;
+              const display = normalized
+                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+                .replace(/[-_]+/g, ' ')
+                .replace(/\b\w/g, (char) => char.toUpperCase())
+                .trim();
+              if (display) moduleMap.set(display.toLowerCase(), display);
+            };
+
+            const inferModule = (filename) => {
+              const path = filename.replace(/\\/g, '/');
+              const moduleMatch = path.match(/(?:app\/(?:Http\/Controllers|Http\/Requests|Services|Models|Actions|Notifications|Policies)\/Modules|tests\/(?:Feature|Unit)\/Modules)\/([^/]+)(?:\/([^/]+))?/);
+              if (moduleMatch) {
+                if (moduleMatch[1] === 'Purchasing' && moduleMatch[2]) {
+                  addModule(moduleMatch[2]);
+                } else {
+                  addModule(moduleMatch[1]);
+                }
+              }
+
+              const inertiaPageMatch = path.match(/resources\/js\/inertia\/Pages\/([^/]+)(?:\/([^/]+))?/);
+              if (inertiaPageMatch) {
+                if (inertiaPageMatch[1] === 'Purchasing' && inertiaPageMatch[2]) {
+                  addModule(inertiaPageMatch[2]);
+                } else {
+                  addModule(inertiaPageMatch[1]);
+                }
+              }
+
+              const inertiaComponentMatch = path.match(/resources\/js\/inertia\/components\/([^/]+)(?:\/([^/]+))?/);
+              if (inertiaComponentMatch) {
+                const first = inertiaComponentMatch[1];
+                const second = inertiaComponentMatch[2];
+                if (first.toLowerCase() === 'purchasing' && second) {
+                  addModule(second);
+                } else {
+                  addModule(first);
+                }
+              }
+
+              const migrationName = path.match(/database\/migrations\/.+_(create|add|update|alter|drop)_(.+?)(?:_table)?\.php$/);
+              if (migrationName) {
+                const subject = migrationName[2];
+                if (subject.includes('stock_request')) addModule('Stock Request');
+                else if (subject.includes('purchase_request') || subject.startsWith('pr_')) addModule('Purchase Request');
+                else if (subject.includes('ticket')) addModule('IT Ticketing');
+                else if (subject.includes('cashflow')) addModule('Cashflow Projection');
+                else if (subject.includes('activity')) addModule('Activity');
+              }
+            };
+
+            const inferArea = (filename) => {
+              const path = filename.replace(/\\/g, '/');
+              if (path.startsWith('.github/') || path.startsWith('docker') || path.includes('deploy')) areas.add('CI/CD');
+              if (path.startsWith('app/') || path.startsWith('routes/') || path.startsWith('bootstrap/') || path.startsWith('config/')) areas.add('Backend');
+              if (path.startsWith('resources/js/') || path.startsWith('resources/css/') || path.endsWith('.tsx') || path.endsWith('.ts')) areas.add('Frontend');
+              if (path.startsWith('database/')) areas.add('Database');
+              if (path.startsWith('tests/')) areas.add('Tests');
+              if (path.startsWith('docs/') || path.endsWith('.md')) areas.add('Docs');
+            };
+
+            const inferType = (message) => {
+              const lower = message.toLowerCase();
+              const conventional = lower.match(/^([a-z]+)(?:\(.+?\))?!?:/);
+              const token = conventional?.[1];
+              const typeMap = {
+                feat: 'Feature',
+                feature: 'Feature',
+                fix: 'Bug Fix',
+                bugfix: 'Bug Fix',
+                chore: 'Chore',
+                ci: 'CI/CD',
+                docs: 'Docs',
+                test: 'Test',
+                refactor: 'Refactor',
+                perf: 'Performance',
+                build: 'Build',
+                style: 'Style',
+                revert: 'Revert',
+              };
+              if (typeMap[token]) types.add(typeMap[token]);
+              if (lower.includes('update') || lower.includes('adjust') || lower.includes('tweak')) types.add('Update');
+              if (lower.includes('migration') || lower.includes('migrate')) types.add('Database');
+            };
+
+            for (const file of files) {
+              inferModule(file.filename);
+              inferArea(file.filename);
+              if (file.filename.startsWith('.github/')) types.add('CI/CD');
+              if (file.filename.startsWith('tests/')) types.add('Test');
+              if (file.filename.startsWith('database/')) types.add('Database');
+            }
+
+            inferType(pr.title);
+            inferType(pr.head.ref);
+            for (const commit of commits) {
+              inferType(commit.commit.message.split('\n')[0]);
+            }
+            if (types.size === 0) types.add('Update');
+            if (areas.size === 0) areas.add('General');
+            if (moduleMap.size === 0) moduleMap.set('general', 'General');
+
+            const modules = [...moduleMap.values()].sort();
+            const areaList = [...areas].sort();
+            const typeList = [...types].sort();
+            const labelSpecs = [
+              ...modules.map((name) => ({ name: `module:${name}`, color: '1d76db' })),
+              ...areaList.map((name) => ({ name: `area:${name}`, color: '5319e7' })),
+              ...typeList.map((name) => ({ name: `type:${name}`, color: '0e8a16' })),
+              { name: `target:${pr.base.ref}`, color: pr.base.ref === 'main' ? 'b60205' : 'fbca04' },
+            ];
+
+            const ensureLabel = async (label) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label.name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: label.name,
+                  color: label.color,
+                });
+              }
+            };
+
+            for (const label of labelSpecs) await ensureLabel(label);
+
+            const currentLabels = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+              owner,
+              repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const managedPrefixes = ['module:', 'area:', 'type:', 'target:'];
+            const desiredLabels = new Set(labelSpecs.map((label) => label.name));
+            for (const label of currentLabels) {
+              if (managedPrefixes.some((prefix) => label.name.startsWith(prefix)) && !desiredLabels.has(label.name)) {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  name: label.name,
+                }).catch((error) => {
+                  if (error.status !== 404) throw error;
+                });
+              }
+            }
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: prNumber,
+              labels: [...desiredLabels],
+            });
+
+            const filePreview = files
+              .slice(0, 20)
+              .map((file) => `- \`${file.filename}\` (${file.status})`)
+              .join('\n');
+            const extraFiles = files.length > 20 ? `\n- ...and ${files.length - 20} more file(s)` : '';
+            const releaseGuidance = pr.base.ref === 'staging'
+              ? '- Base `staging`: UAT/preview PR. Merge here updates staging deployment.\n- After UAT approval, comment `/release-main` to open a manual production PR from this same branch.'
+              : '- Base `main`: production release PR. Merge manually only after UAT approval.';
+
+            const section = [
+              '<!-- oasis-pr-classifier:start -->',
+              '## Auto Detected Scope',
+              '',
+              `Detected from changed paths, commit messages, and branch name. This section is maintained by \`pr-classifier.yml\`.`,
+              '',
+              `**Modules:** ${modules.join(', ')}`,
+              `**Change Types:** ${typeList.join(', ')}`,
+              `**Areas:** ${areaList.join(', ')}`,
+              `**Target:** \`${pr.head.ref}\` -> \`${pr.base.ref}\``,
+              '',
+              '### Review Focus',
+              ...modules.map((name) => `- ${name}`),
+              '',
+              '### Release Guidance',
+              releaseGuidance,
+              '',
+              '### Changed Files Preview',
+              filePreview || '- No files reported.',
+              extraFiles,
+              '<!-- oasis-pr-classifier:end -->',
+            ].join('\n');
+
+            const start = '<!-- oasis-pr-classifier:start -->';
+            const end = '<!-- oasis-pr-classifier:end -->';
+            const body = pr.body || '';
+            const nextBody = body.includes(start) && body.includes(end)
+              ? body.replace(new RegExp(`${start}[\\s\\S]*?${end}`), section)
+              : `${body.trim()}\n\n${section}`.trim();
+
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: prNumber,
+              body: nextBody,
+            });
+
+            core.summary
+              .addHeading(`PR #${prNumber} classified`)
+              .addRaw(`Modules: ${modules.join(', ')}\n\n`)
+              .addRaw(`Types: ${typeList.join(', ')}\n\n`)
+              .addRaw(`Areas: ${areaList.join(', ')}\n`)
+              .write();

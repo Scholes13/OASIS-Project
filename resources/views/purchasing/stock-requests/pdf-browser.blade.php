@@ -362,13 +362,11 @@
         
         /* Column Widths */
         .col-no { width: 4%; }
-        .col-item { width: 18%; }
-        .col-description { width: 22%; }
-        .col-qty { width: 6%; }
-        .col-unit { width: 6%; }
-        .col-price { width: 10%; }
-        .col-total { width: 10%; }
-        .col-image { width: 12%; }
+        .col-item { width: 22%; }
+        .col-description { width: 38%; }
+        .col-qty { width: 8%; }
+        .col-unit { width: 8%; }
+        .col-image { width: 20%; }
         
         .row-even {
             background: #ffffff;
@@ -460,22 +458,28 @@
         }
 
         .qr-code-container {
-            height: 50px;
+            width: 54px;
+            height: 54px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 4px auto;
+            line-height: 0;
         }
 
         .qr-code-container img {
-            max-width: 45px;
-            max-height: 45px;
+            width: 50px !important;
+            height: 50px !important;
+            max-width: none;
+            max-height: none;
+            object-fit: contain;
             display: block;
         }
 
         .qr-code-container.empty {
             background: transparent;
-            height: 50px;
+            width: 54px;
+            height: 54px;
         }
 
         .approver-info {
@@ -861,18 +865,19 @@
                     <th class="col-description">SPECIFICATIONS</th>
                     <th class="col-qty">QTY</th>
                     <th class="col-unit">UNIT</th>
-                    <th class="col-price">PRICE</th>
-                    <th class="col-total">TOTAL</th>
                     <th class="col-image">IMAGE</th>
                 </tr>
             </thead>
             <tbody>
+                @php
+                    $totalQuantity = 0;
+                @endphp
                 @foreach($stockRequest->items as $index => $item)
                 @php
                     $isWarehouseStock = $item->ga_review_result === 'warehouse_stock';
                     $isNeedProcurement = $item->ga_review_result === 'need_procurement';
                     $displayQty = $isWarehouseStock ? ($item->warehouse_available_qty ?? $item->quantity) : $item->quantity;
-                    $displayTotal = $isWarehouseStock ? 0 : $item->total;
+                    $totalQuantity += (float) $displayQty;
                     $reviewInfo = match($item->ga_review_result) {
                         'warehouse_stock' => 'Warehouse Stock: '.number_format($item->warehouse_available_qty ?? $item->quantity, 0).' '.$item->unit,
                         'need_procurement' => 'Need Procurement: '.number_format($item->quantity, 0).' '.$item->unit.($item->warehouse_available_qty ? ' | Warehouse Stock: '.number_format($item->warehouse_available_qty, 0).' '.$item->unit : ''),
@@ -890,8 +895,6 @@
                     </td>
                     <td class="text-center">{{ number_format($displayQty, 0) }}</td>
                     <td class="text-center">{{ $item->unit }}</td>
-                    <td class="text-right">{{ $isWarehouseStock ? '-' : number_format($item->price, 0) }}</td>
-                    <td class="text-right">{{ $isWarehouseStock ? '-' : number_format($displayTotal, 0) }}</td>
                     <td class="text-center" style="padding: 4px;">
                         @if($item->image_path)
                             @php
@@ -938,15 +941,10 @@
                 </tr>
                 @endforeach
                 
-                <!-- Grand Total Row -->
-                @php
-                    $grandTotal = $stockRequest->items
-                        ->reject(fn ($item) => $item->ga_review_result === 'warehouse_stock')
-                        ->sum('total');
-                @endphp
+                <!-- Total Quantity Row -->
                 <tr class="total-row">
-                    <td colspan="6" class="total-label"><strong>Grand Total:</strong></td>
-                    <td class="text-right total-amount"><strong>{{ number_format($grandTotal, 0) }}</strong></td>
+                    <td colspan="3" class="total-label"><strong>Total Quantity:</strong></td>
+                    <td class="text-center total-amount"><strong>{{ number_format($totalQuantity, 0) }}</strong></td>
                     <td colspan="2"></td>
                 </tr>
             </tbody>
@@ -956,7 +954,9 @@
     <!-- Modern Approval Section using Flexbox -->
     <div class="approval-section">
         @php
-            $approvals = $stockRequest->approvals->sortBy('step_order');
+            $approvals = $stockRequest->approvals
+                ->where('status', 'approved')
+                ->sortBy('step_order');
             $totalApprovals = $approvals->count();
         @endphp
 
@@ -979,36 +979,9 @@
                 </div>
             </div>
 
-            <!-- Reviewer Section -->
-            @if($stockRequest->ga_reviewed_by)
-                @php
-                    $gaReviewer = $stockRequest->ga_reviewed_by instanceof \App\Models\Core\User 
-                        ? $stockRequest->ga_reviewed_by 
-                        : \App\Models\Core\User::find($stockRequest->ga_reviewed_by);
-                @endphp
-                @if($gaReviewer)
-                <div class="approval-box">
-                    <div class="approval-title">Reviewer</div>
-
-                    @if($stockRequest->ga_reviewed_at && isset($qrCodes['ga_reviewer']))
-                        <div class="qr-code-container">
-                            <img src="{{ $qrCodes['ga_reviewer'] }}" alt="QR Code" style="width: 50px; height: 50px;">
-                        </div>
-                    @else
-                        <div class="qr-code-container empty">&nbsp;</div>
-                    @endif
-
-                    <div class="approver-info">
-                        <div class="approver-name">{{ $gaReviewer->name }}</div>
-                        <div class="approver-dept">{{ $gaReviewer->primaryDepartment->code ?? 'GA' }}</div>
-                    </div>
-                </div>
-                @endif
-            @endif
-
-            <!-- Dynamic Approval Sections based on actual approval data -->
+            <!-- Dynamic Approval Sections based on approved approval data -->
             @foreach($approvals as $index => $approval)
-                <div class="approval-box {{ $loop->last ? 'last-approval' : '' }}">
+                <div class="approval-box">
                     @php
                         // Determine title based on approval_type from database directly
                         $title = match($approval->approval_type) {
@@ -1036,7 +1009,58 @@
                 </div>
             @endforeach
 
-            <!-- No empty slots - only show actual approvals from database -->
+            <!-- Reviewer Section -->
+            @if($stockRequest->ga_reviewed_by)
+                @php
+                    $gaReviewer = $stockRequest->ga_reviewed_by instanceof \App\Models\Core\User 
+                        ? $stockRequest->ga_reviewed_by 
+                        : \App\Models\Core\User::find($stockRequest->ga_reviewed_by);
+                    $purchasingAcknowledger = $qrCodes['purchasing_acknowledger_user'] ?? null;
+                @endphp
+                @if($gaReviewer)
+                <div class="approval-box {{ $purchasingAcknowledger ? '' : 'last-approval' }}">
+                    <div class="approval-title">Reviewer</div>
+
+                    @if($stockRequest->ga_reviewed_at && isset($qrCodes['ga_reviewer']))
+                        <div class="qr-code-container">
+                            <img src="{{ $qrCodes['ga_reviewer'] }}" alt="QR Code" style="width: 50px; height: 50px;">
+                        </div>
+                    @else
+                        <div class="qr-code-container empty">&nbsp;</div>
+                    @endif
+
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $gaReviewer->name }}</div>
+                        <div class="approver-dept">{{ $gaReviewer->primaryDepartment->code ?? 'GA' }}</div>
+                    </div>
+                </div>
+                @endif
+            @endif
+
+            <!-- Purchasing HOD Acknowledgement Section -->
+            @if(isset($qrCodes['purchasing_acknowledger_user']))
+                @php
+                    $purchasingAcknowledger = $qrCodes['purchasing_acknowledger_user'];
+                @endphp
+                <div class="approval-box last-approval">
+                    <div class="approval-title">Acknowledged by</div>
+
+                    @if(isset($qrCodes['purchasing_acknowledger']))
+                        <div class="qr-code-container">
+                            <img src="{{ $qrCodes['purchasing_acknowledger'] }}" alt="Purchasing Acknowledgement QR Code" style="width: 50px; height: 50px;">
+                        </div>
+                    @else
+                        <div class="qr-code-container empty">&nbsp;</div>
+                    @endif
+
+                    <div class="approver-info">
+                        <div class="approver-name">{{ $purchasingAcknowledger->name }}</div>
+                        <div class="approver-dept">{{ $purchasingAcknowledger->primaryDepartment->code ?? 'PUR' }}</div>
+                    </div>
+                </div>
+            @endif
+
+            <!-- No empty slots - only show completed approvals from database -->
         </div>
     </div>
 

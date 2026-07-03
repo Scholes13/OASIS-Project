@@ -60,14 +60,26 @@ class TicketService
 
         return DB::transaction(function () use ($data, $creator, $buId) {
             $ticketNumber = $this->ticketNumberService->generateTicketNumber($buId);
+            $requesterId = $data['requester_id'] ?? $creator->id;
+            $requester = (int) $requesterId === (int) $creator->id
+                ? $creator
+                : User::findOrFail($requesterId);
+            $requesterAssignment = $requester->businessUnits()
+                ->where('business_unit_id', $buId)
+                ->where('is_active', true)
+                ->first();
+
+            if (! $requesterAssignment || ! $requesterAssignment->department_id) {
+                throw new Exception('Requester does not have an active department in the selected business unit.');
+            }
 
             $ticket = Ticket::create([
                 'business_unit_id' => $buId,
                 'ticket_number' => $ticketNumber,
                 'title' => $data['title'],
                 'description' => $data['description'] ?? null,
-                'requester_id' => $data['requester_id'] ?? $creator->id,
-                'department_id' => $data['department_id'] ?? null,
+                'requester_id' => $requesterId,
+                'department_id' => $requesterAssignment->department_id,
                 'status' => 'waiting',
                 'priority' => $data['priority'] ?? 'medium',
                 'category_id' => $data['category_id'] ?? null,

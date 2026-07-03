@@ -86,11 +86,11 @@ export default function TicketReporting({ reportData, filters }: ReportingProps)
         <>
             <Head title="IT Support Reporting" />
 
-            <div className="w-full px-6 py-6 lg:px-8 space-y-6">
-                <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div className="w-full space-y-5 bg-gray-50/60 px-6 py-6 lg:px-8">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div className="flex flex-col gap-1.5">
-                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">IT Support Reporting</h1>
-                        <p className="text-sm text-gray-500">Laporan dan statistik ticket dukungan IT</p>
+                        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">IT Support Reporting</h1>
+                        <p className="text-sm text-gray-500">Analyze ticket flow, SLA 2 × 24h compliance, and team workload.</p>
                     </div>
 
                     <div className="flex items-center gap-2">

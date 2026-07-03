@@ -9,7 +9,7 @@ interface TicketPriorityBadgeProps {
 const priorityConfig: Record<TicketPriority, { label: string; className: string; icon: React.ReactNode }> = {
     low: {
         label: 'Rendah',
-        className: 'bg-slate-100 text-slate-600',
+        className: 'bg-slate-50 text-slate-600 ring-1 ring-slate-200/70',
         icon: (
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
@@ -18,7 +18,7 @@ const priorityConfig: Record<TicketPriority, { label: string; className: string;
     },
     medium: {
         label: 'Sedang',
-        className: 'bg-blue-100 text-blue-700',
+        className: 'bg-blue-50 text-blue-600 ring-1 ring-blue-100',
         icon: (
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M12 5l7 7-7 7" />
@@ -27,7 +27,7 @@ const priorityConfig: Record<TicketPriority, { label: string; className: string;
     },
     high: {
         label: 'Tinggi',
-        className: 'bg-orange-100 text-orange-700',
+        className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
         icon: (
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -36,7 +36,7 @@ const priorityConfig: Record<TicketPriority, { label: string; className: string;
     },
     critical: {
         label: 'Kritis',
-        className: 'bg-red-100 text-red-700',
+        className: 'bg-red-50 text-red-600 ring-1 ring-red-100',
         icon: (
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

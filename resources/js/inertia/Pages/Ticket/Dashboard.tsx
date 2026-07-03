@@ -1,47 +1,19 @@
-import { useState, useMemo } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import {
-    Calendar, BarChart3, PieChart,
-    Users,
-} from 'lucide-react';
-import {
-    PieChart as PieChartRecharts, Pie, Cell,
-    BarChart, Bar, LineChart, Line,
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
-import { format, subDays, startOfMonth } from 'date-fns';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Activity, AlertTriangle, Calendar, CheckCircle2, Clock3, MoreHorizontal, Ticket as TicketIcon } from 'lucide-react';
+import { format, startOfMonth, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
-import { DashboardMetricCards } from '@/components/Ticket/dashboard/DashboardMetricCards';
-import { RecentTicketsTable } from '@/components/Ticket/dashboard/RecentTicketsTable';
+import { Card } from '@/components/ui/Card';
+import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
+import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
 import { cn } from '@/lib/utils';
-import type { PageProps, TicketDashboardMetrics } from '@/types';
+import type { PageProps, Ticket, TicketDashboardMetrics } from '@/types';
 
-// ── Types ──────────────────────────────────────────────────────────────
 interface DashboardProps extends PageProps {
     metrics: TicketDashboardMetrics;
     filters: { date_from: string; date_to: string };
 }
 
-// ── Chart Constants ──────────────────────────────────────────────────
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
-const statusColors: Record<string, string> = {
-    waiting: '#f59e0b',
-    in_progress: '#3b82f6',
-    done: '#10b981',
-    cancelled: '#6b7280',
-};
-
-const priorityColors: Record<string, string> = {
-    low: '#94a3b8',
-    medium: '#3b82f6',
-    high: '#f59e0b',
-    critical: '#ef4444',
-};
-
-// ── Period presets ─────────────────────────────────────────────────────
 const periodPresets = [
     { label: 'Today', getRange: () => ({ from: format(new Date(), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
     { label: 'This Week', getRange: () => ({ from: format(subDays(new Date(), 7), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
@@ -50,27 +22,9 @@ const periodPresets = [
     { label: '90 Days', getRange: () => ({ from: format(subDays(new Date(), 90), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
 ];
 
-// ── Chart Tooltip ───────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: any) {
-    if (!active || !payload?.length) return null;
-    return (
-        <div className="rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 shadow-xl">
-            <p className="text-xs font-semibold text-gray-700 mb-1.5 border-b border-gray-100 pb-1.5">{label}</p>
-            {payload.map((p: any, i: number) => (
-                <div key={i} className="flex items-center justify-between gap-6 py-0.5">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                        <span className="text-xs text-gray-600">{p.name}</span>
-                    </div>
-                    <span className="text-xs font-bold text-gray-900 tabular-nums">{p.value}</span>
-                </div>
-            ))}
-        </div>
-    );
-}
+const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function TicketDashboard({ metrics, filters }: DashboardProps) {
-    const { flash } = usePage<PageProps>().props;
     const [dateFrom, setDateFrom] = useState(filters.date_from);
     const [dateTo, setDateTo] = useState(filters.date_to);
     const [isFiltering, setIsFiltering] = useState(false);
@@ -93,254 +47,360 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
         setDateTo(range.to);
     };
 
-    // Calculate status counts
-    const statusCounts = useMemo(() => ({
-        total: metrics.total,
-        waiting: metrics.by_status.waiting || 0,
-        in_progress: metrics.by_status.in_progress || 0,
-        done: metrics.by_status.done || 0,
-        cancelled: metrics.by_status.cancelled || 0,
-        sla_breach: metrics.sla_breach_count || 0,
-    }), [metrics]);
+    const openTickets = (metrics.by_status.waiting || 0) + (metrics.by_status.in_progress || 0);
+    const responseTime = Number(metrics.avg_resolution_hours || 0).toFixed(1);
+    const withinSla = Math.max(metrics.total - metrics.sla_breach_count, 0);
+    const dueSoonCount = metrics.recent_tickets.filter((ticket) => getSlaState(ticket).state === 'soon').length;
 
-    // Data for Pie Chart (by status)
-    const statusPieData = useMemo(() => [
-        { name: 'Menunggu', value: metrics.by_status.waiting || 0, color: statusColors.waiting },
-        { name: 'Dalam Proses', value: metrics.by_status.in_progress || 0, color: statusColors.in_progress },
-        { name: 'Selesai', value: metrics.by_status.done || 0, color: statusColors.done },
-        { name: 'Dibatalkan', value: metrics.by_status.cancelled || 0, color: statusColors.cancelled },
-    ].filter(d => d.value > 0), [metrics.by_status]);
+    const weeklyVolume = useMemo(() => buildVolumeData(metrics), [metrics]);
+    const maxVolume = Math.max(...weeklyVolume.map((item) => item.value), 1);
+    const volumeDelta = metrics.total > 0 ? Math.round((openTickets / metrics.total) * 100) : 0;
 
-    // Data for Priority Bar Chart
-    const priorityBarData = useMemo(() => [
-        { name: 'Rendah', count: metrics.by_priority.low || 0, color: priorityColors.low },
-        { name: 'Sedang', count: metrics.by_priority.medium || 0, color: priorityColors.medium },
-        { name: 'Tinggi', count: metrics.by_priority.high || 0, color: priorityColors.high },
-        { name: 'Kritis', count: metrics.by_priority.critical || 0, color: priorityColors.critical },
-    ], [metrics.by_priority]);
-
-    // Data for Category Bar Chart
-    const categoryBarData = useMemo(() =>
-        metrics.by_category.map(c => ({ name: c.name, count: c.count, color: c.color })),
-        [metrics.by_category]
-    );
-
-    // Data for Staff workload
-    const staffWorkloadData = useMemo(() =>
-        [...metrics.by_staff].sort((a, b) => b.count - a.count).slice(0, 5),
-        [metrics.by_staff]
-    );
+    const statusGroups = useMemo(() => ({
+        open: metrics.recent_tickets.filter((ticket) => ticket.status === 'waiting').slice(0, 2),
+        resolving: metrics.recent_tickets.filter((ticket) => ticket.status === 'in_progress').slice(0, 2),
+        archived: metrics.recent_tickets.filter((ticket) => ticket.status === 'done' || ticket.status === 'cancelled').slice(0, 2),
+    }), [metrics.recent_tickets]);
 
     return (
         <>
             <Head title="IT Support Dashboard" />
 
-            <div className="w-full px-6 py-6 lg:px-8 space-y-6">
-                {/* ── Header ──────────────────────────────────────────────── */}
-                <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">IT Support Dashboard</h1>
-                        <p className="text-sm text-gray-500">Ringkasan semua ticket dukungan IT</p>
+            <div className="w-full space-y-5 bg-gray-50/60 px-6 py-6 lg:px-8">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">IT Support Dashboard</h1>
+                        <p className="mt-1 text-sm text-gray-500">Monitor ticket flow, response time, and support workload.</p>
                     </div>
+
+                    <Card className="border-gray-200 bg-white p-2 shadow-none">
+                        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {periodPresets.map((preset) => {
+                                    const range = preset.getRange();
+                                    const active = dateFrom === range.from && dateTo === range.to;
+
+                                    return (
+                                        <button
+                                            key={preset.label}
+                                            onClick={() => handlePreset(preset)}
+                                            className={cn(
+                                                'h-8 rounded-md border px-3 text-xs font-medium transition-colors',
+                                                active
+                                                    ? 'border-primary/20 bg-primary/10 text-primary'
+                                                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                            )}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="flex items-center gap-2 border-t border-gray-100 pt-2 lg:border-l lg:border-t-0 lg:pl-2 lg:pt-0">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={(event) => setDateFrom(event.target.value)}
+                                    className="h-8 w-32 rounded-md border border-gray-200 bg-white px-2 text-xs focus:border-gray-400 focus:outline-none focus:ring-0"
+                                />
+                                <span className="text-xs text-gray-300">—</span>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(event) => setDateTo(event.target.value)}
+                                    className="h-8 w-32 rounded-md border border-gray-200 bg-white px-2 text-xs focus:border-gray-400 focus:outline-none focus:ring-0"
+                                />
+                                <Button size="sm" variant="outline" onClick={applyFilters} className="h-8 text-xs">
+                                    Apply
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
                 </div>
 
-                {/* ── Filter Bar ─────────────────────────────────────── */}
-                <Card className="p-3 shadow-sm border-gray-200/80">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-                        {/* Period Presets */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            {periodPresets.map((preset) => (
-                                <button
-                                    key={preset.label}
-                                    onClick={() => handlePreset(preset)}
-                                    className={cn(
-                                        'h-7 px-3 text-xs font-medium rounded-md border transition-all cursor-pointer',
-                                        dateFrom === preset.getRange().from && dateTo === preset.getRange().to
-                                            ? 'bg-primary text-white border-primary shadow-sm'
-                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                    )}
-                                >
-                                    {preset.label}
-                                </button>
-                            ))}
-                        </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                    <MetricCard title="Total Tickets" value={metrics.total} subLabel="Current period" tone="neutral" icon={<TicketIcon className="h-4 w-4" />} />
+                    <MetricCard title="SLA Target" value="48 hrs" subLabel="2 × 24h per case" tone="neutral" icon={<Clock3 className="h-4 w-4" />} />
+                    <MetricCard title="Within SLA" value={withinSla} subLabel={`${Math.round((withinSla / Math.max(metrics.total, 1)) * 100)}% compliant`} tone="success" icon={<CheckCircle2 className="h-4 w-4" />} />
+                    <MetricCard title="Due Soon" value={dueSoonCount} subLabel="Under 6 hours left" tone="warning" icon={<Clock3 className="h-4 w-4" />} />
+                    <MetricCard title="Breached SLA" value={metrics.sla_breach_count} subLabel="Past 48h target" tone={metrics.sla_breach_count > 0 ? 'danger' : 'neutral'} icon={<AlertTriangle className="h-4 w-4" />} />
+                    <MetricCard title="Response Time" value={`${responseTime} hrs`} subLabel="Average resolution" tone="neutral" icon={<Activity className="h-4 w-4" />} />
+                </div>
 
-                        <div className="w-px h-7 bg-gray-200 hidden lg:block" />
-
-                        {/* Date Range */}
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" strokeWidth={1.5} />
-                            <input
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => setDateFrom(e.target.value)}
-                                className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
-                            />
-                            <span className="text-xs text-gray-300 font-medium">—</span>
-                            <input
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => setDateTo(e.target.value)}
-                                className="w-[130px] text-xs h-8 rounded-md border border-gray-200 bg-white px-2 focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none"
-                            />
-                            <Button size="sm" variant="outline" onClick={applyFilters} className="h-8 text-xs">
-                                Apply
-                            </Button>
-                        </div>
-                    </div>
-                </Card>
-
-                <DashboardMetricCards
-                    isFiltering={isFiltering}
-                    total={metrics.total}
-                    waiting={statusCounts.waiting}
-                    inProgress={statusCounts.in_progress}
-                    done={statusCounts.done}
-                    slaBreachCount={metrics.sla_breach_count}
-                />
-
-                {/* ── Charts Row 1: Status + Priority ────────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Tickets by Status (Pie/Donut) */}
-                    <Card className="border border-gray-200 rounded-lg">
-                        <CardHeader className="pb-0">
-                            <CardTitle className="text-base font-semibold text-gray-900">Tickets by Status</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1 flex flex-col justify-center">
-                            {statusPieData.length === 0 ? (
-                                <EmptyState
-                                    icon={<PieChart className="w-10 h-10" />}
-                                    title="No ticket data"
-                                    description="Data ticket akan muncul setelah ticket dibuat."
-                                    variant="compact"
-                                />
-                            ) : (
-                                <div className="flex items-center justify-center gap-6">
-                                    <div className="w-[200px] h-[200px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChartRecharts>
-                                                <Pie data={statusPieData} dataKey="value" nameKey="name"
-                                                    cx="50%" cy="50%" innerRadius={60} outerRadius={90}
-                                                    paddingAngle={2} stroke="none">
-                                                    {statusPieData.map((entry, index) => (
-                                                        <Cell key={index} fill={entry.color} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip content={<ChartTooltip />} />
-                                            </PieChartRecharts>
-                                        </ResponsiveContainer>
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+                    <Card className="border-gray-200 bg-white p-5 shadow-none xl:col-span-3">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-700">
+                                        <Activity className="h-4 w-4" />
+                                    </span>
+                                    <div>
+                                        <h2 className="text-sm font-semibold text-gray-900">Ticket Volume Tracker</h2>
+                                        <p className="text-xs text-gray-500">Daily ticket flow and workload trend.</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        {statusPieData.map((item, i) => (
-                                            <div key={i} className="flex items-center justify-between gap-3">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                                                    <span className="text-sm text-gray-600">{item.name}</span>
+                                </div>
+                            </div>
+                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600">Weekly</span>
+                        </div>
+
+                        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:items-end">
+                            <div className="lg:col-span-1">
+                                <p className="text-4xl font-semibold tracking-tight text-gray-900">+{volumeDelta}%</p>
+                                <p className="mt-2 text-xs leading-5 text-gray-500">Open tickets compared with total period volume.</p>
+                            </div>
+                            <div className="flex min-h-48 items-end justify-between gap-3 rounded-2xl bg-gradient-to-b from-white to-gray-50 px-3 pb-2 pt-6 lg:col-span-4">
+                                {weeklyVolume.map((item, index) => {
+                                    const heightRem = Math.max((item.value / maxVolume) * 8.25, 1.25);
+                                    const active = index === 3;
+
+                                    return (
+                                        <div key={`${item.label}-${index}`} className="flex flex-1 flex-col items-center gap-2">
+                                            <div className="flex h-36 items-end">
+                                                <div className="relative flex flex-col items-center justify-end" style={{ height: `${heightRem}rem` }}>
+                                                    {active && (
+                                                        <span className="absolute -top-8 whitespace-nowrap rounded-md bg-primary/90 px-2 py-1 text-[0.625rem] font-medium text-white">
+                                                            {item.value} tickets
+                                                        </span>
+                                                    )}
+                                                    <span className={cn('mb-1 h-2 w-2 rounded-full', active ? 'bg-primary' : 'bg-primary/50')} />
+                                                    <div className="w-px flex-1 bg-gray-200" />
                                                 </div>
-                                                <span className="text-sm font-semibold text-gray-900 tabular-nums">{item.value}</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Tickets by Priority (Bar) */}
-                    <Card className="border border-gray-200 rounded-lg">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-base font-semibold text-gray-900">Tickets by Priority</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                            {priorityBarData.every(d => d.count === 0) ? (
-                                <EmptyState
-                                    icon={<BarChart3 className="w-10 h-10" />}
-                                    title="No priority data"
-                                    description="Data priority akan muncul setelah ticket dibuat."
-                                    variant="compact"
-                                />
-                            ) : (
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <BarChart data={priorityBarData} barSize={40} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} stroke="#cbd5e1" axisLine={false} tickLine={false} dy={10} />
-                                        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" allowDecimals={false} axisLine={false} tickLine={false} dx={-10} />
-                                        <Tooltip content={<ChartTooltip />} />
-                                        <Bar dataKey="count" name="Tickets" radius={[4, 4, 0, 0]}>
-                                            {priorityBarData.map((entry, index) => (
-                                                <Cell key={index} fill={entry.color} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* ── Charts Row 2: Category + Recent ───────────────────── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Tickets by Category */}
-                    <Card className="lg:col-span-2 border border-gray-200 rounded-lg">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-base font-semibold text-gray-900">Tickets by Category</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                            {categoryBarData.length === 0 ? (
-                                <EmptyState
-                                    icon={<BarChart3 className="w-10 h-10" />}
-                                    title="No category data"
-                                    description="Data kategori akan muncul setelah ticket dibuat."
-                                    variant="compact"
-                                />
-                            ) : (
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <BarChart data={categoryBarData} barSize={32} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} stroke="#cbd5e1" axisLine={false} tickLine={false} dy={10} />
-                                        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" allowDecimals={false} axisLine={false} tickLine={false} dx={-10} />
-                                        <Tooltip content={<ChartTooltip />} />
-                                        <Bar dataKey="count" name="Tickets" radius={[4, 4, 0, 0]} fill="#6366f1" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Staff Workload */}
-                    <Card className="border border-gray-200 rounded-lg">
-                        <CardHeader className="pb-4 border-b border-gray-100">
-                            <CardTitle className="text-base font-semibold text-gray-900">Staff Workload</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-4">
-                            {staffWorkloadData.length === 0 ? (
-                                <EmptyState
-                                    icon={<Users className="w-10 h-10" />}
-                                    title="No staff data"
-                                    description="Belum ada ticket yang ditugaskan ke staff."
-                                    variant="compact"
-                                />
-                            ) : (
-                                <div className="space-y-3">
-                                    {staffWorkloadData.map((staff, i) => (
-                                        <div key={i} className="flex items-center gap-3 group">
-                                            <div className="w-9 h-9 rounded-full bg-primary/90 flex items-center justify-center text-sm font-bold text-white shadow-sm">
-                                                {staff.name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-gray-800 truncate">{staff.name}</p>
-                                            </div>
-                                            <span className="text-sm font-semibold text-gray-900 tabular-nums">{staff.count}</span>
+                                            <span className={cn('flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium', active ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-100 text-gray-500')}>
+                                                {item.label}
+                                            </span>
                                         </div>
-                                    ))}
-                                </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="border-gray-200 bg-white p-5 shadow-none xl:col-span-2">
+                        <div className="mb-4 flex items-start justify-between">
+                            <div>
+                                <h2 className="text-sm font-semibold text-gray-900">Recent Support Activity</h2>
+                                <p className="text-xs text-gray-500">Latest support requests from users.</p>
+                            </div>
+                            <Link href={route('it-support.admin.tickets.index')} className="text-xs font-medium text-gray-700 underline-offset-4 hover:underline">
+                                See all
+                            </Link>
+                        </div>
+                        <div className="space-y-3">
+                            {metrics.recent_tickets.slice(0, 4).map((ticket) => (
+                                <ActivityItem key={ticket.id} ticket={ticket} />
+                            ))}
+                            {metrics.recent_tickets.length === 0 && (
+                                <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-500">No recent activity</div>
                             )}
-                        </CardContent>
+                        </div>
                     </Card>
                 </div>
 
-                <RecentTicketsTable tickets={metrics.recent_tickets} />
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
+                    <Card className="border-gray-200 bg-white p-5 shadow-none xl:col-span-3">
+                        <div className="mb-5 flex items-start justify-between">
+                            <div>
+                                <h2 className="text-sm font-semibold text-gray-900">Ticket Status Board</h2>
+                                <p className="text-xs text-gray-500">Current work grouped by lifecycle state.</p>
+                            </div>
+                            {metrics.sla_breach_count > 0 && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    {metrics.sla_breach_count} SLA breach
+                                </span>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                            <StatusColumn title="Open Tickets" tickets={statusGroups.open} />
+                            <StatusColumn title="Resolving Tickets" tickets={statusGroups.resolving} />
+                            <StatusColumn title="Archived" tickets={statusGroups.archived} />
+                        </div>
+                    </Card>
+
+                    <TeamWorkloadPanel staff={metrics.by_staff} total={openTickets} />
+                </div>
+
+                {isFiltering && <span className="sr-only">Filtering dashboard data</span>}
             </div>
         </>
     );
+}
+
+function MetricCard({ title, value, subLabel, tone, icon }: { title: string; value: number | string; subLabel: string; tone: 'neutral' | 'success' | 'warning' | 'danger'; icon: ReactNode }) {
+    const toneClass = {
+        neutral: 'text-gray-600 bg-gray-50 border-gray-200',
+        success: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+        warning: 'text-amber-700 bg-amber-50 border-amber-100',
+        danger: 'text-red-700 bg-red-50 border-red-100',
+    }[tone];
+
+    return (
+        <Card className="border-gray-200 bg-white p-4 shadow-none">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+                    <p className="mt-3 text-2xl font-semibold tracking-tight text-gray-900">{value}</p>
+                    <p className="mt-1 text-xs text-gray-500">{subLabel}</p>
+                </div>
+                <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg border', toneClass)}>{icon}</span>
+            </div>
+        </Card>
+    );
+}
+
+function ActivityItem({ ticket }: { ticket: Ticket }) {
+    const sla = getSlaState(ticket);
+
+    return (
+        <Link href={route('it-support.admin.tickets.show', { ticket: ticket.id })} className="block rounded-xl border border-gray-100 p-3 transition-colors hover:border-gray-200 hover:bg-gray-50/70">
+            <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50 text-gray-500">
+                    <TicketIcon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="break-words text-sm font-semibold text-gray-900">{ticket.ticket_number}</p>
+                            <p className="break-words text-xs text-gray-500">{ticket.requester?.name || 'Unknown requester'}</p>
+                        </div>
+                        <TicketStatusBadge status={ticket.status} />
+                    </div>
+                    <p className="mt-2 break-words text-xs leading-5 text-gray-600">{ticket.title}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <TicketPriorityBadge priority={ticket.priority} />
+                        <SlaPill label={sla.label} state={sla.state} />
+                        {ticket.category && <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{ticket.category.name}</span>}
+                    </div>
+                </div>
+            </div>
+        </Link>
+    );
+}
+
+function StatusColumn({ title, tickets }: { title: string; tickets: Ticket[] }) {
+    return (
+        <div>
+            <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title} ({tickets.length})</h3>
+                <MoreHorizontal className="h-4 w-4 text-gray-400" />
+            </div>
+            <div className="space-y-3">
+                {tickets.map((ticket) => {
+                    const sla = getSlaState(ticket);
+
+                    return (
+                        <Link key={ticket.id} href={route('it-support.admin.tickets.show', { ticket: ticket.id })} className="block rounded-xl border border-dashed border-gray-300 bg-white p-4 transition-colors hover:border-gray-400 hover:bg-gray-50/70">
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                                <p className="break-words text-sm font-semibold leading-5 text-gray-900">{ticket.title}</p>
+                                <TicketPriorityBadge priority={ticket.priority} />
+                            </div>
+                            <p className="break-words text-xs leading-5 text-gray-500">{ticket.description}</p>
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                <span className="text-xs text-gray-500">{format(new Date(ticket.updated_at), 'dd MMM yyyy')}</span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <SlaPill label={sla.label} state={sla.state} />
+                                    {ticket.category && <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{ticket.category.name}</span>}
+                                </div>
+                            </div>
+                        </Link>
+                    );
+                })}
+                {tickets.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">No tickets</div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function TeamWorkloadPanel({ staff, total }: { staff: { name: string; count: number }[]; total: number }) {
+    const maxCount = Math.max(...staff.map((item) => item.count), 1);
+
+    return (
+        <Card className="border-gray-200 bg-white p-5 shadow-none">
+            <div className="mb-5">
+                <h2 className="text-sm font-semibold text-gray-900">Team Workload</h2>
+                <p className="text-xs text-gray-500">Open ticket distribution per user/team.</p>
+            </div>
+            <div className="space-y-4">
+                {staff.slice(0, 6).map((member) => {
+                    const percent = Math.round((member.count / Math.max(total, 1)) * 100);
+                    const width = Math.max((member.count / maxCount) * 100, 8);
+
+                    return (
+                        <div key={member.name}>
+                            <div className="mb-1.5 flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                        {member.name.charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="break-words text-sm font-medium text-gray-800">{member.name}</span>
+                                </div>
+                                <span className="shrink-0 text-xs font-medium text-gray-500">{member.count} ({percent}%)</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-gray-100">
+                                <div className="h-2 rounded-full bg-primary/30" style={{ width: `${width}%` }} />
+                            </div>
+                        </div>
+                    );
+                })}
+                {staff.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-xs text-gray-400">No assigned tickets</div>
+                )}
+            </div>
+        </Card>
+    );
+}
+
+function SlaPill({ label, state }: { label: string; state: 'ok' | 'soon' | 'breach' | 'none' }) {
+    const className = {
+        ok: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+        soon: 'border-amber-100 bg-amber-50 text-amber-700',
+        breach: 'border-red-100 bg-red-50 text-red-700',
+        none: 'border-gray-200 bg-gray-50 text-gray-500',
+    }[state];
+
+    return <span className={cn('rounded-md border px-2 py-0.5 text-xs font-medium', className)}>{label}</span>;
+}
+
+function getSlaState(ticket: Ticket): { label: string; state: 'ok' | 'soon' | 'breach' | 'none' } {
+    if (ticket.is_sla_breach) {
+        return { label: 'SLA breached', state: 'breach' };
+    }
+
+    if (! ticket.sla_deadline) {
+        return { label: 'SLA 48h', state: 'none' };
+    }
+
+    const hoursLeft = (new Date(ticket.sla_deadline).getTime() - Date.now()) / 3600000;
+
+    if (hoursLeft < 0) {
+        return { label: 'SLA breached', state: 'breach' };
+    }
+
+    if (hoursLeft <= 6) {
+        return { label: `Due ${Math.ceil(hoursLeft)}h`, state: 'soon' };
+    }
+
+    return { label: `Due ${Math.ceil(hoursLeft)}h`, state: 'ok' };
+}
+
+function buildVolumeData(metrics: TicketDashboardMetrics) {
+    const values = [
+        metrics.by_status.waiting || 0,
+        metrics.by_priority.low || 0,
+        metrics.by_priority.medium || 0,
+        metrics.by_status.in_progress || 0,
+        metrics.by_priority.high || 0,
+        metrics.by_priority.critical || 0,
+        metrics.by_status.done || 0,
+    ];
+
+    return weekdayLabels.map((label, index) => ({
+        label,
+        value: values[index] || 0,
+    }));
 }

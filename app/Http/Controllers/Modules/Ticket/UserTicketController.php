@@ -128,7 +128,7 @@ class UserTicketController extends Controller
      */
     public function show(Ticket $ticket): Response
     {
-        abort_unless($ticket->requester_id === auth()->id(), 403);
+        abort_unless($this->canAccessRequesterTicket($ticket), 403);
 
         $ticket->load([
             'category',
@@ -152,7 +152,7 @@ class UserTicketController extends Controller
      */
     public function addComment(StoreTicketCommentRequest $request, Ticket $ticket): RedirectResponse
     {
-        abort_unless($ticket->requester_id === auth()->id(), 403);
+        abort_unless($this->canAccessRequesterTicket($ticket), 403);
 
         $this->ticketService->addComment(
             $ticket,
@@ -162,5 +162,25 @@ class UserTicketController extends Controller
         );
 
         return back()->with('success', 'Komentar berhasil ditambahkan.');
+    }
+
+    private function canAccessRequesterTicket(Ticket $ticket): bool
+    {
+        $user = auth()->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        if (! $user || $businessUnitId <= 0) {
+            return false;
+        }
+
+        $assignment = $user->businessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->first();
+
+        return (int) $ticket->requester_id === (int) $user->id
+            && (int) $ticket->business_unit_id === $businessUnitId
+            && $assignment !== null
+            && (int) $ticket->department_id === (int) $assignment->department_id;
     }
 }

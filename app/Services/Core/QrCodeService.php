@@ -2,6 +2,7 @@
 
 namespace App\Services\Core;
 
+use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
@@ -349,6 +350,41 @@ class QrCodeService
         return hash('sha256', json_encode($data).config('app.key'));
     }
 
+    public function generateStockPurchasingAcknowledgerQrCode(StockRequest $stockRequest, User $acknowledger): string
+    {
+        $verificationToken = $this->generateStockPurchasingAcknowledgerToken($stockRequest, $acknowledger);
+
+        $publicUrl = route('stock-requests.public', [
+            'sr' => $stockRequest->id,
+            'token' => $verificationToken,
+            'purchasing_acknowledger' => $acknowledger->id,
+        ]);
+
+        return QrCode::format('svg')
+            ->size(120)
+            ->margin(1)
+            ->generate($publicUrl);
+    }
+
+    public function generateStockPurchasingAcknowledgerQrCodeDataUrl(StockRequest $stockRequest, User $acknowledger): string
+    {
+        $qrCodeSvg = $this->generateStockPurchasingAcknowledgerQrCode($stockRequest, $acknowledger);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($qrCodeSvg);
+    }
+
+    public function generateStockPurchasingAcknowledgerToken(StockRequest $stockRequest, User $acknowledger): string
+    {
+        $data = [
+            'sr_id' => $stockRequest->id,
+            'acknowledger_id' => $acknowledger->id,
+            'assigned_admin_id' => $stockRequest->adminTask?->assigned_admin_id,
+            'type' => 'stock_purchasing_acknowledger',
+        ];
+
+        return hash('sha256', json_encode($data).config('app.key'));
+    }
+
     /**
      * Verify stock requestor token
      */
@@ -362,6 +398,13 @@ class QrCodeService
     public function verifyStockGaReviewerToken(StockRequest $stockRequest, string $token): bool
     {
         $expectedToken = $this->generateStockGaReviewerToken($stockRequest);
+
+        return hash_equals($expectedToken, $token);
+    }
+
+    public function verifyStockPurchasingAcknowledgerToken(StockRequest $stockRequest, User $acknowledger, string $token): bool
+    {
+        $expectedToken = $this->generateStockPurchasingAcknowledgerToken($stockRequest, $acknowledger);
 
         return hash_equals($expectedToken, $token);
     }

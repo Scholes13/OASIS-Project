@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Ticket;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTicketRequest extends FormRequest
 {
@@ -22,13 +23,21 @@ class StoreTicketRequest extends FormRequest
      */
     public function rules(): array
     {
+        $businessUnitId = (int) session('current_business_unit_id');
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'priority' => ['required', 'in:low,medium,high,critical'],
-            'category_id' => ['nullable', 'integer', 'exists:ticket_categories,id'],
+            'category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('ticket_categories', 'id')
+                    ->where('business_unit_id', $businessUnitId)
+                    ->where('is_active', true),
+            ],
             'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => ['file', 'max:10240'], // 10MB per file
+            'attachments.*' => ['file', 'max:10240'],
             'form_token' => ['nullable', 'string', 'max:64'],
         ];
     }

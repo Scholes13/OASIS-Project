@@ -61,6 +61,10 @@ const getStatusConfig = (status: string) => {
             label: 'Voided',
             className: 'text-gray-500',
         },
+        done: {
+            label: 'Done',
+            className: 'text-emerald-700',
+        },
     };
 
     return configs[status] || configs.draft;

@@ -876,6 +876,7 @@
                 @php
                     $isWarehouseStock = $item->ga_review_result === 'warehouse_stock';
                     $isNeedProcurement = $item->ga_review_result === 'need_procurement';
+                    $strikeStyle = $isWarehouseStock ? 'text-decoration: line-through; color: #6b7280;' : '';
                     $displayQty = $isWarehouseStock ? ($item->warehouse_available_qty ?? $item->quantity) : $item->quantity;
                     $totalQuantity += (float) $displayQty;
                     $reviewInfo = match($item->ga_review_result) {
@@ -886,15 +887,15 @@
                 @endphp
                 <tr class="{{ $index % 2 == 0 ? 'row-even' : 'row-odd' }}">
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $item->item_name }}</td>
+                    <td><span style="{{ $strikeStyle }}">{{ $item->item_name }}</span></td>
                     <td>
-                        {{ $item->specifications ?: '-' }}
+                        <span style="{{ $strikeStyle }}">{{ $item->specifications ?: '-' }}</span>
                         @if($reviewInfo)
                             <br><strong>{{ $reviewInfo }}</strong>
                         @endif
                     </td>
-                    <td class="text-center">{{ number_format($displayQty, 0) }}</td>
-                    <td class="text-center">{{ $item->unit }}</td>
+                    <td class="text-center"><span style="{{ $strikeStyle }}">{{ number_format($displayQty, 0) }}</span></td>
+                    <td class="text-center"><span style="{{ $strikeStyle }}">{{ $item->unit }}</span></td>
                     <td class="text-center" style="padding: 4px;">
                         @if($item->image_path)
                             @php

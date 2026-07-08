@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
+import { formatDateWib } from '@/lib/activityDateTime';
 import type { PageProps, Department, Task, ActivityType, PaginatedData } from '@/types';
 
 const TaskDetailModal = lazy(() => import('@/components/activity/TaskDetailModal'));
@@ -57,7 +58,7 @@ const statusConfig: Record<string, { label: string; variant: 'success' | 'info' 
 };
 
 function formatDate(d: string) {
-    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return formatDateWib(d, { day: '2-digit', month: 'short', year: 'numeric' }, 'id-ID');
 }
 
 function formatPaginationLabel(label: string) {

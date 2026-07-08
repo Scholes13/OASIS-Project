@@ -1026,14 +1026,18 @@
             </thead>
             <tbody>
                 @foreach($approval->stockRequest->items as $index => $item)
+                @php
+                    $isWarehouseStock = $item->ga_review_result === 'warehouse_stock';
+                    $strikeStyle = $isWarehouseStock ? 'text-decoration: line-through; color: #6b7280;' : '';
+                @endphp
                 <tr class="{{ $index % 2 == 0 ? 'row-even' : 'row-odd' }}">
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $item->item_name }}</td>
-                    <td>{{ $item->specifications ?: '-' }}</td>
-                    <td class="text-center">{{ number_format($item->quantity, 0) }}</td>
-                    <td class="text-center">{{ $item->unit }}</td>
-                    <td class="text-right">{{ number_format($item->price, 0) }}</td>
-                    <td class="text-right">{{ number_format($item->total, 0) }}</td>
+                    <td><span style="{{ $strikeStyle }}">{{ $item->item_name }}</span></td>
+                    <td><span style="{{ $strikeStyle }}">{{ $item->specifications ?: '-' }}</span></td>
+                    <td class="text-center"><span style="{{ $strikeStyle }}">{{ number_format($item->quantity, 0) }}</span></td>
+                    <td class="text-center"><span style="{{ $strikeStyle }}">{{ $item->unit }}</span></td>
+                    <td class="text-right"><span style="{{ $strikeStyle }}">{{ number_format($item->price, 0) }}</span></td>
+                    <td class="text-right"><span style="{{ $strikeStyle }}">{{ number_format($item->total, 0) }}</span></td>
                     <td class="text-center" style="padding: 4px;">
                         @if($item->image_path)
                             @php
@@ -1309,5 +1313,4 @@
         @endif
     </script>
 </body>
-
 

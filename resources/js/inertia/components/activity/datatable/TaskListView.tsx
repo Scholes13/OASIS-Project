@@ -1,10 +1,9 @@
 import * as React from "react"
-import { format, isPast, isToday, isTomorrow, parseISO } from "date-fns"
-import { id as idLocale } from "date-fns/locale"
 import { router } from "@inertiajs/react"
 import { Check } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { formatDateWib, isOverdueWib, isTodayWib, isTomorrowWib } from "@/lib/activityDateTime"
 import { showToast } from "../../ui/toast"
 import StatusDropdown from "./StatusDropdown"
 import type { Task, TaskStatus } from "@/types"
@@ -35,7 +34,7 @@ function groupTasks(tasks: Task[]): TaskGroup {
         if (!a.due_date) return 1
         if (!b.due_date) return -1
 
-        return parseISO(a.due_date).getTime() - parseISO(b.due_date).getTime()
+        return a.due_date.localeCompare(b.due_date)
     })
 
     const today: Task[] = []
@@ -49,10 +48,9 @@ function groupTasks(tasks: Task[]): TaskGroup {
             return
         }
 
-        const dueDate = parseISO(task.due_date)
-        const isLate = isPast(dueDate) && !isToday(dueDate) && task.status !== "completed"
+        const isLate = isOverdueWib(task.due_date, task.status)
 
-        if (isToday(dueDate) || isLate) {
+        if (isTodayWib(task.due_date) || isLate) {
             today.push(task)
         } else if (isUpcomingTask) {
             upcoming.push(task)
@@ -65,11 +63,10 @@ function groupTasks(tasks: Task[]): TaskGroup {
 function formatTaskDue(dueDate: string | null) {
     if (!dueDate) return "No due date"
 
-    const parsedDate = parseISO(dueDate)
-    if (isToday(parsedDate)) return "Today"
-    if (isTomorrow(parsedDate)) return "Tomorrow"
+    if (isTodayWib(dueDate)) return "Today"
+    if (isTomorrowWib(dueDate)) return "Tomorrow"
 
-    return format(parsedDate, "dd MMM", { locale: idLocale })
+    return formatDateWib(dueDate, { day: "2-digit", month: "short" })
 }
 
 export function TaskListView({

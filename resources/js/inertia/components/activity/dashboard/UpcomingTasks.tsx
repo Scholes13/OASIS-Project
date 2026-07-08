@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, isToday, isTomorrow, parseISO } from 'date-fns';
+import { formatDateWib, isTodayWib, isTomorrowWib } from '@/lib/activityDateTime';
 
 interface TaskBasic {
     id: number;
@@ -60,8 +60,7 @@ export function UpcomingTasks({ tasks }: UpcomingTasksProps) {
 }
 
 function formatDueDate(dateStr: string): string {
-    const date = parseISO(dateStr);
-    if (isToday(date)) return 'Today';
-    if (isTomorrow(date)) return 'Tomorrow';
-    return format(date, 'EEE, MMM d');
+    if (isTodayWib(dateStr)) return 'Today';
+    if (isTomorrowWib(dateStr)) return 'Tomorrow';
+    return formatDateWib(dateStr, { weekday: 'short', month: 'short', day: 'numeric' });
 }

@@ -1,4 +1,5 @@
 import { differenceInCalendarDays, endOfDay, endOfMonth, endOfWeek, isThisMonth, isThisWeek, isToday, isWithinInterval, parseISO, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
+import { getWibDateDiffInDays, isPastWibDate } from './activityDateTime';
 
 export type DateFilter = 'all' | 'today' | 'week' | 'month' | { from: string; to: string };
 
@@ -9,17 +10,28 @@ function toDate(date: string | Date | null | undefined): Date | null {
 }
 
 export function isOverdue(dueDate: string | Date | null, completedAt?: string | Date | null): boolean {
-    const due = toDate(dueDate);
-    if (!due || completedAt) return false;
+    if (!dueDate || completedAt) return false;
 
-    return differenceInCalendarDays(due, new Date()) < 0;
+    if (typeof dueDate === 'string') {
+        return isPastWibDate(dueDate);
+    }
+
+    return differenceInCalendarDays(dueDate, new Date()) < 0;
 }
 
 export function formatDueDate(dueDate: string | Date | null): string {
-    const due = toDate(dueDate);
-    if (!due) return '-';
+    if (!dueDate) return '-';
 
-    const days = differenceInCalendarDays(due, new Date());
+    if (typeof dueDate === 'string') {
+        const days = getWibDateDiffInDays(dueDate);
+        if (days === null) return '-';
+        if (days === 0) return 'Due today';
+        if (days < 0) return `Overdue ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`;
+
+        return `Due in ${days} day${days === 1 ? '' : 's'}`;
+    }
+
+    const days = differenceInCalendarDays(dueDate, new Date());
     if (days === 0) return 'Due today';
     if (days < 0) return `Overdue ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`;
 

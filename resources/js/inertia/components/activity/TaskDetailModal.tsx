@@ -1,6 +1,4 @@
 import * as React from "react"
-import { format } from "date-fns"
-import { id as idLocale } from "date-fns/locale"
 import { router, usePage } from "@inertiajs/react"
 import {
     Calendar,
@@ -29,6 +27,7 @@ import { Dialog } from "../ui/dialog"
 import { ConfirmDialog } from "../ui/ConfirmDialog"
 import { ActivityTypeBadge, PriorityBadge, StatusBadge } from "../ui/Badge"
 import { cn } from "@/lib/utils"
+import { formatDateWib, isOverdueWib } from "@/lib/activityDateTime"
 import { showToast } from "../ui/toast"
 import { handleExecutionTimeGuidance } from "./quick-status-guidance"
 import { TaskCommentSection } from "./TaskCommentSection"
@@ -64,11 +63,10 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
     const editable = !isAdminReadonly && task ? canEditTask(task, currentUserId) : false
     const showOpenInDashboard = !isAdminReadonly && !isOnDashboard
 
-    const isOverdue = task ? (task.due_date && new Date(task.due_date) < new Date() &&
-        !["completed", "cancelled"].includes(task.status)) : false
+    const isOverdue = task ? isOverdueWib(task.due_date, task.status) : false
 
     const formattedDueDate = task?.due_date
-        ? format(new Date(task.due_date), "EEEE, d MMMM yyyy", { locale: idLocale })
+        ? formatDateWib(task.due_date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
         : "-"
 
     const handleStartTask = () => {

@@ -2,6 +2,7 @@ import * as React from "react"
 import { useForm, router } from "@inertiajs/react"
 import { MoreHorizontal, Edit, Trash2, Send } from "lucide-react"
 import { ConfirmDialog } from "../ui/ConfirmDialog"
+import { formatDateWib } from "@/lib/activityDateTime"
 import type { TaskComment } from "@/types"
 
 interface TaskCommentSectionProps {
@@ -24,7 +25,7 @@ function formatRelativeTime(dateString: string): string {
     if (diffHour < 24) return `${diffHour}h ago`
     if (diffDay < 7) return `${diffDay}d ago`
 
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    return formatDateWib(dateString, { month: "short", day: "numeric" }, "id-ID")
 }
 
 function UserAvatar({ name }: { name: string | null }) {

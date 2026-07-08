@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
+import { formatDateTimeWib, formatDateWib } from '@/lib/activityDateTime';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { PageProps, User, Department } from '@/types';
 
@@ -148,21 +149,21 @@ export default function Requests({ requests, activePermission, hasPendingRequest
 
     // Format date helper
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-GB', {
+        return formatDateWib(dateString, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
-        });
+        }, 'id-ID');
     };
 
     const formatDateTime = (dateString: string) => {
-        return new Date(dateString).toLocaleString('en-GB', {
+        return formatDateTimeWib(dateString, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-        });
+        }, 'id-ID');
     };
 
     // Table columns

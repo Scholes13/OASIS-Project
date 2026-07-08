@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Pencil, Trash2, Calendar, Clock, User, Users, List, Columns, Layout } from 'lucide-react';
 import { StatusBadge, PriorityBadge, ActivityTypeBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
+import { formatDateTimeWib, formatDateWib, isOverdueWib } from '@/lib/activityDateTime';
 import type { PageProps, Task } from '@/types';
 import { useState } from 'react';
 
@@ -16,9 +17,7 @@ interface TaskDetailProps extends PageProps {
 }
 
 function formatDate(dateString: string | null): string {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
+    return formatDateWib(dateString, {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
@@ -27,8 +26,7 @@ function formatDate(dateString: string | null): string {
 }
 
 function formatDateTime(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleString('id-ID', {
+    return formatDateTimeWib(dateString, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -38,9 +36,7 @@ function formatDateTime(dateString: string): string {
 }
 
 function isOverdue(dueDate: string | null, status: string): boolean {
-    if (!dueDate) return false;
-    if (status === 'completed' || status === 'cancelled') return false;
-    return new Date(dueDate) < new Date();
+    return isOverdueWib(dueDate, status);
 }
 
 export default function TaskDetail({ task, departmentUsers = [], backdatePermission, allowedDateRange, backdateEnabled, prioritizedActivityTypes }: TaskDetailProps) {

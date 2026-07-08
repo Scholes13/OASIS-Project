@@ -1,7 +1,5 @@
 import * as React from "react"
 import { router, usePage } from "@inertiajs/react"
-import { format, isToday, isPast, isFuture, startOfDay, differenceInDays } from "date-fns"
-import { id as idLocale } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Calendar,
@@ -18,6 +16,7 @@ import {
   Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatDateWib, getDatePart, getWibDateDiffInDays, isOverdueWib, isPastWibDate, isTodayWib } from "@/lib/activityDateTime"
 import { Badge, StatusBadge, ActivityTypeBadge } from "../ui/Badge"
 import { Button } from "../ui/button"
 import { TaskDetailModal } from "./TaskDetailModal"
@@ -49,12 +48,10 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
   const tasksWithDate = tasks.filter((t): t is Task & { due_date: string } => !!t.due_date)
   const tasksWithoutDate = tasks.filter(t => !t.due_date)
   
-  const sortedTasks = [...tasksWithDate].sort((a, b) => 
-    new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
-  )
+  const sortedTasks = [...tasksWithDate].sort((a, b) => b.due_date.localeCompare(a.due_date))
 
   sortedTasks.forEach((task) => {
-    const dateKey = format(new Date(task.due_date), "yyyy-MM-dd")
+    const dateKey = getDatePart(task.due_date)
     if (!grouped.has(dateKey)) {
       grouped.set(dateKey, [])
     }
@@ -70,17 +67,18 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
 }
 
 // Date header component
-function DateHeader({ date }: { date: Date }) {
-  const today = isToday(date)
-  const past = isPast(date) && !today
-  const daysAgo = differenceInDays(new Date(), date)
+function DateHeader({ dateKey }: { dateKey: string }) {
+  const today = isTodayWib(dateKey)
+  const past = isPastWibDate(dateKey) && !today
+  const daysDiff = getWibDateDiffInDays(dateKey) ?? 0
+  const daysAgo = Math.abs(daysDiff)
 
-  let label = format(date, "EEEE, dd MMMM yyyy", { locale: idLocale })
+  let label = formatDateWib(dateKey, { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
   if (today) label = "Today"
-  else if (daysAgo === 1) label = "Yesterday"
-  else if (daysAgo === -1) label = "Tomorrow"
-  else if (daysAgo > 0 && daysAgo <= 7) label = `${daysAgo} days ago`
-  else if (daysAgo < 0 && daysAgo >= -7) label = `In ${Math.abs(daysAgo)} days`
+  else if (daysDiff === -1) label = "Yesterday"
+  else if (daysDiff === 1) label = "Tomorrow"
+  else if (daysDiff < 0 && daysAgo <= 7) label = `${daysAgo} days ago`
+  else if (daysDiff > 0 && daysDiff <= 7) label = `In ${daysAgo} days`
 
   return (
     <div className="flex items-center gap-3 py-2">
@@ -94,7 +92,7 @@ function DateHeader({ date }: { date: Date }) {
             : "bg-blue-100 text-blue-600"
         )}
       >
-        {format(date, "dd")}
+        {formatDateWib(dateKey, { day: "2-digit" })}
       </div>
       <div>
         <p
@@ -103,13 +101,13 @@ function DateHeader({ date }: { date: Date }) {
             today ? "text-primary" : "text-slate-800"
           )}
         >
-          {today ? "Today" : format(date, "EEEE", { locale: idLocale })}
+          {today ? "Today" : formatDateWib(dateKey, { weekday: "long" })}
         </p>
         <p className="text-xs text-slate-500">
-          {format(date, "MMMM yyyy", { locale: idLocale })}
-          {!today && daysAgo !== 0 && (
+          {formatDateWib(dateKey, { month: "long", year: "numeric" })}
+          {!today && daysDiff !== 0 && (
             <span className="ml-2 text-slate-400">
-              ({daysAgo > 0 ? `${daysAgo}d ago` : `in ${Math.abs(daysAgo)}d`})
+              ({daysDiff < 0 ? `${daysAgo}d ago` : `in ${daysAgo}d`})
             </span>
           )}
         </p>
@@ -139,8 +137,7 @@ interface TimelineItemProps {
 
 function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineItemProps) {
   const [isExpanded, setIsExpanded] = React.useState(expanded)
-  const overdue = task.due_date ? (isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && 
-    task.status !== "completed" && task.status !== "cancelled") : false
+  const overdue = isOverdueWib(task.due_date, task.status)
 
   return (
     <div className="relative pl-8 pb-6 last:pb-0">
@@ -209,7 +206,7 @@ function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineI
         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            <span>{task.due_date ? (format(new Date(task.due_date), "HH:mm", { locale: idLocale }) || "All day") : '-'}</span>
+            <span>{task.due_date ? "All day" : '-'}</span>
           </div>
           {(task as any).duration_minutes && (
             <div className="flex items-center gap-1">
@@ -383,7 +380,7 @@ export function ActivityTimeline({
 
                 return (
                   <div key={dateKey}>
-                    {showDateHeaders && dateKey !== "no-date" && <DateHeader date={new Date(dateKey)} />}
+                    {showDateHeaders && dateKey !== "no-date" && <DateHeader dateKey={dateKey} />}
                     {showDateHeaders && dateKey === "no-date" && (
                       <div className="flex items-center gap-3 py-2">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 text-sm font-bold">-</div>
@@ -458,8 +455,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
   return (
     <div className="space-y-3">
       {recentTasks.map((task) => {
-        const overdue = task.due_date ? (isPast(new Date(task.due_date)) && 
-          task.status !== "completed" && task.status !== "cancelled") : false
+        const overdue = isOverdueWib(task.due_date, task.status)
 
         return (
           <div
@@ -476,7 +472,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
                 "text-xs",
                 overdue ? "text-red-600" : "text-gray-500"
               )}>
-                {task.due_date ? format(new Date(task.due_date), "dd MMM", { locale: idLocale }) : '-'}
+                {task.due_date ? formatDateWib(task.due_date, { day: "2-digit", month: "short" }) : '-'}
               </p>
             </div>
           </div>

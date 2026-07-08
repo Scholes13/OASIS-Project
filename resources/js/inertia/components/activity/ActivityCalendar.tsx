@@ -8,6 +8,7 @@ import { router, usePage } from "@inertiajs/react"
 import { format } from "date-fns"
 import { Info } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getDatePart } from "@/lib/activityDateTime"
 import { TaskDetailModal } from "./TaskDetailModal"
 import CalendarHeader from "./calendar/CalendarHeader"
 import CalendarEventRenderer, { statusStyles } from "./calendar/CalendarEventRenderer"
@@ -66,7 +67,7 @@ export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTas
             let activityDate: string
             if (task.status === "completed" && task.completed_at) {
                 // Completed tasks appear on the day they were finished
-                activityDate = task.completed_at.substring(0, 10)
+                activityDate = getDatePart(task.completed_at)
             } else {
                 // Planned and In Progress tasks appear on their scheduled date
                 activityDate = task.task_date || task.due_date!

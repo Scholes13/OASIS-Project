@@ -20,6 +20,7 @@ import {
 import { SortableHeader } from "../ui/data-table"
 import { openDownloadInSameTab } from "@/lib/download"
 import { cn } from "@/lib/utils"
+import { getTodayWibDate } from "@/lib/activityDateTime"
 import { formatDueDate, isOverdue, isWithinDateFilter, type DateFilter } from "@/lib/dateFilters"
 import DateFilterControl, { type DateFilterType, type DateRange } from "./datatable/DateFilter"
 import { type StatusFilter } from "./datatable/MetricCards"
@@ -359,13 +360,13 @@ export function ActivityDataTable({
                                             : undefined,
                                         date_from: dateFilter === 'custom' && customRange.start
                                             ? format(customRange.start, 'yyyy-MM-dd')
-                                            : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')
+                                            : dateFilter === 'today' ? getTodayWibDate()
                                                 : dateFilter === 'week' ? format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
                                                     : dateFilter === 'month' ? format(startOfMonth(new Date()), 'yyyy-MM-dd')
                                                         : undefined,
                                         date_to: dateFilter === 'custom' && customRange.end
                                             ? format(customRange.end, 'yyyy-MM-dd')
-                                            : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')
+                                            : dateFilter === 'today' ? getTodayWibDate()
                                                 : dateFilter === 'week' ? format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
                                                     : dateFilter === 'month' ? format(endOfMonth(new Date()), 'yyyy-MM-dd')
                                                         : undefined,

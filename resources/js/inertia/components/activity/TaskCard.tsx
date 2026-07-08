@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { StatusBadge, ActivityTypeBadge } from '../ui/Badge';
+import { formatDateWib, isOverdueWib } from '@/lib/activityDateTime';
 import type { Task, PageProps } from '@/types';
 
 interface TaskCardProps {
@@ -9,9 +10,7 @@ interface TaskCardProps {
 }
 
 function formatDate(dateString: string | null): string {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
+    return formatDateWib(dateString, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -19,9 +18,7 @@ function formatDate(dateString: string | null): string {
 }
 
 function isOverdue(dueDate: string | null, status: string): boolean {
-    if (!dueDate) return false;
-    if (status === 'completed' || status === 'cancelled') return false;
-    return new Date(dueDate) < new Date();
+    return isOverdueWib(dueDate, status);
 }
 
 export default function TaskCard({ task, index = 0 }: TaskCardProps) {

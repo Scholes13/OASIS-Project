@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, Clock, FileText, Paperclip, User, Users } from 'lu
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { formatDateTimeWib, formatDateWib } from '@/lib/activityDateTime';
 import type { PageProps, Task } from '@/types';
 
 const statusConfig: Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'danger' | 'default' }> = {
@@ -13,11 +14,11 @@ const statusConfig: Record<string, { label: string; variant: 'success' | 'info' 
 };
 
 function formatDate(d: string) {
-    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return formatDateWib(d, { day: '2-digit', month: 'short', year: 'numeric' }, 'id-ID');
 }
 
 function formatDateTime(d: string) {
-    return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return formatDateTimeWib(d, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }, 'id-ID');
 }
 
 interface TaskDetailProps extends PageProps {

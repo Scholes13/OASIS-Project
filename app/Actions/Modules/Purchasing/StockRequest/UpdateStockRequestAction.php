@@ -187,6 +187,7 @@ class UpdateStockRequestAction
     private function resolveStaffApprovers(User $user, int $businessUnitId)
     {
         return User::where('primary_department_id', $user->primary_department_id)
+            ->where('is_active', true)
             ->where('id', '!=', $user->id)
             ->whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
                 $query->where('business_unit_id', $businessUnitId)
@@ -211,6 +212,8 @@ class UpdateStockRequestAction
                 throw new \Exception('Request creator cannot be assigned as an approver.');
             }
 
+            $approver = User::with(['primaryDepartment', 'primaryPosition'])->find($step['approver_id']);
+
             StockApproval::create([
                 'stock_request_id' => $stockRequest->id,
                 'approver_id' => $step['approver_id'],
@@ -218,6 +221,15 @@ class UpdateStockRequestAction
                 'approval_type' => $step['task_type'] ?? 'approval',
                 'status' => 'pending',
                 'notes' => $notes,
+                'metadata' => [
+                    'approver_snapshot' => [
+                        'id' => $approver?->id,
+                        'name' => $approver?->name,
+                        'email' => $approver?->email,
+                        'department' => $approver?->primaryDepartment?->name,
+                        'position' => $approver?->primaryPosition?->name,
+                    ],
+                ],
             ]);
         }
 

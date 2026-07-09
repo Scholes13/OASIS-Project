@@ -538,6 +538,8 @@ class PurchaseRequest extends Model
 
             // Create PrApproval records for each step
             foreach ($workflow->approval_steps as $step) {
+                $approver = User::with(['primaryDepartment', 'primaryPosition'])->find($step['approver_id']);
+
                 PrApproval::create([
                     'purchase_request_id' => $this->id,
                     'approver_id' => $step['approver_id'],
@@ -545,6 +547,15 @@ class PurchaseRequest extends Model
                     'status' => 'pending',
                     'assigned_at' => now(),
                     'due_date' => now()->addDays(3), // Default 3-day deadline
+                    'metadata' => [
+                        'approver_snapshot' => [
+                            'id' => $approver?->id,
+                            'name' => $approver?->name,
+                            'email' => $approver?->email,
+                            'department' => $approver?->primaryDepartment?->name,
+                            'position' => $approver?->primaryPosition?->name,
+                        ],
+                    ],
                 ]);
             }
         } else {

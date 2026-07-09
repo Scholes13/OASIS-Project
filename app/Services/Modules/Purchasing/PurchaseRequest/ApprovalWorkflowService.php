@@ -99,7 +99,7 @@ class ApprovalWorkflowService
             // Build workflow structure for storage
             $workflowData = [];
             foreach ($approvalWorkflow as $index => $step) {
-                $approver = User::find($step['approver_id']);
+                $approver = User::with(['primaryDepartment', 'primaryPosition'])->find($step['approver_id']);
                 if (! $approver) {
                     throw new \Exception("Approver with ID {$step['approver_id']} not found");
                 }
@@ -116,6 +116,8 @@ class ApprovalWorkflowService
                     'approver_id' => $approver->id,
                     'approver_name' => $approver->name,
                     'approver_email' => $approver->email,
+                    'approver_department' => $approver->primaryDepartment?->name,
+                    'approver_position' => $approver->primaryPosition?->name,
                     'step_order' => $stepOrder,
                     'approval_type' => $taskType,
                     'reason' => $notes ?? 'Custom approval workflow',
@@ -133,6 +135,9 @@ class ApprovalWorkflowService
                     'due_date' => $this->ruleEngine->calculateDueDate($taskType),
                     'notes' => null,
                     'responded_at' => null,
+                    'metadata' => [
+                        'approver_snapshot' => $this->approverSnapshot($approver),
+                    ],
                 ]);
             }
 
@@ -182,6 +187,15 @@ class ApprovalWorkflowService
                 'due_date' => isset($stepData['due_date']) ? Carbon::parse($stepData['due_date']) : $this->ruleEngine->calculateDueDate('custom'),
                 'notes' => $stepData['reason'] ?? null,
                 'responded_at' => null,
+                'metadata' => [
+                    'approver_snapshot' => [
+                        'id' => $stepData['approver_id'] ?? null,
+                        'name' => $stepData['approver_name'] ?? null,
+                        'email' => $stepData['approver_email'] ?? null,
+                        'department' => $stepData['approver_department'] ?? null,
+                        'position' => $stepData['approver_position'] ?? null,
+                    ],
+                ],
             ]);
         }
 
@@ -418,6 +432,17 @@ class ApprovalWorkflowService
         });
 
         return round($totalHours / $respondedApprovals->count(), 2);
+    }
+
+    private function approverSnapshot(User $approver): array
+    {
+        return [
+            'id' => $approver->id,
+            'name' => $approver->name,
+            'email' => $approver->email,
+            'department' => $approver->primaryDepartment?->name,
+            'position' => $approver->primaryPosition?->name,
+        ];
     }
 
     /**

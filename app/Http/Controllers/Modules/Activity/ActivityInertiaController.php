@@ -260,6 +260,12 @@ class ActivityInertiaController extends Controller
                 ->with('success', 'Task updated successfully.');
         }
 
+        if ($request->query() === []) {
+            return redirect()
+                ->route('activity.task.index')
+                ->with('success', 'Task updated successfully.');
+        }
+
         return $this->redirectToTaskIndex($result['task'], 'detail')
             ->with('success', 'Task updated successfully.');
     }

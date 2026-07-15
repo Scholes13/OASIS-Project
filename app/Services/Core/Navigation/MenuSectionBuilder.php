@@ -66,9 +66,9 @@ class MenuSectionBuilder
         $purchasingChildren = array_merge($purchasingChildren, [
             [
                 'name' => 'All Requests',
-                'href' => route('purchase-requests.all'),
+                'href' => route('purchasing.all-requests'),
                 'icon' => 'list',
-                'active' => request()->routeIs('purchase-requests.all'),
+                'active' => request()->routeIs('purchasing.all-requests'),
             ],
             [
                 'name' => 'Approvals',
@@ -84,7 +84,8 @@ class MenuSectionBuilder
             'icon' => 'shopping-cart',
             'active' => request()->routeIs('purchase-requests.*')
                 || request()->routeIs('stock-requests.*')
-                || request()->routeIs('approvals.*'),
+                || request()->routeIs('approvals.*')
+                || request()->routeIs('purchasing.all-requests'),
             'children' => $purchasingChildren,
         ];
 

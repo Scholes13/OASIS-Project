@@ -109,7 +109,7 @@ class CashflowSummaryCalculator
 
     /**
      * @param  Collection<int, CashflowProjectionLineItem>  $filteredLineItems
-     * @return array<int, array{date: string, plus: float, minus: float, net: float}>
+     * @return array<int, array{date: string, plus: string, minus: string, net: string}>
      */
     public function buildPeriodDailySummary(Collection $filteredLineItems, CarbonImmutable $startDate, CarbonImmutable $endDate): array
     {
@@ -121,9 +121,9 @@ class CashflowSummaryCalculator
             $dateKey = $cursor->format('Y-m-d');
             $daily[$dateKey] = [
                 'date' => $dateKey,
-                'plus' => 0.0,
-                'minus' => 0.0,
-                'net' => 0.0,
+                'plus' => 0,
+                'minus' => 0,
+                'net' => 0,
             ];
             $cursor = $cursor->addDay();
         }
@@ -135,27 +135,33 @@ class CashflowSummaryCalculator
                 continue;
             }
 
-            $amount = (float) $item->amount;
+            $amount = CashflowMoney::toMinor($item->amount);
 
             if ($item->flow_type === 'in') {
-                $daily[$dateKey]['plus'] += $amount;
+                $daily[$dateKey]['plus'] = CashflowMoney::addMinor($daily[$dateKey]['plus'], $amount);
             } else {
-                $daily[$dateKey]['minus'] += $amount;
+                $daily[$dateKey]['minus'] = CashflowMoney::addMinor($daily[$dateKey]['minus'], $amount);
             }
 
-            $daily[$dateKey]['net'] = $daily[$dateKey]['plus'] - $daily[$dateKey]['minus'];
+            $daily[$dateKey]['net'] = CashflowMoney::addMinor($daily[$dateKey]['plus'], -$daily[$dateKey]['minus']);
         }
 
-        return array_values($daily);
+        return collect($daily)->map(function (array $row): array {
+            $row['plus'] = CashflowMoney::fromMinor($row['plus']);
+            $row['minus'] = CashflowMoney::fromMinor($row['minus']);
+            $row['net'] = CashflowMoney::fromMinor($row['net']);
+
+            return $row;
+        })->values()->all();
     }
 
     /**
-     * @return array<int, array{month: int, plus: float, minus: float, finance_income: float, opening_balance: float, net: float, closing_balance: float, is_warning: bool}>
+     * @return array<int, array{month: int, plus: string, minus: string, finance_income: string, opening_balance: string, net: string, closing_balance: string, is_warning: bool}>
      */
     public function buildMonthlySummary($lineItems, $financeInputs): array
     {
-        $plusByMonth = array_fill(1, 12, 0.0);
-        $minusByMonth = array_fill(1, 12, 0.0);
+        $plusByMonth = array_fill(1, 12, 0);
+        $minusByMonth = array_fill(1, 12, 0);
 
         foreach ($lineItems as $item) {
             $month = (int) $item->transaction_date?->format('n');
@@ -163,11 +169,11 @@ class CashflowSummaryCalculator
                 continue;
             }
 
-            $amount = (float) $item->amount;
+            $amount = CashflowMoney::toMinor($item->amount);
             if ($item->flow_type === 'in') {
-                $plusByMonth[$month] += $amount;
+                $plusByMonth[$month] = CashflowMoney::addMinor($plusByMonth[$month], $amount);
             } else {
-                $minusByMonth[$month] += $amount;
+                $minusByMonth[$month] = CashflowMoney::addMinor($minusByMonth[$month], $amount);
             }
         }
 
@@ -175,36 +181,38 @@ class CashflowSummaryCalculator
         foreach ($financeInputs as $input) {
             $month = (int) $input->month;
             $financeByMonth[$month] = [
-                'opening_balance' => (float) $input->cash_on_hand,
-                'finance_income' => (float) $input->receivable_estimate +
-                    (float) $input->upcoming_event_revenue_estimate +
-                    (float) $input->capital_injection_estimate +
-                    (float) $input->other_income,
+                'opening_balance' => CashflowMoney::toMinor($input->cash_on_hand),
+                'finance_income' => CashflowMoney::toMinor(CashflowMoney::add(
+                    $input->receivable_estimate,
+                    $input->upcoming_event_revenue_estimate,
+                    $input->capital_injection_estimate,
+                    $input->other_income,
+                )),
             ];
         }
 
         $rows = [];
-        $previousClosingBalance = 0.0;
+        $previousClosingBalance = 0;
         for ($month = 1; $month <= 12; $month++) {
             $plus = $plusByMonth[$month];
             $minus = $minusByMonth[$month];
             $openingBalance = array_key_exists($month, $financeByMonth)
                 ? $financeByMonth[$month]['opening_balance']
                 : $previousClosingBalance;
-            $financeIncome = $financeByMonth[$month]['finance_income'] ?? 0.0;
-            $net = $plus - $minus + $financeIncome;
-            $closingBalance = $openingBalance + $net;
+            $financeIncome = $financeByMonth[$month]['finance_income'] ?? 0;
+            $net = CashflowMoney::addMinor($plus, -$minus, $financeIncome);
+            $closingBalance = CashflowMoney::addMinor($openingBalance, $net);
             $previousClosingBalance = $closingBalance;
 
             $rows[] = [
                 'month' => $month,
-                'plus' => $plus,
-                'minus' => $minus,
-                'finance_income' => $financeIncome,
-                'opening_balance' => $openingBalance,
-                'net' => $net,
-                'closing_balance' => $closingBalance,
-                'is_warning' => $closingBalance < (int) config('features.cashflow.minimum_balance_global', 200000000),
+                'plus' => CashflowMoney::fromMinor($plus),
+                'minus' => CashflowMoney::fromMinor($minus),
+                'finance_income' => CashflowMoney::fromMinor($financeIncome),
+                'opening_balance' => CashflowMoney::fromMinor($openingBalance),
+                'net' => CashflowMoney::fromMinor($net),
+                'closing_balance' => CashflowMoney::fromMinor($closingBalance),
+                'is_warning' => $closingBalance < CashflowMoney::toMinor((string) config('features.cashflow.minimum_balance_global', 200000000)),
             ];
         }
 
@@ -215,7 +223,7 @@ class CashflowSummaryCalculator
      * @param  Collection<int, CashflowProjectionLineItem>  $filteredLineItems
      * @param  Collection<int, CashflowProjectionFinanceInput>  $financeInputs
      * @param  array<int, array<string, mixed>>  $monthlySummary
-     * @return array{total_balance: float, inflow: float, outflow: float, finance_income: float, net_cashflow: float}
+     * @return array{total_balance: string, inflow: string, outflow: string, finance_income: string, net_cashflow: string}
      */
     public function buildDashboardSummary(
         Collection $filteredLineItems,
@@ -226,22 +234,24 @@ class CashflowSummaryCalculator
     ): array {
         $monthsInScope = $this->monthsInPeriod($startDate, $endDate);
 
-        $inflow = (float) $filteredLineItems
-            ->where('flow_type', 'in')
-            ->sum(fn (CashflowProjectionLineItem $item) => (float) $item->amount);
+        $inflow = CashflowMoney::sumMinor(
+            $filteredLineItems->where('flow_type', 'in')->map(fn (CashflowProjectionLineItem $item) => $item->amount)
+        );
 
-        $outflow = (float) $filteredLineItems
-            ->where('flow_type', 'out')
-            ->sum(fn (CashflowProjectionLineItem $item) => (float) $item->amount);
+        $outflow = CashflowMoney::sumMinor(
+            $filteredLineItems->where('flow_type', 'out')->map(fn (CashflowProjectionLineItem $item) => $item->amount)
+        );
 
-        $financeIncome = (float) $financeInputs
-            ->filter(fn (CashflowProjectionFinanceInput $input) => in_array((int) $input->month, $monthsInScope, true))
-            ->sum(function (CashflowProjectionFinanceInput $input) {
-                return (float) $input->receivable_estimate
-                    + (float) $input->upcoming_event_revenue_estimate
-                    + (float) $input->capital_injection_estimate
-                    + (float) $input->other_income;
-            });
+        $financeIncome = CashflowMoney::sumMinor(
+            $financeInputs
+                ->filter(fn (CashflowProjectionFinanceInput $input) => in_array((int) $input->month, $monthsInScope, true))
+                ->flatMap(fn (CashflowProjectionFinanceInput $input) => [
+                    $input->receivable_estimate,
+                    $input->upcoming_event_revenue_estimate,
+                    $input->capital_injection_estimate,
+                    $input->other_income,
+                ])
+        );
 
         $snapshot = collect($monthlySummary)
             ->filter(fn (array $row) => in_array((int) $row['month'], $monthsInScope, true))
@@ -260,11 +270,11 @@ class CashflowSummaryCalculator
         }
 
         return [
-            'total_balance' => (float) ($snapshot['closing_balance'] ?? 0.0),
-            'inflow' => $inflow,
-            'outflow' => $outflow,
-            'finance_income' => $financeIncome,
-            'net_cashflow' => $inflow - $outflow + $financeIncome,
+            'total_balance' => CashflowMoney::normalize($snapshot['closing_balance'] ?? '0'),
+            'inflow' => CashflowMoney::fromMinor($inflow),
+            'outflow' => CashflowMoney::fromMinor($outflow),
+            'finance_income' => CashflowMoney::fromMinor($financeIncome),
+            'net_cashflow' => CashflowMoney::fromMinor(CashflowMoney::addMinor($inflow, -$outflow, $financeIncome)),
         ];
     }
 }

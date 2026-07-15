@@ -11,10 +11,12 @@ use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Core\EmailNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -45,6 +47,59 @@ class StockRequestActionAuthorizationParityTest extends TestCase
             ]);
 
         $response->assertForbidden();
+    }
+
+    #[Test]
+    public function owner_cannot_offline_approve_while_department_approval_is_pending(): void
+    {
+        [$owner, , $stockRequest] = $this->createInApprovalFixture();
+
+        $response = $this->actingAs($owner)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->post(route('stock-requests.mark-offline-approved', $stockRequest), [
+                'offline_approval_document' => UploadedFile::fake()->create('approval.pdf', 50, 'application/pdf'),
+            ]);
+
+        $response->assertSessionHas('error', 'Department approval must be completed before offline approval can be recorded.');
+        $this->assertSame('in_approval', $stockRequest->fresh()?->status);
+        $this->assertSame('pending', $stockRequest->approvals()->firstOrFail()->status);
+    }
+
+    #[Test]
+    public function public_approval_process_requires_signed_url(): void
+    {
+        Notification::fake();
+        [, , $stockRequest] = $this->createInApprovalFixture();
+        $approval = $stockRequest->approvals()->firstOrFail();
+
+        $this->post(route('stock-approvals.public.process', $approval), [
+            'action' => 'approved',
+        ])->assertForbidden();
+
+        $signedShowUrl = URL::temporarySignedRoute(
+            'stock-approvals.public.approve',
+            now()->addHour(),
+            ['approval' => $approval->id],
+        );
+
+        $this->get($signedShowUrl)
+            ->assertOk()
+            ->assertSee('/stock-approvals/'.$approval->id.'/public/process?expires=', false)
+            ->assertSee('signature=', false);
+
+        $signedProcessUrl = URL::temporarySignedRoute(
+            'stock-approvals.public.process',
+            now()->addHour(),
+            ['approval' => $approval->id],
+        );
+
+        $this->post($signedProcessUrl, ['action' => 'approved'])
+            ->assertOk();
+        $this->assertSame('approved', $approval->fresh()?->status);
+        $this->assertSame('ga_review', $stockRequest->fresh()?->status);
     }
 
     #[Test]
@@ -173,6 +228,77 @@ class StockRequestActionAuthorizationParityTest extends TestCase
             ->assertRedirect();
 
         Notification::assertCount(1);
+        $this->assertSame('ga_review', $stockRequest->fresh()?->status);
+        $this->assertNotNull($stockRequest->fresh()?->ga_review_started_at);
+        $this->assertDatabaseMissing('admin_tasks', [
+            'taskable_type' => StockRequest::class,
+            'taskable_id' => $stockRequest->id,
+        ]);
+    }
+
+    #[Test]
+    public function approval_stays_successful_when_notification_delivery_fails(): void
+    {
+        [$owner, $approver, $stockRequest] = $this->createInApprovalFixture();
+        $approval = $stockRequest->approvals()->where('approver_id', $approver->id)->firstOrFail();
+        $this->mock(EmailNotificationService::class)
+            ->shouldReceive('sendStApprovalApproved')
+            ->once()
+            ->andThrow(new \RuntimeException('Mail transport unavailable'));
+
+        $this->actingAs($approver)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->post(route('stock-approvals.process', $approval), [
+                'action' => 'approve',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('ga_review', $stockRequest->fresh()?->status);
+        $this->assertSame('approved', $approval->fresh()?->status);
+    }
+
+    #[Test]
+    public function ga_origin_rejected_request_resubmits_directly_to_purchasing(): void
+    {
+        [$owner, , $stockRequest] = $this->createInApprovalFixture();
+        $stockRequest->department()->update(['is_ga_stock_review_department' => true]);
+        $stockRequest->update([
+            'routes_directly_to_purchasing' => true,
+            'skips_ga_review' => true,
+        ]);
+        $purchasingDepartment = Department::factory()->create([
+            'business_unit_id' => $stockRequest->business_unit_id,
+            'is_purchasing_department' => true,
+        ]);
+        $stockRequest->approvals()->update([
+            'status' => 'approved',
+            'responded_at' => now(),
+        ]);
+        $stockRequest->update([
+            'status' => 'ga_rejected',
+            'ga_rejected_reason' => 'Revise stock details',
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->post(route('stock-requests.resubmit', $stockRequest));
+
+        $response->assertRedirect(route('stock-requests.show', $stockRequest));
+        $this->assertSame('ready_for_purchasing', $stockRequest->fresh()?->status);
+        $this->assertNull($stockRequest->fresh()?->ga_review_started_at);
+        $this->assertSame('approved', $stockRequest->approvals()->firstOrFail()->status);
+        $this->assertDatabaseHas('admin_tasks', [
+            'taskable_type' => StockRequest::class,
+            'taskable_id' => $stockRequest->id,
+            'department_id' => $purchasingDepartment->id,
+            'status' => 'pending_followup',
+        ]);
     }
 
     /**

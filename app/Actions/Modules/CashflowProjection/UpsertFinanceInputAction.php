@@ -5,6 +5,7 @@ namespace App\Actions\Modules\CashflowProjection;
 use App\Http\Requests\CashflowProjection\UpsertCashflowProjectionFinanceInputRequest;
 use App\Models\Core\User;
 use App\Models\Modules\CashflowProjection\CashflowProjectionFinanceInput;
+use App\Services\Modules\CashflowProjection\CashflowMoney;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAuditService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionScopeService;
 use App\Services\Modules\CashflowProjection\LinkedCycleMerger;
@@ -77,11 +78,11 @@ class UpsertFinanceInputAction
         return [
             'cycle_id' => $financeInput->cycle_id,
             'month' => $financeInput->month,
-            'cash_on_hand' => (float) $financeInput->cash_on_hand,
-            'receivable_estimate' => (float) $financeInput->receivable_estimate,
-            'upcoming_event_revenue_estimate' => (float) $financeInput->upcoming_event_revenue_estimate,
-            'capital_injection_estimate' => (float) $financeInput->capital_injection_estimate,
-            'other_income' => (float) $financeInput->other_income,
+            'cash_on_hand' => CashflowMoney::normalize($financeInput->cash_on_hand),
+            'receivable_estimate' => CashflowMoney::normalize($financeInput->receivable_estimate),
+            'upcoming_event_revenue_estimate' => CashflowMoney::normalize($financeInput->upcoming_event_revenue_estimate),
+            'capital_injection_estimate' => CashflowMoney::normalize($financeInput->capital_injection_estimate),
+            'other_income' => CashflowMoney::normalize($financeInput->other_income),
         ];
     }
 }

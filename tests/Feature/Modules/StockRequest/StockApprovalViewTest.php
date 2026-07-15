@@ -35,6 +35,7 @@ class StockApprovalViewTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Purchasing/StockRequest/Show')
             ->where('stockRequest.st_number', $stockRequest->st_number)
+            ->where('stockRequest.department.is_ga_stock_review_department', true)
             ->where('approvalContext.approvalId', $stockApproval->id)
             ->where('approvalContext.canApprove', true)
             ->where('approvalContext.approvalStatus', 'pending')
@@ -98,6 +99,7 @@ class StockApprovalViewTest extends TestCase
     protected function createStockApprovalFixture(): array
     {
         [$approver, $businessUnit, $department] = $this->createUserContext('approver.test@example.com');
+        $department->update(['is_ga_stock_review_department' => true]);
 
         $numberingModule = NumberingModule::create([
             'business_unit_id' => $businessUnit->id,

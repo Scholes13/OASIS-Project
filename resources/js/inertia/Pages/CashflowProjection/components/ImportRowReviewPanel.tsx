@@ -5,7 +5,7 @@ import type { DepartmentOption } from '../types';
 type ImportRowReviewPanelProps = {
     row: ImportPreviewRow;
     departments: DepartmentOption[];
-    onSave: (row: ImportPreviewRow) => void;
+    onSave: (row: ImportPreviewRow) => void | Promise<void>;
 };
 
 const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-primary focus:ring-1 focus:ring-primary';
@@ -74,7 +74,7 @@ export default function ImportRowReviewPanel({ row, departments, onSave }: Impor
             due_date: dueDate || null,
             description,
             keterangan: keterangan || null,
-            amount: Number(amount),
+            amount,
             errors: [],
         });
     };
@@ -136,7 +136,7 @@ export default function ImportRowReviewPanel({ row, departments, onSave }: Impor
                 </label>
                 <label className="space-y-1.5 text-sm font-medium text-slate-700">
                     Amount
-                    <input className={inputClasses} inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} />
+                    <input className={inputClasses} inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^\d.]/g, ''))} />
                 </label>
                 <button
                     type="button"

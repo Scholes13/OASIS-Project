@@ -41,6 +41,7 @@ export default function Form({
         setIsSubmitting(true);
 
         const formData = new FormData();
+        formData.append('submission_intent', isDraft ? 'draft' : 'submit');
 
         // Add method override for PUT
         formData.append('_method', 'PUT');

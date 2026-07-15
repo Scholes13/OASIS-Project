@@ -60,28 +60,12 @@ class TaskPresenter
         $modal = $this->getSelectedTaskModal($request);
         $user = Auth::user();
         $buId = session('current_business_unit_id');
-        $departmentId = $user?->getCurrentDepartmentId();
-
         if (! $taskId || ! in_array($modal, ['detail', 'edit'], true) || ! $user || ! $buId) {
             return null;
         }
 
         $query = EmployeeTask::query()
             ->where('business_unit_id', $buId)
-            ->where(function ($query) use ($user, $departmentId) {
-                $query->where('created_by', $user->id)
-                    ->orWhereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $user->id));
-
-                if ($departmentId) {
-                    $query->orWhere('department_id', $departmentId);
-                }
-            })
-            ->when($modal === 'edit', function ($query) use ($user) {
-                $query->where(function ($editableQuery) use ($user) {
-                    $editableQuery->where('created_by', $user->id)
-                        ->orWhereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $user->id));
-                });
-            })
             ->with([
                 'activityType',
                 'subActivity',
@@ -89,13 +73,21 @@ class TaskPresenter
                 'creator',
                 'department',
                 'attachments',
-                'comments' => fn ($q) => $q->with('user:id,name')->whereNull('deleted_at')->orderBy('created_at', 'asc')->limit(50),
+                'comments' => fn ($q) => $q->with('user:id,name')->whereNull('deleted_at')->latest('id')->limit(50),
             ]);
 
         $task = $query->find($taskId);
 
+        $canAccess = $task && ($modal === 'edit'
+            ? $this->scopeResolver->canEditTask($task, $user, $buId)
+            : $this->scopeResolver->canViewTask($task, $user, $buId));
+
+        if (! $canAccess) {
+            return null;
+        }
+
         if ($task) {
-            $task->comments_data = $task->comments->map(fn ($c) => [
+            $task->comments_data = $task->comments->sortBy('id')->values()->map(fn ($c) => [
                 'id' => $c->id,
                 'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
                 'body' => $c->body,

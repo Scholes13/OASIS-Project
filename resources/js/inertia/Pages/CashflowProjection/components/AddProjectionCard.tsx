@@ -47,20 +47,12 @@ const inputClasses =
 const selectClasses =
     'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2020%2020%27%20fill%3D%27%2364748b%27%3E%3Cpath%20fill-rule%3D%27evenodd%27%20d%3D%27M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%27%20clip-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E")]';
 
-function formatAmountInput(amount: number): string {
-    if (!Number.isFinite(amount) || amount <= 0) {
-        return amount === 0 ? '0' : '';
-    }
-
-    return new Intl.NumberFormat('id-ID', {
-        maximumFractionDigits: 0,
-    }).format(amount);
+function formatAmountInput(amount: string): string {
+    return amount;
 }
 
-function parseAmountInput(value: string): number {
-    const digitsOnly = value.replace(/\D/g, '');
-
-    return digitsOnly === '' ? 0 : Number(digitsOnly);
+function parseAmountInput(value: string): string {
+    return value.replace(/[^\d.]/g, '');
 }
 
 export default function AddProjectionCard({

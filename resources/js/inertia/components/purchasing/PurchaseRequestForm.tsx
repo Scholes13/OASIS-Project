@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Plus, Save, Send, Loader2, Upload, X } from 'lucide-react';
+import { Plus, Save, Send, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { PRItemRow } from './PRItemRow';
 import { ApprovalWorkflowBuilder } from './ApprovalWorkflowBuilder';
+import { PurchaseRequestBasicInformation } from './PurchaseRequestBasicInformation';
 import { PRFormData, PRItemFormData, PRCategory, Department, BusinessUnit, Approver, CustomApprovalStep } from '../../types/purchasing';
 import { toast } from 'sonner';
 
@@ -202,170 +202,22 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
 
     return (
         <div className="space-y-6">
-            {/* Basic Information */}
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100">
-                    <h3 className="text-base font-semibold text-gray-900">Basic Information</h3>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Business Unit */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Business Unit <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={data.business_unit_id}
-                                onChange={(e) => setData('business_unit_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-gray-100 cursor-not-allowed"
-                                disabled={true}
-                            >
-                                <option value="">Select Business Unit</option>
-                                {businessUnits.map((bu) => (
-                                    <option key={bu.id} value={bu.id}>
-                                        {bu.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.business_unit_id && (
-                                <p className="mt-1 text-sm text-red-600">{errors.business_unit_id}</p>
-                            )}
-                        </div>
-
-                        {/* Department */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Department <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={data.department_id}
-                                onChange={(e) => setData('department_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-gray-100 cursor-not-allowed"
-                                disabled={true}
-                            >
-                                <option value="">Select Department</option>
-                                {departments.map((dept) => (
-                                    <option key={dept.id} value={dept.id}>
-                                        {dept.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.department_id && (
-                                <p className="mt-1 text-sm text-red-600">{errors.department_id}</p>
-                            )}
-                        </div>
-
-                        {/* Category */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Category
-                            </label>
-                            <select
-                                value={data.category_id}
-                                onChange={(e) => setData('category_id', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                            >
-                                <option value="">Select Category</option>
-                                {categories.map((cat) => (
-                                    <option key={cat.id} value={cat.id}>
-                                        {cat.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Currency */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Currency <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={data.currency}
-                                onChange={(e) => handleCurrencyChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
-                            >
-                                <option value="IDR">IDR</option>
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
-                            </select>
-                        </div>
-
-                        {/* Expected Date */}
-                        <div className="md:col-span-2 relative">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Expected Delivery Date
-                            </label>
-                            <Input
-                                type="date"
-                                value={data.expected_date || ''}
-                                onChange={(e) => setData('expected_date', e.target.value)}
-                                className="w-full cursor-pointer"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Purpose / Used For */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Purpose / Used For <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                            value={data.used_for}
-                            onChange={(e) => setData('used_for', e.target.value)}
-                            placeholder="Describe the purpose of this purchase request (minimum 10 characters)"
-                            rows={3}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm ${errors.used_for ? 'border-red-500' : 'border-gray-300'
-                                }`}
-                        />
-                        {errors.used_for && (
-                            <p className="mt-1 text-sm text-red-600">{errors.used_for}</p>
-                        )}
-                        <p className="mt-1 text-xs text-gray-500">
-                            {data.used_for.length} / 1000 characters (minimum 10)
-                        </p>
-                    </div>
-
-                    {/* Supporting Document */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Supporting Document
-                        </label>
-
-                        {supportingDocumentPreview ? (
-                            <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-300 rounded-lg">
-                                <span className="text-sm text-gray-700">{supportingDocumentPreview}</span>
-                                <button
-                                    type="button"
-                                    onClick={handleRemoveSupportingDocument}
-                                    className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ) : (
-                            <div>
-                                <input
-                                    type="file"
-                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                                    onChange={handleSupportingDocumentUpload}
-                                    className="hidden"
-                                    id="supporting-document-upload"
-                                />
-                                <label
-                                    htmlFor="supporting-document-upload"
-                                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
-                                >
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Upload Document
-                                </label>
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Max 5MB, PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <PurchaseRequestBasicInformation
+                data={data}
+                errors={errors}
+                categories={categories}
+                departments={departments}
+                businessUnits={businessUnits}
+                supportingDocumentPreview={supportingDocumentPreview}
+                onBusinessUnitChange={(value) => setData('business_unit_id', value)}
+                onDepartmentChange={(value) => setData('department_id', value)}
+                onCategoryChange={(value) => setData('category_id', value)}
+                onCurrencyChange={handleCurrencyChange}
+                onExpectedDateChange={(value) => setData('expected_date', value)}
+                onUsedForChange={(value) => setData('used_for', value)}
+                onSupportingDocumentUpload={handleSupportingDocumentUpload}
+                onRemoveSupportingDocument={handleRemoveSupportingDocument}
+            />
 
             {/* Items Section */}
             <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
@@ -386,10 +238,10 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
                         <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
                             <tr>
                                 <th className="px-4 py-3 w-10 text-center">No</th>
-                                <th className="px-4 py-3 min-w-[150px]">Item Name</th>
-                                <th className="px-4 py-3 min-w-[100px]">Brand</th>
-                                <th className="px-4 py-3 min-w-[150px]">Description</th>
-                                <th className="px-4 py-3 min-w-[100px]">Supplier</th>
+                                <th className="min-w-[9.375rem] px-4 py-3">Item Name</th>
+                                <th className="min-w-[6.25rem] px-4 py-3">Brand</th>
+                                <th className="min-w-[9.375rem] px-4 py-3">Description</th>
+                                <th className="min-w-[6.25rem] px-4 py-3">Supplier</th>
                                 <th className="px-4 py-3 w-16 text-center">Qty</th>
                                 <th className="px-4 py-3 w-20 text-center">Unit</th>
                                 <th className="px-4 py-3 w-28 text-right">Price</th>

@@ -11,6 +11,7 @@ use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalQrCodeBuilder;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 
 class ApprovalController extends Controller
 {
@@ -26,7 +27,7 @@ class ApprovalController extends Controller
     /**
      * Show approval page for a specific approval
      */
-    public function show($approvalId)
+    public function show($approvalId): mixed
     {
         $approval = PrApproval::findOrFail($approvalId);
         $user = Auth::user();
@@ -35,6 +36,7 @@ class ApprovalController extends Controller
         if ($approval->approver_id !== $user->id) {
             abort(403, 'You are not authorized to view this approval.');
         }
+        $this->authorizeSelectedBusinessUnit($approval);
 
         $purchaseRequest = $approval->purchaseRequest;
 
@@ -83,7 +85,7 @@ class ApprovalController extends Controller
     /**
      * Process approval action
      */
-    public function process(Request $request, $approvalId)
+    public function process(Request $request, $approvalId): mixed
     {
         $request->validate([
             'action' => 'required|in:approve,reject,approved,rejected',
@@ -107,6 +109,7 @@ class ApprovalController extends Controller
         if ($approval->approver_id !== Auth::id()) {
             abort(403, 'You are not authorized to process this approval.');
         }
+        $this->authorizeSelectedBusinessUnit($approval);
 
         // Check if approval is still pending
         if ($approval->status !== 'pending') {
@@ -134,14 +137,16 @@ class ApprovalController extends Controller
                 ->with('success', $message);
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to process approval: '.$e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Failed to process approval. Please try again.');
         }
     }
 
     /**
      * Generate QR code for approved purchase request
      */
-    public function generateQrCode($approvalId)
+    public function generateQrCode($approvalId): mixed
     {
         $approval = PrApproval::with('purchaseRequest')->findOrFail($approvalId);
 
@@ -149,6 +154,10 @@ class ApprovalController extends Controller
         if ($approval->status !== 'approved') {
             abort(404, 'QR code is only available for approved requests.');
         }
+        if ($approval->approver_id !== Auth::id()) {
+            abort(403, 'You are not authorized to view this approval QR code.');
+        }
+        $this->authorizeSelectedBusinessUnit($approval);
 
         // Use QrCodeService for consistent QR code generation
         $qrCodeService = new QrCodeService;
@@ -160,10 +169,17 @@ class ApprovalController extends Controller
         ]);
     }
 
+    private function authorizeSelectedBusinessUnit(PrApproval $approval): void
+    {
+        if ((int) $approval->purchaseRequest()->value('business_unit_id') !== (int) session('current_business_unit_id')) {
+            abort(403, 'You do not have access to this approval in the selected business unit.');
+        }
+    }
+
     /**
      * Show public view of purchase request via QR code
      */
-    public function publicView($prId, Request $request)
+    public function publicView($prId, Request $request): mixed
     {
         $token = $request->get('token');
         $approverId = $request->get('approver');
@@ -234,7 +250,7 @@ class ApprovalController extends Controller
      * List pending approvals for current user (Inertia)
      * Combined PR and ST approvals
      */
-    public function index(Request $request)
+    public function index(Request $request): mixed
     {
         $data = $this->approvalListService->buildIndexData(
             (int) Auth::id(),
@@ -255,7 +271,7 @@ class ApprovalController extends Controller
      * Show public approval page (no authentication required)
      * Accessed via signed URL from email notification
      */
-    public function showPublicApproval(PrApproval $approval, Request $request)
+    public function showPublicApproval(PrApproval $approval, Request $request): mixed
     {
         // Signed URL validation is automatic via 'signed' middleware
 
@@ -303,14 +319,20 @@ class ApprovalController extends Controller
         // Generate QR codes for display
         $qrCodes = $this->qrCodeBuilder->buildForPublicApproval($approval->purchaseRequest);
 
-        return view('purchasing.approvals.purchase-request.public-approval', compact('approval', 'qrCodes'));
+        $processUrl = URL::temporarySignedRoute(
+            'approvals.public.process',
+            now()->addDays((int) config('notification.link_expiry_days', 3)),
+            ['approval' => $approval->id],
+        );
+
+        return view('purchasing.approvals.purchase-request.public-approval', compact('approval', 'qrCodes', 'processUrl'));
     }
 
     /**
      * Process public approval decision (no authentication required)
      * Accessed via signed URL from email notification
      */
-    public function processPublicApproval(PrApproval $approval, Request $request)
+    public function processPublicApproval(PrApproval $approval, Request $request): mixed
     {
         // Signed URL validation is automatic via 'signed' middleware
 

@@ -40,7 +40,7 @@ class TicketStatusChangedNotification extends Notification
             'type' => 'ticket_status_changed',
             'title' => sprintf('Status Ticket Berubah: %s', $this->ticket->ticket_number),
             'message' => sprintf("Status ticket '%s' berubah menjadi %s", $this->ticket->title, $this->newStatus),
-            'action_url' => route('it-support.my-tickets.show', $this->ticket),
+            'action_url' => $this->actionUrl($notifiable),
             'priority' => 'normal',
             'occurred_at' => now()->toISOString(),
             'entity' => [
@@ -49,5 +49,14 @@ class TicketStatusChangedNotification extends Notification
                 'title' => $this->ticket->title,
             ],
         ];
+    }
+
+    protected function actionUrl(object $notifiable): string
+    {
+        $route = (int) $notifiable->id === (int) $this->ticket->requester_id
+            ? 'it-support.my-tickets.show'
+            : 'it-support.admin.tickets.show';
+
+        return route($route, $this->ticket);
     }
 }

@@ -31,6 +31,32 @@ class UserAccessResolver
             ? $this->getPositionInBusinessUnit($user, $businessUnitId)
             : $user->primaryPosition;
 
+        return $this->accessLevelForPosition($user, $position, $businessUnitId);
+    }
+
+    /**
+     * Get user's access level for one business-unit and department assignment.
+     */
+    public function getAccessLevelInDepartment(User $user, int $businessUnitId, int $departmentId): ?string
+    {
+        if ($user->isSuperAdmin()) {
+            return 'super_admin';
+        }
+
+        $position = $user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('department_id', $departmentId)
+            ->with('position')
+            ->first()
+            ?->position;
+
+        return $position
+            ? $this->accessLevelForPosition($user, $position, $businessUnitId)
+            : null;
+    }
+
+    private function accessLevelForPosition(User $user, ?Position $position, ?int $businessUnitId): string
+    {
         if ($position && $position->access_level === 'executive') {
             return 'executive';
         }
@@ -39,7 +65,10 @@ class UserAccessResolver
             return 'general_manager';
         }
 
-        if ($this->isGeneralManager($user)) {
+        if ($businessUnitId
+            ? $this->isGeneralManagerForBusinessUnit($user, $businessUnitId)
+            : $this->isGeneralManager($user)
+        ) {
             return 'general_manager';
         }
 
@@ -117,6 +146,13 @@ class UserAccessResolver
     public function isGeneralManager(User $user): bool
     {
         return BusinessUnit::where('manager_id', $user->id)->exists();
+    }
+
+    private function isGeneralManagerForBusinessUnit(User $user, int $businessUnitId): bool
+    {
+        return BusinessUnit::whereKey($businessUnitId)
+            ->where('manager_id', $user->id)
+            ->exists();
     }
 
     /**

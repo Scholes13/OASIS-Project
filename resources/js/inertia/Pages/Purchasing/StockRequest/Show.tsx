@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Circle, Download, Eye, Loader2 } from 'lucide-react';
+import { AlertTriangle, Download, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { toast } from 'sonner';
 import { SupportingDocumentLink } from '@/components/purchasing/SupportingDocumentLink';
-import { formatDateTime } from '@/lib/formatters';
 import { StockRequestActionModals } from '@/components/purchasing/show/StockRequestActionModals';
 import { StockRequestHeader } from '@/components/purchasing/show/StockRequestHeader';
 import { StockRequestItemsTable, type StockRequestGaReviewItem } from '@/components/purchasing/show/StockRequestItemsTable';
 import { StockRequestSummaryPanel } from '@/components/purchasing/show/StockRequestSummaryPanel';
+import { StockRequestPipeline, StockRequestProcessBar, StockRequestSidebarSummary } from '@/components/purchasing/show/StockRequestWorkflow';
 import type { STPermissions, STShowProps } from '@/types/purchasing';
 
 function SectionHeading({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -27,201 +27,6 @@ function SidebarCard({ children }: { children: React.ReactNode }) {
         <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50">
             {children}
         </section>
-    );
-}
-
-function StockRequestSidebarSummary({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
-    const itemCount = stockRequest.items?.length || 0;
-    const approvedSteps = stockRequest.approvals?.filter((approval) => approval.status === 'approved').length || 0;
-    const totalSteps = stockRequest.approvals?.length || 0;
-    const approvalProgress = totalSteps > 0 ? Math.round((approvedSteps / totalSteps) * 40) : 40;
-    const progress = stockRequest.status === 'done'
-        ? 100
-        : stockRequest.admin_task?.status === 'done'
-            ? 100
-            : stockRequest.status === 'ready_for_purchasing'
-                ? 80
-                : stockRequest.status === 'ga_review'
-                    ? 60
-                    : ['approved', 'ga_rejected'].includes(stockRequest.status)
-                        ? 40
-                        : stockRequest.status === 'in_approval'
-                            ? approvalProgress
-                            : stockRequest.status === 'submitted'
-                                ? 20
-                                : 0;
-
-    return (
-        <SidebarCard>
-            <SectionHeading>Request Summary</SectionHeading>
-            <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                    <dt className="text-slate-500">Request ID</dt>
-                    <dd className="font-medium text-slate-950">{stockRequest.st_number}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                    <dt className="text-slate-500">Items</dt>
-                    <dd className="font-medium text-slate-950">{itemCount}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                    <dt className="text-slate-500">Current Step</dt>
-                    <dd className="font-medium capitalize text-blue-700">{stockRequest.status.replace(/_/g, ' ')}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                    <dt className="text-slate-500">Progress</dt>
-                    <dd className="font-medium text-slate-950">{progress}%</dd>
-                </div>
-            </dl>
-            <div className="mt-4 h-2 rounded-full bg-slate-100">
-                <div className="h-2 rounded-full bg-blue-600" style={{ width: `${progress}%` }} />
-            </div>
-        </SidebarCard>
-    );
-}
-
-function getStockRequestSteps(stockRequest: STShowProps['stockRequest']) {
-    const approvalDone = Boolean(stockRequest.approved_at || ['ga_review', 'ready_for_purchasing', 'done'].includes(stockRequest.status));
-    const gaDone = ['ready_for_purchasing', 'done'].includes(stockRequest.status);
-    const purchasingActive = ['ready_for_purchasing', 'done'].includes(stockRequest.status);
-    const approvedApprovals = stockRequest.approvals?.filter((approval) => approval.status === 'approved') || [];
-    const lastApproval = approvedApprovals[approvedApprovals.length - 1];
-    const totalSteps = stockRequest.approvals?.length || 0;
-    const requester = stockRequest.user?.name || 'Requester';
-    const requestedAt = formatDateTime(stockRequest.submitted_at || stockRequest.created_at);
-    const approvalActor = approvalDone && lastApproval ? lastApproval.approver?.name || 'Approver' : 'Department approval';
-    const approvalTime = totalSteps === 0
-        ? 'Pending'
-        : approvalDone && lastApproval
-            ? formatDateTime(lastApproval.responded_at)
-            : 'In progress';
-    const gaActor = gaDone ? stockRequest.ga_reviewer?.name || 'GA reviewer' : 'General Affairs';
-    const gaTime = gaDone
-        ? formatDateTime(stockRequest.ga_reviewed_at)
-        : stockRequest.status === 'ga_review'
-            ? 'In progress'
-            : 'Pending';
-    const purchasingTask = stockRequest.admin_task;
-    const purchasingActor = purchasingTask?.assigned_admin?.name || 'Purchasing team';
-    const purchasingTime = purchasingTask?.status === 'done'
-        ? formatDateTime(purchasingTask.completed_at)
-        : purchasingTask?.status === 'in_progress'
-            ? `In progress${purchasingTask.started_at ? ` since ${formatDateTime(purchasingTask.started_at)}` : ''}`
-            : purchasingTask?.assigned_admin
-                ? 'Claimed'
-                : purchasingActive
-                    ? 'In progress'
-                    : 'Pending';
-    const purchasingState = purchasingTask?.status === 'done'
-        ? 'done'
-        : purchasingActive || Boolean(purchasingTask)
-            ? 'active'
-            : 'pending';
-    const doneState = stockRequest.status === 'done' || purchasingTask?.status === 'done' ? 'done' : 'pending';
-    const doneTime = purchasingTask?.status === 'done' && purchasingTask.completed_at
-        ? formatDateTime(purchasingTask.completed_at)
-        : 'Pending';
-
-    return [
-        {
-            title: 'Request Initiated',
-            actor: requester,
-            time: requestedAt,
-            state: 'done',
-        },
-        {
-            title: 'Department Approval',
-            actor: approvalActor,
-            time: approvalTime,
-            state: approvalDone ? 'done' : 'active',
-        },
-        {
-            title: 'General Affairs Review',
-            actor: gaActor,
-            time: gaTime,
-            state: gaDone ? 'done' : stockRequest.status === 'ga_review' ? 'active' : 'pending',
-        },
-        {
-            title: 'Purchasing Follow-up',
-            actor: purchasingActor,
-            time: purchasingTime,
-            state: purchasingState,
-        },
-        {
-            title: 'Done',
-            actor: 'Completed',
-            time: doneTime,
-            state: doneState,
-        },
-    ];
-}
-
-function StockRequestProcessBar({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
-    const steps = getStockRequestSteps(stockRequest);
-
-    return (
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50">
-            <SectionHeading hint="Workflow">Process Overview</SectionHeading>
-            <ol className="mt-4 grid gap-3 lg:grid-cols-5">
-                {steps.map((step, index) => {
-                    const isDone = step.state === 'done';
-                    const isActive = step.state === 'active';
-                    const Icon = isDone ? CheckCircle2 : Circle;
-
-                    return (
-                        <li key={step.title} className="relative min-w-0">
-                            {index < steps.length - 1 && <div className="absolute left-9 right-[-1rem] top-3.5 hidden h-px border-t border-dashed border-slate-200 lg:block" />}
-                            <div className="relative flex items-start gap-3">
-                                <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${isDone ? 'bg-emerald-50' : isActive ? 'bg-blue-600' : 'bg-slate-100'}`}>
-                                    <Icon className={`h-4 w-4 ${isDone ? 'text-emerald-600' : isActive ? 'text-white' : 'text-slate-300'}`} />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className={`text-sm font-semibold ${isDone || isActive ? 'text-slate-950' : 'text-slate-400'}`}>{step.title}</p>
-                                    <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-500">
-                                        <p>{step.actor}</p>
-                                        <p className={isActive ? 'text-blue-700' : ''}>{step.time}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ol>
-        </section>
-    );
-}
-
-function StockRequestPipeline({ stockRequest }: { stockRequest: STShowProps['stockRequest'] }) {
-    const steps = getStockRequestSteps(stockRequest);
-
-    return (
-        <div className="space-y-4">
-            <SectionHeading hint="Pipeline">Approval Progress</SectionHeading>
-            <ol className="relative space-y-4">
-                {steps.map((step, index) => {
-                    const isDone = step.state === 'done';
-                    const isActive = step.state === 'active';
-                    const Icon = isDone ? CheckCircle2 : Circle;
-
-                    return (
-                        <li key={step.title} className="relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3">
-                            {index < steps.length - 1 && <div className="absolute left-3.5 top-7 h-[calc(100%_+_0.5rem)] w-px bg-slate-200" />}
-                            <div className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full ${isDone ? 'bg-emerald-50' : isActive ? 'bg-blue-50' : 'bg-slate-100'}`}>
-                                <Icon className={`h-4 w-4 ${isDone ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-slate-300'}`} />
-                            </div>
-                            <div className="min-w-0 rounded-xl bg-white/70 px-3 py-2.5 shadow-sm shadow-slate-200/40 ring-1 ring-slate-200/70">
-                                <div className="flex items-start justify-between gap-3">
-                                    <p className={`text-sm font-medium ${isDone || isActive ? 'text-slate-950' : 'text-slate-400'}`}>{step.title}</p>
-                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${isDone ? 'bg-emerald-50 text-emerald-700' : isActive ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>
-                                        {isDone ? 'Done' : isActive ? 'In progress' : 'Pending'}
-                                    </span>
-                                </div>
-                                <p className="mt-1 truncate text-xs text-slate-500" title={`${step.actor} · ${step.time}`}>{step.actor} · {step.time}</p>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ol>
-        </div>
     );
 }
 

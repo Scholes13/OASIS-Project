@@ -1,25 +1,14 @@
 import * as React from "react"
 import { router, usePage } from "@inertiajs/react"
-import { motion, AnimatePresence } from "framer-motion"
 import {
   Calendar,
-  Clock,
-  Users,
-  User,
-  ChevronRight,
-  CheckCircle2,
-  Circle,
-  PlayCircle,
-  XCircle,
-  AlertTriangle,
-  ArrowRight,
   Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDateWib, getDatePart, getWibDateDiffInDays, isOverdueWib, isPastWibDate, isTodayWib } from "@/lib/activityDateTime"
-import { Badge, StatusBadge, ActivityTypeBadge } from "../ui/Badge"
 import { Button } from "../ui/button"
 import { TaskDetailModal } from "./TaskDetailModal"
+import TimelineItem from "./timeline/TimelineItem"
 import type { Task, PageProps } from "@/types"
 
 type ViewMode = "my" | "department"
@@ -112,134 +101,6 @@ function DateHeader({ dateKey }: { dateKey: string }) {
           )}
         </p>
       </div>
-    </div>
-  )
-}
-
-// Status icon component
-function StatusIcon({ status }: { status: string }) {
-  const iconMap: Record<string, React.ReactNode> = {
-    planned: <Circle className="h-4 w-4 text-blue-500" />,
-    in_progress: <PlayCircle className="h-4 w-4 text-amber-500" />,
-    completed: <CheckCircle2 className="h-4 w-4 text-green-500" />,
-    cancelled: <XCircle className="h-4 w-4 text-gray-400" />,
-  }
-  return iconMap[status] || <Circle className="h-4 w-4 text-gray-400" />
-}
-
-// Timeline item component
-interface TimelineItemProps {
-  task: Task
-  isLast: boolean
-  onTaskClick?: (task: Task) => void
-  expanded?: boolean
-}
-
-function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineItemProps) {
-  const [isExpanded, setIsExpanded] = React.useState(expanded)
-  const overdue = isOverdueWib(task.due_date, task.status)
-
-  return (
-    <div className="relative pl-8 pb-6 last:pb-0">
-      {/* Timeline line */}
-      {!isLast && (
-        <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-gray-200" />
-      )}
-
-      {/* Timeline dot */}
-      <div
-        className={cn(
-          "absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center bg-white border-2",
-          task.status === "completed"
-            ? "border-green-500"
-            : task.status === "in_progress"
-            ? "border-amber-500"
-            : task.status === "cancelled"
-            ? "border-gray-300"
-            : overdue
-            ? "border-red-500"
-            : "border-blue-500"
-        )}
-      >
-        <StatusIcon status={task.status} />
-      </div>
-
-      {/* Content */}
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        className={cn(
-          "bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:bg-slate-50/50 hover:border-slate-300 transition-all cursor-pointer",
-          overdue && "border-red-200 bg-red-50/30"
-        )}
-        onClick={() => onTaskClick?.(task)}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <ActivityTypeBadge
-                name={task.activity_type?.name ?? "Unknown"}
-                color={task.activity_type?.color}
-              />
-              <StatusBadge status={task.status} />
-              {overdue && (
-                <Badge variant="danger">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Overdue
-                </Badge>
-              )}
-            </div>
-            <h4 className="font-medium text-gray-900 line-clamp-1">
-              {task.task_title}
-            </h4>
-          </div>
-          <ChevronRight
-            className={cn(
-              "h-5 w-5 text-gray-400 transition-transform",
-              isExpanded && "rotate-90"
-            )}
-          />
-        </div>
-
-        {/* Meta info */}
-        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>{task.due_date ? "All day" : '-'}</span>
-          </div>
-          {(task as any).duration_minutes && (
-            <div className="flex items-center gap-1">
-              <ArrowRight className="h-3 w-3" />
-              <span>
-                {Math.floor((task as any).duration_minutes / 60)}h {(task as any).duration_minutes % 60}m
-              </span>
-            </div>
-          )}
-          {task.participants && task.participants.length > 0 && (
-            <div className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              <span>{task.participants.length} participant(s)</span>
-            </div>
-          )}
-        </div>
-
-        {/* Expanded details */}
-        <AnimatePresence>
-          {isExpanded && (task as any).task_details && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <p className="mt-3 pt-3 border-t border-slate-100 text-sm text-gray-600">
-                {(task as any).task_details}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
     </div>
   )
 }
@@ -463,7 +324,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
             onClick={() => onTaskClick?.(task)}
           >
-            <StatusIcon status={task.status} />
+            <span className={cn("h-2.5 w-2.5 rounded-full", statusStyles[task.status]?.dot ?? "bg-gray-400")} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {task.task_title}

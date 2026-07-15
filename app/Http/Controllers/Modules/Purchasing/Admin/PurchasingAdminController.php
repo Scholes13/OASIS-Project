@@ -180,7 +180,7 @@ class PurchasingAdminController extends Controller
         }
 
         try {
-            $this->adminTaskService->startTask($task);
+            $this->adminTaskService->startTask($task, auth()->user());
 
             return back()->with('success', 'Task started successfully');
         } catch (\Exception $e) {
@@ -208,29 +208,11 @@ class PurchasingAdminController extends Controller
             return back()->with('error', 'Read-only purchasing access cannot update tasks.');
         }
 
-        $newStatus = $request->input('status');
-        $updateData = ['status' => $newStatus];
-
-        // If moving to in_progress and not started
-        if ($newStatus === 'in_progress' && ! $task->started_at) {
-            $updateData['started_at'] = now();
-            $updateData['followup_time_minutes'] = abs($task->entered_at->diffInMinutes(now()));
-
-            // Auto-assign to current user if not assigned
-            if (! $task->assigned_admin_id) {
-                $updateData['assigned_admin_id'] = auth()->id();
-            }
+        try {
+            $this->adminTaskService->updateStatus($task, auth()->user(), $request->string('status')->toString());
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
         }
-
-        // If moving to done
-        if ($newStatus === 'done' && ! $task->completed_at) {
-            $updateData['completed_at'] = now();
-            if ($task->started_at) {
-                $updateData['completion_time_minutes'] = abs($task->started_at->diffInMinutes(now()));
-            }
-        }
-
-        $task->update($updateData);
 
         return back()->with('success', 'Task status updated');
     }
@@ -274,7 +256,8 @@ class PurchasingAdminController extends Controller
                 $isStockRequest
                     ? (float) ($request->input('realized_total_price') ?? $task->estimated_total_price ?? 0)
                     : (float) $request->input('realized_total_price'),
-                $request->input('notes')
+                $request->input('notes'),
+                auth()->user(),
             );
 
             return redirect()->route('purchasing.admin.tasks')->with('success', 'Task completed successfully');

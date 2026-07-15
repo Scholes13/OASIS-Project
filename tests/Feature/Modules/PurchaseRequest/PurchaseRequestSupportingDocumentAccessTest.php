@@ -219,6 +219,36 @@ class PurchaseRequestSupportingDocumentAccessTest extends TestCase
     }
 
     #[Test]
+    public function assigned_approver_is_forbidden_when_selected_business_unit_is_unrelated(): void
+    {
+        $unrelatedBusinessUnit = BusinessUnit::factory()->create();
+        $unrelatedDepartment = Department::factory()->create([
+            'business_unit_id' => $unrelatedBusinessUnit->id,
+        ]);
+        $unrelatedPosition = Position::query()
+            ->where('department_id', $unrelatedDepartment->id)
+            ->where('access_level', 'staff')
+            ->firstOrFail();
+        $this->approver->businessUnits()->create([
+            'business_unit_id' => $unrelatedBusinessUnit->id,
+            'department_id' => $unrelatedDepartment->id,
+            'position_id' => $unrelatedPosition->id,
+            'is_primary' => false,
+            'is_active' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestWithSupportingDocument($this->creator, 'pending');
+
+        $this->actingAs($this->approver)
+            ->withSession([
+                'current_business_unit_id' => $unrelatedBusinessUnit->id,
+                'current_business_unit_code' => $unrelatedBusinessUnit->code,
+                'current_department_id' => $unrelatedDepartment->id,
+            ])
+            ->get(route('purchase-requests.supporting-document', $purchaseRequest))
+            ->assertForbidden();
+    }
+
+    #[Test]
     public function supporting_document_route_returns_404_when_file_is_missing(): void
     {
         $purchaseRequest = $this->createPurchaseRequestWithSupportingDocument($this->creator);

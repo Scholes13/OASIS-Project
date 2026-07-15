@@ -93,6 +93,48 @@ class StockRequestOfflineApprovalDocumentAccessTest extends TestCase
         $response->assertSessionHas('error');
     }
 
+    #[Test]
+    public function assigned_approver_is_forbidden_when_selected_business_unit_is_unrelated(): void
+    {
+        [, $approver, $stockRequest] = $this->createApprovedFixture();
+        [, $unrelatedBusinessUnit, $unrelatedDepartment] = $this->createUserContext();
+        $position = Position::query()
+            ->where('department_id', $unrelatedDepartment->id)
+            ->where('code', 'STAFF_'.strtoupper($unrelatedDepartment->code))
+            ->firstOrFail();
+        UserBusinessUnit::create([
+            'user_id' => $approver->id,
+            'business_unit_id' => $unrelatedBusinessUnit->id,
+            'department_id' => $unrelatedDepartment->id,
+            'position_id' => $position->id,
+            'is_primary' => false,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($approver)
+            ->withSession([
+                'current_business_unit_id' => $unrelatedBusinessUnit->id,
+                'current_department_id' => $unrelatedDepartment->id,
+            ])
+            ->get(route('stock-requests.offline-approval-document', $stockRequest))
+            ->assertForbidden();
+    }
+
+    #[Test]
+    public function non_approver_cannot_generate_stock_approval_qr_code(): void
+    {
+        [$owner, , $stockRequest] = $this->createApprovedFixture();
+        $approval = $stockRequest->approvals()->firstOrFail();
+
+        $this->actingAs($owner)
+            ->withSession([
+                'current_business_unit_id' => $stockRequest->business_unit_id,
+                'current_department_id' => $stockRequest->department_id,
+            ])
+            ->get(route('stock-approvals.qr-code', $approval))
+            ->assertForbidden();
+    }
+
     /**
      * @return array{0: User, 1: User, 2: StockRequest}
      */

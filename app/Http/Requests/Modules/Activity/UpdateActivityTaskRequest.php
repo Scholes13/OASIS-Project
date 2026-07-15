@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Modules\Activity;
 
 use App\Models\Core\Department;
+use App\Models\Core\User;
 use App\Models\Modules\Activity\EmployeeTask;
+use App\Services\Modules\Activity\ActivityAuthorizationService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
@@ -14,7 +16,12 @@ class UpdateActivityTaskRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $task = $this->route('task');
+        $businessUnitId = (int) session('current_business_unit_id');
+
+        return $task instanceof EmployeeTask
+            && $businessUnitId > 0
+            && app(ActivityAuthorizationService::class)->canEditTask($this->user(), $task, $businessUnitId);
     }
 
     protected function prepareForValidation(): void
@@ -133,6 +140,8 @@ class UpdateActivityTaskRequest extends FormRequest
             $backdateService = app(BackdatePermissionService::class);
             $user = Auth::user();
 
+            $this->validateParticipants($validator, $user, $task);
+
             if (! $backdateService->canCreateTaskWithDate($user, $taskDateCarbon)) {
                 $allowedRange = $backdateService->getAllowedDateRange($user);
                 $validator->errors()->add(
@@ -157,6 +166,26 @@ class UpdateActivityTaskRequest extends FormRequest
                 }
             }
         });
+    }
+
+    protected function validateParticipants(Validator $validator, User $user, EmployeeTask $task): void
+    {
+        $participantIds = array_unique(array_map('intval', $this->input('participant_ids', [])));
+        if ($participantIds === []) {
+            return;
+        }
+
+        $validCount = User::query()
+            ->whereIn('id', $participantIds)
+            ->where('is_active', true)
+            ->whereHas('activeBusinessUnits', fn ($query) => $query
+                ->where('business_unit_id', $task->business_unit_id)
+                ->where('department_id', $task->department_id))
+            ->count();
+
+        if ($validCount !== count($participantIds)) {
+            $validator->errors()->add('participant_ids', 'Participants must be active members of this task department.');
+        }
     }
 
     protected function needsStartTimeCorrection(EmployeeTask $task, ?Carbon $submittedDate, string $status): bool

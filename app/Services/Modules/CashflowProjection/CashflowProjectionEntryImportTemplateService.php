@@ -228,7 +228,7 @@ class CashflowProjectionEntryImportTemplateService
         $sheet->setCellValue('F'.$row, optional($lineItem->transaction_date)->format('Y-m-d'));
         $sheet->setCellValue('G'.$row, optional($lineItem->due_date)->format('Y-m-d'));
         $sheet->setCellValue('H'.$row, $lineItem->is_estimated_date ? 'TRUE' : 'FALSE');
-        $sheet->setCellValue('I'.$row, (float) $lineItem->amount);
+        $sheet->setCellValueExplicit('I'.$row, CashflowMoney::normalize($lineItem->amount), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
         $sheet->setCellValue('J'.$row, $lineItem->description);
         $sheet->setCellValue('K'.$row, $lineItem->keterangan);
         $sheet->setCellValue('L'.$row, $lineItem->notes);

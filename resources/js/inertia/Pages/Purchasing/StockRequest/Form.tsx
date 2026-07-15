@@ -32,6 +32,7 @@ interface FormPageProps extends PageProps {
     businessUnits: BusinessUnit[];
     availableApprovers: Approver[];
     requiresSupervisorApproval: boolean;
+    routesDirectlyToPurchasing: boolean;
     currentBusinessUnitId: number;
     currentDepartmentId: number;
 }
@@ -43,11 +44,13 @@ export default function Form({
     businessUnits,
     availableApprovers,
     requiresSupervisorApproval,
+    routesDirectlyToPurchasing,
     currentBusinessUnit,
     currentBusinessUnitId,
     currentDepartmentId,
 }: FormPageProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
     const isEdit = mode === 'edit';
 
     // Handle form submission
@@ -57,6 +60,7 @@ export default function Form({
         }
 
         setIsSubmitting(true);
+        setValidationErrors({});
 
         const formData = new FormData();
 
@@ -110,6 +114,7 @@ export default function Form({
             },
             onError: (errors) => {
                 console.error('Form submission errors:', errors);
+                setValidationErrors(errors);
 
                 const firstError = Object.values(errors)[0];
                 if (typeof firstError === 'string') {
@@ -247,6 +252,9 @@ export default function Form({
                         businessUnits={businessUnits}
                         availableApprovers={availableApprovers}
                         requiresSupervisorApproval={requiresSupervisorApproval}
+                        routesDirectlyToPurchasing={routesDirectlyToPurchasing}
+                        errors={validationErrors}
+                        processing={isSubmitting}
                         onSubmit={handleSubmit}
                         isEdit={isEdit}
                     />

@@ -19,17 +19,19 @@ class BackdateApprovalQueryService
     /**
      * Paginate the requesting user's own backdate permission requests.
      */
-    public function paginateUserRequests(User $user): LengthAwarePaginator
+    public function paginateUserRequests(User $user, int $businessUnitId): LengthAwarePaginator
     {
         return BackdatePermission::forUser($user->id)
+            ->where('business_unit_id', $businessUnitId)
             ->with(['approver', 'rejector', 'department'])
             ->latest()
             ->paginate(10);
     }
 
-    public function userHasPendingRequest(User $user): bool
+    public function userHasPendingRequest(User $user, int $businessUnitId): bool
     {
         return BackdatePermission::forUser($user->id)
+            ->where('business_unit_id', $businessUnitId)
             ->pending()
             ->exists();
     }

@@ -4,7 +4,7 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import timeGridPlugin from "@fullcalendar/timegrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import listPlugin from "@fullcalendar/list"
-import { router, usePage } from "@inertiajs/react"
+import { router } from "@inertiajs/react"
 import { format } from "date-fns"
 import { Info } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,7 +13,7 @@ import { TaskDetailModal } from "./TaskDetailModal"
 import CalendarHeader from "./calendar/CalendarHeader"
 import CalendarEventRenderer, { statusStyles } from "./calendar/CalendarEventRenderer"
 import CalendarStyles from "./calendar/CalendarStyles"
-import type { Task, PageProps } from "@/types"
+import type { Task } from "@/types"
 
 interface ActivityCalendarProps {
     tasks: Task[]
@@ -23,34 +23,14 @@ interface ActivityCalendarProps {
     onEditTask?: (task: Task) => void
 }
 
-type ViewMode = "my" | "department"
 type CalendarView = "dayGridMonth" | "timeGridWeek" | "timeGridDay"
 
 export function ActivityCalendar({ tasks, onDateClick, onEventClick, onCreateTask, onEditTask }: ActivityCalendarProps) {
     const calendarRef = React.useRef<FullCalendar>(null)
     const [currentView, setCurrentView] = React.useState<CalendarView>("dayGridMonth")
     const [currentDate, setCurrentDate] = React.useState(new Date())
-    const [viewMode, setViewMode] = React.useState<ViewMode>("my")
     const [selectedTask, setSelectedTask] = React.useState<Task | null>(null)
     const [showModal, setShowModal] = React.useState(false)
-
-    // Get current user from page props
-    const { auth } = usePage<PageProps>().props
-    const currentUserId = auth?.user?.id
-
-    // Handle view mode change - fetch from server with correct scope
-    const handleViewModeChange = (mode: ViewMode) => {
-        setViewMode(mode)
-        router.get(
-            route('activity.task.index'),
-            { scope: mode },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                only: ['stats', 'tasks', 'filters'],
-            }
-        )
-    }
 
     // Filter tasks - exclude cancelled from calendar display
     const filteredTasks = React.useMemo(() => {

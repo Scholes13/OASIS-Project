@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Support\DatabaseResetGuard;
 use App\Support\ViteHotFileGuard;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->guardAgainstDatabaseResets();
         $this->cleanupStaleViteHotFile();
 
         // Register PDF Layout Component
@@ -46,6 +50,23 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model observers
         $this->registerObservers();
+    }
+
+    protected function guardAgainstDatabaseResets(): void
+    {
+        $guard = app(DatabaseResetGuard::class);
+        $guard->assertDirectInvocationAllowed($_SERVER['argv'] ?? []);
+
+        Event::listen(CommandStarting::class, function (CommandStarting $event) use ($guard): void {
+            $connection = (string) config('database.default');
+            $database = config("database.connections.{$connection}.database");
+
+            $guard->assertCommandAllowed(
+                $event->command,
+                app()->runningUnitTests(),
+                is_string($database) ? $database : null,
+            );
+        });
     }
 
     protected function cleanupStaleViteHotFile(): void
@@ -169,6 +190,13 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return $user->primary_department_id !== null;
+        });
+
+        Gate::define('view-activity-department-tasks', function ($user) {
+            $businessUnitId = (int) session('current_business_unit_id');
+
+            return $businessUnitId > 0 && app(\App\Services\Modules\Activity\ActivityAuthorizationService::class)
+                ->canViewDepartmentTasks($user, $businessUnitId);
         });
 
         // Access Purchasing Admin Gate - For purchasing admins, super admin, and top management

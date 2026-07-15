@@ -311,7 +311,7 @@ class CashflowProjectionEntryImportService
             'transaction_date' => optional($lineItem->transaction_date)->format('Y-m-d'),
             'due_date' => optional($lineItem->due_date)->format('Y-m-d'),
             'is_estimated_date' => (bool) $lineItem->is_estimated_date,
-            'amount' => (float) $lineItem->amount,
+            'amount' => CashflowMoney::normalize($lineItem->amount),
             'description' => $lineItem->description,
             'keterangan' => $lineItem->keterangan,
             'notes' => $lineItem->notes,

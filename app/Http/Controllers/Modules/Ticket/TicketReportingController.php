@@ -7,8 +7,10 @@ use App\Models\Core\BusinessUnit;
 use App\Services\Modules\Ticket\TicketReportingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -26,6 +28,7 @@ class TicketReportingController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorizeSelectedBusinessUnit($request);
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
 
         $period = $request->get('period', 'this_month');
@@ -56,6 +59,7 @@ class TicketReportingController extends Controller
      */
     public function exportExcel(Request $request): StreamedResponse
     {
+        $this->authorizeSelectedBusinessUnit($request);
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
 
         $dateFrom = Carbon::parse($request->get('date_from', now()->startOfMonth()->format('Y-m-d')));
@@ -106,7 +110,11 @@ class TicketReportingController extends Controller
             $colIndex = 0;
 
             foreach ($row as $value) {
-                $sheet->setCellValue($columns[$colIndex].$rowNum, $value);
+                $sheet->setCellValueExplicit(
+                    $columns[$colIndex].$rowNum,
+                    (string) $value,
+                    DataType::TYPE_STRING
+                );
                 $colIndex++;
             }
         }
@@ -133,6 +141,7 @@ class TicketReportingController extends Controller
      */
     public function exportPdf(Request $request): \Illuminate\Http\Response
     {
+        $this->authorizeSelectedBusinessUnit($request);
         $scopedBuIds = $this->resolveScopedBusinessUnitIds();
 
         $period = $request->get('period', 'this_month');
@@ -199,5 +208,22 @@ class TicketReportingController extends Controller
         }
 
         return $currentBusinessUnit->getAccessibleBusinessUnits();
+    }
+
+    private function authorizeSelectedBusinessUnit(Request $request): void
+    {
+        Gate::authorize('view-it-support-reports');
+
+        $user = $request->user();
+        if ($user->isSuperAdmin() || $user->hasTopManagementAccess()) {
+            return;
+        }
+
+        $businessUnitId = (int) session('current_business_unit_id');
+        abort_unless($user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_it_support_admin', true)
+            ->where('is_it_support_report_access', true)
+            ->exists(), 403);
     }
 }

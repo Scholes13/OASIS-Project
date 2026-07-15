@@ -1005,7 +1005,7 @@
 
                     <div class="approver-info">
                         <div class="approver-name">{{ $approval->approver->name }}</div>
-                        <div class="approver-dept">{{ $approval->approver->primaryDepartment->code ?? 'DEP' }}</div>
+                        <div class="approver-dept">{{ data_get($approval->metadata, 'approver_snapshot.department_code', $approval->approver->primaryDepartment->code ?? 'DEP') }}</div>
                     </div>
                 </div>
             @endforeach

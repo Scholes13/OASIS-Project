@@ -104,7 +104,12 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             </a>
 
             {/* Toast Notifications */}
-            <Toaster position="top-right" richColors closeButton duration={5000} />
+            <Toaster
+                position="top-right"
+                richColors
+                closeButton
+                duration={5000}
+            />
 
             {/* BU Transition Overlay */}
             <BuTransitionOverlay />
@@ -140,7 +145,11 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
 
                     {/* Mobile Sidebar Overlay + Drawer */}
                     {mobileSidebarOpen && (
-                        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
+                        <div
+                            className="fixed inset-0 z-40 lg:hidden"
+                            role="dialog"
+                            aria-modal="true"
+                        >
                             {/* Backdrop */}
                             <div
                                 className="fixed inset-0 bg-black/50 transition-opacity"
@@ -157,7 +166,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     {/* Main Wrapper — responsive margin: 0 on mobile, ml-16/ml-64 on lg+ */}
                     <div
                         className={cn(
-                            'flex min-h-0 flex-1 flex-col overflow-hidden transition-all duration-300',
+                            'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300',
                             'lg:ml-16',
                             !sidebarMinimized && 'lg:ml-60'
                         )}
@@ -165,7 +174,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                         {/* Main Content — scrollable area */}
                         {isStaging && <StagingBanner />}
 
-                        <main id="main-content" className="flex-1 overflow-y-auto bg-[#f8fafc]">
+                        <main id="main-content" className="flex-1 overflow-y-auto bg-background">
                             {children}
                         </main>
                     </div>

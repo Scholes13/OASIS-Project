@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Purchasing;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePurchaseRequestRequest extends FormRequest
 {
@@ -11,8 +12,15 @@ class StorePurchaseRequestRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // All authenticated users can create/update PRs
-        return true;
+        $user = $this->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+        $departmentId = (int) session('current_department_id');
+
+        return $user !== null
+            && $businessUnitId > 0
+            && in_array($businessUnitId, $user->getAccessibleBusinessUnitIds(), true)
+            && $departmentId > 0
+            && $user->canAccessDepartment($departmentId);
     }
 
     /**
@@ -24,8 +32,10 @@ class StorePurchaseRequestRequest extends FormRequest
     {
         return [
             // Business Unit and Department
-            'business_unit_id' => ['required', 'integer', 'exists:business_units,id'],
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
+            'business_unit_id' => ['required', 'integer', Rule::in([(int) session('current_business_unit_id')])],
+            'department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where(fn ($query) => $query
+                ->where('business_unit_id', (int) session('current_business_unit_id'))
+                ->where('is_active', true))],
 
             // Category
             'category_id' => ['nullable', 'integer', 'exists:pr_categories,id'],
@@ -42,9 +52,10 @@ class StorePurchaseRequestRequest extends FormRequest
             'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'], // 5MB max
 
             // Approval Workflow
-            'approval_workflow' => ['required', 'array', 'min:1'],
-            'approval_workflow.*.approver_id' => ['required', 'integer', 'exists:users,id', 'distinct'],
-            'approval_workflow.*.task_type' => ['required', 'string', 'in:approval,review,notification,paraf'],
+            'submission_intent' => ['required', 'string', 'in:draft,submit'],
+            'approval_workflow' => [Rule::requiredIf(! $this->isDraft()), 'array', Rule::when(! $this->isDraft(), ['min:1'])],
+            'approval_workflow.*.approver_id' => [Rule::requiredIf(! $this->isDraft()), 'integer', 'distinct'],
+            'approval_workflow.*.task_type' => [Rule::requiredIf(! $this->isDraft()), 'string', 'in:approval,review,notification,paraf'],
             'approval_notes' => ['nullable', 'string', 'max:1000'],
 
             // Items
@@ -57,7 +68,9 @@ class StorePurchaseRequestRequest extends FormRequest
             'items.*.unit' => ['required', 'string', 'max:50'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.currency' => ['required', 'string', 'in:IDR,USD,EUR,SGD'],
-            'items.*.expense_department_id' => ['required', 'integer', 'exists:departments,id'],
+            'items.*.expense_department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where(fn ($query) => $query
+                ->where('business_unit_id', (int) session('current_business_unit_id'))
+                ->where('is_active', true))],
             'items.*.image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'], // 2MB max
         ];
     }
@@ -160,6 +173,10 @@ class StorePurchaseRequestRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        if (! $this->has('submission_intent')) {
+            $this->merge(['submission_intent' => 'submit']);
+        }
+
         // Ensure business_unit_id is set from session if not provided
         if (! $this->has('business_unit_id')) {
             $this->merge([
@@ -173,5 +190,10 @@ class StorePurchaseRequestRequest extends FormRequest
                 'department_id' => session('current_department_id'),
             ]);
         }
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->input('submission_intent') === 'draft';
     }
 }

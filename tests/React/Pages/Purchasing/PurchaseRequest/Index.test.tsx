@@ -104,6 +104,13 @@ describe('Purchase Request Index Page', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    global.route = vi.fn((name: string, params?: Record<string, string | number>) => {
+      if (name === 'purchase-requests.index') return '/purchase-requests';
+      if (name === 'purchase-requests.create') return '/purchase-requests/create';
+      if (name === 'purchase-requests.show') return `/purchase-requests/${params?.purchaseRequest}`;
+
+      return `/${name}`;
+    }) as typeof route;
   });
 
   it('renders page title', () => {
@@ -118,13 +125,13 @@ describe('Purchase Request Index Page', () => {
     expect(screen.getByText('Create New PR')).toBeInTheDocument();
   });
 
-  it('navigates to create page when create button is clicked', () => {
+  it('links to the create page through the named route', () => {
     render(<Index {...mockProps} />);
 
-    const createButton = screen.getByText('Create New PR');
-    fireEvent.click(createButton);
+    const createLink = screen.getByText('Create New PR').closest('a');
 
-    expect(router.visit).toHaveBeenCalledWith('/purchase-requests/create');
+    expect(global.route).toHaveBeenCalledWith('purchase-requests.create');
+    expect(createLink).toHaveAttribute('href', '/purchase-requests/create');
   });
 
   it('renders filter controls', () => {
@@ -146,27 +153,23 @@ describe('Purchase Request Index Page', () => {
     const statusSelect = screen.getByText('All Status');
     fireEvent.click(statusSelect);
 
-    await waitFor(() => {
-      const draftOption = screen.getByText('Draft');
-      fireEvent.click(draftOption);
-    });
+    const draftOption = await screen.findByRole('option', { name: 'Draft' });
+    fireEvent.click(draftOption);
 
-    expect(router.get).toHaveBeenCalledWith(
-      '/purchase-requests',
-      expect.objectContaining({ status: 'draft' }),
-      expect.any(Object)
-    );
+    await waitFor(() => {
+      expect(router.get).toHaveBeenCalledWith(
+        '/purchase-requests',
+        expect.objectContaining({ status: 'draft' }),
+        expect.any(Object)
+      );
+    });
   });
 
   it('searches purchase requests', async () => {
-    vi.useFakeTimers();
     render(<Index {...mockProps} />);
 
     const searchInput = screen.getByPlaceholderText(/Search/i);
     fireEvent.change(searchInput, { target: { value: 'PR-WNS' } });
-
-    // Wait for debounce
-    vi.advanceTimersByTime(300);
 
     await waitFor(() => {
       expect(router.get).toHaveBeenCalledWith(
@@ -175,8 +178,6 @@ describe('Purchase Request Index Page', () => {
         expect.any(Object)
       );
     });
-
-    vi.useRealTimers();
   });
 
   it('displays empty state when no purchase requests', () => {
@@ -194,7 +195,7 @@ describe('Purchase Request Index Page', () => {
 
     render(<Index {...emptyProps} />);
 
-    expect(screen.getByText(/No purchase requests found/i)).toBeInTheDocument();
+    expect(screen.getByText('No Purchase Request History')).toBeInTheDocument();
   });
 
   it('displays pagination controls', () => {
@@ -212,7 +213,8 @@ describe('Purchase Request Index Page', () => {
 
     render(<Index {...propsWithPagination} />);
 
-    expect(screen.getByText(/Page 1 of 3/i)).toBeInTheDocument();
+    expect(screen.getByText('← Previous')).toBeInTheDocument();
+    expect(screen.getByText('Next →')).toBeInTheDocument();
   });
 
   it('shows loading state during navigation', () => {
@@ -248,9 +250,14 @@ describe('Purchase Request Index Page', () => {
     expect(screen.getByText(/WNS Business Unit/i)).toBeInTheDocument();
   });
 
-  it('uses AppLayout wrapper', () => {
-    const { container } = render(<Index {...mockProps} />);
+  it('navigates to the named detail route when a row is clicked', () => {
+    render(<Index {...mockProps} />);
 
-    expect(container.querySelector('[data-testid="app-layout"]')).toBeInTheDocument();
+    const row = screen.getByText('PR-WNS-2025-001').closest('tr');
+    expect(row).not.toBeNull();
+    fireEvent.click(row!);
+
+    expect(global.route).toHaveBeenCalledWith('purchase-requests.show', { purchaseRequest: 1 });
+    expect(router.visit).toHaveBeenCalledWith('/purchase-requests/1');
   });
 });

@@ -68,6 +68,7 @@ class ActivityTaskModalRedirectTest extends TestCase
             'phone_number' => '081234567800',
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -110,6 +111,7 @@ class ActivityTaskModalRedirectTest extends TestCase
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
             'primary_position_id' => $this->position->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -163,6 +165,7 @@ class ActivityTaskModalRedirectTest extends TestCase
             'password' => bcrypt('password'),
             'primary_department_id' => $this->otherDepartment->id,
             'primary_position_id' => $externalPosition->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);

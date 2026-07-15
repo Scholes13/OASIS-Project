@@ -17,6 +17,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class PurchaseRequestQueryService
 {
+    private PurchaseRequestFormDataService $formDataService;
+
+    public function __construct(?PurchaseRequestFormDataService $formDataService = null)
+    {
+        $this->formDataService = $formDataService ?? new PurchaseRequestFormDataService;
+    }
+
     /**
      * Build the paginated, filtered "my requests" listing.
      */
@@ -45,49 +52,6 @@ class PurchaseRequestQueryService
         $purchaseRequests = $query
             ->orderBy($sortColumn, $sortDirection)
             ->paginate($request->get('per_page', 10))
-            ->withQueryString();
-
-        $purchaseRequests->through(fn ($pr) => $this->transformPurchaseRequest($pr, $user));
-
-        return $purchaseRequests;
-    }
-
-    /**
-     * Build the paginated, filtered "all in BU" listing.
-     *
-     * @param  array<int>  $filterBusinessUnitIds
-     */
-    public function paginateForBusinessUnits(
-        Request $request,
-        User $user,
-        array $filterBusinessUnitIds,
-    ): LengthAwarePaginator {
-        $filters = $this->parseFilters($request, includeDepartment: true);
-
-        $query = PurchaseRequest::with([
-            'department:id,name,code',
-            'user:id,name,email',
-            'category:id,name,code,color',
-        ])
-            ->withCount('items')
-            ->withCount('approvals')
-            ->withCount(['approvals as approved_approvals_count' => function ($query) {
-                $query->where('status', 'approved');
-            }])
-            ->whereIn('business_unit_id', $filterBusinessUnitIds);
-
-        $this->applyCommonFilters($query, $filters);
-
-        if ($filters['department_id']) {
-            $query->where('department_id', $filters['department_id']);
-        }
-
-        $sortColumn = $request->get('sort', 'created_at');
-        $sortDirection = $request->get('direction', 'desc');
-
-        $purchaseRequests = $query
-            ->orderBy($sortColumn, $sortDirection)
-            ->paginate($request->get('per_page', 15))
             ->withQueryString();
 
         $purchaseRequests->through(fn ($pr) => $this->transformPurchaseRequest($pr, $user));
@@ -201,25 +165,31 @@ class PurchaseRequestQueryService
     ): array {
         $isOwner = $pr->user_id === $user->id;
         $isAdmin = in_array($user->getAccessLevel(), ['super_admin', 'executive', 'general_manager']);
+        $isCurrentBusinessUnit = (int) $pr->business_unit_id === $currentBusinessUnitId;
 
         $currentApproval = $pr->currentApproval();
-        $canApprove = $currentApproval && $currentApproval->approver_id === $user->id;
+        $canApprove = $isCurrentBusinessUnit
+            && $currentApproval
+            && $currentApproval->approver_id === $user->id;
         $canReject = $canApprove; // Same logic for reject
-        $canResendApprovalEmail = $isOwner
+        $canResendApprovalEmail = $isCurrentBusinessUnit
+            && $isOwner
             && $pr->status === 'in_approval'
             && $currentApproval
             && $currentApproval->status === 'pending';
 
         return [
-            'edit' => $pr->canBeEdited() && $isOwner,
-            'delete' => $pr->canBeEdited() && $isOwner,
-            'void' => $pr->canBeVoided() && ($isOwner || $isAdmin),
-            'resubmit' => $pr->status === 'rejected' && $isOwner,
+            'edit' => $isCurrentBusinessUnit && $pr->canBeEdited() && $isOwner,
+            'delete' => $isCurrentBusinessUnit && $pr->canBeEdited() && $isOwner,
+            'void' => $isCurrentBusinessUnit && $pr->canBeVoided() && ($isOwner || $isAdmin),
+            'resubmit' => $isCurrentBusinessUnit && $pr->status === 'rejected' && $isOwner,
             'resendApprovalEmail' => $canResendApprovalEmail,
             'approve' => $canApprove,
             'reject' => $canReject,
             'downloadPdf' => in_array($pr->status, ['submitted', 'in_approval', 'approved']),
-            'markOfflineApproved' => in_array($pr->status, ['submitted', 'in_approval']) && $isOwner,
+            'markOfflineApproved' => $isCurrentBusinessUnit
+                && in_array($pr->status, ['submitted', 'in_approval'])
+                && $isOwner,
             'supportingDocument' => $pr->supporting_document_path !== null
                 && $documentService->canAccessSupportingDocument($pr, $user, $currentBusinessUnitId),
         ];
@@ -253,22 +223,7 @@ class PurchaseRequestQueryService
         int $departmentId,
         \App\Services\Modules\Purchasing\Shared\RequestFormDataProvider $formDataProvider,
     ): array {
-        return [
-            'categories' => $formDataProvider->getPrCategories($businessUnitId),
-            'departments' => $formDataProvider->getAccessibleDepartments($user, $businessUnitId),
-            'businessUnits' => $user->activeBusinessUnits()
-                ->with('businessUnit:id,name,code')
-                ->get()
-                ->pluck('businessUnit')
-                ->filter(),
-            'availableApprovers' => $formDataProvider->getAvailableApprovers(
-                $user,
-                $businessUnitId,
-                excludeSuperAdmin: true,
-            ),
-            'currentBusinessUnitId' => $businessUnitId,
-            'currentDepartmentId' => $departmentId,
-        ];
+        return $this->formDataService->create($user, $businessUnitId, $departmentId, $formDataProvider);
     }
 
     /**
@@ -281,40 +236,7 @@ class PurchaseRequestQueryService
         PurchaseRequest $purchaseRequest,
         \App\Services\Modules\Purchasing\Shared\RequestFormDataProvider $formDataProvider,
     ): array {
-        $businessUnitId = $purchaseRequest->business_unit_id;
-
-        $purchaseRequest->load([
-            'items.expenseDepartment:id,name,code',
-            'category:id,name,code,color',
-            'approvals.approver:id,name,email',
-        ]);
-
-        $approvalWorkflow = $purchaseRequest->approvals->map(function ($approval) {
-            return [
-                'approver_id' => $approval->approver_id,
-                'task_type' => $approval->approval_type ?? 'approval',
-            ];
-        })->toArray();
-
-        return [
-            'mode' => 'edit',
-            'purchaseRequest' => array_merge($purchaseRequest->toArray(), [
-                'approval_workflow' => $approvalWorkflow,
-            ]),
-            'categories' => $formDataProvider->getPrCategories($businessUnitId),
-            'departments' => $formDataProvider->getAccessibleDepartments($user, $businessUnitId),
-            'businessUnits' => $user->activeBusinessUnits()
-                ->with('businessUnit:id,name,code')
-                ->get()
-                ->pluck('businessUnit')
-                ->filter(),
-            'availableApprovers' => $formDataProvider->getAvailableApprovers(
-                $user,
-                $businessUnitId,
-            ),
-            'currentBusinessUnitId' => $businessUnitId,
-            'currentDepartmentId' => $purchaseRequest->department_id,
-        ];
+        return $this->formDataService->edit($user, $purchaseRequest, $formDataProvider);
     }
 
     /**

@@ -6,10 +6,12 @@ use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\Position;
 use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrItem;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Core\EmailNotificationService;
+use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalRuleEngine;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
 use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
@@ -405,6 +407,203 @@ class PurchaseRequestWorkflowTest extends TestCase
                     'total_amount',
                 ],
             ]);
+
+        $this->withHeaders([
+            'X-Business-Unit-ID' => $this->businessUnit->id,
+            'Accept' => 'application/json',
+        ])->get(route('api.approvals.statistics'))
+            ->assertOk()
+            ->assertJsonStructure(['success', 'data']);
+
+        $this->withHeaders([
+            'X-Business-Unit-ID' => $this->businessUnit->id,
+            'Accept' => 'application/json',
+        ])->get(route('api.approvals.history'))
+            ->assertOk()
+            ->assertJsonStructure(['success', 'data', 'meta', 'links']);
+    }
+
+    #[Test]
+    public function api_rejects_forged_business_unit_header_and_cross_unit_model_access(): void
+    {
+        $otherBusinessUnit = BusinessUnit::factory()->create();
+        $otherDepartment = Department::factory()->create(['business_unit_id' => $otherBusinessUnit->id]);
+        $otherOwner = User::factory()->create(['primary_department_id' => $otherDepartment->id]);
+        $foreignRequest = $this->createSamplePurchaseRequest();
+        $foreignRequest->update([
+            'pr_number' => 'PR/FOREIGN/001',
+            'business_unit_id' => $otherBusinessUnit->id,
+            'department_id' => $otherDepartment->id,
+            'user_id' => $otherOwner->id,
+            'used_for' => 'Foreign request',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($this->requestor);
+        $headers = ['X-Business-Unit-ID' => $otherBusinessUnit->id, 'Accept' => 'application/json'];
+        $this->withHeaders($headers)->get('/api/v1/purchase-requests')->assertForbidden();
+        $this->withHeaders($headers)->get('/api/v1/purchase-requests/'.$foreignRequest->id)->assertForbidden();
+
+        $this->withHeaders(['X-Business-Unit-ID' => $this->businessUnit->id, 'Accept' => 'application/json'])
+            ->get('/api/v1/purchase-requests?sort_by=id%20desc;drop%20table%20users')
+            ->assertOk();
+    }
+
+    #[Test]
+    public function api_and_web_approval_model_routes_require_the_selected_business_unit(): void
+    {
+        $otherBusinessUnit = BusinessUnit::factory()->create();
+        $otherDepartment = Department::factory()->create(['business_unit_id' => $otherBusinessUnit->id]);
+        $otherPosition = Position::query()
+            ->where('department_id', $otherDepartment->id)
+            ->where('access_level', 'staff')
+            ->firstOrFail();
+
+        foreach ([$this->requestor, $this->departmentHead] as $user) {
+            UserBusinessUnit::create([
+                'user_id' => $user->id,
+                'business_unit_id' => $otherBusinessUnit->id,
+                'department_id' => $otherDepartment->id,
+                'position_id' => $otherPosition->id,
+                'is_primary' => false,
+                'is_active' => true,
+            ]);
+        }
+
+        $foreignRequest = $this->createSamplePurchaseRequest();
+        $foreignRequest->forceFill([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'department_id' => $otherDepartment->id,
+            'status' => 'in_approval',
+        ])->saveQuietly();
+        $approval = PrApproval::create([
+            'purchase_request_id' => $foreignRequest->id,
+            'approver_id' => $this->departmentHead->id,
+            'step_order' => 1,
+            'status' => 'pending',
+            'assigned_at' => now(),
+        ]);
+        $selectedSession = [
+            'current_business_unit_id' => $this->businessUnit->id,
+            'current_business_unit_code' => $this->businessUnit->code,
+            'current_department_id' => $this->department->id,
+        ];
+
+        $this->actingAs($this->requestor)
+            ->withSession($selectedSession)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->get(route('api.purchase-requests.show', $foreignRequest))
+            ->assertForbidden();
+
+        $this->actingAs($this->departmentHead)
+            ->withSession($selectedSession)
+            ->get(route('approvals.show', $approval))
+            ->assertForbidden();
+        $this->actingAs($this->departmentHead)
+            ->withSession($selectedSession)
+            ->post(route('approvals.process', $approval), ['action' => 'approve'])
+            ->assertForbidden();
+        $this->actingAs($this->departmentHead)
+            ->withSession($selectedSession)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->get(route('api.approvals.show', $approval))
+            ->assertForbidden();
+        $this->actingAs($this->departmentHead)
+            ->withSession($selectedSession)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->post(route('api.approvals.approve', $approval))
+            ->assertForbidden();
+
+        $this->assertSame('pending', $approval->fresh()->status);
+    }
+
+    #[Test]
+    public function automatic_special_category_approver_is_scoped_to_request_business_unit_hierarchy(): void
+    {
+        Role::create(['name' => 'it_manager']);
+        $foreignBusinessUnit = BusinessUnit::factory()->create();
+        $foreignDepartment = Department::factory()->create(['business_unit_id' => $foreignBusinessUnit->id]);
+        $foreignPosition = Position::query()
+            ->where('department_id', $foreignDepartment->id)
+            ->where('access_level', 'staff')
+            ->firstOrFail();
+        $foreignApprover = User::factory()->create([
+            'primary_department_id' => $foreignDepartment->id,
+            'primary_position_id' => $foreignPosition->id,
+            'is_active' => true,
+        ]);
+        $foreignApprover->assignRole('it_manager');
+        UserBusinessUnit::create([
+            'user_id' => $foreignApprover->id,
+            'business_unit_id' => $foreignBusinessUnit->id,
+            'department_id' => $foreignDepartment->id,
+            'position_id' => $foreignPosition->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+        $purchaseRequest = $this->createSamplePurchaseRequest();
+        PrItem::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'item_order' => 1,
+            'item_name' => 'Laptop computer',
+            'quantity' => 1,
+            'unit' => 'pcs',
+            'unit_price' => 100000,
+            'currency' => 'IDR',
+            'expense_department_id' => $this->department->id,
+        ]);
+
+        $approvers = app(ApprovalRuleEngine::class)->resolveApproversForAmount(
+            $purchaseRequest,
+            100000,
+            $this->businessUnit,
+        );
+
+        $this->assertFalse($approvers->contains(
+            fn (array $approver): bool => $approver['user']->is($foreignApprover),
+        ));
+    }
+
+    #[Test]
+    public function approval_service_rejects_stale_or_non_current_steps(): void
+    {
+        $purchaseRequest = $this->createSamplePurchaseRequest();
+        $purchaseRequest->update(['status' => 'in_approval', 'submitted_at' => now()]);
+        $first = PrApproval::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'approver_id' => $this->departmentHead->id,
+            'step_order' => 1,
+            'status' => 'approved',
+            'assigned_at' => now(),
+            'responded_at' => now(),
+        ]);
+        $second = PrApproval::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'approver_id' => $this->financeManager->id,
+            'step_order' => 2,
+            'status' => 'pending',
+            'assigned_at' => now(),
+        ]);
+
+        $service = app(ApprovalWorkflowService::class);
+        try {
+            $service->processApproval($first, 'approved');
+            $this->fail('Stale approval was accepted.');
+        } catch (\DomainException $exception) {
+            $this->assertSame('This approval is no longer active.', $exception->getMessage());
+        }
+
+        $second->update(['step_order' => 3]);
+        $blocking = PrApproval::create([
+            'purchase_request_id' => $purchaseRequest->id,
+            'approver_id' => $this->departmentHead->id,
+            'step_order' => 2,
+            'status' => 'pending',
+            'assigned_at' => now(),
+        ]);
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('no longer the current step');
+        $service->processApproval($second->fresh(), 'approved');
     }
 
     #[Test]

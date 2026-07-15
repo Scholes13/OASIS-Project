@@ -83,7 +83,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
                     value={item.item_name}
                     onChange={(e) => onUpdate(index, 'item_name', e.target.value)}
                     placeholder="Enter item name"
-                    className={`min-w-[150px] ${errors[`items.${index}.item_name`] ? 'border-red-500' : ''}`}
+                    className={`min-w-[9.375rem] ${errors[`items.${index}.item_name`] ? 'border-red-500' : ''}`}
                 />
                 {errors[`items.${index}.item_name`] && (
                     <p className="mt-1 text-xs text-red-600">{errors[`items.${index}.item_name`]}</p>
@@ -97,7 +97,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
                     value={item.brand_name || ''}
                     onChange={(e) => onUpdate(index, 'brand_name', e.target.value)}
                     placeholder="Brand name"
-                    className="min-w-[100px]"
+                    className="min-w-[6.25rem]"
                 />
             </td>
 
@@ -108,7 +108,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
                     value={item.item_description || ''}
                     onChange={(e) => onUpdate(index, 'item_description', e.target.value)}
                     placeholder="Description"
-                    className="min-w-[150px]"
+                    className="min-w-[9.375rem]"
                 />
             </td>
 
@@ -119,7 +119,7 @@ export const PRItemRow: React.FC<PRItemRowProps> = ({
                     value={item.supplier_name || ''}
                     onChange={(e) => onUpdate(index, 'supplier_name', e.target.value)}
                     placeholder="Supplier"
-                    className="min-w-[100px]"
+                    className="min-w-[6.25rem]"
                 />
             </td>
 

@@ -3,9 +3,11 @@
 namespace App\Services\Modules\Ticket;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Ticket\Ticket;
 use App\Models\Modules\Ticket\TicketAttachment;
+use App\Models\Modules\Ticket\TicketCategory;
 use App\Models\Modules\Ticket\TicketComment;
 use App\Notifications\Ticket\TicketStatusChangedNotification;
 use Exception;
@@ -32,7 +34,6 @@ class TicketService
 
     public function __construct(
         protected TicketNumberService $ticketNumberService,
-        protected SlaService $slaService,
         protected TicketAssignmentService $assignmentService,
         protected TicketCommentService $commentService
     ) {}
@@ -73,6 +74,8 @@ class TicketService
                 throw new Exception('Requester does not have an active department in the selected business unit.');
             }
 
+            $this->assertCategoryBelongsToBusinessUnit($data['category_id'] ?? null, $buId);
+
             $ticket = Ticket::create([
                 'business_unit_id' => $buId,
                 'ticket_number' => $ticketNumber,
@@ -106,6 +109,16 @@ class TicketService
      */
     public function updateTicket(Ticket $ticket, array $data): Ticket
     {
+        $businessUnitId = (int) $ticket->business_unit_id;
+        $this->assertCategoryBelongsToBusinessUnit(
+            $data['category_id'] ?? $ticket->category_id,
+            $businessUnitId
+        );
+        $this->assertDepartmentBelongsToBusinessUnit(
+            $data['department_id'] ?? $ticket->department_id,
+            $businessUnitId
+        );
+
         $ticket->update([
             'title' => $data['title'] ?? $ticket->title,
             'description' => $data['description'] ?? $ticket->description,
@@ -116,6 +129,26 @@ class TicketService
         ]);
 
         return $ticket->fresh();
+    }
+
+    protected function assertCategoryBelongsToBusinessUnit(?int $categoryId, int $businessUnitId): void
+    {
+        if ($categoryId !== null && ! TicketCategory::whereKey($categoryId)
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->exists()) {
+            throw new Exception('Ticket category does not belong to the ticket business unit.');
+        }
+    }
+
+    protected function assertDepartmentBelongsToBusinessUnit(?int $departmentId, int $businessUnitId): void
+    {
+        if ($departmentId !== null && ! Department::whereKey($departmentId)
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_active', true)
+            ->exists()) {
+            throw new Exception('Department does not belong to the ticket business unit.');
+        }
     }
 
     /**
@@ -258,102 +291,5 @@ class TicketService
                 Cache::forget(HandleInertiaRequests::unreadNotificationsCacheKey((int) $recipient->id));
             }
         }
-    }
-
-    /**
-     * Get dashboard metrics for the given business units and optional date range.
-     *
-     * @return array<string, mixed>
-     */
-    public function getDashboardMetrics(
-        array $buIds,
-        ?string $dateFrom = null,
-        ?string $dateTo = null
-    ): array {
-        $query = Ticket::forBusinessUnits($buIds);
-
-        if ($dateFrom) {
-            $query->where('created_at', '>=', $dateFrom);
-        }
-
-        if ($dateTo) {
-            $query->where('created_at', '<=', $dateTo.' 23:59:59');
-        }
-
-        $tickets = $query->get();
-
-        // Preload SLA settings once for the BU scope so the breach loop
-        // below does not run a TicketSlaSettings lookup per ticket.
-        Ticket::preloadSlaSettings($buIds);
-
-        // Summary cards
-        $total = $tickets->count();
-        $byStatus = $tickets->groupBy('status')->map->count();
-        $byPriority = $tickets->groupBy('priority')->map->count();
-
-        // By category — frontend expects {name, count, color}
-        $byCategory = Ticket::forBusinessUnits($buIds)
-            ->select('category_id', DB::raw('count(*) as count'))
-            ->whereNotNull('category_id')
-            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo.' 23:59:59'))
-            ->groupBy('category_id')
-            ->with('category:id,name,color')
-            ->get()
-            ->map(fn ($item) => [
-                'name' => $item->category?->name ?? 'Uncategorized',
-                'count' => $item->count,
-                'color' => $item->category?->color ?? '#6b7280',
-            ])
-            ->values()
-            ->all();
-
-        // By assigned staff — frontend expects {name, count}
-        $byStaff = Ticket::forBusinessUnits($buIds)
-            ->select('assigned_to', DB::raw('count(*) as count'))
-            ->whereNotNull('assigned_to')
-            ->when($dateFrom, fn ($q) => $q->where('created_at', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('created_at', '<=', $dateTo.' 23:59:59'))
-            ->groupBy('assigned_to')
-            ->with('assignedUser:id,name')
-            ->get()
-            ->map(fn ($item) => [
-                'name' => $item->assignedUser?->name ?? 'Unassigned',
-                'count' => $item->count,
-            ])
-            ->values()
-            ->all();
-
-        // SLA breach count
-        $slaBreachCount = $tickets
-            ->filter(fn (Ticket $ticket): bool => $ticket->isSlaBreach())
-            ->count();
-
-        // Recent tickets (last 10)
-        $recentTickets = Ticket::forBusinessUnits($buIds)
-            ->with(['requester', 'assignedUser', 'category'])
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        return [
-            'total' => $total,
-            'by_status' => [
-                'waiting' => $byStatus->get('waiting', 0),
-                'in_progress' => $byStatus->get('in_progress', 0),
-                'done' => $byStatus->get('done', 0),
-                'cancelled' => $byStatus->get('cancelled', 0),
-            ],
-            'by_priority' => [
-                'low' => $byPriority->get('low', 0),
-                'medium' => $byPriority->get('medium', 0),
-                'high' => $byPriority->get('high', 0),
-                'critical' => $byPriority->get('critical', 0),
-            ],
-            'by_category' => $byCategory,
-            'by_staff' => $byStaff,
-            'sla_breach_count' => $slaBreachCount,
-            'recent_tickets' => $recentTickets,
-        ];
     }
 }

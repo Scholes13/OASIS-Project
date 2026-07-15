@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { TaskFormModal } from '@/components/activity/TaskFormModal';
 import { TaskDetailModal } from '@/components/activity/TaskDetailModal';
+import { TaskDashboardSummary } from '@/components/activity/dashboard/TaskDashboardSummary';
 import type { PageProps, Task, TaskStats, TaskFilters, ActivityType, PaginatedData } from '@/types';
 
 const ActivityDataTable = lazy(() => import('@/components/activity/ActivityDataTable'));
@@ -43,6 +44,7 @@ interface DashboardProps extends PageProps {
     allowedDateRange?: any;
     backdateEnabled?: boolean;
     prioritizedActivityTypes?: any;
+    canViewDepartmentTasks?: boolean;
 }
 
 type ViewType = 'list' | 'board' | 'calendar' | 'timeline';
@@ -68,6 +70,7 @@ export default function Dashboard({
     allowedDateRange,
     backdateEnabled,
     prioritizedActivityTypes,
+    canViewDepartmentTasks = false,
 }: DashboardProps) {
     const [view, setView] = useState<ViewType>('list');
     const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
@@ -358,24 +361,7 @@ export default function Dashboard({
                     
                     {/* Header Inline with the Page (Linear/Notion style) */}
                     <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">My Tasks</h1>
-                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <span className="inline-flex items-center rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-200 shadow-sm">
-                                    {safeStats.total} Total
-                                </span>
-                                {safeStats.in_progress > 0 && (
-                                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 border border-blue-100 shadow-sm">
-                                        {safeStats.in_progress} Active
-                                    </span>
-                                )}
-                                {safeStats.overdue > 0 && (
-                                    <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 border border-rose-100 shadow-sm">
-                                        {safeStats.overdue} Overdue
-                                    </span>
-                                )}
-                            </div>
-                        </div>
+                        <TaskDashboardSummary stats={safeStats} />
 
                         {/* Control Bar (Filters & Views) */}
                         <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
@@ -412,12 +398,14 @@ export default function Dashboard({
                                 >
                                     My Tasks
                                 </button>
-                                <button 
-                                    onClick={() => setLocalFilters(prev => ({ ...prev, scope: 'department' }))}
-                                    className={cn("px-4 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200", localFilters.scope === 'department' ? "bg-white text-[#16599c] shadow-sm font-semibold ring-1 ring-slate-200/50" : "text-slate-500 hover:text-slate-800")}
-                                >
-                                    Team
-                                </button>
+                                {canViewDepartmentTasks && (
+                                    <button
+                                        onClick={() => setLocalFilters(prev => ({ ...prev, scope: 'department' }))}
+                                        className={cn("px-4 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200", localFilters.scope === 'department' ? "bg-white text-[#16599c] shadow-sm font-semibold ring-1 ring-slate-200/50" : "text-slate-500 hover:text-slate-800")}
+                                    >
+                                        Team
+                                    </button>
+                                )}
                             </div>
 
                             <div className="w-px h-6 bg-slate-200 hidden md:block"></div>

@@ -257,12 +257,12 @@ describe('Cashflow Projection Entries page', () => {
                 return `/cashflow-projection.entries.import-template?year=${params?.year}&month=${params?.month}`;
             }
 
-            if (name === 'cashflow-projection.entries.import') {
-                return '/cashflow-projection.entries.import';
-            }
-
             if (name === 'cashflow-projection.entries.import-preview') {
                 return '/cashflow-projection.entries.import-preview';
+            }
+
+            if (name === 'cashflow-projection.entries.import-review') {
+                return '/cashflow-projection.entries.import-review';
             }
 
             if (name === 'cashflow-projection.entries.import-confirm') {
@@ -482,30 +482,49 @@ describe('Cashflow Projection Entries page', () => {
     });
 
     it('lets users review a need-review import row before confirming', async () => {
-        vi.mocked(global.fetch).mockResolvedValueOnce({
-            ok: true,
-            json: async () => ({
-                summary: { total_rows: 1, ready_rows: 0, new_rows: 0, update_rows: 0, no_change_rows: 0, need_review_rows: 1, invalid_rows: 0 },
-                rows: [{
-                    row_number: 5,
-                    status: 'need_review',
-                    business_unit_code: 'WNS',
-                    department_code: null,
-                    action_code: null,
-                    action_label: null,
-                    flow_type: null,
-                    transaction_date: '2026-03-26',
-                    due_date: '2026-03-19',
-                    amount: 4135000,
-                    description: 'TOPUP RESERVASI MG HOLIDAY',
-                    keterangan: 'EVENT',
-                    notes: null,
-                    match: null,
-                    changes: [],
-                    errors: [{ field: 'department_code', message: 'Department tidak bisa dideteksi.' }],
-                }],
-            }),
-        } as Response);
+        const reviewRow = {
+            row_number: 5,
+            status: 'need_review',
+            business_unit_code: 'WNS',
+            department_code: null,
+            action_code: null,
+            action_label: null,
+            flow_type: null,
+            transaction_date: '2026-03-26',
+            due_date: '2026-03-19',
+            amount: 4135000,
+            description: 'TOPUP RESERVASI MG HOLIDAY',
+            keterangan: 'EVENT',
+            notes: null,
+            match: null,
+            changes: [],
+            errors: [{ field: 'department_code', message: 'Department tidak bisa dideteksi.' }],
+        };
+        vi.mocked(global.fetch)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    preview_token: 'initial-token',
+                    summary: { total_rows: 1, ready_rows: 0, new_rows: 0, update_rows: 0, no_change_rows: 0, need_review_rows: 1, invalid_rows: 0 },
+                    rows: [reviewRow],
+                }),
+            } as Response)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    preview_token: 'reviewed-token',
+                    summary: { total_rows: 1, ready_rows: 1, new_rows: 1, update_rows: 0, no_change_rows: 0, need_review_rows: 0, invalid_rows: 0 },
+                    rows: [{
+                        ...reviewRow,
+                        status: 'new',
+                        department_code: 'HR',
+                        action_code: 'OUT_HR_GAJI_BENEFIT',
+                        action_label: 'HR - Gaji & Benefit Karyawan',
+                        flow_type: 'out',
+                        errors: [],
+                    }],
+                }),
+            } as Response);
 
         render(<Entries {...baseProps} />);
         fireEvent.click(screen.getByRole('button', { name: /import excel/i }));
@@ -523,7 +542,10 @@ describe('Cashflow Projection Entries page', () => {
         fireEvent.change(screen.getByLabelText(/review action/i), { target: { value: 'OUT_HR_GAJI_BENEFIT' } });
         fireEvent.click(screen.getByRole('button', { name: /save reviewed row/i }));
 
-        expect(screen.getByRole('button', { name: /confirm ready rows/i })).toBeEnabled();
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenLastCalledWith('/cashflow-projection.entries.import-review', expect.objectContaining({ method: 'POST' }));
+            expect(screen.getByRole('button', { name: /confirm ready rows/i })).toBeEnabled();
+        });
         expect(screen.queryByRole('button', { name: /review row 5/i })).not.toBeInTheDocument();
         expect(screen.getByText(/1 ready from 1 rows/i)).toBeInTheDocument();
     });

@@ -24,15 +24,15 @@ class ActivityAdminAccess
             return $next($request);
         }
 
+        $currentBuId = (int) session('current_business_unit_id');
+
+        if ($currentBuId <= 0 || ! in_array($currentBuId, $user->getAccessibleBusinessUnitIds(), true)) {
+            abort(403, 'Invalid business unit context.');
+        }
+
         // Top management users (c_level/executive) can access all BU admin dashboards
         if ($user->hasTopManagementAccess()) {
             return $next($request);
-        }
-
-        $currentBuId = session('current_business_unit_id');
-
-        if (! $currentBuId) {
-            abort(403, 'No business unit selected.');
         }
 
         $isActivityAdmin = $user->isAdminInBuOrAncestor('is_activity_admin', $currentBuId);

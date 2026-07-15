@@ -8,10 +8,10 @@ use App\Models\Modules\Purchasing\PurchaseRequest\PrItem;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
+use App\Services\Modules\Purchasing\Shared\PurchasingFileStorage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Update an existing Purchase Request: replace items, update fields, reset and
@@ -24,6 +24,7 @@ class UpdatePurchaseRequestAction
     public function __construct(
         private PurchaseRequestService $purchaseRequestService,
         private ApprovalWorkflowService $approvalWorkflowService,
+        private PurchasingFileStorage $fileStorage,
     ) {}
 
     /**
@@ -36,6 +37,8 @@ class UpdatePurchaseRequestAction
         PurchaseRequest $purchaseRequest,
         User $user
     ): array {
+        $storedFiles = [];
+
         try {
             DB::beginTransaction();
 
@@ -43,7 +46,16 @@ class UpdatePurchaseRequestAction
             [$supportingDocumentPath, $supportingDocumentName] = $this->resolveSupportingDocument(
                 $request,
                 $purchaseRequest,
+                $storedFiles,
             );
+            $replacedFiles = $purchaseRequest->items()
+                ->whereNotNull('image_path')
+                ->pluck('image_path')
+                ->all();
+            if ($purchaseRequest->supporting_document_path
+                && $supportingDocumentPath !== $purchaseRequest->supporting_document_path) {
+                $replacedFiles[] = $purchaseRequest->supporting_document_path;
+            }
 
             // Update purchase request
             $purchaseRequest->update([
@@ -62,28 +74,33 @@ class UpdatePurchaseRequestAction
             $purchaseRequest->items()->delete();
 
             // Create new items
-            $this->createItems($purchaseRequest, $request->items);
+            $this->createItems($purchaseRequest, $request->items, $storedFiles);
 
             // Update total amount
             $purchaseRequest->updateTotalAmount();
 
-            // Reset and recreate approval workflow
+            // Reset workflow before either keeping draft or resubmitting.
             $this->approvalWorkflowService->resetWorkflow($purchaseRequest);
-            $this->approvalWorkflowService->createWorkflowFromRequest(
-                $purchaseRequest,
-                $request->approval_workflow,
-                $request->approval_notes
-            );
-
-            // Update status to submitted
-            $purchaseRequest->update([
-                'status' => 'submitted',
-                'submitted_at' => $purchaseRequest->submitted_at ?? now(), // Preserve original if exists
-                'rejected_at' => null,
-            ]);
+            if ($request->isDraft()) {
+                $purchaseRequest->update(['status' => 'draft', 'submitted_at' => null, 'rejected_at' => null]);
+            } else {
+                $this->approvalWorkflowService->createWorkflowFromRequest(
+                    $purchaseRequest,
+                    $request->approval_workflow,
+                    $request->approval_notes
+                );
+                $purchaseRequest->update([
+                    'submitted_at' => $purchaseRequest->submitted_at ?? now(),
+                    'rejected_at' => null,
+                ]);
+            }
 
             // Clear dashboard cache
             $this->purchaseRequestService->clearDashboardCache($purchaseRequest);
+            DB::afterCommit(fn () => $this->fileStorage->deleteSafely($replacedFiles, [
+                'pr_id' => $purchaseRequest->id,
+                'context' => 'replaced',
+            ]));
 
             DB::commit();
 
@@ -91,6 +108,10 @@ class UpdatePurchaseRequestAction
 
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->fileStorage->deleteSafely($storedFiles, [
+                'pr_id' => $purchaseRequest->id,
+                'context' => 'rolled-back',
+            ]);
 
             Log::error('Failed to update purchase request', [
                 'pr_id' => $purchaseRequest->id,
@@ -112,6 +133,7 @@ class UpdatePurchaseRequestAction
     private function resolveSupportingDocument(
         StorePurchaseRequestRequest $request,
         PurchaseRequest $purchaseRequest,
+        array &$storedFiles,
     ): array {
         $supportingDocumentPath = $purchaseRequest->supporting_document_path;
         $supportingDocumentName = $purchaseRequest->supporting_document_name;
@@ -120,28 +142,23 @@ class UpdatePurchaseRequestAction
             return [$supportingDocumentPath, $supportingDocumentName];
         }
 
-        // Delete old document if exists
-        if ($supportingDocumentPath) {
-            Storage::disk('public')->delete($supportingDocumentPath);
-        }
-
         $file = $request->file('supporting_document');
+        $path = $this->fileStorage->store($file, 'purchase-requests/supporting-documents');
+        $storedFiles[] = $path;
 
-        return [
-            $file->store('purchase-requests/supporting-documents', 'public'),
-            $file->getClientOriginalName(),
-        ];
+        return [$path, $file->getClientOriginalName()];
     }
 
     /**
      * Persist PR items and their optional images.
      */
-    private function createItems(PurchaseRequest $purchaseRequest, array $items): void
+    private function createItems(PurchaseRequest $purchaseRequest, array $items, array &$storedFiles): void
     {
         foreach ($items as $index => $itemData) {
             $imagePath = null;
             if (isset($itemData['image']) && $itemData['image'] instanceof UploadedFile) {
-                $imagePath = $itemData['image']->store('purchase-requests/items', 'public');
+                $imagePath = $this->fileStorage->store($itemData['image'], 'purchase-requests/items');
+                $storedFiles[] = $imagePath;
             }
 
             PrItem::create([

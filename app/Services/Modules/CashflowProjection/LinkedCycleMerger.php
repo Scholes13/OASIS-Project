@@ -81,11 +81,11 @@ class LinkedCycleMerger
         foreach ($linkedFinanceInputs as $linkedInput) {
             $existing = $financeInputs->firstWhere('month', $linkedInput->month);
             if ($existing) {
-                $existing->cash_on_hand = (float) $existing->cash_on_hand + (float) $linkedInput->cash_on_hand;
-                $existing->receivable_estimate = (float) $existing->receivable_estimate + (float) $linkedInput->receivable_estimate;
-                $existing->upcoming_event_revenue_estimate = (float) $existing->upcoming_event_revenue_estimate + (float) $linkedInput->upcoming_event_revenue_estimate;
-                $existing->capital_injection_estimate = (float) $existing->capital_injection_estimate + (float) $linkedInput->capital_injection_estimate;
-                $existing->other_income = (float) $existing->other_income + (float) $linkedInput->other_income;
+                $existing->cash_on_hand = CashflowMoney::add($existing->cash_on_hand, $linkedInput->cash_on_hand);
+                $existing->receivable_estimate = CashflowMoney::add($existing->receivable_estimate, $linkedInput->receivable_estimate);
+                $existing->upcoming_event_revenue_estimate = CashflowMoney::add($existing->upcoming_event_revenue_estimate, $linkedInput->upcoming_event_revenue_estimate);
+                $existing->capital_injection_estimate = CashflowMoney::add($existing->capital_injection_estimate, $linkedInput->capital_injection_estimate);
+                $existing->other_income = CashflowMoney::add($existing->other_income, $linkedInput->other_income);
             } else {
                 $financeInputs->push($linkedInput);
             }

@@ -361,7 +361,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                     <div className="pt-3 border-t border-gray-100">
                                         <a
                                             href={isPR
-                                                ? route('purchase-requests.pdf-public', { purchaseRequest: task.taskable_id })
+                                                ? route('purchase-requests.pdf', { purchaseRequest: task.taskable_id })
                                                 : route('stock-requests.pdf-public', { stockRequest: task.taskable_id })
                                             }
                                             target="_blank"

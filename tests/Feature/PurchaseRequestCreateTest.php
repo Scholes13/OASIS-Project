@@ -315,7 +315,7 @@ class PurchaseRequestCreateTest extends TestCase
     #[Test]
     public function user_can_upload_item_images()
     {
-        $image = UploadedFile::fake()->image('laptop.jpg', 800, 600);
+        $image = UploadedFile::fake()->create('laptop.jpg', 100, 'image/jpeg');
 
         $requestData = [
             'business_unit_id' => $this->businessUnit->id,
@@ -352,5 +352,204 @@ class PurchaseRequestCreateTest extends TestCase
         $item = $pr->items()->first();
         $this->assertNotNull($item->image_path);
         Storage::disk('public')->assertExists($item->image_path);
+    }
+
+    #[Test]
+    public function save_as_draft_persists_without_approval_records(): void
+    {
+        $response = $this->actingAs($this->user)->post(route('purchase-requests.store'), [
+            'submission_intent' => 'draft',
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'used_for' => 'Draft office equipment purchase request',
+            'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'approval_workflow' => [],
+            'items' => [[
+                'item_name' => 'Desk',
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 1000,
+                'currency' => 'IDR',
+                'expense_department_id' => $this->department->id,
+            ]],
+        ]);
+
+        $response->assertRedirect()->assertSessionHas('success', 'Purchase request saved as draft.');
+        $purchaseRequest = PurchaseRequest::query()->latest('id')->firstOrFail();
+        $this->assertSame('draft', $purchaseRequest->status);
+        $this->assertNull($purchaseRequest->submitted_at);
+        $this->assertSame(0, $purchaseRequest->approvals()->count());
+    }
+
+    #[Test]
+    public function web_create_rejects_forged_business_unit_department_expense_and_approver(): void
+    {
+        $otherBusinessUnit = BusinessUnit::factory()->create();
+        $otherDepartment = Department::factory()->create(['business_unit_id' => $otherBusinessUnit->id]);
+        $otherApprover = User::factory()->create(['primary_department_id' => $otherDepartment->id]);
+        $otherApprover->businessUnits()->create([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'department_id' => $otherDepartment->id,
+            'position_id' => Position::where('department_id', $otherDepartment->id)->firstOrFail()->id,
+            'is_primary' => true,
+            'is_active' => true,
+        ]);
+
+        $payload = [
+            'business_unit_id' => $otherBusinessUnit->id,
+            'department_id' => $otherDepartment->id,
+            'used_for' => 'Forged cross business unit request',
+            'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'approval_workflow' => [['approver_id' => $otherApprover->id, 'task_type' => 'approval']],
+            'items' => [[
+                'item_name' => 'Desk',
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 1000,
+                'currency' => 'IDR',
+                'expense_department_id' => $otherDepartment->id,
+            ]],
+        ];
+
+        $this->actingAs($this->user)->post(route('purchase-requests.store'), $payload)
+            ->assertSessionHasErrors(['business_unit_id', 'department_id', 'items.0.expense_department_id']);
+
+        $payload['business_unit_id'] = $this->businessUnit->id;
+        $payload['department_id'] = $this->department->id;
+        $payload['items'][0]['expense_department_id'] = $this->department->id;
+        $this->actingAs($this->user)->post(route('purchase-requests.store'), $payload)
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('pr_approvals', ['approver_id' => $otherApprover->id]);
+    }
+
+    #[Test]
+    public function failed_create_removes_uploaded_supporting_document_and_item_image(): void
+    {
+        $otherBusinessUnit = BusinessUnit::factory()->create();
+        $otherDepartment = Department::factory()->create(['business_unit_id' => $otherBusinessUnit->id]);
+        $otherApprover = User::factory()->create(['primary_department_id' => $otherDepartment->id]);
+
+        $this->actingAs($this->user)->post(route('purchase-requests.store'), [
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'used_for' => 'Rollback uploaded files after workflow failure',
+            'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'supporting_document' => UploadedFile::fake()->create('support.pdf', 10, 'application/pdf'),
+            'approval_workflow' => [['approver_id' => $otherApprover->id, 'task_type' => 'approval']],
+            'items' => [[
+                'item_name' => 'Laptop',
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 1000,
+                'currency' => 'IDR',
+                'expense_department_id' => $this->department->id,
+                'image' => UploadedFile::fake()->create('laptop.jpg', 10, 'image/jpeg'),
+            ]],
+        ])->assertSessionHas('error');
+
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertDatabaseMissing('purchase_requests', [
+            'used_for' => 'Rollback uploaded files after workflow failure',
+        ]);
+    }
+
+    #[Test]
+    public function failed_update_preserves_old_files_and_removes_new_uploads(): void
+    {
+        $purchaseRequest = $this->createDraftWithFiles();
+        $oldDocument = $purchaseRequest->supporting_document_path;
+        $oldImage = $purchaseRequest->items()->firstOrFail()->image_path;
+        $otherBusinessUnit = BusinessUnit::factory()->create();
+        $otherDepartment = Department::factory()->create(['business_unit_id' => $otherBusinessUnit->id]);
+        $otherApprover = User::factory()->create(['primary_department_id' => $otherDepartment->id]);
+
+        $this->actingAs($this->user)->put(route('purchase-requests.update', $purchaseRequest), [
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'used_for' => 'Update that must roll back files',
+            'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'supporting_document' => UploadedFile::fake()->create('new-support.pdf', 10, 'application/pdf'),
+            'approval_workflow' => [['approver_id' => $otherApprover->id, 'task_type' => 'approval']],
+            'items' => [[
+                'item_name' => 'Replacement laptop',
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 2000,
+                'currency' => 'IDR',
+                'expense_department_id' => $this->department->id,
+                'image' => UploadedFile::fake()->create('new-laptop.jpg', 10, 'image/jpeg'),
+            ]],
+        ])->assertSessionHas('error');
+
+        $purchaseRequest->refresh();
+        $this->assertSame($oldDocument, $purchaseRequest->supporting_document_path);
+        $this->assertSame($oldImage, $purchaseRequest->items()->firstOrFail()->image_path);
+        Storage::disk('public')->assertExists($oldDocument);
+        Storage::disk('public')->assertExists($oldImage);
+        $this->assertEqualsCanonicalizing([$oldDocument, $oldImage], Storage::disk('public')->allFiles());
+    }
+
+    #[Test]
+    public function successful_update_deletes_replaced_files_after_commit(): void
+    {
+        $purchaseRequest = $this->createDraftWithFiles();
+        $oldDocument = $purchaseRequest->supporting_document_path;
+        $oldImage = $purchaseRequest->items()->firstOrFail()->image_path;
+
+        $this->actingAs($this->user)->put(route('purchase-requests.update', $purchaseRequest), [
+            'submission_intent' => 'draft',
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'used_for' => 'Successful file replacement update',
+            'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'supporting_document' => UploadedFile::fake()->create('new-support.pdf', 10, 'application/pdf'),
+            'approval_workflow' => [],
+            'items' => [[
+                'item_name' => 'Replacement laptop',
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 2000,
+                'currency' => 'IDR',
+                'expense_department_id' => $this->department->id,
+                'image' => UploadedFile::fake()->create('new-laptop.jpg', 10, 'image/jpeg'),
+            ]],
+        ])->assertSessionHas('success', 'Purchase request saved as draft.');
+
+        $purchaseRequest->refresh();
+        Storage::disk('public')->assertMissing($oldDocument);
+        Storage::disk('public')->assertMissing($oldImage);
+        Storage::disk('public')->assertExists($purchaseRequest->supporting_document_path);
+        Storage::disk('public')->assertExists($purchaseRequest->items()->firstOrFail()->image_path);
+    }
+
+    private function createDraftWithFiles(): PurchaseRequest
+    {
+        $this->actingAs($this->user)->post(route('purchase-requests.store'), [
+            'submission_intent' => 'draft',
+            'business_unit_id' => $this->businessUnit->id,
+            'department_id' => $this->department->id,
+            'used_for' => 'Original draft with files',
+            'date_of_request' => now()->toDateString(),
+            'currency' => 'IDR',
+            'supporting_document' => UploadedFile::fake()->create('old-support.pdf', 10, 'application/pdf'),
+            'approval_workflow' => [],
+            'items' => [[
+                'item_name' => 'Original laptop',
+                'quantity' => 1,
+                'unit' => 'pcs',
+                'unit_price' => 1000,
+                'currency' => 'IDR',
+                'expense_department_id' => $this->department->id,
+                'image' => UploadedFile::fake()->create('old-laptop.jpg', 10, 'image/jpeg'),
+            ]],
+        ])->assertSessionHas('success', 'Purchase request saved as draft.');
+
+        return PurchaseRequest::query()->latest('id')->firstOrFail();
     }
 }

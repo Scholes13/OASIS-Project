@@ -19,7 +19,7 @@ type ImportEntriesDialogProps = {
     onFileChange: (file: File | null) => void;
     onSubmit: () => void;
     onConfirm: () => void;
-    onReviewRow: (rowNumber: number, row: ImportPreviewRow) => void;
+    onReviewRow: (rowNumber: number, row: ImportPreviewRow) => Promise<boolean>;
 };
 
 export default function ImportEntriesDialog({
@@ -144,10 +144,17 @@ export default function ImportEntriesDialog({
                                 </tbody>
                             </table>
                         </div>
-                        {reviewRow && <ImportRowReviewPanel row={reviewRow} departments={departments} onSave={(row) => {
-                            onReviewRow(reviewRow.row_number, row);
-                            setSelectedReviewRowNumber(null);
-                        }} />}
+                        {reviewRow && (
+                            <ImportRowReviewPanel
+                                row={reviewRow}
+                                departments={departments}
+                                onSave={async (row) => {
+                                    if (await onReviewRow(reviewRow.row_number, row)) {
+                                        setSelectedReviewRowNumber(null);
+                                    }
+                                }}
+                            />
+                        )}
                         </div>
                     </section>
                 )}

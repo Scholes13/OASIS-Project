@@ -277,7 +277,7 @@ class NavigationTopManagementTest extends TestCase
             'phone_number' => '081234567891',
             'primary_department_id' => $this->childDept->id,
             'primary_position_id' => $this->staffPosition->id,
-            'global_role' => 'staff',
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);

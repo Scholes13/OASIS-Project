@@ -4,6 +4,7 @@ namespace App\Actions\Modules\Activity;
 
 use App\Models\Core\User;
 use App\Models\Modules\Activity\BackdatePermission;
+use App\Services\Modules\Activity\ActivityAuthorizationService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +18,8 @@ use Illuminate\Validation\ValidationException;
 class BackdateApprovalAction
 {
     public function __construct(
-        protected BackdatePermissionService $backdateService
+        protected BackdatePermissionService $backdateService,
+        protected ActivityAuthorizationService $authorizationService,
     ) {}
 
     /**
@@ -28,7 +30,11 @@ class BackdateApprovalAction
         try {
             $request = BackdatePermission::findOrFail($id);
 
-            if ($request->department_id !== $user->getCurrentDepartmentId() && ! $user->isSuperAdmin()) {
+            if (! $this->authorizationService->canDecideBackdate(
+                $user,
+                $request,
+                (int) session('current_business_unit_id'),
+            )) {
                 throw new \Exception('You can only approve requests from your department');
             }
 
@@ -58,7 +64,11 @@ class BackdateApprovalAction
         try {
             $backdateRequest = BackdatePermission::findOrFail($id);
 
-            if ($backdateRequest->department_id !== $user->getCurrentDepartmentId() && ! $user->isSuperAdmin()) {
+            if (! $this->authorizationService->canDecideBackdate(
+                $user,
+                $backdateRequest,
+                (int) session('current_business_unit_id'),
+            )) {
                 throw new \Exception('You can only reject requests from your department');
             }
 

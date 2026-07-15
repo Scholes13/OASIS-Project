@@ -72,12 +72,14 @@ class BackdateNotificationTest extends TestCase
         $this->employee = User::factory()->create([
             'primary_department_id' => $this->department->id,
             'primary_position_id' => $this->staffPosition->id,
+            'global_role' => 'user',
         ]);
 
         // Create department head
         $this->departmentHead = User::factory()->create([
             'primary_department_id' => $this->department->id,
             'primary_position_id' => $this->headPosition->id,
+            'global_role' => 'user',
         ]);
 
         // Create UserBusinessUnit assignments
@@ -109,6 +111,7 @@ class BackdateNotificationTest extends TestCase
         Notification::fake();
 
         $this->service->requestPermission([
+            'requested_date' => now()->subDays(7)->toDateString(),
             'reason' => 'Forgot to log tasks last week',
         ], $this->employee);
 
@@ -179,5 +182,81 @@ class BackdateNotificationTest extends TestCase
             $this->employee,
             BackdateRequestRejected::class
         );
+    }
+
+    #[Test]
+    public function stale_rejection_cannot_overwrite_approved_request(): void
+    {
+        Notification::fake();
+        $permission = $this->pendingPermission();
+        $stalePermission = BackdatePermission::findOrFail($permission->id);
+
+        $this->service->approveRequest($permission, $this->departmentHead);
+
+        try {
+            $this->service->rejectRequest($stalePermission, $this->departmentHead, 'Stale rejection');
+            $this->fail('Stale rejection should have been rejected.');
+        } catch (\DomainException $exception) {
+            $this->assertSame('Only pending requests can be rejected', $exception->getMessage());
+        }
+
+        $permission = $permission->fresh();
+        $this->assertSame('approved', $permission->status);
+        $this->assertNull($permission->rejected_by);
+        $this->assertNull($permission->rejected_at);
+        $this->assertNull($permission->rejection_reason);
+        Notification::assertSentTo($this->employee, BackdateRequestApproved::class);
+        Notification::assertNotSentTo($this->employee, BackdateRequestRejected::class);
+    }
+
+    #[Test]
+    public function stale_approval_cannot_overwrite_rejected_request(): void
+    {
+        Notification::fake();
+        $permission = $this->pendingPermission();
+        $stalePermission = BackdatePermission::findOrFail($permission->id);
+
+        $this->service->rejectRequest($permission, $this->departmentHead, 'Complete rejection reason');
+
+        try {
+            $this->service->approveRequest($stalePermission, $this->departmentHead);
+            $this->fail('Stale approval should have been rejected.');
+        } catch (\DomainException $exception) {
+            $this->assertSame('Only pending requests can be approved', $exception->getMessage());
+        }
+
+        $permission = $permission->fresh();
+        $this->assertSame('rejected', $permission->status);
+        $this->assertNull($permission->approved_by);
+        $this->assertNull($permission->approved_at);
+        $this->assertNull($permission->granted_until);
+        Notification::assertSentTo($this->employee, BackdateRequestRejected::class);
+        Notification::assertNotSentTo($this->employee, BackdateRequestApproved::class);
+    }
+
+    #[Test]
+    public function requester_cannot_create_a_second_pending_request(): void
+    {
+        $this->pendingPermission();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('You already have a pending backdate request');
+
+        $this->service->requestPermission([
+            'requested_date' => now()->subDays(7)->toDateString(),
+            'reason' => 'Another missed activity date',
+        ], $this->employee);
+    }
+
+    private function pendingPermission(): BackdatePermission
+    {
+        return BackdatePermission::create([
+            'user_id' => $this->employee->id,
+            'department_id' => $this->department->id,
+            'business_unit_id' => $this->businessUnit->id,
+            'requested_date' => now()->subDays(5),
+            'reason' => 'Forgot to log tasks',
+            'status' => 'pending',
+        ]);
     }
 }

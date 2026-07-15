@@ -41,6 +41,8 @@ Route::prefix('v1')->group(function () {
         // Approval API Routes
         Route::prefix('approvals')->name('api.approvals.')->group(function () {
             Route::get('/', [ApprovalController::class, 'index'])->name('index');
+            Route::get('/statistics', [ApprovalController::class, 'statistics'])->name('statistics');
+            Route::get('/history', [ApprovalController::class, 'history'])->name('history');
             Route::get('/{prApproval}', [ApprovalController::class, 'show'])->name('show');
 
             // Approval Actions
@@ -48,9 +50,6 @@ Route::prefix('v1')->group(function () {
             Route::post('/{prApproval}/approve', [ApprovalController::class, 'approve'])->name('approve');
             Route::post('/{prApproval}/reject', [ApprovalController::class, 'reject'])->name('reject');
 
-            // Approval Analytics
-            Route::get('/statistics', [ApprovalController::class, 'statistics'])->name('statistics');
-            Route::get('/history', [ApprovalController::class, 'history'])->name('history');
         });
 
         // User Profile API

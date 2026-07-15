@@ -28,7 +28,15 @@ class CashflowImportClassifier
             ];
         }
 
-        $actionCode = $department ? $this->resolveActionCode($department, $row) : null;
+        $explicitActionCode = strtoupper(trim((string) ($row['action_code'] ?? '')));
+        if ($department && $explicitActionCode !== '' && ! $this->templateService->isActionAllowedForDepartment($explicitActionCode, $department)) {
+            $errors[] = [
+                'field' => 'action_code',
+                'message' => 'Action eksplisit tidak sesuai template departemen.',
+            ];
+        }
+
+        $actionCode = $department && $errors === [] ? $this->resolveActionCode($department, $row) : null;
         $actionMeta = $actionCode && $department ? $this->templateService->metaForActionCode($actionCode, $department) : null;
 
         if ($department && (! $actionCode || ! $this->templateService->isActionAllowedForDepartment($actionCode, $department) || ! $actionMeta)) {

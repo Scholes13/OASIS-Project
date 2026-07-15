@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\UpdateSlaSettingsRequest;
 use App\Models\Core\BusinessUnit;
 use App\Services\Modules\Ticket\SlaService;
-use App\Services\Modules\Ticket\TicketService;
+use App\Services\Modules\Ticket\TicketDashboardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +15,7 @@ use Inertia\Response;
 class TicketDashboardController extends Controller
 {
     public function __construct(
-        private TicketService $ticketService,
+        private TicketDashboardService $dashboardService,
         private SlaService $slaService,
     ) {}
 
@@ -31,7 +31,7 @@ class TicketDashboardController extends Controller
         $dateFrom = $request->get('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
 
-        $metrics = $this->ticketService->getDashboardMetrics($scopedBuIds, $dateFrom, $dateTo);
+        $metrics = $this->dashboardService->getMetrics($scopedBuIds, $dateFrom, $dateTo);
 
         return Inertia::render('Ticket/Dashboard', [
             'metrics' => $metrics,

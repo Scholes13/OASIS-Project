@@ -118,6 +118,33 @@ class AdminTaskServiceTest extends TestCase
         Notification::assertSentTo($user, TaskAssigned::class);
     }
 
+    #[Test]
+    public function notification_failure_does_not_rollback_task_claim(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $task = AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => 902,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'status' => 'pending_followup',
+            'entered_at' => now()->subHour(),
+            'estimated_total_price' => 100000,
+        ]);
+        $service = new class(app(PriceEfficiencyService::class)) extends AdminTaskService
+        {
+            protected function notifyAssignedAdmin(AdminTask $task): void
+            {
+                throw new \RuntimeException('Notification transport unavailable');
+            }
+        };
+
+        $claimedTask = $service->claimTask($task, $user->id);
+
+        $this->assertSame($user->id, $claimedTask->assigned_admin_id);
+        $this->assertSame($user->id, $task->fresh()->assigned_admin_id);
+    }
+
     /**
      * @return array{0: User, 1: BusinessUnit, 2: Department}
      */

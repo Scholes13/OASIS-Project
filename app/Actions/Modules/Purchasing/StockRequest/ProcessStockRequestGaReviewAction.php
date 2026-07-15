@@ -2,9 +2,7 @@
 
 namespace App\Actions\Modules\Purchasing\StockRequest;
 
-use App\Models\Core\Department;
 use App\Models\Core\User;
-use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +19,15 @@ class ProcessStockRequestGaReviewAction
     public function approve(StockRequest $stockRequest, User $user, array $data): void
     {
         DB::transaction(function () use ($stockRequest, $user, $data) {
+            $stockRequest = StockRequest::query()
+                ->lockForUpdate()
+                ->findOrFail($stockRequest->id);
+
+            if ($stockRequest->status !== 'ga_review') {
+                throw new \DomainException('Only stock requests waiting for GA review can be processed.');
+            }
+
+            $stockRequest->load('items');
             $reviewItems = collect($data['items'] ?? [])->keyBy('id');
 
             foreach ($stockRequest->items as $item) {
@@ -30,33 +37,40 @@ class ProcessStockRequestGaReviewAction
                     throw new \DomainException('All items must be reviewed before GA approval.');
                 }
 
-                $warehouseQty = $review['warehouse_available_qty'] ?? null;
+                $warehouseQty = isset($review['warehouse_available_qty'])
+                    ? (int) $review['warehouse_available_qty']
+                    : null;
+                $procurementQty = isset($review['procurement_quantity'])
+                    ? (int) $review['procurement_quantity']
+                    : null;
+                $requestedQty = (int) $item->quantity;
 
-                $procurementQty = $review['procurement_quantity'] ?? null;
+                if ($warehouseQty === null || $procurementQty === null) {
+                    throw new \DomainException('Warehouse and procurement quantities are required for every item.');
+                }
 
-                if ($warehouseQty !== null && $warehouseQty > $item->quantity) {
+                if ($warehouseQty > $requestedQty) {
                     throw new \DomainException('Warehouse quantity cannot exceed requested quantity.');
                 }
 
-                if ($procurementQty !== null && $procurementQty > $item->quantity) {
+                if ($procurementQty > $requestedQty) {
                     throw new \DomainException('Procurement quantity cannot exceed requested quantity.');
                 }
 
-                if ($warehouseQty !== null && $procurementQty !== null && ($warehouseQty + $procurementQty) !== $item->quantity) {
+                if (($warehouseQty + $procurementQty) !== $requestedQty) {
                     throw new \DomainException('Warehouse quantity and procurement quantity must match requested quantity.');
                 }
 
-                $quantity = $item->quantity;
-                $total = $item->total;
+                if ($review['ga_review_result'] === 'warehouse_stock'
+                    && ($warehouseQty !== $requestedQty || $procurementQty !== 0)) {
+                    throw new \DomainException('Warehouse stock items must be fulfilled entirely from warehouse stock.');
+                }
 
-                if ($review['ga_review_result'] === 'need_procurement') {
-                    $quantity = $procurementQty ?? max($item->quantity - (int) $warehouseQty, 0);
-                    $total = $item->price * $quantity;
+                if ($review['ga_review_result'] === 'need_procurement' && $procurementQty <= 0) {
+                    throw new \DomainException('Procurement items must include a procurement quantity.');
                 }
 
                 $item->update([
-                    'quantity' => $quantity,
-                    'total' => $total,
                     'ga_review_result' => $review['ga_review_result'],
                     'ga_review_note' => $review['ga_review_note'] ?? null,
                     'warehouse_available_qty' => $warehouseQty,
@@ -65,7 +79,6 @@ class ProcessStockRequestGaReviewAction
 
             $nextStatus = $stockRequest->items()
                 ->where('ga_review_result', 'need_procurement')
-                ->where('quantity', '>', 0)
                 ->exists()
                     ? 'ready_for_purchasing'
                     : 'approved';
@@ -79,7 +92,7 @@ class ProcessStockRequestGaReviewAction
             ])->saveQuietly();
 
             if ($nextStatus === 'ready_for_purchasing') {
-                $this->createPurchasingTask($stockRequest);
+                $this->adminTaskService->createForStockRequest($stockRequest);
             }
 
             activity()
@@ -95,51 +108,31 @@ class ProcessStockRequestGaReviewAction
         });
     }
 
-    private function createPurchasingTask(StockRequest $stockRequest): void
-    {
-        $department = Department::query()
-            ->where('business_unit_id', $stockRequest->business_unit_id)
-            ->where('is_purchasing_department', true)
-            ->first();
-
-        if (! $department) {
-            throw new \DomainException('Purchasing department is not configured for this business unit.');
-        }
-
-        $taskExists = AdminTask::query()
-            ->where('taskable_type', StockRequest::class)
-            ->where('taskable_id', $stockRequest->id)
-            ->where('business_unit_id', $stockRequest->business_unit_id)
-            ->where('department_id', $department->id)
-            ->whereIn('status', ['pending_followup', 'in_progress'])
-            ->exists();
-
-        if ($taskExists) {
-            return;
-        }
-
-        $this->adminTaskService->createTask(
-            $stockRequest,
-            $stockRequest->business_unit_id,
-            $department->id,
-            null
-        );
-    }
-
     public function reject(StockRequest $stockRequest, User $user, string $reason): void
     {
-        $stockRequest->update([
-            'status' => 'ga_rejected',
-            'ga_reviewed_at' => now(),
-            'ga_reviewed_by' => $user->id,
-            'ga_rejected_reason' => $reason,
-            'rejection_notes' => $reason,
-        ]);
+        DB::transaction(function () use ($stockRequest, $user, $reason) {
+            $stockRequest = StockRequest::query()
+                ->lockForUpdate()
+                ->findOrFail($stockRequest->id);
 
-        activity()
-            ->performedOn($stockRequest)
-            ->causedBy($user)
-            ->withProperties(['reason' => $reason])
-            ->log('stock request GA review rejected');
+            if ($stockRequest->status !== 'ga_review') {
+                throw new \DomainException('Only stock requests waiting for GA review can be processed.');
+            }
+
+            $stockRequest->update([
+                'status' => 'ga_rejected',
+                'ga_reviewed_at' => now(),
+                'ga_reviewed_by' => $user->id,
+                'ga_review_notes' => null,
+                'ga_rejected_reason' => $reason,
+                'rejection_notes' => $reason,
+            ]);
+
+            activity()
+                ->performedOn($stockRequest)
+                ->causedBy($user)
+                ->withProperties(['reason' => $reason])
+                ->log('stock request GA review rejected');
+        });
     }
 }

@@ -266,7 +266,7 @@ class CashflowExcelBuilder
                 ['type' => 'Number', 'value' => $row['upcoming_event_revenue_estimate'], 'style' => 'number'],
                 ['type' => 'Number', 'value' => $row['capital_injection_estimate'], 'style' => 'number'],
                 ['type' => 'Number', 'value' => $row['other_income'], 'style' => 'number'],
-                ['type' => 'Number', 'value' => (float) $row['receivable_estimate'] + (float) $row['upcoming_event_revenue_estimate'] + (float) $row['capital_injection_estimate'] + (float) $row['other_income'], 'style' => 'number'],
+                ['type' => 'Number', 'value' => CashflowMoney::add($row['receivable_estimate'], $row['upcoming_event_revenue_estimate'], $row['capital_injection_estimate'], $row['other_income']), 'style' => 'number'],
             ];
         }
 
@@ -299,7 +299,7 @@ class CashflowExcelBuilder
                     $style = $styleId !== '' ? ' ss:StyleID="'.$this->escapeExportXml($styleId).'"' : '';
                     $type = ($cell['type'] ?? 'String') === 'Number' ? 'Number' : 'String';
                     $value = $type === 'Number'
-                        ? (string) ((float) ($cell['value'] ?? 0))
+                        ? CashflowMoney::normalizeSigned($cell['value'] ?? 0)
                         : $this->escapeExportXml((string) ($cell['value'] ?? ''));
 
                     $xml .= '<Cell'.$style.'><Data ss:Type="'.$type.'">'.$value.'</Data></Cell>';

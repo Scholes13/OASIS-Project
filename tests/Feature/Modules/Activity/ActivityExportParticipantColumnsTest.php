@@ -65,11 +65,15 @@ class ActivityExportParticipantColumnsTest extends TestCase
             'code' => 'STAFF',
             'level' => 'staff',
             'access_level' => 'staff',
-            'hierarchy_level' => 1,
+            'hierarchy_level' => 3,
             'is_active' => true,
         ]);
 
         $this->viewer = $this->createUserWithAssignment('Viewer User', 'viewer@example.test', $this->dept, $this->position);
+        $this->viewer->businessUnits()->update([
+            'is_activity_admin' => true,
+            'is_activity_report_access' => true,
+        ]);
         $this->memberA = $this->createUserWithAssignment('Member A', 'member-a@example.test', $this->dept, $this->position);
         $this->memberB = $this->createUserWithAssignment('Member B', 'member-b@example.test', $this->dept, $this->position);
 
@@ -129,6 +133,13 @@ class ActivityExportParticipantColumnsTest extends TestCase
             'Daftar Participant',
             'Participant IDs',
         ], $headers);
+    }
+
+    public function test_ordinary_staff_cannot_export_department_scope(): void
+    {
+        $this->actingAs($this->memberA)
+            ->get(route('activity.task.export', ['scope' => 'department']))
+            ->assertForbidden();
     }
 
     public function test_export_data_mentah_sheet_includes_participant_columns(): void
@@ -346,6 +357,7 @@ class ActivityExportParticipantColumnsTest extends TestCase
             'password' => bcrypt('password'),
             'primary_department_id' => $department->id,
             'primary_position_id' => $position->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);

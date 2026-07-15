@@ -9,6 +9,7 @@ use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
 use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
+use App\Services\Modules\Purchasing\Shared\PurchasingFileStorage;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class CreatePurchaseRequestAction
         private PurchaseRequestService $purchaseRequestService,
         private ApprovalWorkflowService $approvalWorkflowService,
         private UniversalPRNumberingService $numberingService,
+        private PurchasingFileStorage $fileStorage,
     ) {}
 
     /**
@@ -35,6 +37,8 @@ class CreatePurchaseRequestAction
      */
     public function execute(StorePurchaseRequestRequest $request, User $user): array
     {
+        $storedFiles = [];
+
         try {
             DB::beginTransaction();
 
@@ -47,7 +51,7 @@ class CreatePurchaseRequestAction
             );
 
             // Handle supporting document upload
-            [$supportingDocumentPath, $supportingDocumentName] = $this->storeSupportingDocument($request);
+            [$supportingDocumentPath, $supportingDocumentName] = $this->storeSupportingDocument($request, $storedFiles);
 
             // Create purchase request
             $purchaseRequest = PurchaseRequest::create([
@@ -61,8 +65,8 @@ class CreatePurchaseRequestAction
                 'date_of_request' => $request->date_of_request,
                 'expected_date' => $request->expected_date,
                 'designated_date' => $request->expected_date,
-                'status' => 'submitted', // Directly submit (no draft step)
-                'submitted_at' => now(),
+                'status' => $request->isDraft() ? 'draft' : 'submitted',
+                'submitted_at' => $request->isDraft() ? null : now(),
                 'currency' => $request->currency,
                 'supporting_document_path' => $supportingDocumentPath,
                 'supporting_document_name' => $supportingDocumentName,
@@ -70,17 +74,18 @@ class CreatePurchaseRequestAction
             ]);
 
             // Create PR items
-            $this->createItems($purchaseRequest, $request->items);
+            $this->createItems($purchaseRequest, $request->items, $storedFiles);
 
             // Update total amount
             $purchaseRequest->updateTotalAmount();
 
-            // Create approval workflow
-            $this->approvalWorkflowService->createWorkflowFromRequest(
-                $purchaseRequest,
-                $request->approval_workflow,
-                $request->approval_notes
-            );
+            if (! $request->isDraft()) {
+                $this->approvalWorkflowService->createWorkflowFromRequest(
+                    $purchaseRequest,
+                    $request->approval_workflow,
+                    $request->approval_notes
+                );
+            }
 
             // Clear dashboard cache
             $this->purchaseRequestService->clearDashboardCache($purchaseRequest);
@@ -91,6 +96,7 @@ class CreatePurchaseRequestAction
 
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->fileStorage->deleteSafely($storedFiles, ['user_id' => $user->id, 'context' => 'rolled-back-pr-create']);
 
             Log::error('Failed to create purchase request', [
                 'user_id' => $user->id,
@@ -108,7 +114,7 @@ class CreatePurchaseRequestAction
     /**
      * @return array{0: ?string, 1: ?string}
      */
-    private function storeSupportingDocument(StorePurchaseRequestRequest $request): array
+    private function storeSupportingDocument(StorePurchaseRequestRequest $request, array &$storedFiles): array
     {
         if (! $request->hasFile('supporting_document')) {
             return [null, null];
@@ -116,21 +122,22 @@ class CreatePurchaseRequestAction
 
         $file = $request->file('supporting_document');
 
-        return [
-            $file->store('purchase-requests/supporting-documents', 'public'),
-            $file->getClientOriginalName(),
-        ];
+        $path = $this->fileStorage->store($file, 'purchase-requests/supporting-documents');
+        $storedFiles[] = $path;
+
+        return [$path, $file->getClientOriginalName()];
     }
 
     /**
      * Persist PR items and their optional images.
      */
-    private function createItems(PurchaseRequest $purchaseRequest, array $items): void
+    private function createItems(PurchaseRequest $purchaseRequest, array $items, array &$storedFiles): void
     {
         foreach ($items as $index => $itemData) {
             $imagePath = null;
             if (isset($itemData['image']) && $itemData['image'] instanceof UploadedFile) {
-                $imagePath = $itemData['image']->store('purchase-requests/items', 'public');
+                $imagePath = $this->fileStorage->store($itemData['image'], 'purchase-requests/items');
+                $storedFiles[] = $imagePath;
             }
 
             PrItem::create([

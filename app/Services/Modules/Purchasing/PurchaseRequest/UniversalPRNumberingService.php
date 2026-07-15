@@ -17,9 +17,12 @@ class UniversalPRNumberingService
 
     protected string $formatPattern = 'PR.{BU_CODE}/{YYYYMM}/{SEQUENCE}';
 
-    public function __construct(NumberingService $numberingService)
+    protected PRNumberingContextResolver $contextResolver;
+
+    public function __construct(NumberingService $numberingService, ?PRNumberingContextResolver $contextResolver = null)
     {
         $this->numberingService = $numberingService;
+        $this->contextResolver = $contextResolver ?? new PRNumberingContextResolver;
     }
 
     /**
@@ -87,37 +90,7 @@ class UniversalPRNumberingService
      */
     protected function resolveBusinessUnit(User $user, ?int $businessUnitId): ?BusinessUnit
     {
-        // 1. Use provided business unit ID
-        if ($businessUnitId) {
-            $businessUnit = BusinessUnit::find($businessUnitId);
-            if ($businessUnit && $this->userHasAccessToBusinessUnit($user, $businessUnit)) {
-                return $businessUnit;
-            }
-        }
-
-        // 2. Use session current business unit
-        $sessionBuId = session('current_business_unit_id');
-        if ($sessionBuId) {
-            $businessUnit = BusinessUnit::find($sessionBuId);
-            if ($businessUnit && $this->userHasAccessToBusinessUnit($user, $businessUnit)) {
-                return $businessUnit;
-            }
-        }
-
-        // 3. For super admins, allow any active business unit (fallback to first active)
-        // Use deterministic ORDER BY to ensure consistent results
-        if ($user->global_role === 'super_admin') {
-            return BusinessUnit::where('is_active', true)
-                ->orderBy('id', 'asc')
-                ->first();
-        }
-
-        // 4. Use user's primary business unit
-        if ($user->primaryDepartment && $user->primaryDepartment->businessUnit) {
-            return $user->primaryDepartment->businessUnit;
-        }
-
-        return null;
+        return $this->contextResolver->resolveBusinessUnit($user, $businessUnitId);
     }
 
     /**
@@ -125,42 +98,7 @@ class UniversalPRNumberingService
      */
     protected function resolveDepartment(User $user, BusinessUnit $businessUnit, ?int $departmentId): ?Department
     {
-        // 1. Use provided department ID (must be in the business unit)
-        if ($departmentId) {
-            $department = Department::where('id', $departmentId)
-                ->where('business_unit_id', $businessUnit->id)
-                ->where('is_active', true)
-                ->first();
-            if ($department) {
-                return $department;
-            }
-        }
-
-        // 2. Use user's primary department if it's in this business unit
-        if ($user->primaryDepartment &&
-            $user->primaryDepartment->business_unit_id === $businessUnit->id) {
-            return $user->primaryDepartment;
-        }
-
-        // 3. For super admins, use any department in the business unit
-        // Use deterministic ORDER BY to ensure consistent results
-        if ($user->global_role === 'super_admin') {
-            return $businessUnit->activeDepartments()
-                ->orderBy('id', 'asc')
-                ->first();
-        }
-
-        // 4. Find user's department assignment in this business unit
-        $userBuAssignment = $user->businessUnits()
-            ->where('business_unit_id', $businessUnit->id)
-            ->where('is_active', true)
-            ->first();
-
-        if ($userBuAssignment && $userBuAssignment->department_id) {
-            return Department::find($userBuAssignment->department_id);
-        }
-
-        return null;
+        return $this->contextResolver->resolveDepartment($user, $businessUnit, $departmentId);
     }
 
     /**
@@ -168,16 +106,7 @@ class UniversalPRNumberingService
      */
     protected function userHasAccessToBusinessUnit(User $user, BusinessUnit $businessUnit): bool
     {
-        // Super admins have access to all business units
-        if ($user->global_role === 'super_admin') {
-            return true;
-        }
-
-        // Check if user has assignment to this business unit
-        return $user->businessUnits()
-            ->where('business_unit_id', $businessUnit->id)
-            ->where('is_active', true)
-            ->exists();
+        return $this->contextResolver->userHasAccessToBusinessUnit($user, $businessUnit);
     }
 
     /**
@@ -303,59 +232,7 @@ class UniversalPRNumberingService
      */
     public function getUserAvailableBusinessUnits(User $user): array
     {
-        if ($user->global_role === 'super_admin') {
-            // Super admins can create PR for any business unit
-            return BusinessUnit::where('is_active', true)
-                ->orderBy('name')
-                ->get()
-                ->map(function ($bu) {
-                    return [
-                        'id' => $bu->id,
-                        'code' => $bu->code,
-                        'name' => $bu->name,
-                        'departments' => $bu->activeDepartments()
-                            ->orderBy('name')
-                            ->get()
-                            ->map(function ($dept) {
-                                return [
-                                    'id' => $dept->id,
-                                    'code' => $dept->code,
-                                    'name' => $dept->name,
-                                ];
-                            })
-                            ->toArray(),
-                    ];
-                })
-                ->toArray();
-        }
-
-        // Regular users - only their assigned business units
-        return $user->businessUnits()
-            ->with(['businessUnit.activeDepartments'])
-            ->where('is_active', true)
-            ->get()
-            ->map(function ($assignment) {
-                $bu = $assignment->businessUnit;
-
-                return [
-                    'id' => $bu->id,
-                    'code' => $bu->code,
-                    'name' => $bu->name,
-                    'user_role' => $assignment->role,
-                    'departments' => $bu->activeDepartments()
-                        ->orderBy('name')
-                        ->get()
-                        ->map(function ($dept) {
-                            return [
-                                'id' => $dept->id,
-                                'code' => $dept->code,
-                                'name' => $dept->name,
-                            ];
-                        })
-                        ->toArray(),
-                ];
-            })
-            ->toArray();
+        return $this->contextResolver->availableBusinessUnits($user);
     }
 
     /**

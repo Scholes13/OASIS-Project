@@ -413,6 +413,30 @@ class ResubmitWorkflowTest extends TestCase
         }
     }
 
+    public function test_resubmit_rejects_stored_approver_that_is_no_longer_eligible(): void
+    {
+        $pr = $this->createPurchaseRequest('rejected');
+        $pr->update([
+            'submitted_at' => now()->subDays(2),
+            'approval_workflow' => [[
+                'step_order' => 1,
+                'approver_id' => $this->departmentHead->id,
+                'approval_type' => 'department_head',
+            ]],
+        ]);
+        $this->departmentHead->update(['is_active' => false]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('A stored approver is no longer eligible for this purchase request.');
+
+        try {
+            $this->prService->resubmitPurchaseRequest($pr);
+        } finally {
+            $this->assertSame('rejected', $pr->fresh()->status);
+            $this->assertSame(0, $pr->approvals()->count());
+        }
+    }
+
     /**
      * Test 8: Cannot resubmit non-rejected PR
      */

@@ -1219,7 +1219,7 @@
                 <button type="button" class="modal-close" onclick="closeApprovalModal()">&times;</button>
             </div>
             
-            <form action="{{ route('approvals.public.process', $approval) }}" method="POST" id="approvalForm">
+            <form action="{{ $processUrl }}" method="POST" id="approvalForm">
                 @csrf
                 <input type="hidden" name="action" id="actionInput" value="">
                 

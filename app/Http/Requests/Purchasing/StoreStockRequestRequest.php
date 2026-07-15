@@ -11,7 +11,29 @@ class StoreStockRequestRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+        $businessUnitId = (int) $this->input('business_unit_id', session('current_business_unit_id'));
+        $departmentId = (int) $this->input('department_id', session('current_department_id'));
+        $stockRequest = $this->route('stockRequest');
+
+        if (! $user || $businessUnitId !== (int) session('current_business_unit_id')) {
+            return false;
+        }
+
+        if ($stockRequest) {
+            if ($businessUnitId !== (int) $stockRequest->business_unit_id
+                || $departmentId !== (int) $stockRequest->department_id
+            ) {
+                return false;
+            }
+        } elseif ($departmentId !== (int) session('current_department_id')) {
+            return false;
+        }
+
+        return $user->isSuperAdmin() || $user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('department_id', $departmentId)
+            ->exists();
     }
 
     /**

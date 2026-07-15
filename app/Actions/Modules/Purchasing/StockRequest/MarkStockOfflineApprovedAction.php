@@ -4,7 +4,9 @@ namespace App\Actions\Modules\Purchasing\StockRequest;
 
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Modules\Purchasing\Shared\PurchasingFileStorage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -18,6 +20,8 @@ use Illuminate\Support\Facades\Log;
  */
 class MarkStockOfflineApprovedAction
 {
+    public function __construct(private PurchasingFileStorage $fileStorage) {}
+
     /**
      * Execute the offline-approval flow.
      *
@@ -25,16 +29,29 @@ class MarkStockOfflineApprovedAction
      */
     public function execute(Request $request, StockRequest $stockRequest, User $user): array
     {
+        $documentPath = null;
+
         try {
+            DB::beginTransaction();
+            $stockRequest = StockRequest::query()->lockForUpdate()->findOrFail($stockRequest->id);
+
+            if ($stockRequest->approvals()->where('status', 'pending')->exists()) {
+                DB::rollBack();
+
+                return [
+                    'ok' => false,
+                    'error' => 'Department approval must be completed before offline approval can be recorded.',
+                ];
+            }
+
             // Handle file upload
-            $documentPath = null;
             $documentName = null;
             if ($request->hasFile('offline_approval_document')) {
                 $file = $request->file('offline_approval_document');
                 $documentName = $file->getClientOriginalName();
-                $documentPath = $file->store(
+                $documentPath = $this->fileStorage->store(
+                    $file,
                     'offline-approvals/stock-requests/'.$stockRequest->id,
-                    'public'
                 );
             }
 
@@ -61,9 +78,19 @@ class MarkStockOfflineApprovedAction
                 ])
                 ->log('Stock request marked as offline approved');
 
+            DB::commit();
+
             return ['ok' => true];
 
         } catch (\Exception $e) {
+            DB::rollBack();
+            if ($documentPath) {
+                $this->fileStorage->deleteSafely($documentPath, [
+                    'st_id' => $stockRequest->id,
+                    'context' => 'rolled-back-offline-approval',
+                ]);
+            }
+
             Log::error('Failed to mark stock request as offline approved', [
                 'st_id' => $stockRequest->id,
                 'st_number' => $stockRequest->st_number,

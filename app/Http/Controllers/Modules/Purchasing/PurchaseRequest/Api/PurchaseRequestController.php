@@ -8,9 +8,11 @@ use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\UniversalPRNumberingService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PurchaseRequestController extends Controller
 {
@@ -27,10 +29,11 @@ class PurchaseRequestController extends Controller
     /**
      * Display a listing of purchase requests
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
+        $businessUnitId = $this->authorizedBusinessUnitId($request);
         $query = PurchaseRequest::with(['department', 'user', 'items', 'approvals'])
-            ->where('business_unit_id', $request->header('X-Business-Unit-ID'));
+            ->where('business_unit_id', $businessUnitId);
 
         // Apply filters
         if ($request->filled('status')) {
@@ -54,8 +57,9 @@ class PurchaseRequestController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortBy = in_array($request->get('sort_by'), ['created_at', 'date_of_request', 'pr_number', 'status', 'total_amount'], true)
+            ? $request->get('sort_by') : 'created_at';
+        $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
@@ -85,8 +89,14 @@ class PurchaseRequestController extends Controller
     /**
      * Store a newly created purchase request
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
+        $businessUnitId = $this->authorizedBusinessUnitId($request);
+        $departmentId = $request->user()->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->whereNotNull('department_id')
+            ->value('department_id');
+        abort_unless($departmentId, 403, 'You do not have a department assignment in this business unit.');
         $validatedData = $request->validate([
             'used_for' => 'required|string|max:1000',
             'date_of_request' => 'required|date',
@@ -99,7 +109,7 @@ class PurchaseRequestController extends Controller
             'items.*.unit' => 'required|string|max:50',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.currency' => 'required|string|in:IDR,USD,EUR',
-            'items.*.expense_department_id' => 'required|exists:departments,id',
+            'items.*.expense_department_id' => ['required', Rule::exists('departments', 'id')->where('business_unit_id', $businessUnitId)],
         ]);
 
         DB::beginTransaction();
@@ -108,16 +118,16 @@ class PurchaseRequestController extends Controller
             // Generate PR number
             $prNumber = $this->numberingService->generatePRNumber(
                 Auth::user(),
-                $request->header('X-Business-Unit-ID'),
-                null, // departmentId - will use user's primary department
+                $businessUnitId,
+                $departmentId,
                 Carbon::parse($validatedData['date_of_request'])
             );
 
             // Create purchase request
             $purchaseRequest = PurchaseRequest::create([
                 'pr_number' => $prNumber['formatted_number'],
-                'business_unit_id' => $request->header('X-Business-Unit-ID'),
-                'department_id' => Auth::user()->primary_department_id,
+                'business_unit_id' => $businessUnitId,
+                'department_id' => $departmentId,
                 'user_id' => Auth::id(),
                 'sequence_id' => $prNumber['sequence_id'],
                 'used_for' => $validatedData['used_for'],
@@ -163,7 +173,6 @@ class PurchaseRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create purchase request',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -171,8 +180,9 @@ class PurchaseRequestController extends Controller
     /**
      * Display the specified purchase request
      */
-    public function show(PurchaseRequest $purchaseRequest)
+    public function show(PurchaseRequest $purchaseRequest): JsonResponse
     {
+        $this->authorizePurchaseRequest($purchaseRequest);
         $purchaseRequest->load([
             'department',
             'user',
@@ -190,8 +200,9 @@ class PurchaseRequestController extends Controller
     /**
      * Update the specified purchase request
      */
-    public function update(Request $request, PurchaseRequest $purchaseRequest)
+    public function update(Request $request, PurchaseRequest $purchaseRequest): JsonResponse
     {
+        $this->authorizePurchaseRequest($purchaseRequest);
         // Check if user can edit
         if (! $purchaseRequest->canBeEdited()) {
             return response()->json([
@@ -220,7 +231,7 @@ class PurchaseRequestController extends Controller
             'items.*.unit' => 'required|string|max:50',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.currency' => 'required|string|in:IDR,USD,EUR',
-            'items.*.expense_department_id' => 'required|exists:departments,id',
+            'items.*.expense_department_id' => ['required', Rule::exists('departments', 'id')->where('business_unit_id', $purchaseRequest->business_unit_id)],
         ]);
 
         DB::beginTransaction();
@@ -276,7 +287,6 @@ class PurchaseRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update purchase request',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -284,8 +294,9 @@ class PurchaseRequestController extends Controller
     /**
      * Submit purchase request for approval
      */
-    public function submit(PurchaseRequest $purchaseRequest)
+    public function submit(PurchaseRequest $purchaseRequest): JsonResponse
     {
+        $this->authorizePurchaseRequest($purchaseRequest);
         if (! $purchaseRequest->canBeSubmitted()) {
             return response()->json([
                 'success' => false,
@@ -329,7 +340,6 @@ class PurchaseRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit for approval',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -337,8 +347,9 @@ class PurchaseRequestController extends Controller
     /**
      * Void purchase request
      */
-    public function void(Request $request, PurchaseRequest $purchaseRequest)
+    public function void(Request $request, PurchaseRequest $purchaseRequest): JsonResponse
     {
+        $this->authorizePurchaseRequest($purchaseRequest);
         $request->validate([
             'reason' => 'required|string|max:500',
         ]);
@@ -370,8 +381,9 @@ class PurchaseRequestController extends Controller
     /**
      * Remove the specified purchase request
      */
-    public function destroy(PurchaseRequest $purchaseRequest)
+    public function destroy(PurchaseRequest $purchaseRequest): JsonResponse
     {
+        $this->authorizePurchaseRequest($purchaseRequest);
         if (! $purchaseRequest->canBeEdited()) {
             return response()->json([
                 'success' => false,
@@ -398,13 +410,34 @@ class PurchaseRequestController extends Controller
     /**
      * Get workflow status for a purchase request
      */
-    public function workflowStatus(PurchaseRequest $purchaseRequest)
+    public function workflowStatus(PurchaseRequest $purchaseRequest): JsonResponse
     {
+        $this->authorizePurchaseRequest($purchaseRequest);
         $workflowStatus = $this->workflowService->getWorkflowStatus($purchaseRequest);
 
         return response()->json([
             'success' => true,
             'data' => $workflowStatus,
         ]);
+    }
+
+    private function authorizedBusinessUnitId(Request $request): int
+    {
+        $sessionBusinessUnitId = $request->hasSession()
+            ? $request->session()->get('current_business_unit_id')
+            : null;
+        $businessUnitId = (int) ($sessionBusinessUnitId ?: $request->header('X-Business-Unit-ID'));
+        if (! $businessUnitId || ! in_array($businessUnitId, $request->user()->getAccessibleBusinessUnitIds(), true)) {
+            abort(403, 'You do not have access to this business unit.');
+        }
+
+        return $businessUnitId;
+    }
+
+    private function authorizePurchaseRequest(PurchaseRequest $purchaseRequest): void
+    {
+        if ((int) $purchaseRequest->business_unit_id !== $this->authorizedBusinessUnitId(request())) {
+            abort(403, 'You do not have access to this purchase request.');
+        }
     }
 }

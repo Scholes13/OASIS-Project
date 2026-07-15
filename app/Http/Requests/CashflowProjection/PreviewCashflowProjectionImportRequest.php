@@ -17,6 +17,8 @@ class PreviewCashflowProjectionImportRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'context_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'context_month' => ['required', 'integer', 'min:1', 'max:12'],
             'file' => [
                 'required',
                 'file',

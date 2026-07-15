@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { monthOptions } from '../constants';
 import type { FinanceFormData, FinanceInput } from '../types';
 import { formatCurrency, formatMonthLabel } from '../utils';
+import { addMoney } from '../money';
 
 interface FinanceManagementCardProps {
     canManageFinance: boolean;
@@ -70,9 +71,11 @@ export default function FinanceManagementCard({
                             <input
                                 type="number"
                                 min={0}
+                                step="0.01"
+                                max="9999999999999999.99"
                                 className={inputClasses}
                                 value={financeData[key]}
-                                onChange={(event) => onFieldChange(key, Number(event.target.value))}
+                                onChange={(event) => onFieldChange(key, event.target.value)}
                             />
                         </div>
                     ))}
@@ -99,12 +102,7 @@ export default function FinanceManagementCard({
                                 </div>
                                 <p className="text-xs text-muted-foreground">COH: {formatCurrency(input.cash_on_hand)}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    Income: {formatCurrency(
-                                        input.receivable_estimate +
-                                            input.upcoming_event_revenue_estimate +
-                                            input.capital_injection_estimate +
-                                            input.other_income
-                                    )}
+                                    Income: {formatCurrency(addMoney(input.receivable_estimate, input.upcoming_event_revenue_estimate, input.capital_injection_estimate, input.other_income))}
                                 </p>
                             </div>
                         ))}

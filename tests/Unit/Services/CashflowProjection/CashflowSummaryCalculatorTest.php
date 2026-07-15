@@ -32,10 +32,24 @@ class CashflowSummaryCalculatorTest extends TestCase
             ])
         );
 
-        $this->assertSame(1_500_000_000.0, $summary[3]['closing_balance']);
-        $this->assertSame(1_500_000_000.0, $summary[4]['opening_balance']);
-        $this->assertSame(1_500_000_000.0, $summary[4]['closing_balance']);
-        $this->assertSame(1_500_000_000.0, $summary[5]['opening_balance']);
-        $this->assertSame(1_500_000_000.0, $summary[5]['closing_balance']);
+        $this->assertSame('1500000000.00', $summary[3]['closing_balance']);
+        $this->assertSame('1500000000.00', $summary[4]['opening_balance']);
+        $this->assertSame('1500000000.00', $summary[4]['closing_balance']);
+        $this->assertSame('1500000000.00', $summary[5]['opening_balance']);
+        $this->assertSame('1500000000.00', $summary[5]['closing_balance']);
+    }
+
+    public function test_summary_adds_cents_exactly(): void
+    {
+        $summary = app(CashflowSummaryCalculator::class)->buildMonthlySummary(
+            new Collection([
+                new CashflowProjectionLineItem(['transaction_date' => '2026-01-01', 'flow_type' => 'in', 'amount' => '0.01']),
+                new CashflowProjectionLineItem(['transaction_date' => '2026-01-02', 'flow_type' => 'in', 'amount' => '0.02']),
+            ]),
+            new Collection
+        );
+
+        $this->assertSame('0.03', $summary[0]['plus']);
+        $this->assertSame('0.03', $summary[0]['closing_balance']);
     }
 }

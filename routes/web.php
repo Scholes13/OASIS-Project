@@ -10,6 +10,8 @@ use App\Http\Controllers\Modules\Activity\TaskCommentController;
 use App\Http\Controllers\Modules\CashflowProjection\CashflowProjectionController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController;
 use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestController;
+use App\Http\Controllers\Modules\Purchasing\PurchaseRequest\PurchaseRequestDocumentController;
+use App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestDocumentController;
 use App\Http\Controllers\Modules\Ticket\KnowledgeBaseController;
 use App\Http\Controllers\Modules\Ticket\KnowledgeCategoryController;
 use App\Http\Controllers\Modules\Ticket\TicketCategoryController;
@@ -48,17 +50,17 @@ Route::prefix('api')->middleware(['auth'])->group(function () {
 Route::get('/purchase-requests/{pr}/public', [ApprovalController::class, 'publicView'])->name('purchase-requests.public');
 
 // Public PDF route for browsershot (no auth middleware)
-Route::get('/purchase-requests/{purchaseRequest}/pdf-public', [PurchaseRequestController::class, 'pdfPublic'])->name('purchase-requests.pdf-public');
+Route::get('/purchase-requests/{purchaseRequest}/pdf-public', [PurchaseRequestDocumentController::class, 'pdfPublic'])->middleware('signed')->name('purchase-requests.pdf-public');
 
 // Public download PDF route for browsershot (no auth middleware)
-Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [PurchaseRequestController::class, 'downloadPdfPublic'])->name('purchase-requests.download-pdf-public');
+Route::get('/purchase-requests/{purchaseRequest}/download-pdf-public', [PurchaseRequestDocumentController::class, 'downloadPdfPublic'])->middleware('signed')->name('purchase-requests.download-pdf-public');
 
 // Stock Request Public Routes (no authentication required)
 Route::get('/stock-requests/{sr}/public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'publicView'])->name('stock-requests.public');
 
 // Public PDF routes for stock requests
-Route::get('/stock-requests/{stockRequest}/pdf-public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'pdfPublic'])->name('stock-requests.pdf-public');
-Route::get('/stock-requests/{stockRequest}/download-pdf-public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'downloadPdfPublic'])->name('stock-requests.download-pdf-public');
+Route::get('/stock-requests/{stockRequest}/pdf-public', [StockRequestDocumentController::class, 'pdfPublic'])->name('stock-requests.pdf-public');
+Route::get('/stock-requests/{stockRequest}/download-pdf-public', [StockRequestDocumentController::class, 'downloadPdfPublic'])->name('stock-requests.download-pdf-public');
 
 // Stock Request public approval routes (signed URL with expiry)
 Route::get('/stock-approvals/{approval}/public', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'showPublicApproval'])
@@ -67,7 +69,7 @@ Route::get('/stock-approvals/{approval}/public', [\App\Http\Controllers\Modules\
 
 // POST route for stock approval (throttle limit for security)
 Route::post('/stock-approvals/{approval}/public/process', [\App\Http\Controllers\Modules\Purchasing\StockRequest\StockApprovalController::class, 'processPublicApproval'])
-    ->middleware('throttle:5,1')
+    ->middleware(['signed', 'throttle:5,1'])
     ->name('stock-approvals.public.process');
 
 // Public approval routes (signed URL with expiry)
@@ -75,10 +77,9 @@ Route::get('/approvals/{approval}/public', [ApprovalController::class, 'showPubl
     ->middleware('signed')
     ->name('approvals.public.approve');
 
-// POST route tidak pakai 'signed' middleware karena form POST tidak support signed URL
-// Security: validated by approval status checks in controller + throttle limit
+// Decision URL carries its own temporary signature.
 Route::post('/approvals/{approval}/public/process', [ApprovalController::class, 'processPublicApproval'])
-    ->middleware('throttle:5,1')
+    ->middleware(['signed', 'throttle:5,1'])
     ->name('approvals.public.process');
 
 // ============================================================================
@@ -203,16 +204,15 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{purchaseRequest}/void', [PurchaseRequestController::class, 'void'])->name('void');
         Route::post('/{purchaseRequest}/mark-offline-approved', [PurchaseRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
         Route::post('/{purchaseRequest}/resend-approval-email', [PurchaseRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
-        Route::get('/{purchaseRequest}/offline-approval-document', [PurchaseRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
+        Route::get('/{purchaseRequest}/offline-approval-document', [PurchaseRequestDocumentController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
 
         // PDF Routes
-        Route::get('/{purchaseRequest}/pdf', [PurchaseRequestController::class, 'pdf'])->name('pdf');
-        Route::get('/{purchaseRequest}/supporting-document', [PurchaseRequestController::class, 'supportingDocument'])->name('supporting-document');
-        Route::get('/{purchaseRequest}/supporting-document/download', [PurchaseRequestController::class, 'downloadSupportingDocument'])->name('supporting-document.download');
-        Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestController::class, 'downloadPdf'])->name('download-pdf');
+        Route::get('/{purchaseRequest}/pdf', [PurchaseRequestDocumentController::class, 'pdf'])->name('pdf');
+        Route::get('/{purchaseRequest}/supporting-document', [PurchaseRequestDocumentController::class, 'supportingDocument'])->name('supporting-document');
+        Route::get('/{purchaseRequest}/supporting-document/download', [PurchaseRequestDocumentController::class, 'downloadSupportingDocument'])->name('supporting-document.download');
+        Route::get('/{purchaseRequest}/download-pdf', [PurchaseRequestDocumentController::class, 'downloadPdf'])->name('download-pdf');
 
-        // List all PRs (for admin/manager view) - Livewire for now
-        Route::get('/all/list', [PurchaseRequestController::class, 'all'])->name('all');
+        Route::get('/all/list', [\App\Http\Controllers\Modules\Purchasing\PurchasingController::class, 'redirectLegacyAllRequests'])->name('all');
     });
 
     // Approval Routes
@@ -264,10 +264,10 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         Route::post('/{stockRequest}/ga-review/reject', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'rejectGaReview'])->name('ga-review.reject');
         Route::post('/{stockRequest}/mark-offline-approved', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'markOfflineApproved'])->name('mark-offline-approved');
         Route::post('/{stockRequest}/resend-approval-email', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'resendApprovalEmail'])->name('resend-approval-email');
-        Route::get('/{stockRequest}/offline-approval-document', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
+        Route::get('/{stockRequest}/offline-approval-document', [StockRequestDocumentController::class, 'offlineApprovalDocument'])->name('offline-approval-document');
 
         // PDF Routes (authenticated)
-        Route::get('/{stockRequest}/download-pdf', [App\Http\Controllers\Modules\Purchasing\StockRequest\StockRequestController::class, 'downloadPdf'])->name('download-pdf');
+        Route::get('/{stockRequest}/download-pdf', [StockRequestDocumentController::class, 'downloadPdf'])->name('download-pdf');
     });
 
     // ============================================================================
@@ -405,11 +405,11 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
 
         // Backdate Permission Routes
         Route::prefix('backdate')->name('backdate.')->group(function () {
-            Route::get('/requests', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateRequests'])->name('requests');
-            Route::post('/request/submit', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'submitBackdateRequest'])->name('request.submit');
-            Route::get('/approvals', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'backdateApprovals'])->name('approvals');
-            Route::post('/{id}/approve', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'approveBackdate'])->name('approve')->whereNumber('id');
-            Route::post('/{id}/reject', [\App\Http\Controllers\Modules\Activity\ActivityInertiaController::class, 'rejectBackdate'])->name('reject')->whereNumber('id');
+            Route::get('/requests', [\App\Http\Controllers\Modules\Activity\ActivityBackdateController::class, 'requests'])->name('requests');
+            Route::post('/request/submit', [\App\Http\Controllers\Modules\Activity\ActivityBackdateController::class, 'submit'])->name('request.submit');
+            Route::get('/approvals', [\App\Http\Controllers\Modules\Activity\ActivityBackdateController::class, 'approvals'])->name('approvals');
+            Route::post('/{id}/approve', [\App\Http\Controllers\Modules\Activity\ActivityBackdateController::class, 'approve'])->name('approve')->whereNumber('id');
+            Route::post('/{id}/reject', [\App\Http\Controllers\Modules\Activity\ActivityBackdateController::class, 'reject'])->name('reject')->whereNumber('id');
         });
     });
 
@@ -432,8 +432,8 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
         // Entry Import Routes
         Route::get('/entries/import-template', [CashflowProjectionController::class, 'downloadImportTemplate'])->name('entries.import-template');
         Route::post('/entries/import-preview', [CashflowProjectionController::class, 'previewImport'])->name('entries.import-preview');
+        Route::post('/entries/import-review', [CashflowProjectionController::class, 'reviewImport'])->name('entries.import-review');
         Route::post('/entries/import-confirm', [CashflowProjectionController::class, 'confirmImport'])->name('entries.import-confirm');
-        Route::post('/entries/import', [CashflowProjectionController::class, 'importEntries'])->name('entries.import');
     });
 
     // ============================================================================
@@ -494,9 +494,11 @@ Route::middleware(['auth', 'verified', 'ensure.business.unit.selected'])->group(
                 Route::post('/tickets/{ticket}/link-article', [KnowledgeBaseController::class, 'linkArticle'])->name('tickets.linkArticle');
 
                 // Reporting
-                Route::get('/reporting', [TicketReportingController::class, 'index'])->name('reporting');
-                Route::get('/reporting/export/excel', [TicketReportingController::class, 'exportExcel'])->name('reporting.exportExcel');
-                Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
+                Route::middleware('can:view-it-support-reports')->group(function () {
+                    Route::get('/reporting', [TicketReportingController::class, 'index'])->name('reporting');
+                    Route::get('/reporting/export/excel', [TicketReportingController::class, 'exportExcel'])->name('reporting.exportExcel');
+                    Route::get('/reporting/export/pdf', [TicketReportingController::class, 'exportPdf'])->name('reporting.exportPdf');
+                });
 
                 // Categories
                 Route::resource('/categories', TicketCategoryController::class)->names('categories')->except(['show']);

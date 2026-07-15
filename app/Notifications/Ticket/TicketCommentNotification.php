@@ -43,7 +43,7 @@ class TicketCommentNotification extends Notification
             'type' => 'ticket_comment',
             'title' => sprintf('Komentar Baru: %s', $this->ticket->ticket_number),
             'message' => sprintf('%s menambahkan komentar pada ticket: %s', $this->commenter->name, $this->ticket->title),
-            'action_url' => route('it-support.admin.tickets.show', $this->ticket),
+            'action_url' => $this->actionUrl($notifiable),
             'priority' => 'normal',
             'occurred_at' => $this->comment->created_at?->toISOString() ?? now()->toISOString(),
             'actor' => [
@@ -56,5 +56,14 @@ class TicketCommentNotification extends Notification
                 'title' => $this->ticket->title,
             ],
         ];
+    }
+
+    protected function actionUrl(object $notifiable): string
+    {
+        $route = (int) $notifiable->id === (int) $this->ticket->requester_id
+            ? 'it-support.my-tickets.show'
+            : 'it-support.admin.tickets.show';
+
+        return route($route, $this->ticket);
     }
 }

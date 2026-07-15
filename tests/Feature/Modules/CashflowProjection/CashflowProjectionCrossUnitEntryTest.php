@@ -106,6 +106,14 @@ class CashflowProjectionCrossUnitEntryTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->financeUser->businessUnits()->create([
+            'business_unit_id' => $this->linkedBusinessUnit->id,
+            'department_id' => $this->linkedOpsDepartment->id,
+            'position_id' => $this->financePosition->id,
+            'is_primary' => false,
+            'is_active' => true,
+        ]);
+
         $this->hrHeadUser = User::create([
             'name' => 'HR Head',
             'email' => 'hr.head@example.com',
@@ -315,6 +323,61 @@ class CashflowProjectionCrossUnitEntryTest extends TestCase
 
         $response->assertRedirect(route('cashflow-projection.entries'));
         $response->assertSessionHasErrors('department_id');
+    }
+
+    public function test_unrelated_unassigned_business_unit_is_not_link_option_and_direct_post_is_forbidden(): void
+    {
+        $unrelated = BusinessUnit::create(['code' => 'BAD', 'name' => 'Unrelated Unit', 'is_active' => true]);
+
+        $this->actingAsFinanceUser()
+            ->get(route('cashflow-projection.settings'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('availableBusinessUnits', fn ($units) => collect($units)->doesntContain('id', $unrelated->id))
+            );
+
+        $this->actingAsFinanceUser()
+            ->post(route('cashflow-projection.linked-units.store'), ['linked_business_unit_id' => $unrelated->id])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('cashflow_projection_linked_units', [
+            'host_business_unit_id' => $this->hostBusinessUnit->id,
+            'linked_business_unit_id' => $unrelated->id,
+        ]);
+    }
+
+    public function test_stale_unauthorized_link_is_excluded_from_scope(): void
+    {
+        $unrelated = BusinessUnit::create(['code' => 'BAD', 'name' => 'Unrelated Unit', 'is_active' => true]);
+        $department = Department::create(['business_unit_id' => $unrelated->id, 'code' => 'BAD', 'name' => 'Bad', 'is_active' => true]);
+        CashflowProjectionLinkedUnit::create([
+            'host_business_unit_id' => $this->hostBusinessUnit->id,
+            'linked_business_unit_id' => $unrelated->id,
+            'created_by' => $this->financeUser->id,
+        ]);
+
+        $this->actingAsFinanceUser()
+            ->get(route('cashflow-projection.entries'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('departments', fn ($departments) => collect($departments)->doesntContain('id', $department->id))
+            );
+
+        $this->actingAsFinanceUser()
+            ->from(route('cashflow-projection.entries'))
+            ->post(route('cashflow-projection.line-items.store'), [
+                'year' => 2026,
+                'department_id' => $department->id,
+                'action_code' => 'OUT_BAD_OPS',
+                'transaction_date' => '2026-03-12',
+                'amount' => '100.00',
+                'description' => 'Stale linked scope attack',
+            ])
+            ->assertRedirect(route('cashflow-projection.entries'))
+            ->assertSessionHasErrors('department_id');
+
+        $this->assertDatabaseMissing('cashflow_projection_line_items', [
+            'department_id' => $department->id,
+            'description' => 'Stale linked scope attack',
+        ]);
     }
 
     private function actingAsFinanceUser(): self

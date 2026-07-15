@@ -265,11 +265,21 @@ class ApprovalRuleEngine
         if ($hasSpecialItems && $categoryType) {
             // Get approver role from config based on category type
             $approverRole = config("approval.special_category_approvers.{$categoryType}", 'it_manager');
+            $businessUnitIds = [];
+            $businessUnit = $purchaseRequest->businessUnit;
+            while ($businessUnit && ! in_array($businessUnit->id, $businessUnitIds, true)) {
+                $businessUnitIds[] = $businessUnit->id;
+                $businessUnit = $businessUnit->parent;
+            }
 
             return User::whereHas('roles', function ($query) use ($approverRole) {
                 $query->where('name', $approverRole);
             })
+                ->whereHas('activeBusinessUnits', fn ($query) => $query
+                    ->whereIn('business_unit_id', $businessUnitIds))
+                ->whereKeyNot($purchaseRequest->user_id)
                 ->where('is_active', true)
+                ->where('global_role', '!=', 'super_admin')
                 ->first();
         }
 

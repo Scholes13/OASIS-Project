@@ -6,6 +6,7 @@ use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\CashflowProjection\CashflowProjectionCycle;
 use App\Models\Modules\CashflowProjection\CashflowProjectionLineItem;
+use App\Services\Modules\CashflowProjection\CashflowMoney;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAccessService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAuditService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionScopeService;
@@ -75,7 +76,7 @@ class DestroyCashflowLineItemAction
             'transaction_date' => optional($lineItem->transaction_date)->format('Y-m-d'),
             'due_date' => optional($lineItem->due_date)->format('Y-m-d'),
             'is_estimated_date' => (bool) $lineItem->is_estimated_date,
-            'amount' => (float) $lineItem->amount,
+            'amount' => CashflowMoney::normalize($lineItem->amount),
             'description' => $lineItem->description,
             'keterangan' => $lineItem->keterangan,
             'no_dokumen' => $lineItem->no_dokumen,

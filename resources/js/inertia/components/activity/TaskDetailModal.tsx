@@ -4,7 +4,6 @@ import {
     Calendar,
     User,
     Users,
-    X,
     AlertTriangle,
     Tag,
     Building2,
@@ -18,8 +17,6 @@ import {
     Folder,
     ChevronDown,
     Plus,
-    Trash2,
-    Edit,
     MoreHorizontal,
     Share2
 } from "lucide-react"
@@ -31,6 +28,7 @@ import { formatDateWib, isOverdueWib } from "@/lib/activityDateTime"
 import { showToast } from "../ui/toast"
 import { handleExecutionTimeGuidance } from "./quick-status-guidance"
 import { TaskCommentSection } from "./TaskCommentSection"
+import { TaskDetailModalHeader } from "./TaskDetailModalHeader"
 import type { PageProps, Task } from "@/types"
 
 interface TaskDetailModalProps {
@@ -162,56 +160,17 @@ export function TaskDetailModal({ task, open, onClose, onEdit, mode = 'default' 
             <Dialog open={open} onClose={handleClose} className="flex min-h-0 max-h-[min(85vh,800px)] w-[95vw] max-w-[1000px] flex-col overflow-hidden !rounded-xl !p-0 shadow-2xl">
                 {task && (
                     <div className="flex h-full min-h-0 flex-col bg-background">
-                    {/* Header */}
-                    <div className="flex items-start justify-between border-b border-border bg-background px-8 py-5">
-                        <div>
-                            <div className="mb-2 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                                {isAdminReadonly ? 'Activity Admin' : 'Activity Tracking'} / Task / #{task.id}
-                            </div>
-                            <h2 className="text-[20px] font-semibold leading-snug text-foreground">
-                                {task.task_title}
-                            </h2>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {showOpenInDashboard && (
-                                <button
-                                    onClick={handleViewDetail}
-                                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                                    aria-label="Open in Dashboard"
-                                    title="Open in Dashboard"
-                                >
-                                    <ExternalLink className="h-[18px] w-[18px]" />
-                                </button>
-                            )}
-                            {editable && (
-                                <button
-                                    onClick={handleEdit}
-                                    className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                                    title="Edit Task"
-                                >
-                                    <Edit className="h-[18px] w-[18px]" />
-                                </button>
-                            )}
-                            {editable && (
-                                <button
-                                    onClick={handleDelete}
-                                    disabled={isDeleting}
-                                    className="flex h-9 w-9 items-center justify-center rounded-full text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                    aria-label="Delete Task"
-                                    title="Delete Task"
-                                >
-                                    <Trash2 className="h-[18px] w-[18px]" />
-                                </button>
-                            )}
-                            <button
-                                onClick={handleClose}
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                                aria-label="Close modal"
-                            >
-                                <X className="h-[18px] w-[18px]" />
-                            </button>
-                        </div>
-                    </div>
+                    <TaskDetailModalHeader
+                        task={task}
+                        isAdminReadonly={isAdminReadonly}
+                        showOpenInDashboard={showOpenInDashboard}
+                        editable={editable}
+                        isDeleting={isDeleting}
+                        onViewDetail={handleViewDetail}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onClose={handleClose}
+                    />
 
                     {/* Body */}
                     <div className="flex min-h-0 flex-1 overflow-hidden">

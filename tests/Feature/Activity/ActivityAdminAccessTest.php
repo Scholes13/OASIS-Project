@@ -105,7 +105,7 @@ class ActivityAdminAccessTest extends TestCase
         $this->assertTrue($this->hasSectionItem($navigation, 'Administration', 'Activity Admin Assignment'));
     }
 
-    protected function createUser(string $email, bool $isActivityAdmin, string $globalRole = 'staff'): User
+    protected function createUser(string $email, bool $isActivityAdmin, string $globalRole = 'user'): User
     {
         $user = User::create([
             'name' => $email,

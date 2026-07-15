@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -195,9 +196,9 @@ class KnowledgeBaseController extends Controller
      */
     public function adminCreate(): Response
     {
-        $scopedBuIds = $this->resolveScopedBusinessUnitIds();
+        $businessUnitId = (int) session('current_business_unit_id');
 
-        $categories = KnowledgeCategory::whereIn('business_unit_id', $scopedBuIds)
+        $categories = KnowledgeCategory::where('business_unit_id', $businessUnitId)
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -246,7 +247,7 @@ class KnowledgeBaseController extends Controller
 
         $article->load('category');
 
-        $categories = KnowledgeCategory::whereIn('business_unit_id', $scopedBuIds)
+        $categories = KnowledgeCategory::where('business_unit_id', $article->business_unit_id)
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -323,7 +324,13 @@ class KnowledgeBaseController extends Controller
         abort_unless(in_array((int) $ticket->business_unit_id, $scopedBuIds, true), 403);
 
         $request->validate([
-            'article_id' => ['required', 'integer', 'exists:ticket_knowledge_articles,id'],
+            'article_id' => [
+                'required',
+                'integer',
+                Rule::exists('ticket_knowledge_articles', 'id')
+                    ->where('business_unit_id', $ticket->business_unit_id)
+                    ->where('is_published', true),
+            ],
         ]);
 
         $articleId = $request->integer('article_id');

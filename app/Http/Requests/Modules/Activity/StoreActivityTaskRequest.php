@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Modules\Activity;
 
 use App\Models\Core\Department;
+use App\Models\Core\User;
+use App\Services\Modules\Activity\ActivityAuthorizationService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,7 +15,15 @@ class StoreActivityTaskRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+        $businessUnitId = (int) session('current_business_unit_id');
+        $departmentId = (int) (session('current_department_id') ?? $user?->getCurrentDepartmentId());
+        $authorization = app(ActivityAuthorizationService::class);
+
+        return $businessUnitId > 0
+            && $departmentId > 0
+            && $authorization->belongsToBusinessUnit($user, $businessUnitId)
+            && ($user?->isSuperAdmin() || $authorization->canParticipate($user, $businessUnitId, $departmentId));
     }
 
     protected function prepareForValidation(): void
@@ -97,6 +107,8 @@ class StoreActivityTaskRequest extends FormRequest
             $backdateService = app(BackdatePermissionService::class);
             $user = Auth::user();
 
+            $this->validateParticipants($validator, $user);
+
             if (! $backdateService->canCreateTaskWithDate($user, $taskDateCarbon)) {
                 $allowedRange = $backdateService->getAllowedDateRange($user);
                 $validator->errors()->add(
@@ -121,6 +133,28 @@ class StoreActivityTaskRequest extends FormRequest
                 }
             }
         });
+    }
+
+    protected function validateParticipants(Validator $validator, User $user): void
+    {
+        $participantIds = array_unique(array_map('intval', $this->input('participant_ids', [])));
+        if ($participantIds === []) {
+            return;
+        }
+
+        $businessUnitId = (int) session('current_business_unit_id');
+        $departmentId = (int) (session('current_department_id') ?? $user->getCurrentDepartmentId());
+        $validCount = User::query()
+            ->whereIn('id', $participantIds)
+            ->where('is_active', true)
+            ->whereHas('activeBusinessUnits', fn ($query) => $query
+                ->where('business_unit_id', $businessUnitId)
+                ->where('department_id', $departmentId))
+            ->count();
+
+        if ($validCount !== count($participantIds)) {
+            $validator->errors()->add('participant_ids', 'Participants must be active members of your current department.');
+        }
     }
 
     protected function getValidActivityTypeIds(?int $departmentId): array

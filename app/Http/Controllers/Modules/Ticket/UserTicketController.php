@@ -133,10 +133,13 @@ class UserTicketController extends Controller
         $ticket->load([
             'category',
             'assignedUser',
-            'requester',
+            'requester:id,name',
             'comments' => fn ($q) => $q->withoutTrashed()->where('is_private', false)->with('user')->latest(),
             'attachments',
-            'knowledgeArticles',
+            'knowledgeArticles' => fn ($query) => $query
+                ->where('business_unit_id', $ticket->business_unit_id)
+                ->where('is_published', true)
+                ->select('ticket_knowledge_articles.id', 'title', 'slug'),
         ]);
 
         return Inertia::render('Ticket/Show', [

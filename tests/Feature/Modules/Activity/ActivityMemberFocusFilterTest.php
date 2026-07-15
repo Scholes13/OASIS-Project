@@ -67,7 +67,7 @@ class ActivityMemberFocusFilterTest extends TestCase
             'code' => 'STAFF',
             'level' => 'staff',
             'access_level' => 'staff',
-            'hierarchy_level' => 1,
+            'hierarchy_level' => 3,
             'is_active' => true,
         ]);
 
@@ -82,6 +82,10 @@ class ActivityMemberFocusFilterTest extends TestCase
         ]);
 
         $this->viewer = $this->createUserWithAssignment('Viewer User', 'viewer@example.test', $this->dept, $this->position);
+        $this->viewer->businessUnits()->update([
+            'is_activity_admin' => true,
+            'is_activity_report_access' => true,
+        ]);
         $this->memberA = $this->createUserWithAssignment('Member A', 'member-a@example.test', $this->dept, $this->position);
         $this->memberB = $this->createUserWithAssignment('Member B', 'member-b@example.test', $this->dept, $this->position);
         $this->inactiveMember = $this->createUserWithAssignment('Inactive Member', 'inactive@example.test', $this->dept, $this->position, false);
@@ -129,6 +133,28 @@ class ActivityMemberFocusFilterTest extends TestCase
         $this->assertCount(1, $tasks);
         $this->assertSame($taskByMemberA->id, $tasks[0]['id']);
         $this->assertSame(1, $stats['total']);
+    }
+
+    public function test_ordinary_staff_cannot_request_department_scope(): void
+    {
+        $this->actingAs($this->memberA)
+            ->get(route('activity.task.index', ['scope' => 'department']))
+            ->assertForbidden();
+
+        $this->actingAs($this->memberA)
+            ->get(route('activity.task.export', ['scope' => 'department']))
+            ->assertForbidden();
+    }
+
+    public function test_ordinary_staff_dashboard_does_not_receive_department_analytics(): void
+    {
+        $response = $this->actingAs($this->memberA)
+            ->get(route('activity.dashboard'))
+            ->assertOk();
+
+        $this->assertNull($response->viewData('page')['props']['departmentStats']);
+        $this->assertNull($response->viewData('page')['props']['departmentVisuals']);
+        $this->assertSame([], $response->viewData('page')['props']['departmentMembers']);
     }
 
     public function test_task_index_filters_by_participant_when_member_focus_active(): void
@@ -206,7 +232,7 @@ class ActivityMemberFocusFilterTest extends TestCase
         $this->assertSame('', $filters['member_user_id']);
     }
 
-    public function test_task_index_preserves_legacy_department_scope_then_applies_member_focus(): void
+    public function test_task_index_excludes_participant_tasks_outside_department_scope(): void
     {
         $outsideTask = $this->createTask($this->memberA, [
             'department_id' => $this->otherDept->id,
@@ -224,7 +250,7 @@ class ActivityMemberFocusFilterTest extends TestCase
         $response->assertOk();
         $taskIds = array_column($response->viewData('page')['props']['tasks']['data'], 'id');
 
-        $this->assertContains($outsideTask->id, $taskIds);
+        $this->assertNotContains($outsideTask->id, $taskIds);
     }
 
     public function test_task_index_sanitizes_invalid_member_id(): void
@@ -379,6 +405,7 @@ class ActivityMemberFocusFilterTest extends TestCase
             'password' => bcrypt('password'),
             'primary_department_id' => $department->id,
             'primary_position_id' => $position->id,
+            'global_role' => 'user',
             'is_active' => $isActive,
             'email_verified_at' => now(),
         ]);

@@ -61,56 +61,95 @@ export function PurchaseRequestHeader({
 
                 <div className="flex flex-wrap items-center justify-end gap-1 pt-14">
                     {permissions?.approve && (
-                        <Button variant="default" size="sm" onClick={onApprove} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={onApprove}
+                            className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        >
                             <Check className="w-4 h-4 mr-1.5" />
                             Approve
                         </Button>
                     )}
 
                     {permissions?.reject && (
-                        <Button variant="ghost" size="sm" onClick={onReject} className="text-red-600 hover:text-red-900 hover:bg-red-50">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onReject}
+                            className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                        >
                             <X className="w-4 h-4 mr-1.5" />
                             Reject
                         </Button>
                     )}
 
                     {permissions?.edit && (
-                        <Link href={route('purchase-requests.edit', { purchaseRequest: purchaseRequest.id })} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
+                        <Link
+                            href={route('purchase-requests.edit', { purchaseRequest: purchaseRequest.id })}
+                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950"
+                        >
                             <Edit className="w-4 h-4 mr-1.5" />
                             Edit
                         </Link>
                     )}
 
                     {permissions?.resubmit && (
-                        <Button variant="ghost" size="sm" onClick={onResubmit} className="text-primary hover:text-primary hover:bg-blue-600">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onResubmit}
+                            className="text-primary hover:text-primary hover:bg-blue-600"
+                        >
                             <RotateCcw className="w-4 h-4 mr-1.5" />
                             Resubmit
                         </Button>
                     )}
 
                     {permissions?.resendApprovalEmail && (
-                        <Button variant="ghost" size="sm" onClick={onResendApprovalEmail} disabled={isResendingEmail} className="text-sky-600 hover:text-sky-900 hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onResendApprovalEmail}
+                            disabled={isResendingEmail}
+                            className="text-sky-600 hover:text-sky-900 hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             {isResendingEmail ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-4 h-4 mr-1.5" />}
                             Resend Email
                         </Button>
                     )}
 
                     {permissions?.downloadPdf && (
-                        <a href={route('purchase-requests.pdf-public', { purchaseRequest: purchaseRequest.id })} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
+                        <a
+                            href={route('purchase-requests.pdf', { purchaseRequest: purchaseRequest.id })}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950"
+                        >
                             <Download className="w-4 h-4 mr-1.5" />
                             Download PDF
                         </a>
                     )}
 
                     {permissions?.markOfflineApproved && (
-                        <Button variant="ghost" size="sm" onClick={onMarkOfflineApproved} className="text-purple-600 hover:text-purple-900 hover:bg-purple-50">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onMarkOfflineApproved}
+                            className="text-purple-600 hover:text-purple-900 hover:bg-purple-50"
+                        >
                             <Shield className="w-4 h-4 mr-1.5" />
                             Mark Offline Approved
                         </Button>
                     )}
 
                     {permissions?.void && (
-                        <Button variant="ghost" size="sm" onClick={onVoid} className="text-red-600 hover:text-red-900 hover:bg-red-50">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onVoid}
+                            className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                        >
                             <Ban className="w-4 h-4 mr-1.5" />
                             Void
                         </Button>

@@ -95,6 +95,14 @@ class CashflowProjectionDashboardFilterTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->financeUser->businessUnits()->create([
+            'business_unit_id' => $this->linkedBusinessUnit->id,
+            'department_id' => $this->linkedFinanceDepartment->id,
+            'position_id' => $this->financePosition->id,
+            'is_primary' => false,
+            'is_active' => true,
+        ]);
+
         $cycle = CashflowProjectionCycle::create([
             'business_unit_id' => $this->businessUnit->id,
             'year' => 2026,
@@ -150,11 +158,11 @@ class CashflowProjectionDashboardFilterTest extends TestCase
             ->where('filters.month', 3)
             ->where('filters.start_date', '2026-03-01')
             ->where('filters.end_date', '2026-03-31')
-            ->where('summary.inflow', 600)
-            ->where('summary.outflow', 120)
-            ->where('summary.finance_income', 200)
-            ->where('summary.net_cashflow', 680)
-            ->where('summary.total_balance', 1580)
+            ->where('summary.inflow', '600.00')
+            ->where('summary.outflow', '120.00')
+            ->where('summary.finance_income', '200.00')
+            ->where('summary.net_cashflow', '680.00')
+            ->where('summary.total_balance', '1580.00')
             ->has('lineItems', 3)
         );
     }
@@ -177,7 +185,7 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
             ->component('CashflowProjection/Index')
-            ->where('summary.inflow', 675)
+            ->where('summary.inflow', '675.00')
             ->has('lineItems', 4)
             ->where('lineItems', function ($lineItems): bool {
                 return collect($lineItems)->contains(fn ($lineItem) => is_array($lineItem)
@@ -221,7 +229,7 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
             ->component('CashflowProjection/Index')
-            ->where('summary.inflow', 640)
+            ->where('summary.inflow', '640.00')
             ->has('lineItems', 4)
             ->where('lineItems', function ($lineItems): bool {
                 return collect($lineItems)->contains(fn ($lineItem) => is_array($lineItem)
@@ -252,11 +260,11 @@ class CashflowProjectionDashboardFilterTest extends TestCase
             ->where('filters.year', 2026)
             ->where('filters.start_date', '2026-01-01')
             ->where('filters.end_date', '2026-12-31')
-            ->where('summary.inflow', 900)
-            ->where('summary.outflow', 200)
-            ->where('summary.finance_income', 350)
-            ->where('summary.net_cashflow', 1050)
-            ->where('summary.total_balance', 1580)
+            ->where('summary.inflow', '900.00')
+            ->where('summary.outflow', '200.00')
+            ->where('summary.finance_income', '350.00')
+            ->where('summary.net_cashflow', '1050.00')
+            ->where('summary.total_balance', '1580.00')
             ->has('lineItems', 5)
         );
     }
@@ -277,11 +285,11 @@ class CashflowProjectionDashboardFilterTest extends TestCase
             ->where('filters.year', 2026)
             ->where('filters.start_date', '2026-03-05')
             ->where('filters.end_date', '2026-03-20')
-            ->where('summary.inflow', 500)
-            ->where('summary.outflow', 120)
-            ->where('summary.finance_income', 200)
-            ->where('summary.net_cashflow', 580)
-            ->where('summary.total_balance', 1580)
+            ->where('summary.inflow', '500.00')
+            ->where('summary.outflow', '120.00')
+            ->where('summary.finance_income', '200.00')
+            ->where('summary.net_cashflow', '580.00')
+            ->where('summary.total_balance', '1580.00')
             ->has('lineItems', 2)
             ->where('lineItems.0.transaction_date', '2026-03-18')
             ->where('lineItems.1.transaction_date', '2026-03-05')
@@ -315,7 +323,7 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         $this->assertStringContainsString('January income', $content);
         $this->assertStringContainsString('March revenue', $content);
         // Balance Snapshot in Summary sheet
-        $this->assertStringContainsString('<Data ss:Type="Number">1580</Data>', $content);
+        $this->assertStringContainsString('<Data ss:Type="Number">1580.00</Data>', $content);
     }
 
     public function test_dashboard_export_finance_scope_includes_other_departments_in_active_business_unit(): void
@@ -373,7 +381,7 @@ class CashflowProjectionDashboardFilterTest extends TestCase
 
         $this->assertStringContainsString('Linked finance inflow', $content);
         $this->assertStringContainsString('<Data ss:Type="String">MRP</Data>', $content);
-        $this->assertStringContainsString('<Data ss:Type="Number">640</Data>', $content);
+        $this->assertStringContainsString('<Data ss:Type="Number">640.00</Data>', $content);
     }
 
     public function test_dashboard_export_range_filter_includes_daily_movement_for_range(): void
@@ -417,7 +425,7 @@ class CashflowProjectionDashboardFilterTest extends TestCase
         $this->assertStringContainsString('March revenue', $content);
         // Summary sheet has monthly breakdown
         $this->assertStringContainsString('Balance Snapshot', $content);
-        $this->assertStringContainsString('<Data ss:Type="Number">1580</Data>', $content);
+        $this->assertStringContainsString('<Data ss:Type="Number">1580.00</Data>', $content);
     }
 
     public function test_finance_user_keeps_access_to_dashboard_export_settings_and_linked_unit_management(): void

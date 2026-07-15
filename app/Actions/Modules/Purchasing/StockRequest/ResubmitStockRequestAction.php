@@ -4,6 +4,8 @@ namespace App\Actions\Modules\Purchasing\StockRequest;
 
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Core\EmailNotificationService;
+use App\Services\Modules\Purchasing\StockRequest\StockRequestPostApprovalRouter;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -18,6 +20,7 @@ class ResubmitStockRequestAction
 {
     public function __construct(
         private EmailNotificationService $emailService,
+        private StockRequestPostApprovalRouter $postApprovalRouter,
     ) {}
 
     /**
@@ -27,38 +30,67 @@ class ResubmitStockRequestAction
      */
     public function execute(StockRequest $stockRequest): array
     {
-        // Reset all approval steps back to pending
-        $stockRequest->approvals()->update([
-            'status' => 'pending',
-            'notes' => null,
-            'responded_at' => null,
-            'email_sent' => false,
-            'email_sent_at' => null,
-        ]);
+        return DB::transaction(function () use ($stockRequest) {
+            $stockRequest = StockRequest::query()
+                ->lockForUpdate()
+                ->findOrFail($stockRequest->id);
 
-        $stockRequest->items()->update([
-            'ga_review_result' => 'pending_review',
-            'ga_review_note' => null,
-            'warehouse_available_qty' => null,
-        ]);
+            if (! in_array($stockRequest->status, ['rejected', 'ga_rejected'], true)) {
+                throw new \DomainException('Only rejected stock requests can be resubmitted.');
+            }
 
-        // Reset workflow status
-        $stockRequest->update([
-            'status' => 'in_approval',
-            'submitted_at' => now(),
-            'rejected_at' => null,
-            'rejection_notes' => null,
-            'ga_review_started_at' => null,
-            'ga_reviewed_at' => null,
-            'ga_reviewed_by' => null,
-            'ga_review_notes' => null,
-            'ga_rejected_reason' => null,
-        ]);
+            $returnsToGaReview = $stockRequest->status === 'ga_rejected';
+            $routesDirectlyToPurchasing = $stockRequest->routes_directly_to_purchasing;
 
-        // Notify the first approver
-        $this->notifyFirstApprover($stockRequest);
+            // Reset all approval steps back to pending
+            if (! $returnsToGaReview && ! $routesDirectlyToPurchasing) {
+                $stockRequest->approvals()->update([
+                    'status' => 'pending',
+                    'notes' => null,
+                    'responded_at' => null,
+                    'email_sent' => false,
+                    'email_sent_at' => null,
+                ]);
+            }
 
-        return ['ok' => true, 'stock_request' => $stockRequest];
+            $stockRequest->items()->update([
+                'ga_review_result' => 'pending_review',
+                'ga_review_note' => null,
+                'warehouse_available_qty' => null,
+            ]);
+
+            // Reset workflow status
+            $stockRequest->update([
+                'status' => $routesDirectlyToPurchasing
+                    ? 'submitted'
+                    : ($returnsToGaReview ? 'ga_review' : 'in_approval'),
+                'submitted_at' => now(),
+                'rejected_at' => null,
+                'rejection_notes' => null,
+                'ga_review_started_at' => $returnsToGaReview && ! $routesDirectlyToPurchasing ? now() : null,
+                'ga_reviewed_at' => null,
+                'ga_reviewed_by' => null,
+                'ga_review_notes' => null,
+                'ga_rejected_reason' => null,
+            ]);
+
+            if ($routesDirectlyToPurchasing) {
+                $this->postApprovalRouter->route($stockRequest);
+            } elseif (! $returnsToGaReview) {
+                DB::afterCommit(function () use ($stockRequest) {
+                    try {
+                        $this->notifyFirstApprover($stockRequest);
+                    } catch (\Throwable $exception) {
+                        Log::error('Failed to notify resubmitted stock request approver', [
+                            'stock_request_id' => $stockRequest->id,
+                            'error' => $exception->getMessage(),
+                        ]);
+                    }
+                });
+            }
+
+            return ['ok' => true, 'stock_request' => $stockRequest];
+        });
     }
 
     /**

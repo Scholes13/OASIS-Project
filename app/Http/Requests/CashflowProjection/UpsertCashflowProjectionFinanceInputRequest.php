@@ -19,11 +19,17 @@ class UpsertCashflowProjectionFinanceInputRequest extends FormRequest
         return [
             'year' => ['required', 'integer', 'between:2000,2100'],
             'month' => ['required', 'integer', 'between:1,12'],
-            'cash_on_hand' => ['required', 'numeric', 'min:0'],
-            'receivable_estimate' => ['required', 'numeric', 'min:0'],
-            'upcoming_event_revenue_estimate' => ['required', 'numeric', 'min:0'],
-            'capital_injection_estimate' => ['required', 'numeric', 'min:0'],
-            'other_income' => ['required', 'numeric', 'min:0'],
+            'cash_on_hand' => $this->moneyRules(),
+            'receivable_estimate' => $this->moneyRules(),
+            'upcoming_event_revenue_estimate' => $this->moneyRules(),
+            'capital_injection_estimate' => $this->moneyRules(),
+            'other_income' => $this->moneyRules(),
         ];
+    }
+
+    /** @return array<int, string> */
+    private function moneyRules(): array
+    {
+        return ['required', 'decimal:0,2', 'min:0', 'max:9999999999999999.99'];
     }
 }

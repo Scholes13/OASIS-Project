@@ -25,6 +25,7 @@ interface Department {
     name: string;
     code: string;
     business_unit_id?: number;
+    is_ga_stock_review_department?: boolean;
 }
 
 interface BusinessUnit {
@@ -58,6 +59,28 @@ interface PaginatedData<T> {
 
 // Export base types for use in other files
 export type { User, Department, BusinessUnit, PaginatedData };
+
+export interface AllPurchasingRequest {
+    type: 'purchase_request' | 'stock_request';
+    id: number;
+    number: string;
+    summary: string;
+    status: string;
+    date_of_request: string;
+    created_at: string;
+    business_unit_id: number;
+    business_unit_code: string;
+    business_unit_name: string;
+    department_id: number;
+    department_code: string;
+    department_name: string;
+    user_id: number;
+    requester_name: string;
+    items_count: number;
+    total_amount: string;
+    currency: string;
+    show_url: string;
+}
 
 // Purchase Request Status
 export type PurchaseRequestStatus =
@@ -358,7 +381,12 @@ export interface StockApproval {
     status: 'pending' | 'approved' | 'rejected' | 'skipped';
     notes: string | null;
     responded_at: string | null;
-    approver: User;
+    approver?: User | null;
+    metadata?: {
+        approver_snapshot?: {
+            name?: string | null;
+        };
+    } | null;
 }
 
 // Stock Request
@@ -372,6 +400,8 @@ export interface StockRequest {
     date_of_request: string;
     expected_date: string | null;
     status: StockRequestStatus;
+    routes_directly_to_purchasing: boolean;
+    skips_ga_review: boolean;
     submitted_at: string | null;
     approved_at: string | null;
     rejected_at: string | null;

@@ -45,6 +45,18 @@ const dateOptions = [
     { value: 'last_30_days', label: 'Last 30 Days' },
 ];
 
+export const buildTaskFiltersQuery = (filters: TaskFilters): Partial<TaskFilters> => {
+    const query: Partial<TaskFilters> = {};
+    const search = filters.search.trim();
+
+    if (filters.status !== 'pending') query.status = filters.status;
+    if (filters.type) query.type = filters.type;
+    if (filters.date !== 'all') query.date = filters.date;
+    if (search) query.search = search;
+
+    return query;
+};
+
 export function PurchasingTaskList({
     tasks,
     filters,
@@ -61,22 +73,22 @@ export function PurchasingTaskList({
     // Handle tab change
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        router.get(route('purchasing.admin.tasks'), {
+        router.get(route('purchasing.admin.tasks'), buildTaskFiltersQuery({
             status: tab,
             type: typeFilter,
             date: dateFilter,
             search: searchQuery,
-        }, { preserveState: true, preserveScroll: true });
+        }), { preserveState: true, preserveScroll: true });
     };
 
     // Handle filter changes
     const handleFilterChange = (newFilters: Partial<TaskFilters>) => {
-        router.get(route('purchasing.admin.tasks'), {
+        router.get(route('purchasing.admin.tasks'), buildTaskFiltersQuery({
             status: activeTab,
             type: newFilters.type ?? typeFilter,
             date: newFilters.date ?? dateFilter,
             search: newFilters.search ?? searchQuery,
-        }, { preserveState: true, preserveScroll: true });
+        }), { preserveState: true, preserveScroll: true });
     };
 
     // Handle search

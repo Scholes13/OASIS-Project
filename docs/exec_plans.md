@@ -32,6 +32,19 @@
 
 ## Active Tasks
 
+### 2026-07-16 - CI isolated database compatibility
+- Status: fixed; awaiting hosted CI confirmation
+- Owner: PM Agent
+- Scope:
+  - keep destructive database guards strict while replacing CI SQLite `:memory:` with a disposable database path ending in `_test`,
+  - support both push workflows from `staging` and the existing `pull_request_target` workflow loaded from `main`,
+  - verify backend CI no longer fails before application tests because of the database reset guard.
+- Verification:
+  - database safety unit suites passed: 12 tests, 20 assertions,
+  - focused RefreshDatabase suite passed serially on `numberwg_test`: 16 tests, 98 assertions,
+  - PHP syntax, Pint, and `git diff --check` passed,
+  - local PHP lacks `pdo_sqlite`; final SQLite workflow proof must come from GitHub-hosted CI after push.
+
 ### 2026-07-16 - Purchasing queue isolation from user access flags
 - Status: fixed and verified
 - Owner: PM Agent

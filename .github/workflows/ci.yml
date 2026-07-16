@@ -24,7 +24,7 @@ jobs:
       APP_DEBUG: true
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: sqlite
-      DB_DATABASE: ':memory:'
+      DB_DATABASE: /tmp/numberwg_test
       BROADCAST_CONNECTION: log
       CACHE_STORE: array
       SESSION_DRIVER: array
@@ -57,6 +57,11 @@ jobs:
         run: |
           mkdir -p bootstrap/cache
           mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs
+
+      - name: Prepare isolated test database
+        run: |
+          [[ "$DB_DATABASE" == *_test ]]
+          touch "$DB_DATABASE"
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-progress --prefer-dist

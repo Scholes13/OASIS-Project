@@ -9,15 +9,22 @@ permissions:
   issues: write
   pull-requests: write
 
+concurrency:
+  group: release-main-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   release-main:
     name: Open production PR from staging PR branch
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/release-main')
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/release-main' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
 
     steps:
       - name: Create production PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const owner = context.repo.owner;

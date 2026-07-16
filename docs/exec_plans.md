@@ -32,6 +32,20 @@
 
 ## Active Tasks
 
+### 2026-07-16 - CI/CD hygiene and deployment gates
+- Status: implemented; awaiting hosted workflow confirmation
+- Owner: PM Agent
+- Scope:
+  - remove the orphan `WGTicket` gitlink that causes checkout cleanup warnings while retaining local legacy source as ignored content,
+  - upgrade official GitHub actions to Node 24-compatible majors and tighten cache keys/concurrency,
+  - require successful CI for the exact immutable SHA before staging or production build/deploy, including manual dispatch,
+  - restrict `/release-main` to an exact command from trusted collaborators without changing its existing feature-branch release model.
+- Verification:
+  - all workflow YAML files passed `yaml-lint`; `git diff --check` passed,
+  - staging and production deploy graphs resolve one immutable SHA, poll its push CI result, and reuse it for checkout and release identity,
+  - `/release-main` command matching and actor association checks are enforced before workflow execution,
+  - final standards/security review passed; hosted CI and staging deploy remain final proof after push.
+
 ### 2026-07-16 - CI isolated database compatibility
 - Status: fixed; hosted CI rerun in progress
 - Owner: PM Agent

@@ -51,7 +51,7 @@ class BackdatePermissionService
                 'user_id' => $user->id,
                 'department_id' => $user->getCurrentDepartmentId(),
                 'business_unit_id' => $businessUnitId,
-                'requested_date' => $requestedDate,
+                'requested_date' => $requestedDate->toDateString(),
                 'reason' => $data['reason'],
                 'status' => 'pending',
             ]);

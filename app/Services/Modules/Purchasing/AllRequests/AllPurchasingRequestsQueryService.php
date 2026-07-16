@@ -179,7 +179,7 @@ class AllPurchasingRequestsQueryService
         $data['department_id'] = (int) $item->department_id;
         $data['user_id'] = (int) $item->user_id;
         $data['items_count'] = (int) $item->items_count;
-        $data['total_amount'] = (string) $item->total_amount;
+        $data['total_amount'] = number_format((float) $item->total_amount, 2, '.', '');
         $data['show_url'] = $item->type === 'purchase_request'
             ? route('purchase-requests.show', ['purchaseRequest' => $item->id])
             : route('stock-requests.show', ['stockRequest' => $item->id]);

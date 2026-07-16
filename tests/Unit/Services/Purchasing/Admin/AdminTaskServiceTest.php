@@ -12,6 +12,7 @@ use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Notifications\Purchasing\Admin\TaskAssigned;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
 use App\Services\Modules\Purchasing\Admin\PriceEfficiencyService;
+use App\Services\Modules\Purchasing\Shared\PurchasingDepartmentResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Mockery\MockInterface;
@@ -131,7 +132,7 @@ class AdminTaskServiceTest extends TestCase
             'entered_at' => now()->subHour(),
             'estimated_total_price' => 100000,
         ]);
-        $service = new class(app(PriceEfficiencyService::class)) extends AdminTaskService
+        $service = new class(app(PriceEfficiencyService::class), app(PurchasingDepartmentResolver::class)) extends AdminTaskService
         {
             protected function notifyAssignedAdmin(AdminTask $task): void
             {

@@ -183,7 +183,7 @@ function TimelineItem({ task, isLast, onTaskClick }: TimelineItemProps) {
                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                     <div className="flex items-center gap-1">
                         <Building2 className="h-3 w-3" />
-                        <span>{task.department?.name || 'Unknown'}</span>
+                        <span>{task.taskable?.department?.name || task.department?.name || 'Unknown'}</span>
                     </div>
                     <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3" />

@@ -67,6 +67,78 @@ class PurchasingAdminTasksTest extends TestCase
     }
 
     #[Test]
+    public function tasks_page_includes_requesting_department_separately_from_queue_department(): void
+    {
+        config(['inertia.testing.ensure_pages_exist' => false]);
+
+        [$user, $businessUnit, $queueDepartment] = $this->createPurchasingAdminContext();
+        $sourceDepartment = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'GA',
+            'name' => 'General Affair',
+            'is_active' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestInApproval($user, $businessUnit, $sourceDepartment);
+
+        AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $queueDepartment->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 500000,
+        ]);
+
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $queueDepartment);
+
+        $this->get(route('purchasing.admin.tasks'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('tasks.data.0.department.name', 'Purchasing')
+                ->where('tasks.data.0.taskable.department.name', 'General Affair')
+                ->where('allTasks.0.taskable.department.name', 'General Affair')
+            );
+    }
+
+    #[Test]
+    public function tasks_page_includes_stock_request_source_department(): void
+    {
+        config(['inertia.testing.ensure_pages_exist' => false]);
+
+        [$user, $businessUnit, $queueDepartment] = $this->createPurchasingAdminContext();
+        $sourceDepartment = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'OPS',
+            'name' => 'Operations',
+            'is_active' => true,
+        ]);
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $sourceDepartment);
+
+        AdminTask::create([
+            'taskable_type' => StockRequest::class,
+            'taskable_id' => $stockRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $queueDepartment->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 0,
+        ]);
+
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $queueDepartment);
+
+        $this->get(route('purchasing.admin.tasks', ['type' => 'stock_request']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('tasks.data.0.department.name', 'Purchasing')
+                ->where('tasks.data.0.taskable.department.name', 'Operations')
+                ->where('allTasks.0.taskable.department.name', 'Operations')
+            );
+    }
+
+    #[Test]
     public function task_actions_delegate_to_admin_task_service(): void
     {
         config(['inertia.testing.ensure_pages_exist' => false]);
@@ -172,6 +244,69 @@ class PurchasingAdminTasksTest extends TestCase
             'assigned_admin_id' => null,
             'status' => 'pending_followup',
         ]);
+    }
+
+    #[Test]
+    public function bas_admin_flag_does_not_route_purchase_request_away_from_strategic_sourcing(): void
+    {
+        [$user, $businessUnit, $basDepartment] = $this->createPurchasingAdminContext();
+        $basDepartment->update([
+            'code' => 'BAS',
+            'name' => 'Business & Administrative Services',
+        ]);
+        $strategicSourcing = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'SS',
+            'name' => 'Strategic Sourcing',
+            'is_active' => true,
+            'is_purchasing_department' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestInApproval($user, $businessUnit, $basDepartment);
+
+        $purchaseRequest->update([
+            'status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $this->assertDatabaseHas('admin_tasks', [
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $strategicSourcing->id,
+        ]);
+        $this->assertDatabaseMissing('admin_tasks', [
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'department_id' => $basDepartment->id,
+        ]);
+    }
+
+    #[Test]
+    public function bas_admin_flag_cannot_claim_strategic_sourcing_task(): void
+    {
+        [$user, $businessUnit, $basDepartment] = $this->createPurchasingAdminContext();
+        $strategicSourcing = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'SS',
+            'name' => 'Strategic Sourcing',
+            'is_active' => true,
+            'is_purchasing_department' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestInApproval($user, $businessUnit, $basDepartment);
+        $task = AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $strategicSourcing->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 500000,
+        ]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('You are not eligible to mutate this task.');
+
+        app(AdminTaskService::class)->claimTask($task, $user->id);
     }
 
     #[Test]

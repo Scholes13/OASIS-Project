@@ -2,15 +2,16 @@
 
 namespace App\Observers;
 
-use App\Models\Core\Department;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\Purchasing\Admin\AdminTaskService;
+use App\Services\Modules\Purchasing\Shared\PurchasingDepartmentResolver;
 
 class PurchaseRequestObserver
 {
     public function __construct(
         protected AdminTaskService $adminTaskService,
+        protected PurchasingDepartmentResolver $purchasingDepartmentResolver,
     ) {}
 
     /**
@@ -35,14 +36,8 @@ class PurchaseRequestObserver
                 throw new \DomainException('Purchase request business unit context is missing.');
             }
 
-            $purchasingDepartment = Department::query()
-                ->where('business_unit_id', $businessUnitId)
-                ->where('is_purchasing_department', true)
-                ->first();
-
-            if (! $purchasingDepartment) {
-                throw new \DomainException('Purchasing department is not configured for this business unit.');
-            }
+            $purchasingDepartment = $this->purchasingDepartmentResolver
+                ->resolveForBusinessUnit((int) $businessUnitId);
 
             $taskExists = AdminTask::query()
                 ->where('taskable_type', PurchaseRequest::class)

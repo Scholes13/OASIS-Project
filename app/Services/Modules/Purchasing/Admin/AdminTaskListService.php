@@ -59,7 +59,7 @@ class AdminTaskListService
      */
     private function buildPaginatedTasks(User $user, int $buId, array $filters): LengthAwarePaginator
     {
-        $query = AdminTask::with(['taskable', 'assignedAdmin:id,name', 'department:id,name'])
+        $query = AdminTask::with(['taskable.department:id,name', 'assignedAdmin:id,name', 'department:id,name'])
             ->where('business_unit_id', $buId);
 
         $this->applyStatusFilter($query, $filters['status'], $user->id);
@@ -75,7 +75,7 @@ class AdminTaskListService
      */
     private function buildAllTasksForBoard(int $buId, array $filters): Collection
     {
-        $query = AdminTask::with(['taskable', 'department', 'assignedAdmin'])
+        $query = AdminTask::with(['taskable.department:id,name', 'department', 'assignedAdmin'])
             ->where('business_unit_id', $buId);
 
         if (! empty($filters['type'])) {

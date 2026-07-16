@@ -107,7 +107,7 @@ class PurchasingAdminController extends Controller
     public function taskDetail(Request $request, $taskId): Response
     {
         $task = AdminTask::with([
-            'taskable',
+            'taskable.department:id,name',
             'department',
             'businessUnit',
             'assignedAdmin',

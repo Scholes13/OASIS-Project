@@ -32,6 +32,31 @@
 
 ## Active Tasks
 
+### 2026-07-16 - Purchasing queue isolation from user access flags
+- Status: fixed and verified
+- Owner: PM Agent
+- Contract:
+  - PR and ST admin tasks resolve one operational Purchasing queue from department configuration, preferring the active Strategic Sourcing (`SS`) department,
+  - individual `is_purchasing_admin` flags grant module/operational eligibility only and never influence task destination,
+  - a BAS user flag cannot route tasks to BAS or authorize mutation of an SS task.
+- Verification:
+  - Purchasing Admin, AdminTask service, and PR workflow suites passed serially on `numberwg_test`: 32 tests, 178 assertions,
+  - regression coverage proves PR prefers active configured SS over a legacy BAS Purchasing department and a BAS admin flag cannot claim an SS task,
+  - PHP syntax, Pint, TypeScript, focused React tests, production build, and `git diff --check` passed; final standards review passed.
+
+### 2026-07-16 - Purchasing Admin source department attribution
+- Status: fixed and verified
+- Owner: PM Agent
+- Scope:
+  - make Purchasing Admin list, board, calendar, timeline, and detail show PR/ST requesting department instead of the purchasing queue department,
+  - preserve `admin_tasks.department_id` as the queue used for assignment, authorization, notifications, and reporting,
+  - add backend payload and frontend rendering regression coverage where source and queue departments differ.
+- Verification:
+  - Purchasing Admin feature suite passed on `numberwg_test`: 16 tests, 98 assertions,
+  - focused React suite passed: 2 tests; TypeScript, Pint, production build, and `git diff --check` passed,
+  - list, board, calendar, timeline, detail, and dashboard recent tasks use requesting department with queue fallback,
+  - authenticated browser QA was unavailable; payload and component tests reproduce distinct source and queue departments without mutating application data.
+
 ### 2026-07-14 - Purchasing responsive date controls follow-up
 - Status: fixed and verified
 - Owner: PM Agent

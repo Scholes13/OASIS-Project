@@ -197,8 +197,10 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                             <p className="text-base text-gray-900">{task.business_unit?.name || '-'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">Department</label>
-                                            <p className="text-base text-gray-900">{task.department?.name || '-'}</p>
+                                            <label className="block text-sm font-medium text-gray-500 mb-1">Source Department</label>
+                                            <p className="text-base text-gray-900">
+                                                {task.taskable?.department?.name || task.department?.name || '-'}
+                                            </p>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-500 mb-1">Assigned To</label>

@@ -17,8 +17,11 @@ export interface RecentAdminTask {
     taskable: {
         pr_number?: string;
         st_number?: string;
+        department?: {
+            name: string;
+        };
     };
-    department: {
+    department?: {
         name: string;
     };
     assigned_admin: {

@@ -35,7 +35,7 @@ export function RecentTasksList({ recentTasks }: RecentTasksListProps) {
                                         {task.taskable.pr_number || task.taskable.st_number}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1">
-                                        {task.department.name}
+                                        {task.taskable.department?.name || task.department?.name || 'Unknown Department'}
                                         {task.assigned_admin && ` • ${task.assigned_admin.name}`}
                                     </p>
                                 </div>

@@ -2,12 +2,12 @@
 
 namespace App\Services\Modules\Purchasing\Admin;
 
-use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Modules\Purchasing\Shared\PurchasingDepartmentResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -17,6 +17,7 @@ class AdminTaskService
 
     public function __construct(
         protected PriceEfficiencyService $priceEfficiencyService,
+        protected PurchasingDepartmentResolver $purchasingDepartmentResolver,
         ?AdminTaskNotificationService $notificationService = null,
     ) {
         $this->notificationService = $notificationService ?? app(AdminTaskNotificationService::class);
@@ -84,23 +85,8 @@ class AdminTaskService
                 return $existingTask;
             }
 
-            $strategicSourcingDepartments = Department::query()
-                ->where('business_unit_id', $stockRequest->business_unit_id)
-                ->where('code', 'SS')
-                ->where('is_active', true)
-                ->get();
-            $departments = $strategicSourcingDepartments->isNotEmpty()
-                ? $strategicSourcingDepartments
-                : Department::query()
-                    ->where('business_unit_id', $stockRequest->business_unit_id)
-                    ->where('is_purchasing_department', true)
-                    ->get();
-
-            if ($departments->count() !== 1) {
-                throw new \DomainException('Exactly one Purchasing department must be configured for this business unit.');
-            }
-
-            $department = $departments->firstOrFail();
+            $department = $this->purchasingDepartmentResolver
+                ->resolveForBusinessUnit((int) $stockRequest->business_unit_id);
 
             return $this->createTask(
                 $stockRequest,

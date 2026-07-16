@@ -153,7 +153,7 @@ class AdminTaskMetricsService
 
     private function buildRecentTasks(int $buId, int $userId): \Illuminate\Database\Eloquent\Collection
     {
-        return AdminTask::with(['taskable', 'department'])
+        return AdminTask::with(['taskable.department:id,name', 'department'])
             ->where('business_unit_id', $buId)
             ->where('assigned_admin_id', $userId)
             ->orderBy('updated_at', 'desc')

@@ -130,11 +130,13 @@ class ActivitySecurityRemediationTest extends TestCase
             'requested_date' => $requestedDate,
             'reason' => 'Missed activity entry',
         ])->assertRedirect();
-        $this->assertDatabaseHas('backdate_permissions', [
-            'user_id' => $this->staff->id,
-            'business_unit_id' => $this->businessUnit->id,
-            'requested_date' => $requestedDate,
-        ]);
+        $permission = BackdatePermission::query()
+            ->where('user_id', $this->staff->id)
+            ->where('business_unit_id', $this->businessUnit->id)
+            ->first();
+
+        $this->assertNotNull($permission);
+        $this->assertSame($requestedDate, $permission->requested_date->toDateString());
     }
 
     public function test_user_deletion_preserves_task_and_comment_history(): void

@@ -45,6 +45,7 @@
   - PHP syntax, Pint, and `git diff --check` passed,
   - first hosted rerun confirmed the reset guard blocker was removed and exposed three SQLite portability issues: legacy `pull_request_target` migration state, date persistence, and decimal formatting,
   - migration state now resets when legacy `:memory:` is normalized, date-only persistence is explicit, and aggregate currency output is normalized to two decimals,
+  - cross-driver date verification now asserts the Eloquent date contract instead of raw driver storage representation,
   - affected Activity and Purchasing portability suites passed serially on `numberwg_test`: 12 tests, 154 assertions; local PHP lacks `pdo_sqlite`, so final SQLite proof comes from the next GitHub-hosted rerun.
 
 ### 2026-07-16 - Purchasing queue isolation from user access flags

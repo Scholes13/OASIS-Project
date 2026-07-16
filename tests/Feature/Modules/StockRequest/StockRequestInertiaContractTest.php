@@ -252,7 +252,10 @@ class StockRequestInertiaContractTest extends TestCase
                 ]],
             ]);
 
-        $response->assertSessionHas('error');
+        $response->assertSessionHas(
+            'error',
+            'Exactly one Purchasing department must be configured for this business unit.',
+        );
         $this->assertDatabaseCount('stock_requests', 0);
         $this->assertSame([], Storage::disk('public')->allFiles());
     }

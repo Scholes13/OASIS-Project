@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { StockRequestForm, STFormData } from '../../../components/purchasing/StockRequestForm';
 import { Department, BusinessUnit, Approver } from '../../../types/purchasing';
@@ -48,10 +48,22 @@ export default function Form({
     currentBusinessUnit,
     currentBusinessUnitId,
     currentDepartmentId,
+    flash,
 }: FormPageProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
     const isEdit = mode === 'edit';
+
+    useEffect(() => {
+        if (!flash?.error) {
+            return;
+        }
+
+        toast.error('Stock request was not submitted', {
+            description: flash.error,
+            id: 'stock-request-submit-error',
+        });
+    }, [flash?.error]);
 
     // Handle form submission
     const handleSubmit = (data: STFormData) => {

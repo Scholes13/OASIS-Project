@@ -123,7 +123,9 @@ class CreateStockRequestAction
 
             return [
                 'ok' => false,
-                'error' => 'Failed to create stock request. Please try again or contact support.',
+                'error' => $e instanceof \DomainException
+                    ? $e->getMessage()
+                    : 'Failed to create stock request. Please try again or contact support.',
             ];
         }
     }

@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { Activity, AlertTriangle, Calendar, CheckCircle2, Clock3, MoreHorizontal, Ticket as TicketIcon } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, Clock3, MoreHorizontal, Ticket as TicketIcon } from 'lucide-react';
 import { format, startOfMonth, subDays } from 'date-fns';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
+import { TicketDashboardDateFilter, type DashboardPeriodPreset } from '@/components/Ticket/dashboard/TicketDashboardDateFilter';
 import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
 import { TicketStatusBadge } from '@/components/Ticket/TicketStatusBadge';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ interface DashboardProps extends PageProps {
     filters: { date_from: string; date_to: string };
 }
 
-const periodPresets = [
+const periodPresets: DashboardPeriodPreset[] = [
     { label: 'Today', getRange: () => ({ from: format(new Date(), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
     { label: 'This Week', getRange: () => ({ from: format(subDays(new Date(), 7), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
     { label: 'This Month', getRange: () => ({ from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
@@ -39,9 +39,13 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
         });
     };
 
-    const applyFilters = () => visitRange(dateFrom, dateTo);
+    const applyFilters = (from = dateFrom, to = dateTo) => {
+        setDateFrom(from);
+        setDateTo(to);
+        visitRange(from, to);
+    };
 
-    const handlePreset = (preset: typeof periodPresets[number]) => {
+    const handlePreset = (preset: DashboardPeriodPreset) => {
         const range = preset.getRange();
         setDateFrom(range.from);
         setDateTo(range.to);
@@ -75,50 +79,14 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                         <p className="mt-1 text-sm text-gray-500">Monitor ticket flow, response time, and support workload.</p>
                     </div>
 
-                    <Card className="border-gray-200 bg-white p-2 shadow-none">
-                        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                                {periodPresets.map((preset) => {
-                                    const range = preset.getRange();
-                                    const active = dateFrom === range.from && dateTo === range.to;
-
-                                    return (
-                                        <button
-                                            key={preset.label}
-                                            onClick={() => handlePreset(preset)}
-                                            className={cn(
-                                                'h-8 rounded-md border px-3 text-xs font-medium transition-colors',
-                                                active
-                                                    ? 'border-primary/20 bg-primary/10 text-primary'
-                                                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                            )}
-                                        >
-                                            {preset.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <div className="flex items-center gap-2 border-t border-gray-100 pt-2 lg:border-l lg:border-t-0 lg:pl-2 lg:pt-0">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(event) => setDateFrom(event.target.value)}
-                                    className="h-8 w-32 rounded-md border border-gray-200 bg-white px-2 text-xs focus:border-gray-400 focus:outline-none focus:ring-0"
-                                />
-                                <span className="text-xs text-gray-300">—</span>
-                                <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(event) => setDateTo(event.target.value)}
-                                    className="h-8 w-32 rounded-md border border-gray-200 bg-white px-2 text-xs focus:border-gray-400 focus:outline-none focus:ring-0"
-                                />
-                                <Button size="sm" variant="outline" onClick={applyFilters} className="h-8 text-xs">
-                                    Apply
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
+                    <TicketDashboardDateFilter
+                        presets={periodPresets}
+                        dateFrom={dateFrom}
+                        dateTo={dateTo}
+                        isFiltering={isFiltering}
+                        onPresetSelect={handlePreset}
+                        onApply={applyFilters}
+                    />
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format, subDays } from 'date-fns';
 import { type ComponentProps } from 'react';
@@ -243,7 +243,8 @@ describe('Ticket Dashboard page', () => {
         const user = userEvent.setup();
         render(<Dashboard {...baseProps} />);
 
-        await user.click(screen.getByRole('button', { name: '90 Days' }));
+        await user.click(screen.getByRole('button', { name: 'Select date period, current: Custom range' }));
+        await user.click(await screen.findByRole('option', { name: '90 Days' }));
 
         const today = new Date();
         expect(router.get).toHaveBeenCalledWith(
@@ -254,6 +255,50 @@ describe('Ticket Dashboard page', () => {
             },
             expect.objectContaining({ preserveState: true, preserveScroll: true }),
         );
+        expect(screen.getByRole('button', { name: 'Select date period, current: 90 Days' })).toBeInTheDocument();
+    });
+
+    it('applies a custom range from the compact date filter', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        await user.click(screen.getByRole('button', { name: 'Choose custom date range, current: 01 Apr 2026 to 27 Apr 2026' }));
+        const startDate = await screen.findByLabelText('Start date');
+        const endDate = screen.getByLabelText('End date');
+
+        await user.clear(startDate);
+        await user.type(startDate, '2026-05-01');
+        await user.clear(endDate);
+        await user.type(endDate, '2026-06-30');
+        await user.click(screen.getByRole('button', { name: 'Apply date filter' }));
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            { date_from: '2026-05-01', date_to: '2026-06-30' },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+        expect(screen.getByRole('button', { name: 'Choose custom date range, current: 01 May 2026 to 30 Jun 2026' })).toBeInTheDocument();
+    });
+
+    it('discards un-applied custom date drafts when the popover closes', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        const rangeButton = screen.getByRole('button', { name: 'Choose custom date range, current: 01 Apr 2026 to 27 Apr 2026' });
+        await user.click(rangeButton);
+        const startDate = await screen.findByLabelText('Start date');
+
+        await user.clear(startDate);
+        await user.type(startDate, '2026-05-01');
+        expect(rangeButton).toHaveAccessibleName('Choose custom date range, current: 01 Apr 2026 to 27 Apr 2026');
+
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument());
+        await user.click(rangeButton);
+
+        expect(await screen.findByLabelText('Start date')).toHaveValue('2026-04-01');
+        expect(screen.getByLabelText('End date')).toHaveValue('2026-04-27');
+        expect(router.get).not.toHaveBeenCalled();
     });
 
     it('shows empty state when no recent tickets', () => {

@@ -1973,3 +1973,12 @@ Use this shape for future updates:
 - Risks: Stale Inertia state, inconsistent date boundaries, misleading workload percentages, and database-specific date aggregation.
 - Verification: Backend service test for in/out-of-range tickets and Pramuji workload; React test for immediate 90-day navigation and rendered daily volume; build, Pint, review, staging deploy, and authenticated UAT.
 - Notes: The prior 90-day preset only changed local form state, so it appeared selected while the server metrics still represented the previous period.
+
+### 2026-07-20 - IT Support dashboard modern date filter
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Replace the crowded preset buttons and separate date inputs with a compact preset dropdown, a single human-readable date-range trigger, a custom-range popover, and one primary Apply action.
+- Risks: Presets no longer applying immediately, invalid custom ranges, cramped mobile wrapping, inaccessible popover/listbox controls, and stale filter state.
+- Verification: React coverage for immediate 90-day selection and custom-range submission; production frontend build; responsive/accessibility review; staging deploy and UAT.
+- Notes: The composition follows the official shadcn date-picker pattern (trigger plus popover) while reusing the repository's existing Headless UI and date-fns dependencies.

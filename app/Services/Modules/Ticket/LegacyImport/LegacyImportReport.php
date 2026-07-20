@@ -18,6 +18,13 @@ final class LegacyImportReport
         $this->stats[$metric] = ($this->stats[$metric] ?? 0) + $by;
     }
 
+    public function incrementWhen(string $metric, bool $condition): void
+    {
+        if ($condition) {
+            $this->increment($metric);
+        }
+    }
+
     public function error(string $message): void
     {
         $this->errors[] = $message;

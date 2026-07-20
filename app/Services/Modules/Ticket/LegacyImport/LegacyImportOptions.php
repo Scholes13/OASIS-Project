@@ -11,6 +11,7 @@ final readonly class LegacyImportOptions
     public function __construct(
         public BusinessUnit $businessUnit,
         public User $fallbackUser,
+        public ?User $forceAssignee,
         public Department $fallbackDepartment,
         public string $source,
         public ?string $legacyStorage,

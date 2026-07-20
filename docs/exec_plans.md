@@ -1955,3 +1955,12 @@ Use this shape for future updates:
 - Risks: Native ticket-number collisions, unmapped users/departments, partial database/filesystem writes, missing legacy files, production concurrency, and rollback affecting concurrent writes.
 - Verification: Focused importer tests on an isolated `_test` database; PHP syntax and Pint; unlimited dry-run; limited then full staging import; row/FK/file parity; attachment download smoke test; production backup and post-import parity.
 - Notes: Initial read-only audit found 212 legacy tickets, 412 comments, 33 standalone attachments, and 1 comment attachment; 8 standalone files and the comment attachment are physically missing, so they are explicitly warned/skipped while unsafe paths remain fatal. Production currently has 2 native tickets and no legacy markers; staging has no tickets. Implementation now includes forward-only source identities, full child preflight, private-disk attachment copy with path containment, missing-file self-healing on retry, rollback cleanup, comment attachment import, and workflow-side Laravel bootstrap plus database/attachment backup. Production remains untouched until importer blockers pass review and staging UAT.
+
+### 2026-07-20 - Staging legacy ticket workload reassignment
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@qa`, `@reviewer`
+- Scope: Add an explicit importer/workflow option that assigns every selected legacy ticket to one validated OASIS account, then use it to place all staging legacy workload on `pramuji@werkudara.com`.
+- Risks: Invalid or ineligible target account, accidental reassignment of native tickets, production execution, and misleading dashboard results caused by the active date filter.
+- Verification: Focused importer regression test; Pint and syntax checks; staging dry-run with WNS/BAS; backup-backed update of only `request.werkudara.com` identities; idempotent rerun showing 212 existing tickets and forced assignee count.
+- Notes: Ticket Volume Tracker and metric cards remain date-scoped; Recent Support Activity is intentionally not date-scoped.

@@ -41,6 +41,11 @@ on:
         required: true
         default: super@werkudara.com
         type: string
+      force_assignee:
+        description: Optional OASIS user email or id assigned to every imported ticket
+        required: false
+        default: ""
+        type: string
       fallback_department:
         description: Fallback OASIS department code or id
         required: true
@@ -70,6 +75,7 @@ jobs:
           LIMIT: ${{ inputs.limit }}
           BUSINESS_UNIT: ${{ inputs.business_unit }}
           FALLBACK_USER: ${{ inputs.fallback_user }}
+          FORCE_ASSIGNEE: ${{ inputs.force_assignee }}
           FALLBACK_DEPARTMENT: ${{ inputs.fallback_department }}
           PRODUCTION_APP_PATH: ${{ secrets.CPANEL_APP_PATH }}
           CPANEL_PHP_BIN: ${{ secrets.CPANEL_PHP_BIN }}
@@ -80,7 +86,7 @@ jobs:
           key: ${{ secrets.CPANEL_SSH_KEY }}
           passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
-          envs: TARGET,DRY_RUN,COPY_ATTACHMENTS,UPDATE_EXISTING,LIMIT,BUSINESS_UNIT,FALLBACK_USER,FALLBACK_DEPARTMENT,PRODUCTION_APP_PATH,CPANEL_PHP_BIN
+          envs: TARGET,DRY_RUN,COPY_ATTACHMENTS,UPDATE_EXISTING,LIMIT,BUSINESS_UNIT,FALLBACK_USER,FORCE_ASSIGNEE,FALLBACK_DEPARTMENT,PRODUCTION_APP_PATH,CPANEL_PHP_BIN
           script: |
             set -euo pipefail
 
@@ -219,6 +225,10 @@ jobs:
 
             if [ "$UPDATE_EXISTING" = "true" ]; then
               COMMAND+=("--update-existing")
+            fi
+
+            if [ -n "${FORCE_ASSIGNEE:-}" ]; then
+              COMMAND+=("--force-assignee=$FORCE_ASSIGNEE")
             fi
 
             if [ "$DRY_RUN" = "true" ]; then

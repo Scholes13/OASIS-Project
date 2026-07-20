@@ -41,7 +41,11 @@ export function TicketDashboardDateFilter({
         return dateFrom === range.from && dateTo === range.to;
     });
     const validRange = Boolean(draftFrom && draftTo && draftFrom <= draftTo);
-    const displayedRange = `${displayDate(dateFrom)} to ${displayDate(dateTo)}`;
+    const isAllData = activePreset?.label === 'All Data';
+    const displayedRange = isAllData ? 'All available data' : `${displayDate(dateFrom)} to ${displayDate(dateTo)}`;
+    const rangeSummary = isAllData
+        ? 'All available data'
+        : `${displayDate(dateFrom)} – ${displayDate(dateTo)}`;
 
     useEffect(() => {
         setDraftFrom(dateFrom);
@@ -114,9 +118,7 @@ export function TicketDashboardDateFilter({
                     className="flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm text-gray-700 outline-none transition hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/20 xl:w-72"
                 >
                     <CalendarDays className="h-4 w-4 shrink-0 text-gray-400" />
-                    <span className="min-w-0 flex-1 truncate font-medium">
-                        {displayDate(dateFrom)} <span className="px-1 text-gray-300">–</span> {displayDate(dateTo)}
-                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{rangeSummary}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                 </Popover.Button>
 

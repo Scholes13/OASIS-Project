@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Activity, AlertTriangle, CheckCircle2, Clock3, MoreHorizontal, Ticket as TicketIcon } from 'lucide-react';
-import { format, startOfMonth, subDays } from 'date-fns';
+import { format, startOfMonth, startOfYear, subDays } from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import { TicketDashboardDateFilter, type DashboardPeriodPreset } from '@/components/Ticket/dashboard/TicketDashboardDateFilter';
 import { TicketPriorityBadge } from '@/components/Ticket/TicketPriorityBadge';
@@ -20,6 +20,8 @@ const periodPresets: DashboardPeriodPreset[] = [
     { label: 'This Month', getRange: () => ({ from: format(startOfMonth(new Date()), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
     { label: '30 Days', getRange: () => ({ from: format(subDays(new Date(), 30), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
     { label: '90 Days', getRange: () => ({ from: format(subDays(new Date(), 90), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
+    { label: 'This Year', getRange: () => ({ from: format(startOfYear(new Date()), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
+    { label: 'All Data', getRange: () => ({ from: '1000-01-01', to: format(new Date(), 'yyyy-MM-dd') }) },
 ];
 
 export default function TicketDashboard({ metrics, filters }: DashboardProps) {

@@ -172,9 +172,48 @@ describe('Ticket Dashboard page', () => {
         expect(screen.getAllByText('15').length).toBeGreaterThan(0);
         expect(screen.getByText('25/04')).toBeInTheDocument();
         expect(screen.getByText('27/04')).toBeInTheDocument();
-        expect(screen.getByText('6 tickets')).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: '4 tickets on 25/04' })).toBeVisible();
+        expect(screen.getByRole('img', { name: '6 tickets on 27/04' })).toHaveStyle({ height: '100%' });
+        expect(screen.getByText('Tickets across the latest 2 active days shown.')).toBeInTheDocument();
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('5 (33%)')).toBeInTheDocument();
+    });
+
+    it('keeps a single active day visible at full chart height', () => {
+        render(
+            <Dashboard
+                {...baseProps}
+                metrics={makeMetrics({
+                    total: 3,
+                    volume_by_day: [{ date: '2026-04-27', count: 3 }],
+                })}
+            />
+        );
+
+        expect(screen.getByRole('img', { name: '3 tickets on 27/04' })).toHaveStyle({ height: '100%' });
+        expect(screen.getByText('Tickets across the latest 1 active day shown.')).toBeInTheDocument();
+    });
+
+    it('renders seven skewed active days with monotonic visible heights', () => {
+        const volumeByDay = [1, 2, 3, 4, 5, 12, 100].map((count, index) => ({
+            date: `2026-04-${String(index + 20).padStart(2, '0')}`,
+            count,
+        }));
+
+        render(
+            <Dashboard
+                {...baseProps}
+                metrics={makeMetrics({ total: 127, volume_by_day: volumeByDay })}
+            />
+        );
+
+        const bars = screen.getAllByRole('img', { name: /tickets on/ });
+        const heights = bars.map((bar) => Number.parseFloat(bar.style.height));
+
+        expect(bars).toHaveLength(7);
+        expect(heights).toEqual([...heights].sort((left, right) => left - right));
+        expect(heights[0]).toBeCloseTo(8.92);
+        expect(heights[6]).toBe(100);
     });
 
     it('renders current recent support activity', () => {

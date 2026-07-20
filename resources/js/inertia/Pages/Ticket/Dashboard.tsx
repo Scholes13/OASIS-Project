@@ -55,7 +55,8 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
 
     const weeklyVolume = metrics.volume_by_day || [];
     const maxVolume = Math.max(...weeklyVolume.map((item) => item.count), 1);
-    const volumeDelta = metrics.total > 0 ? Math.round((openTickets / metrics.total) * 100) : 0;
+    const displayedVolume = weeklyVolume.reduce((total, item) => total + item.count, 0);
+    const activeDayLabel = weeklyVolume.length === 1 ? 'day' : 'days';
 
     const statusGroups = useMemo(() => ({
         open: metrics.recent_tickets.filter((ticket) => ticket.status === 'waiting').slice(0, 2),
@@ -148,29 +149,36 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
 
                         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:items-end">
                             <div className="lg:col-span-1">
-                                <p className="text-4xl font-semibold tracking-tight text-gray-900">+{volumeDelta}%</p>
-                                <p className="mt-2 text-xs leading-5 text-gray-500">Open tickets compared with total period volume.</p>
+                                <p className="text-4xl font-semibold tracking-tight text-gray-900">{displayedVolume}</p>
+                                <p className="mt-2 text-xs leading-5 text-gray-500">
+                                    Tickets across the latest {weeklyVolume.length} active {activeDayLabel} shown.
+                                </p>
                             </div>
                             <div className="flex min-h-48 items-end justify-between gap-3 rounded-2xl bg-gradient-to-b from-white to-gray-50 px-3 pb-2 pt-6 lg:col-span-4">
                                 {weeklyVolume.map((item, index) => {
-                                    const heightRem = Math.max((item.count / maxVolume) * 8.25, 1.25);
+                                    const heightPercent = 8 + (item.count / maxVolume) * 92;
                                     const active = index === weeklyVolume.length - 1;
+                                    const dateLabel = format(new Date(`${item.date}T00:00:00`), 'dd/MM');
 
                                     return (
                                         <div key={item.date} className="flex flex-1 flex-col items-center gap-2">
-                                            <div className="flex h-36 items-end">
-                                                <div className="relative flex flex-col items-center justify-end" style={{ height: `${heightRem}rem` }}>
-                                                    {active && (
-                                                        <span className="absolute -top-8 whitespace-nowrap rounded-md bg-primary/90 px-2 py-1 text-[0.625rem] font-medium text-white">
-                                                            {item.count} tickets
-                                                        </span>
+                                            <div className="flex h-36 w-full items-end justify-center">
+                                                <div
+                                                    role="img"
+                                                    aria-label={`${item.count} tickets on ${dateLabel}`}
+                                                    className={cn(
+                                                        'relative w-full max-w-12 rounded-t-lg border border-primary/20 shadow-sm transition-all',
+                                                        active ? 'bg-primary/80' : 'bg-primary/35',
                                                     )}
-                                                    <span className={cn('mb-1 h-2 w-2 rounded-full', active ? 'bg-primary' : 'bg-primary/50')} />
-                                                    <div className="w-px flex-1 bg-gray-200" />
+                                                    style={{ height: `${heightPercent}%` }}
+                                                >
+                                                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-gray-700">
+                                                        {item.count}
+                                                    </span>
                                                 </div>
                                             </div>
                                             <span className={cn('flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium', active ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-100 text-gray-500')}>
-                                                {format(new Date(`${item.date}T00:00:00`), 'dd/MM')}
+                                                {dateLabel}
                                             </span>
                                         </div>
                                     );

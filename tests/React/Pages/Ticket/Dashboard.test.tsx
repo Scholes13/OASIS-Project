@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { format, subDays } from 'date-fns';
 import { type ComponentProps } from 'react';
+import { router } from '@inertiajs/react';
 import Dashboard from '@/Pages/Ticket/Dashboard';
 import type { TicketDashboardMetrics, Ticket } from '@/types/ticket';
 
@@ -114,6 +117,10 @@ function makeMetrics(overrides: Partial<TicketDashboardMetrics> = {}): TicketDas
             { name: 'Alice', count: 5 },
             { name: 'Bob', count: 3 },
         ],
+        volume_by_day: [
+            { date: '2026-04-25', count: 4 },
+            { date: '2026-04-27', count: 6 },
+        ],
         avg_resolution_hours: 4.5,
         sla_breach_count: 2,
         recent_tickets: [
@@ -158,49 +165,43 @@ describe('Ticket Dashboard page', () => {
         }) as any;
     });
 
-    it('renders dashboard with summary cards', () => {
+    it('renders period totals, daily volume, and workload from the same metrics', () => {
         render(<Dashboard {...baseProps} />);
 
         expect(screen.getByText('Total Tickets')).toBeInTheDocument();
-        // Numbers may appear in multiple places (chart legend + summary cards)
         expect(screen.getAllByText('15').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Menunggu').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('5').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Dalam Proses').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('3').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Selesai').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('7').length).toBeGreaterThan(0);
+        expect(screen.getByText('25/04')).toBeInTheDocument();
+        expect(screen.getByText('27/04')).toBeInTheDocument();
+        expect(screen.getByText('6 tickets')).toBeInTheDocument();
+        expect(screen.getByText('Alice')).toBeInTheDocument();
+        expect(screen.getByText('5 (33%)')).toBeInTheDocument();
     });
 
-    it('displays SLA breach count', () => {
+    it('renders current recent support activity', () => {
         render(<Dashboard {...baseProps} />);
 
-        expect(screen.getByText('SLA Breach')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument();
-    });
-
-    it('renders recent tickets table', () => {
-        render(<Dashboard {...baseProps} />);
-
-        expect(screen.getByText('Recent Tickets')).toBeInTheDocument();
+        expect(screen.getByText('Recent Support Activity')).toBeInTheDocument();
         expect(screen.getByText('TKT-2026-001')).toBeInTheDocument();
-        expect(screen.getByText('Network issue')).toBeInTheDocument();
+        expect(screen.getAllByText('Network issue').length).toBeGreaterThan(0);
         expect(screen.getByText('TKT-2026-002')).toBeInTheDocument();
-        expect(screen.getByText('Printer problem')).toBeInTheDocument();
+        expect(screen.getAllByText('Printer problem').length).toBeGreaterThan(0);
     });
 
-    it('shows Ticket and Priority columns in recent tickets table', () => {
+    it('applies a period preset immediately instead of only changing the date fields', async () => {
+        const user = userEvent.setup();
         render(<Dashboard {...baseProps} />);
 
-        // Check table headers
-        const headers = screen.getAllByRole('columnheader');
-        const headerTexts = headers.map(h => h.textContent);
-        expect(headerTexts).toContain('Ticket');
-        expect(headerTexts).toContain('Title');
-        expect(headerTexts).toContain('Requester');
-        expect(headerTexts).toContain('Status');
-        expect(headerTexts).toContain('Priority');
-        expect(headerTexts).toContain('SLA');
+        await user.click(screen.getByRole('button', { name: '90 Days' }));
+
+        const today = new Date();
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            {
+                date_from: format(subDays(today, 90), 'yyyy-MM-dd'),
+                date_to: format(today, 'yyyy-MM-dd'),
+            },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
     });
 
     it('shows empty state when no recent tickets', () => {
@@ -211,6 +212,6 @@ describe('Ticket Dashboard page', () => {
             />
         );
 
-        expect(screen.getByText('No recent tickets')).toBeInTheDocument();
+        expect(screen.getByText('No recent activity')).toBeInTheDocument();
     });
 });

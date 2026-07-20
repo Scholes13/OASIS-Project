@@ -180,6 +180,35 @@ class LegacyTicketImporterTest extends TestCase
         $this->assertDatabaseCount('ticket_categories', 0);
     }
 
+    public function test_force_assignee_overrides_legacy_mapping_on_update(): void
+    {
+        $forcedAssignee = User::factory()->create(['email' => 'pramuji@example.test']);
+        $legacyAssignee = User::factory()->create(['email' => 'legacy-assignee@example.test']);
+        $this->seedLegacyTicket();
+        $this->legacy->table('staff')->insert(['id' => 9, 'email' => $legacyAssignee->email]);
+
+        app(LegacyTicketImporter::class)->run($this->legacy, $this->importOptions(), false);
+        $noUpdate = app(LegacyTicketImporter::class)->run(
+            $this->legacy,
+            $this->importOptions(forceAssignee: $forcedAssignee),
+            false,
+        );
+        $report = app(LegacyTicketImporter::class)->run(
+            $this->legacy,
+            $this->importOptions(updateExisting: true, forceAssignee: $forcedAssignee),
+            false,
+        );
+
+        $this->assertArrayNotHasKey('forced_assignee_tickets', $noUpdate->stats());
+        $this->assertFalse($report->hasErrors());
+        $this->assertSame(1, $report->stats()['forced_assignee_tickets']);
+        $this->assertDatabaseHas('tickets', [
+            'import_source' => 'request.werkudara.com',
+            'import_id' => '11',
+            'assigned_to' => $forcedAssignee->id,
+        ]);
+    }
+
     public function test_missing_and_unsafe_files_fail_preflight_without_writes(): void
     {
         $this->seedLegacyTicket();
@@ -312,10 +341,12 @@ class LegacyTicketImporterTest extends TestCase
         bool $copyAttachments = true,
         bool $updateExisting = false,
         ?int $limit = null,
+        ?User $forceAssignee = null,
     ): LegacyImportOptions {
         return new LegacyImportOptions(
             businessUnit: $this->businessUnit,
             fallbackUser: $this->fallbackUser,
+            forceAssignee: $forceAssignee,
             fallbackDepartment: $this->department,
             source: 'request.werkudara.com',
             legacyStorage: $this->legacyRoot,

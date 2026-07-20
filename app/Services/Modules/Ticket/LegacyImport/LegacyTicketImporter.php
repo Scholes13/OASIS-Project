@@ -9,7 +9,6 @@ use Throwable;
 
 final class LegacyTicketImporter
 {
-    /** @var array<int, int|null> */
     private array $categories = [];
 
     public function __construct(
@@ -115,7 +114,7 @@ final class LegacyTicketImporter
         }
 
         $requester = $this->mappings->requester($legacyTicket, $options, $report);
-        $assignee = $this->mappings->assignee($legacyTicket, $options, $report);
+        $assignee = $options->forceAssignee ?? $this->mappings->assignee($legacyTicket, $options, $report);
         $department = $this->mappings->department($legacyTicket->department, $options, $report);
         $payload = [
             'business_unit_id' => $options->businessUnit->id,
@@ -140,6 +139,7 @@ final class LegacyTicketImporter
             if ($options->updateExisting) {
                 DB::table('tickets')->where('id', $existing->id)->update($payload);
                 $report->increment('tickets_updated');
+                $report->incrementWhen('forced_assignee_tickets', $options->forceAssignee !== null);
             } else {
                 $report->increment('tickets_existing');
             }
@@ -149,6 +149,7 @@ final class LegacyTicketImporter
 
         $payload['created_at'] = $legacyTicket->created_at ?? now();
         $report->increment('tickets_created');
+        $report->incrementWhen('forced_assignee_tickets', $options->forceAssignee !== null);
 
         return (int) DB::table('tickets')->insertGetId($payload);
     }

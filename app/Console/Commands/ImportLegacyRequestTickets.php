@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use App\Services\Modules\Ticket\LegacyImport\LegacyImportOptions;
 use App\Services\Modules\Ticket\LegacyImport\LegacyImportReport;
 use App\Services\Modules\Ticket\LegacyImport\LegacyTicketImporter;
@@ -27,6 +28,7 @@ class ImportLegacyRequestTickets extends Command
         {--legacy-password-stdin : Read the password from standard input without echoing it}
         {--business-unit= : Target OASIS business unit id or code}
         {--fallback-user= : Target fallback user id or email for unmapped legacy staff}
+        {--force-assignee= : Assign every selected imported ticket to this target user id or email}
         {--fallback-department= : Target fallback department id or code for unmapped legacy departments}
         {--legacy-storage= : Legacy storage/app/public path for attachment copy}
         {--copy-attachments : Copy legacy attachment files into OASIS private storage}
@@ -75,8 +77,27 @@ class ImportLegacyRequestTickets extends Command
     {
         $businessUnit = $this->resolveBusinessUnit((string) $this->option('business-unit'));
         $fallbackUser = $this->resolveUser((string) $this->option('fallback-user'));
+        $forceAssigneeValue = trim((string) $this->option('force-assignee'));
+        $forceAssignee = $forceAssigneeValue === '' ? null : $this->resolveUser($forceAssigneeValue);
+        $updateExisting = (bool) $this->option('update-existing');
         if ($businessUnit === null || $fallbackUser === null) {
             throw new InvalidArgumentException('Provide a valid --business-unit and --fallback-user.');
+        }
+        if ($forceAssigneeValue !== '' && $forceAssignee === null) {
+            throw new InvalidArgumentException('Provide a valid --force-assignee target user.');
+        }
+        if ($forceAssignee !== null && ! $updateExisting) {
+            throw new InvalidArgumentException('--force-assignee requires --update-existing.');
+        }
+        if ($forceAssignee !== null && ! UserBusinessUnit::query()
+            ->where('user_id', $forceAssignee->id)
+            ->where('business_unit_id', $businessUnit->id)
+            ->where('is_active', true)
+            ->where('is_it_support_admin', true)
+            ->exists()) {
+            throw new InvalidArgumentException(
+                'The --force-assignee user must be an active IT Support admin in the target business unit.'
+            );
         }
 
         $fallbackDepartment = $this->resolveDepartment(
@@ -95,11 +116,12 @@ class ImportLegacyRequestTickets extends Command
         return new LegacyImportOptions(
             businessUnit: $businessUnit,
             fallbackUser: $fallbackUser,
+            forceAssignee: $forceAssignee,
             fallbackDepartment: $fallbackDepartment,
             source: (string) config('legacy_ticket_import.source', 'request.werkudara.com'),
             legacyStorage: $this->option('legacy-storage') ?: null,
             copyAttachments: (bool) $this->option('copy-attachments'),
-            updateExisting: (bool) $this->option('update-existing'),
+            updateExisting: $updateExisting,
             limit: $limit === '' ? null : (int) $limit,
         );
     }

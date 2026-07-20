@@ -43,7 +43,11 @@ final class LegacyImportPreflight
             $ticketIds[$ticketId] = true;
             $report->increment('tickets_inspected');
             $this->mappings->requester($ticket, $options, $report);
-            $this->mappings->assignee($ticket, $options, $report);
+            if ($options->forceAssignee === null) {
+                $this->mappings->assignee($ticket, $options, $report);
+            } else {
+                $report->increment('forced_assignee_tickets');
+            }
             $this->mappings->department($ticket->department, $options, $report);
 
             if (! empty($ticket->category_id) && ! isset($categoryLookup[(int) $ticket->category_id])) {

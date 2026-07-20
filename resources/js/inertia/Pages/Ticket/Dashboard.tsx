@@ -130,8 +130,9 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                     <MetricCard title="Response Time" value={`${responseTime} hrs`} subLabel="Average resolution" tone="neutral" icon={<Activity className="h-4 w-4" />} />
                 </div>
 
-                <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
-                    <Card className="border-gray-200 bg-white p-5 shadow-none xl:col-span-3">
+                <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-5">
+                    <div data-testid="ticket-dashboard-primary-column" className="space-y-5 xl:col-span-3">
+                    <Card className="border-gray-200 bg-white p-5 shadow-none">
                         <div className="flex items-start justify-between">
                             <div>
                                 <div className="flex items-center gap-2">
@@ -192,29 +193,7 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                         </div>
                     </Card>
 
-                    <Card className="border-gray-200 bg-white p-5 shadow-none xl:col-span-2">
-                        <div className="mb-4 flex items-start justify-between">
-                            <div>
-                                <h2 className="text-sm font-semibold text-gray-900">Recent Support Activity</h2>
-                                <p className="text-xs text-gray-500">Latest support requests from users.</p>
-                            </div>
-                            <Link href={route('it-support.admin.tickets.index')} className="text-xs font-medium text-gray-700 underline-offset-4 hover:underline">
-                                See all
-                            </Link>
-                        </div>
-                        <div className="space-y-3">
-                            {metrics.recent_tickets.slice(0, 4).map((ticket) => (
-                                <ActivityItem key={ticket.id} ticket={ticket} />
-                            ))}
-                            {metrics.recent_tickets.length === 0 && (
-                                <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-500">No recent activity</div>
-                            )}
-                        </div>
-                    </Card>
-                </div>
-
-                <div className="grid grid-cols-1 gap-5 xl:grid-cols-4">
-                    <Card className="border-gray-200 bg-white p-5 shadow-none xl:col-span-3">
+                    <Card className="border-gray-200 bg-white p-5 shadow-none">
                         <div className="mb-5 flex items-start justify-between">
                             <div>
                                 <h2 className="text-sm font-semibold text-gray-900">Ticket Status Board</h2>
@@ -233,8 +212,31 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                             <StatusColumn title="Archived" tickets={statusGroups.archived} />
                         </div>
                     </Card>
+                    </div>
+
+                    <div data-testid="ticket-dashboard-secondary-column" className="space-y-5 xl:col-span-2">
+                    <Card className="border-gray-200 bg-white p-5 shadow-none">
+                        <div className="mb-4 flex items-start justify-between">
+                            <div>
+                                <h2 className="text-sm font-semibold text-gray-900">Recent Support Activity</h2>
+                                <p className="text-xs text-gray-500">Latest support requests from users.</p>
+                            </div>
+                            <Link href={route('it-support.admin.tickets.index')} className="text-xs font-medium text-gray-700 underline-offset-4 hover:underline">
+                                See all
+                            </Link>
+                        </div>
+                        <div className="space-y-3">
+                            {metrics.recent_tickets.slice(0, 4).map((ticket) => (
+                                <ActivityItem key={ticket.id} ticket={ticket} />
+                            ))}
+                            {metrics.recent_tickets.length === 0 && (
+                                <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-500">No recent activity</div>
+                            )}
+                        </div>
+                    </Card>
 
                     <TeamWorkloadPanel staff={metrics.by_staff} total={metrics.total} />
+                    </div>
                 </div>
 
                 {isFiltering && <span className="sr-only">Filtering dashboard data</span>}

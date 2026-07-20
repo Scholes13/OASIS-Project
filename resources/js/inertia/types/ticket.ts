@@ -106,6 +106,7 @@ export interface TicketDashboardMetrics {
     by_priority: Record<TicketPriority, number>;
     by_category: { name: string; count: number; color: string }[];
     by_staff: { name: string; count: number }[];
+    volume_by_day: { date: string; count: number }[];
     avg_resolution_hours: number;
     sla_breach_count: number;
     recent_tickets: Ticket[];

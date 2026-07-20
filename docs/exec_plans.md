@@ -1963,4 +1963,13 @@ Use this shape for future updates:
 - Scope: Add an explicit importer/workflow option that assigns every selected legacy ticket to one validated OASIS account, then use it to place all staging legacy workload on `pramuji@werkudara.com`.
 - Risks: Invalid or ineligible target account, accidental reassignment of native tickets, production execution, and misleading dashboard results caused by the active date filter.
 - Verification: Focused importer regression test; Pint and syntax checks; staging dry-run with WNS/BAS; backup-backed update of only `request.werkudara.com` identities; idempotent rerun showing 212 existing tickets and forced assignee count.
-- Notes: Ticket Volume Tracker and metric cards remain date-scoped; Recent Support Activity is intentionally not date-scoped.
+- Notes: Ticket Volume Tracker and metric cards remain date-scoped; the dashboard follow-up below aligns Recent Support Activity and workload to that same period.
+
+### 2026-07-20 - IT Support dashboard period metrics
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Make period presets execute immediately, apply one consistent date-scoped query to totals/recent/workload, and replace the placeholder tracker data with real daily ticket counts.
+- Risks: Stale Inertia state, inconsistent date boundaries, misleading workload percentages, and database-specific date aggregation.
+- Verification: Backend service test for in/out-of-range tickets and Pramuji workload; React test for immediate 90-day navigation and rendered daily volume; build, Pint, review, staging deploy, and authenticated UAT.
+- Notes: The prior 90-day preset only changed local form state, so it appeared selected while the server metrics still represented the previous period.

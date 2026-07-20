@@ -22,18 +22,16 @@ const periodPresets = [
     { label: '90 Days', getRange: () => ({ from: format(subDays(new Date(), 90), 'yyyy-MM-dd'), to: format(new Date(), 'yyyy-MM-dd') }) },
 ];
 
-const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
 export default function TicketDashboard({ metrics, filters }: DashboardProps) {
     const [dateFrom, setDateFrom] = useState(filters.date_from);
     const [dateTo, setDateTo] = useState(filters.date_to);
     const [isFiltering, setIsFiltering] = useState(false);
 
-    const applyFilters = () => {
+    const visitRange = (from: string, to: string) => {
         setIsFiltering(true);
         router.get(route('it-support.admin.dashboard'), {
-            date_from: dateFrom,
-            date_to: dateTo,
+            date_from: from,
+            date_to: to,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -41,10 +39,13 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
         });
     };
 
+    const applyFilters = () => visitRange(dateFrom, dateTo);
+
     const handlePreset = (preset: typeof periodPresets[number]) => {
         const range = preset.getRange();
         setDateFrom(range.from);
         setDateTo(range.to);
+        visitRange(range.from, range.to);
     };
 
     const openTickets = (metrics.by_status.waiting || 0) + (metrics.by_status.in_progress || 0);
@@ -52,8 +53,8 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
     const withinSla = Math.max(metrics.total - metrics.sla_breach_count, 0);
     const dueSoonCount = metrics.recent_tickets.filter((ticket) => getSlaState(ticket).state === 'soon').length;
 
-    const weeklyVolume = useMemo(() => buildVolumeData(metrics), [metrics]);
-    const maxVolume = Math.max(...weeklyVolume.map((item) => item.value), 1);
+    const weeklyVolume = metrics.volume_by_day || [];
+    const maxVolume = Math.max(...weeklyVolume.map((item) => item.count), 1);
     const volumeDelta = metrics.total > 0 ? Math.round((openTickets / metrics.total) * 100) : 0;
 
     const statusGroups = useMemo(() => ({
@@ -142,7 +143,7 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                                     </div>
                                 </div>
                             </div>
-                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600">Weekly</span>
+                            <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600">Latest active days</span>
                         </div>
 
                         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:items-end">
@@ -152,16 +153,16 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                             </div>
                             <div className="flex min-h-48 items-end justify-between gap-3 rounded-2xl bg-gradient-to-b from-white to-gray-50 px-3 pb-2 pt-6 lg:col-span-4">
                                 {weeklyVolume.map((item, index) => {
-                                    const heightRem = Math.max((item.value / maxVolume) * 8.25, 1.25);
-                                    const active = index === 3;
+                                    const heightRem = Math.max((item.count / maxVolume) * 8.25, 1.25);
+                                    const active = index === weeklyVolume.length - 1;
 
                                     return (
-                                        <div key={`${item.label}-${index}`} className="flex flex-1 flex-col items-center gap-2">
+                                        <div key={item.date} className="flex flex-1 flex-col items-center gap-2">
                                             <div className="flex h-36 items-end">
                                                 <div className="relative flex flex-col items-center justify-end" style={{ height: `${heightRem}rem` }}>
                                                     {active && (
                                                         <span className="absolute -top-8 whitespace-nowrap rounded-md bg-primary/90 px-2 py-1 text-[0.625rem] font-medium text-white">
-                                                            {item.value} tickets
+                                                            {item.count} tickets
                                                         </span>
                                                     )}
                                                     <span className={cn('mb-1 h-2 w-2 rounded-full', active ? 'bg-primary' : 'bg-primary/50')} />
@@ -169,11 +170,16 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                                                 </div>
                                             </div>
                                             <span className={cn('flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium', active ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-100 text-gray-500')}>
-                                                {item.label}
+                                                {format(new Date(`${item.date}T00:00:00`), 'dd/MM')}
                                             </span>
                                         </div>
                                     );
                                 })}
+                                {weeklyVolume.length === 0 && (
+                                    <div className="flex min-h-48 w-full items-center justify-center text-sm text-gray-400">
+                                        No ticket volume for selected period
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </Card>
@@ -220,7 +226,7 @@ export default function TicketDashboard({ metrics, filters }: DashboardProps) {
                         </div>
                     </Card>
 
-                    <TeamWorkloadPanel staff={metrics.by_staff} total={openTickets} />
+                    <TeamWorkloadPanel staff={metrics.by_staff} total={metrics.total} />
                 </div>
 
                 {isFiltering && <span className="sr-only">Filtering dashboard data</span>}
@@ -323,7 +329,7 @@ function TeamWorkloadPanel({ staff, total }: { staff: { name: string; count: num
         <Card className="border-gray-200 bg-white p-5 shadow-none">
             <div className="mb-5">
                 <h2 className="text-sm font-semibold text-gray-900">Team Workload</h2>
-                <p className="text-xs text-gray-500">Open ticket distribution per user/team.</p>
+                <p className="text-xs text-gray-500">Ticket distribution in the selected period.</p>
             </div>
             <div className="space-y-4">
                 {staff.slice(0, 6).map((member) => {
@@ -386,21 +392,4 @@ function getSlaState(ticket: Ticket): { label: string; state: 'ok' | 'soon' | 'b
     }
 
     return { label: `Due ${Math.ceil(hoursLeft)}h`, state: 'ok' };
-}
-
-function buildVolumeData(metrics: TicketDashboardMetrics) {
-    const values = [
-        metrics.by_status.waiting || 0,
-        metrics.by_priority.low || 0,
-        metrics.by_priority.medium || 0,
-        metrics.by_status.in_progress || 0,
-        metrics.by_priority.high || 0,
-        metrics.by_priority.critical || 0,
-        metrics.by_status.done || 0,
-    ];
-
-    return weekdayLabels.map((label, index) => ({
-        label,
-        value: values[index] || 0,
-    }));
 }

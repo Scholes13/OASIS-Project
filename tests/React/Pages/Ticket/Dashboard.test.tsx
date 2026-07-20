@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { format, subDays } from 'date-fns';
+import { format, startOfYear, subDays } from 'date-fns';
 import { type ComponentProps } from 'react';
 import { router } from '@inertiajs/react';
 import Dashboard from '@/Pages/Ticket/Dashboard';
@@ -256,6 +256,44 @@ describe('Ticket Dashboard page', () => {
             expect.objectContaining({ preserveState: true, preserveScroll: true }),
         );
         expect(screen.getByRole('button', { name: 'Select date period, current: 90 Days' })).toBeInTheDocument();
+    });
+
+    it('applies the This Year preset from the start of the current year', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        await user.click(screen.getByRole('button', { name: 'Select date period, current: Custom range' }));
+        await user.click(await screen.findByRole('option', { name: 'This Year' }));
+
+        const today = new Date();
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            {
+                date_from: format(startOfYear(today), 'yyyy-MM-dd'),
+                date_to: format(today, 'yyyy-MM-dd'),
+            },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+    });
+
+    it('applies All Data across the full supported database date range', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        await user.click(screen.getByRole('button', { name: 'Select date period, current: Custom range' }));
+        await user.click(await screen.findByRole('option', { name: 'All Data' }));
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            {
+                date_from: '1000-01-01',
+                date_to: format(new Date(), 'yyyy-MM-dd'),
+            },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+        expect(screen.getByRole('button', { name: 'Select date period, current: All Data' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Choose custom date range, current: All available data' })).toBeInTheDocument();
+        expect(screen.getByText('All available data')).toBeInTheDocument();
     });
 
     it('applies a custom range from the compact date filter', async () => {

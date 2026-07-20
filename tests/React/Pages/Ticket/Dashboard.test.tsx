@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { format, subDays } from 'date-fns';
 import { type ComponentProps } from 'react';
@@ -177,6 +177,19 @@ describe('Ticket Dashboard page', () => {
         expect(screen.getByText('Tickets across the latest 2 active days shown.')).toBeInTheDocument();
         expect(screen.getByText('Alice')).toBeInTheDocument();
         expect(screen.getByText('5 (33%)')).toBeInTheDocument();
+    });
+
+    it('flows dashboard cards in independent content-height columns', () => {
+        render(<Dashboard {...baseProps} />);
+
+        const primaryColumn = screen.getByTestId('ticket-dashboard-primary-column');
+        const secondaryColumn = screen.getByTestId('ticket-dashboard-secondary-column');
+
+        expect(within(primaryColumn).getByText('Ticket Volume Tracker')).toBeInTheDocument();
+        expect(within(primaryColumn).getByText('Ticket Status Board')).toBeInTheDocument();
+        expect(within(primaryColumn).queryByText('Recent Support Activity')).not.toBeInTheDocument();
+        expect(within(secondaryColumn).getByText('Recent Support Activity')).toBeInTheDocument();
+        expect(within(secondaryColumn).getByText('Team Workload')).toBeInTheDocument();
     });
 
     it('keeps a single active day visible at full chart height', () => {

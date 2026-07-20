@@ -31,6 +31,8 @@ class Ticket extends Model
         'follow_up_at',
         'resolved_at',
         'form_token',
+        'import_source',
+        'import_id',
     ];
 
     protected $casts = [

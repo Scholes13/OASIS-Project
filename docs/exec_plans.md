@@ -1946,3 +1946,12 @@ Use this shape for future updates:
 - Risks:
 - Verification:
 - Notes:
+
+### 2026-07-20 - Legacy request.werkudara.com ticket migration
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@viewer`, `@coder_backend`, `@qa`, `@reviewer`
+- Scope: Harden the existing legacy ticket importer and workflow, preserve tickets/comments/standalone and comment attachments, add safe idempotency/preflight behavior, validate on staging, then migrate into OASIS production with verified database and storage backups.
+- Risks: Native ticket-number collisions, unmapped users/departments, partial database/filesystem writes, missing legacy files, production concurrency, and rollback affecting concurrent writes.
+- Verification: Focused importer tests on an isolated `_test` database; PHP syntax and Pint; unlimited dry-run; limited then full staging import; row/FK/file parity; attachment download smoke test; production backup and post-import parity.
+- Notes: Initial read-only audit found 212 legacy tickets, 412 comments, 33 standalone attachments, and 1 comment attachment; 8 standalone files and the comment attachment are physically missing, so they are explicitly warned/skipped while unsafe paths remain fatal. Production currently has 2 native tickets and no legacy markers; staging has no tickets. Implementation now includes forward-only source identities, full child preflight, private-disk attachment copy with path containment, missing-file self-healing on retry, rollback cleanup, comment attachment import, and workflow-side Laravel bootstrap plus database/attachment backup. Production remains untouched until importer blockers pass review and staging UAT.

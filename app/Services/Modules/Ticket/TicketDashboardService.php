@@ -16,7 +16,6 @@ class TicketDashboardService
     {
         $query = $this->dateScopedQuery($buIds, $dateFrom, $dateTo);
         $tickets = (clone $query)->get();
-        Ticket::preloadSlaSettings($buIds);
 
         $byStatus = $tickets->groupBy('status')->map->count();
         $byPriority = $tickets->groupBy('priority')->map->count();
@@ -69,6 +68,14 @@ class TicketDashboardService
                 fn (Ticket $ticket): float => $ticket->created_at->diffInMinutes($ticket->resolved_at) / 60
             ), 1);
 
+        Ticket::preloadSlaSettings($buIds);
+
+        try {
+            $slaBreachCount = $tickets->filter(fn (Ticket $ticket): bool => $ticket->isSlaBreach())->count();
+        } finally {
+            Ticket::clearPreloadedSlaSettings();
+        }
+
         return [
             'total' => $tickets->count(),
             'by_status' => [
@@ -87,7 +94,7 @@ class TicketDashboardService
             'by_staff' => $byStaff,
             'volume_by_day' => $volumeByDay,
             'avg_resolution_hours' => $averageResolutionHours,
-            'sla_breach_count' => $tickets->filter(fn (Ticket $ticket): bool => $ticket->isSlaBreach())->count(),
+            'sla_breach_count' => $slaBreachCount,
             'recent_tickets' => (clone $query)
                 ->with(['requester', 'assignedUser', 'category'])
                 ->latest()

@@ -5,6 +5,8 @@ namespace Tests\Feature\Modules\Ticket;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
+use App\Models\Modules\Ticket\Ticket;
+use App\Models\Modules\Ticket\TicketSlaSettings;
 use App\Services\Modules\Ticket\TicketDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +40,14 @@ class TicketDashboardServiceTest extends TestCase
         $this->assertSame([['date' => '2026-06-17', 'count' => 1]], $metrics['volume_by_day']);
         $this->assertCount(1, $metrics['recent_tickets']);
         $this->assertSame('IN-RANGE', $metrics['recent_tickets']->first()->ticket_number);
+
+        TicketSlaSettings::create([
+            'business_unit_id' => $businessUnit->id,
+            'priority' => 'high',
+            'resolution_hours' => 8,
+        ]);
+
+        $this->assertNotNull(Ticket::where('ticket_number', 'IN-RANGE')->firstOrFail()->sla_deadline);
     }
 
     /** @return array<string, mixed> */

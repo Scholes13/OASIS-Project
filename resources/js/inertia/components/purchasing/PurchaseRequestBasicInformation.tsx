@@ -2,6 +2,7 @@ import type { ChangeEvent } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Input } from '../ui/input';
 import type { BusinessUnit, Department, PRCategory, PRFormData } from '../../types/purchasing';
+import { DOCUMENT_FILE_ACCEPT, DOCUMENT_FILE_LABEL } from '@/lib/fileUploadPolicy';
 
 interface PurchaseRequestBasicInformationProps {
     data: PRFormData;
@@ -165,7 +166,7 @@ export function PurchaseRequestBasicInformation({
                         <div>
                             <input
                                 type="file"
-                                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                accept={DOCUMENT_FILE_ACCEPT}
                                 onChange={onSupportingDocumentUpload}
                                 className="hidden"
                                 id="supporting-document-upload"
@@ -178,7 +179,7 @@ export function PurchaseRequestBasicInformation({
                                 Upload Document
                             </label>
                             <p className="mt-1 text-xs text-gray-500">
-                                Max 5MB, PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
+                                Max 5MB. {DOCUMENT_FILE_LABEL}
                             </p>
                         </div>
                     )}

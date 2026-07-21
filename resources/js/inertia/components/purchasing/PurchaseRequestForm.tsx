@@ -7,6 +7,11 @@ import { ApprovalWorkflowBuilder } from './ApprovalWorkflowBuilder';
 import { PurchaseRequestBasicInformation } from './PurchaseRequestBasicInformation';
 import { PRFormData, PRItemFormData, PRCategory, Department, BusinessUnit, Approver, CustomApprovalStep } from '../../types/purchasing';
 import { toast } from 'sonner';
+import {
+    DOCUMENT_FILE_EXTENSIONS,
+    DOCUMENT_FILE_LABEL,
+    isAllowedFileExtension,
+} from '@/lib/fileUploadPolicy';
 
 interface PurchaseRequestFormProps {
     categories: PRCategory[];
@@ -125,9 +130,16 @@ export const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
     const handleSupportingDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (!isAllowedFileExtension(file, DOCUMENT_FILE_EXTENSIONS)) {
+                toast.error(`Invalid file type. Allowed formats: ${DOCUMENT_FILE_LABEL}`);
+                e.target.value = '';
+                return;
+            }
+
             // Validate file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 toast.error('File size must be less than 5MB');
+                e.target.value = '';
                 return;
             }
 

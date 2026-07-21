@@ -49,7 +49,7 @@ class StorePurchaseRequestRequest extends FormRequest
             'currency' => ['required', 'string', 'in:IDR,USD,EUR,SGD'],
 
             // Supporting Document
-            'supporting_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'], // 5MB max
+            'supporting_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,ppt,pptx', 'extensions:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,ppt,pptx', 'max:5120'], // 5MB max
 
             // Approval Workflow
             'submission_intent' => ['required', 'string', 'in:draft,submit'],
@@ -71,7 +71,7 @@ class StorePurchaseRequestRequest extends FormRequest
             'items.*.expense_department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where(fn ($query) => $query
                 ->where('business_unit_id', (int) session('current_business_unit_id'))
                 ->where('is_active', true))],
-            'items.*.image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'], // 2MB max
+            'items.*.image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'], // 2MB max
         ];
     }
 
@@ -107,7 +107,8 @@ class StorePurchaseRequestRequest extends FormRequest
 
             // Supporting Document
             'supporting_document.file' => 'Supporting document must be a file.',
-            'supporting_document.mimes' => 'Supporting document must be a PDF, JPG, JPEG, or PNG file.',
+            'supporting_document.mimes' => 'Supporting document must be a JPG, JPEG, PNG, PDF, DOC, DOCX, XLS, XLSX, PPT, or PPTX file.',
+            'supporting_document.extensions' => 'Supporting document must use an approved office file extension.',
             'supporting_document.max' => 'Supporting document cannot exceed 5MB.',
 
             // Approval Workflow
@@ -142,6 +143,7 @@ class StorePurchaseRequestRequest extends FormRequest
             'items.*.expense_department_id.exists' => 'Selected expense department is invalid.',
             'items.*.image.file' => 'Item image must be a file.',
             'items.*.image.mimes' => 'Item image must be a JPG, JPEG, or PNG file.',
+            'items.*.image.extensions' => 'Item image must use a JPG, JPEG, or PNG extension.',
             'items.*.image.max' => 'Item image cannot exceed 2MB.',
         ];
     }

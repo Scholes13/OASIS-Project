@@ -9,6 +9,7 @@ use App\Models\Core\User;
 use App\Models\Modules\Ticket\Ticket;
 use App\Models\Modules\Ticket\TicketCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -146,6 +147,28 @@ class TicketCrudTest extends TestCase
             'priority' => 'high',
             'status' => 'waiting',
         ]);
+    }
+
+    #[Test]
+    public function it_rejects_executable_ticket_attachments(): void
+    {
+        $response = $this->actingAs($this->requester)
+            ->withSession([
+                'current_business_unit_id' => $this->businessUnit->id,
+                'current_department_id' => $this->department->id,
+            ])
+            ->post(route('it-support.submit.store'), [
+                'title' => 'Unsafe attachment attempt',
+                'description' => 'This request must fail validation.',
+                'priority' => 'medium',
+                'category_id' => $this->category->id,
+                'attachments' => [
+                    UploadedFile::fake()->create('anf.php', 1, 'application/x-php'),
+                ],
+            ]);
+
+        $response->assertSessionHasErrors('attachments.0');
+        $this->assertDatabaseMissing('tickets', ['title' => 'Unsafe attachment attempt']);
     }
 
     #[Test]

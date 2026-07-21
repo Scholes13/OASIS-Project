@@ -9,6 +9,12 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { StockRequestSubmitActions } from './StockRequestSubmitActions';
 import type { StockRequestFormData, StockRequestItemFormData } from '../../types/stockRequestForm';
+import {
+    IMAGE_FILE_ACCEPT,
+    IMAGE_FILE_EXTENSIONS,
+    IMAGE_FILE_LABEL,
+    isAllowedFileExtension,
+} from '@/lib/fileUploadPolicy';
 
 export type { StockRequestFormData as STFormData } from '../../types/stockRequestForm';
 
@@ -99,8 +105,14 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
     const handleItemImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (!isAllowedFileExtension(file, IMAGE_FILE_EXTENSIONS)) {
+                toast.error(`Invalid image type. Allowed formats: ${IMAGE_FILE_LABEL}`);
+                e.target.value = '';
+                return;
+            }
             if (file.size > 2 * 1024 * 1024) {
                 toast.error('Image size must be less than 2MB');
+                e.target.value = '';
                 return;
             }
             handleUpdateItem(index, 'image_file', file);
@@ -366,7 +378,7 @@ export const StockRequestForm: React.FC<StockRequestFormProps> = ({
                                     <div>
                                         <input
                                             type="file"
-                                            accept=".jpg,.jpeg,.png"
+                                            accept={IMAGE_FILE_ACCEPT}
                                             onChange={(e) => handleItemImageUpload(index, e)}
                                             className="hidden"
                                             id={`item-image-${index}`}

@@ -37,7 +37,7 @@ class StoreTicketRequest extends FormRequest
                     ->where('is_active', true),
             ],
             'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => ['file', 'max:10240'],
+            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,ppt,pptx', 'extensions:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,ppt,pptx', 'max:10240'],
             'form_token' => ['nullable', 'string', 'max:64'],
         ];
     }
@@ -58,6 +58,8 @@ class StoreTicketRequest extends FormRequest
             'category_id.exists' => 'Selected category is invalid.',
             'attachments.max' => 'You can attach a maximum of 5 files.',
             'attachments.*.file' => 'Each attachment must be a valid file.',
+            'attachments.*.mimes' => 'Each attachment must be a JPG, JPEG, PNG, PDF, DOC, DOCX, XLS, XLSX, PPT, or PPTX file.',
+            'attachments.*.extensions' => 'Each attachment must use an approved office file extension.',
             'attachments.*.max' => 'Each attachment cannot exceed 10MB.',
         ];
     }

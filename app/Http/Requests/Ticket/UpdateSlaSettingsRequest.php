@@ -25,7 +25,7 @@ class UpdateSlaSettingsRequest extends FormRequest
         return [
             'settings' => ['required', 'array', 'size:4'],
             'settings.*.priority' => ['required', 'in:low,medium,high,critical'],
-            'settings.*.resolution_hours' => ['required', 'integer', 'min:1', 'max:720'],
+            'settings.*.resolution_hours' => ['required', 'integer', 'in:48'],
         ];
     }
 
@@ -43,8 +43,7 @@ class UpdateSlaSettingsRequest extends FormRequest
             'settings.*.priority.in' => 'Priority must be one of: low, medium, high, critical.',
             'settings.*.resolution_hours.required' => 'Resolution hours are required for each priority.',
             'settings.*.resolution_hours.integer' => 'Resolution hours must be a whole number.',
-            'settings.*.resolution_hours.min' => 'Resolution hours must be at least 1.',
-            'settings.*.resolution_hours.max' => 'Resolution hours cannot exceed 720 (30 days).',
+            'settings.*.resolution_hours.in' => 'The current SLA policy requires a 48-hour resolution target.',
         ];
     }
 }

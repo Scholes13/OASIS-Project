@@ -8,6 +8,8 @@ use App\Models\Core\Position;
 use App\Models\Core\User;
 use App\Models\Modules\Ticket\Ticket;
 use App\Models\Modules\Ticket\TicketSlaSettings;
+use App\Services\Modules\Ticket\Reporting\SlaComplianceCalculator;
+use App\Services\Modules\Ticket\SlaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -73,19 +75,19 @@ class TicketSlaTest extends TestCase
         TicketSlaSettings::create([
             'business_unit_id' => $this->businessUnit->id,
             'priority' => 'medium',
-            'resolution_hours' => 24,
+            'resolution_hours' => 48,
         ]);
 
         TicketSlaSettings::create([
             'business_unit_id' => $this->businessUnit->id,
             'priority' => 'high',
-            'resolution_hours' => 8,
+            'resolution_hours' => 48,
         ]);
 
         TicketSlaSettings::create([
             'business_unit_id' => $this->businessUnit->id,
             'priority' => 'critical',
-            'resolution_hours' => 2,
+            'resolution_hours' => 48,
         ]);
     }
 
@@ -115,8 +117,8 @@ class TicketSlaTest extends TestCase
     #[Test]
     public function it_detects_sla_breach_for_overdue_ticket(): void
     {
-        // Create a high-priority ticket from 10 hours ago (SLA = 8 hours)
-        $ticket = $this->createTicket('high', now()->subHours(10)->toDateTimeString());
+        // Every priority currently uses the same 48-hour policy.
+        $ticket = $this->createTicket('high', now()->subHours(49)->toDateTimeString());
 
         $this->assertTrue($ticket->isSlaBreach());
     }
@@ -124,8 +126,7 @@ class TicketSlaTest extends TestCase
     #[Test]
     public function it_returns_no_breach_for_on_time_ticket(): void
     {
-        // Create a high-priority ticket from 2 hours ago (SLA = 8 hours)
-        $ticket = $this->createTicket('high', now()->subHours(2)->toDateTimeString());
+        $ticket = $this->createTicket('high', now()->subHours(47)->toDateTimeString());
 
         $this->assertFalse($ticket->isSlaBreach());
     }
@@ -140,17 +141,17 @@ class TicketSlaTest extends TestCase
         );
 
         $this->assertSame(
-            24,
+            48,
             TicketSlaSettings::getResolutionHours($this->businessUnit->id, 'medium')
         );
 
         $this->assertSame(
-            8,
+            48,
             TicketSlaSettings::getResolutionHours($this->businessUnit->id, 'high')
         );
 
         $this->assertSame(
-            2,
+            48,
             TicketSlaSettings::getResolutionHours($this->businessUnit->id, 'critical')
         );
 
@@ -160,11 +161,153 @@ class TicketSlaTest extends TestCase
 
         $this->assertNotNull($deadline);
 
-        // Deadline should be ~2 hours from creation
-        $expectedDeadline = $criticalTicket->created_at->copy()->addHours(2);
+        $expectedDeadline = $criticalTicket->created_at->copy()->addHours(48);
         $this->assertTrue(
             $deadline->diffInMinutes($expectedDeadline) < 1,
-            'Critical ticket SLA deadline should be 2 hours from creation'
+            'Critical ticket SLA deadline should be 48 hours from creation'
         );
+    }
+
+    #[Test]
+    public function it_uses_the_48_hour_default_when_bu_settings_are_missing(): void
+    {
+        TicketSlaSettings::query()->delete();
+
+        $ticket = $this->createTicket(
+            'critical',
+            now()->subHours(49)->toDateTimeString(),
+            now()->toDateTimeString(),
+        );
+
+        $this->assertSame(
+            48,
+            TicketSlaSettings::getResolutionHours($this->businessUnit->id, 'critical'),
+        );
+        $this->assertTrue($ticket->isSlaBreach());
+        $this->assertTrue($ticket->sla_deadline->equalTo($ticket->created_at->copy()->addHours(48)));
+    }
+
+    #[Test]
+    public function it_uses_the_same_48_hour_fallback_in_reporting(): void
+    {
+        TicketSlaSettings::query()->delete();
+
+        $this->createTicket(
+            'critical',
+            now()->subHours(47)->toDateTimeString(),
+            now()->toDateTimeString(),
+        );
+        $this->createTicket(
+            'high',
+            now()->subHours(49)->toDateTimeString(),
+            now()->toDateTimeString(),
+        );
+
+        $compliance = app(SlaComplianceCalculator::class)->compliance(
+            [$this->businessUnit->id],
+            now()->subDays(3),
+            now()->addDay(),
+        );
+
+        $this->assertSame(2, $compliance['total_resolved']);
+        $this->assertSame(1, $compliance['within_sla']);
+        $this->assertSame(1, $compliance['breached']);
+        $this->assertSame(
+            [48, 48, 48, 48],
+            collect($compliance['by_priority'])->pluck('sla_hours')->all(),
+        );
+    }
+
+    #[Test]
+    public function it_enforces_48_hours_even_when_legacy_settings_contain_other_values(): void
+    {
+        TicketSlaSettings::where('business_unit_id', $this->businessUnit->id)
+            ->where('priority', 'critical')
+            ->update(['resolution_hours' => 2]);
+
+        $ticket = $this->createTicket(
+            'critical',
+            now()->subHours(3)->toDateTimeString(),
+            now()->toDateTimeString(),
+        );
+
+        $this->assertSame(
+            48,
+            TicketSlaSettings::getResolutionHours($this->businessUnit->id, 'critical'),
+        );
+        $this->assertFalse($ticket->isSlaBreach());
+
+        $compliance = app(SlaComplianceCalculator::class)->compliance(
+            [$this->businessUnit->id],
+            now()->subDay(),
+            now()->addDay(),
+        );
+
+        $this->assertSame(1, $compliance['within_sla']);
+        $this->assertSame(0, $compliance['breached']);
+        $this->assertSame(48, $compliance['by_priority'][0]['sla_hours']);
+    }
+
+    #[Test]
+    public function sla_settings_updates_cannot_override_the_uniform_policy(): void
+    {
+        app(SlaService::class)->updateSettings($this->businessUnit->id, [
+            'low' => 720,
+            'medium' => 24,
+            'high' => 8,
+            'critical' => 2,
+        ]);
+
+        $this->assertSame(
+            [48, 48, 48, 48],
+            TicketSlaSettings::where('business_unit_id', $this->businessUnit->id)
+                ->orderBy('priority')
+                ->pluck('resolution_hours')
+                ->all(),
+        );
+    }
+
+    #[Test]
+    public function migration_normalizes_existing_and_missing_sla_rows_for_every_business_unit(): void
+    {
+        $secondBusinessUnit = BusinessUnit::create([
+            'name' => 'Second Test BU',
+            'code' => 'TBU2',
+            'is_active' => true,
+        ]);
+
+        TicketSlaSettings::where('business_unit_id', $this->businessUnit->id)
+            ->where('priority', 'critical')
+            ->update(['resolution_hours' => 2]);
+        TicketSlaSettings::where('business_unit_id', $this->businessUnit->id)
+            ->where('priority', 'medium')
+            ->delete();
+        TicketSlaSettings::create([
+            'business_unit_id' => $secondBusinessUnit->id,
+            'priority' => 'high',
+            'resolution_hours' => 8,
+        ]);
+
+        $migration = require database_path('migrations/modules/ticket/2026_07_21_000001_standardize_ticket_sla_to_48_hours.php');
+        $migration->up();
+        $migration->up();
+
+        foreach ([$this->businessUnit->id, $secondBusinessUnit->id] as $businessUnitId) {
+            $settings = TicketSlaSettings::where('business_unit_id', $businessUnitId)
+                ->orderBy('priority')
+                ->get();
+
+            $this->assertCount(4, $settings);
+            $this->assertSame(
+                ['critical', 'high', 'low', 'medium'],
+                $settings->pluck('priority')->all(),
+            );
+            $this->assertSame([48, 48, 48, 48], $settings->pluck('resolution_hours')->all());
+        }
+
+        $beforeDown = TicketSlaSettings::query()->orderBy('id')->get()->toArray();
+        $migration->down();
+
+        $this->assertSame($beforeDown, TicketSlaSettings::query()->orderBy('id')->get()->toArray());
     }
 }

@@ -40,14 +40,45 @@ class TicketDashboardServiceTest extends TestCase
         $this->assertSame([['date' => '2026-06-17', 'count' => 1]], $metrics['volume_by_day']);
         $this->assertCount(1, $metrics['recent_tickets']);
         $this->assertSame('IN-RANGE', $metrics['recent_tickets']->first()->ticket_number);
+        $this->assertSame(0, $metrics['sla_breach_count']);
 
         TicketSlaSettings::create([
             'business_unit_id' => $businessUnit->id,
             'priority' => 'high',
-            'resolution_hours' => 8,
+            'resolution_hours' => 48,
         ]);
 
         $this->assertNotNull(Ticket::where('ticket_number', 'IN-RANGE')->firstOrFail()->sla_deadline);
+    }
+
+    public function test_dashboard_uses_the_48_hour_default_when_settings_are_missing(): void
+    {
+        $businessUnit = BusinessUnit::factory()->create(['code' => 'WNS']);
+        $department = Department::factory()->create(['business_unit_id' => $businessUnit->id]);
+        $requester = User::factory()->create();
+        $pramuji = User::factory()->create(['name' => 'Pramuji', 'email' => 'pramuji@werkudara.com']);
+
+        $createdAt = now()->subHours(49);
+        DB::table('tickets')->insert([
+            $this->ticketPayload(
+                $businessUnit->id,
+                $department->id,
+                $requester->id,
+                $pramuji->id,
+                'BREACHED-DEFAULT',
+                $createdAt->toDateTimeString(),
+                now()->toDateTimeString(),
+            ),
+        ]);
+
+        $metrics = app(TicketDashboardService::class)->getMetrics(
+            [$businessUnit->id],
+            now()->subDays(3)->toDateString(),
+            now()->toDateString(),
+        );
+
+        $this->assertSame(1, $metrics['total']);
+        $this->assertSame(1, $metrics['sla_breach_count']);
     }
 
     /** @return array<string, mixed> */
@@ -58,6 +89,7 @@ class TicketDashboardServiceTest extends TestCase
         int $assigneeId,
         string $number,
         string $createdAt,
+        ?string $resolvedAt = null,
     ): array {
         return [
             'business_unit_id' => $businessUnitId,
@@ -72,7 +104,7 @@ class TicketDashboardServiceTest extends TestCase
             'assigned_to' => $assigneeId,
             'created_by' => $requesterId,
             'follow_up_at' => null,
-            'resolved_at' => $createdAt,
+            'resolved_at' => $resolvedAt ?? $createdAt,
             'form_token' => null,
             'import_source' => 'request.werkudara.com',
             'import_id' => $number,

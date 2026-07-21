@@ -8,21 +8,10 @@ use Carbon\Carbon;
 
 /**
  * Compute SLA compliance metrics (overall rate plus per-priority breakdown)
- * for resolved tickets in a date range. Falls back to default SLA hours
- * when a business unit has no per-priority SlaSettings configured.
+ * for resolved tickets in a date range using the shared 48-hour policy.
  */
 class SlaComplianceCalculator
 {
-    /**
-     * Default SLA hours per priority when no per-BU settings exist.
-     */
-    protected const DEFAULT_SLA_HOURS = [
-        'low' => 48,
-        'medium' => 24,
-        'high' => 8,
-        'critical' => 2,
-    ];
-
     /**
      * Display labels for the priority breakdown ordered from most to
      * least urgent.
@@ -58,20 +47,13 @@ class SlaComplianceCalculator
             ];
         }
 
-        $slaMap = TicketSlaSettings::whereIn('business_unit_id', $buIds)
-            ->get()
-            ->groupBy('business_unit_id')
-            ->map(fn ($settings) => $settings->keyBy('priority'));
-
         $withinSla = 0;
         $breached = 0;
         $byPriority = $this->initialisePriorityAccumulator();
 
         foreach ($resolvedTickets as $ticket) {
             $priority = $ticket->priority;
-            $buSla = $slaMap->get($ticket->business_unit_id);
-            $slaHours = $buSla?->get($priority)?->resolution_hours
-                ?? (self::DEFAULT_SLA_HOURS[$priority] ?? 24);
+            $slaHours = TicketSlaSettings::DEFAULT_RESOLUTION_HOURS;
             $actualHours = $ticket->created_at->diffInMinutes($ticket->resolved_at) / 60;
 
             $isWithinSla = $actualHours <= $slaHours;
@@ -120,7 +102,7 @@ class SlaComplianceCalculator
             'total' => 0,
             'within_sla' => 0,
             'breached' => 0,
-            'sla_hours' => 0,
+            'sla_hours' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
             'avg_hours' => 0,
             'compliance_rate' => 0,
         ])->all();
@@ -138,7 +120,7 @@ class SlaComplianceCalculator
             'within_sla' => 0,
             'breached' => 0,
             'avg_hours' => 0,
-            'sla_hours' => 0,
+            'sla_hours' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
             'total_hours' => 0,
         ];
 

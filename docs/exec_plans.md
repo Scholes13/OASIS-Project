@@ -2001,10 +2001,10 @@ Use this shape for future updates:
 - Verification: Focused model, Dashboard, and Reporting SLA tests on an isolated `_test` database; PHP syntax/Pint; TypeScript/build; migration inspection; staging backup/migrate; all-data parity QA.
 - Notes: Reporting previously fell back to 2/8/24/48 hours while Dashboard treated missing settings as no deadline. Staging All Data QA now shows 212 total, 212 within SLA, and 0 breached on both surfaces; all priority rows display 48h. Production remains untouched.
 
-### 2026-07-21 - Docs & Help July staging changelog
+### 2026-07-21 - Docs & Help July product changelog
 - Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_frontend`, `@qa`, `@reviewer`
-- Scope: Publish a bilingual changelog covering user-facing staging changes since V4 Beta, including IT Support migration, modern Dashboard/Reporting, uniform 48-hour SLA, operational workflows, Cashflow, and deployment safeguards.
+- Scope: Publish a bilingual, user-friendly changelog covering changes since V4 Beta, including IT Support migration, modern Dashboard/Reporting, uniform 48-hour SLA, detailed Purchase Request/approval and Stock Request fixes, Activity, Cashflow, and deployment safeguards.
 - Risks: Release notes drifting from shipped behavior, stale article ordering, broken article deep links, and claims that imply unapproved production rollout.
 - Verification: TypeScript, focused changelog data test, production build, reviewer inspection, and authenticated staging QA after deployment.

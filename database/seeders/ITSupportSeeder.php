@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\NumberingModule;
+use App\Models\Modules\Ticket\TicketSlaSettings;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -13,10 +14,10 @@ class ITSupportSeeder extends Seeder
      * Default SLA resolution hours by priority.
      */
     private const SLA_DEFAULTS = [
-        'low' => 48,
-        'medium' => 24,
-        'high' => 8,
-        'critical' => 2,
+        'low' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
+        'medium' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
+        'high' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
+        'critical' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
     ];
 
     /**

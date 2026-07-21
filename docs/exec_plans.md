@@ -1991,3 +1991,12 @@ Use this shape for future updates:
 - Risks: Reporting and export periods diverging, presets updating only local state, stale custom-range drafts, and controls wrapping poorly at smaller widths.
 - Verification: Focused React coverage for preset/custom filtering and export period parity; TypeScript check; production frontend build; standards review; staging deploy and QA.
 - Notes: Reuse the existing dashboard filter component so both IT Support analytics surfaces share one interaction contract without backend changes.
+
+### 2026-07-21 - IT Support uniform 2 x 24 hour SLA policy
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Standardize every ticket priority on the current 48-hour SLA policy and align Dashboard, Reporting, exports, defaults, seed data, settings UI, and existing staging configuration.
+- Risks: Historical reports changing under the corrected policy, existing per-BU settings overriding the default, missing settings causing Dashboard/Reporting drift, and irreversible configuration normalization.
+- Verification: Focused model, Dashboard, and Reporting SLA tests on an isolated `_test` database; PHP syntax/Pint; TypeScript/build; migration inspection; staging backup/migrate; all-data parity QA.
+- Notes: Reporting previously fell back to 2/8/24/48 hours while Dashboard treated missing settings as no deadline. One shared 48-hour default plus a forward-only data-policy migration removes both inconsistencies.

@@ -68,13 +68,7 @@ class TicketDashboardService
                 fn (Ticket $ticket): float => $ticket->created_at->diffInMinutes($ticket->resolved_at) / 60
             ), 1);
 
-        Ticket::preloadSlaSettings($buIds);
-
-        try {
-            $slaBreachCount = $tickets->filter(fn (Ticket $ticket): bool => $ticket->isSlaBreach())->count();
-        } finally {
-            Ticket::clearPreloadedSlaSettings();
-        }
+        $slaBreachCount = $tickets->filter(fn (Ticket $ticket): bool => $ticket->isSlaBreach())->count();
 
         return [
             'total' => $tickets->count(),

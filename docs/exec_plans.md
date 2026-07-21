@@ -1982,3 +1982,12 @@ Use this shape for future updates:
 - Risks: Presets no longer applying immediately, invalid custom ranges, cramped mobile wrapping, inaccessible popover/listbox controls, and stale filter state.
 - Verification: React coverage for immediate 90-day selection and custom-range submission; production frontend build; responsive/accessibility review; staging deploy and UAT.
 - Notes: The composition follows the official shadcn date-picker pattern (trigger plus popover) while reusing the repository's existing Headless UI and date-fns dependencies.
+
+### 2026-07-21 - IT Support reporting modern filter parity
+- Status: in_progress
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Align Reporting with the Dashboard's compact preset dropdown, custom range popover, immediate preset behavior, This Year/All Data options, and modern export actions.
+- Risks: Reporting and export periods diverging, presets updating only local state, stale custom-range drafts, and controls wrapping poorly at smaller widths.
+- Verification: Focused React coverage for preset/custom filtering and export period parity; TypeScript check; production frontend build; standards review; staging deploy and QA.
+- Notes: Reuse the existing dashboard filter component so both IT Support analytics surfaces share one interaction contract without backend changes.

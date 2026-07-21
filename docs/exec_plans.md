@@ -1948,34 +1948,34 @@ Use this shape for future updates:
 - Notes:
 
 ### 2026-07-20 - Legacy request.werkudara.com ticket migration
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@viewer`, `@coder_backend`, `@qa`, `@reviewer`
-- Scope: Harden the existing legacy ticket importer and workflow, preserve tickets/comments/standalone and comment attachments, add safe idempotency/preflight behavior, validate on staging, then migrate into OASIS production with verified database and storage backups.
+- Scope: Harden the legacy ticket importer and workflow, preserve tickets/comments/standalone and comment attachments, add safe idempotency/preflight behavior, and complete the staging migration. Any production migration requires a separate approved plan.
 - Risks: Native ticket-number collisions, unmapped users/departments, partial database/filesystem writes, missing legacy files, production concurrency, and rollback affecting concurrent writes.
-- Verification: Focused importer tests on an isolated `_test` database; PHP syntax and Pint; unlimited dry-run; limited then full staging import; row/FK/file parity; attachment download smoke test; production backup and post-import parity.
-- Notes: Initial read-only audit found 212 legacy tickets, 412 comments, 33 standalone attachments, and 1 comment attachment; 8 standalone files and the comment attachment are physically missing, so they are explicitly warned/skipped while unsafe paths remain fatal. Production currently has 2 native tickets and no legacy markers; staging has no tickets. Implementation now includes forward-only source identities, full child preflight, private-disk attachment copy with path containment, missing-file self-healing on retry, rollback cleanup, comment attachment import, and workflow-side Laravel bootstrap plus database/attachment backup. Production remains untouched until importer blockers pass review and staging UAT.
+- Verification: Focused importer tests on an isolated `_test` database; PHP syntax and Pint; unlimited dry-run; full staging import; row/FK/file parity; idempotent rerun; authenticated Dashboard, Reporting, and ticket-detail QA.
+- Notes: Staging migration completed with 212 tickets, 412 comments, and 25 source attachments available for import. Eight standalone files and one comment attachment were physically missing at source and were explicitly warned/skipped. Idempotent rerun retained 212 unique legacy tickets. Production remains untouched and is outside this completed staging scope.
 
 ### 2026-07-20 - Staging legacy ticket workload reassignment
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_backend`, `@qa`, `@reviewer`
 - Scope: Add an explicit importer/workflow option that assigns every selected legacy ticket to one validated OASIS account, then use it to place all staging legacy workload on `pramuji@werkudara.com`.
 - Risks: Invalid or ineligible target account, accidental reassignment of native tickets, production execution, and misleading dashboard results caused by the active date filter.
 - Verification: Focused importer regression test; Pint and syntax checks; staging dry-run with WNS/BAS; backup-backed update of only `request.werkudara.com` identities; idempotent rerun showing 212 existing tickets and forced assignee count.
-- Notes: Ticket Volume Tracker and metric cards remain date-scoped; the dashboard follow-up below aligns Recent Support Activity and workload to that same period.
+- Notes: Authenticated All Data QA shows all 212 imported tickets assigned to Pramuji Arif Yulianto (100% workload). Native and production tickets were not changed.
 
 ### 2026-07-20 - IT Support dashboard period metrics
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
 - Scope: Make period presets execute immediately, apply one consistent date-scoped query to totals/recent/workload, and replace the placeholder tracker data with real daily ticket counts.
 - Risks: Stale Inertia state, inconsistent date boundaries, misleading workload percentages, and database-specific date aggregation.
 - Verification: Backend service test for in/out-of-range tickets and Pramuji workload; React test for immediate 90-day navigation and rendered daily volume; build, Pint, review, staging deploy, and authenticated UAT.
-- Notes: The prior 90-day preset only changed local form state, so it appeared selected while the server metrics still represented the previous period.
+- Notes: The prior 90-day preset only changed local form state. Staging QA now confirms immediate preset navigation, visible real volume bars, and date-scoped totals/recent/workload from the same query.
 
 ### 2026-07-20 - IT Support dashboard modern date filter
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_frontend`, `@qa`, `@reviewer`
 - Scope: Replace the crowded preset buttons and separate date inputs with a compact preset dropdown, a single human-readable date-range trigger, a custom-range popover, and one primary Apply action.
@@ -1984,19 +1984,27 @@ Use this shape for future updates:
 - Notes: The composition follows the official shadcn date-picker pattern (trigger plus popover) while reusing the repository's existing Headless UI and date-fns dependencies.
 
 ### 2026-07-21 - IT Support reporting modern filter parity
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_frontend`, `@qa`, `@reviewer`
 - Scope: Align Reporting with the Dashboard's compact preset dropdown, custom range popover, immediate preset behavior, This Year/All Data options, and modern export actions.
 - Risks: Reporting and export periods diverging, presets updating only local state, stale custom-range drafts, and controls wrapping poorly at smaller widths.
 - Verification: Focused React coverage for preset/custom filtering and export period parity; TypeScript check; production frontend build; standards review; staging deploy and QA.
-- Notes: Reuse the existing dashboard filter component so both IT Support analytics surfaces share one interaction contract without backend changes.
+- Notes: Dashboard and Reporting share the same filter component; staging QA confirms Today through All Data, custom Apply behavior, and Excel/PDF period parity.
 
 ### 2026-07-21 - IT Support uniform 2 x 24 hour SLA policy
-- Status: in_progress
+- Status: completed
 - Owner: PM Agent
 - Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
 - Scope: Standardize every ticket priority on the current 48-hour SLA policy and align Dashboard, Reporting, exports, defaults, seed data, settings UI, and existing staging configuration.
 - Risks: Historical reports changing under the corrected policy, existing per-BU settings overriding the default, missing settings causing Dashboard/Reporting drift, and irreversible configuration normalization.
 - Verification: Focused model, Dashboard, and Reporting SLA tests on an isolated `_test` database; PHP syntax/Pint; TypeScript/build; migration inspection; staging backup/migrate; all-data parity QA.
-- Notes: Reporting previously fell back to 2/8/24/48 hours while Dashboard treated missing settings as no deadline. One shared 48-hour default plus a forward-only data-policy migration removes both inconsistencies.
+- Notes: Reporting previously fell back to 2/8/24/48 hours while Dashboard treated missing settings as no deadline. Staging All Data QA now shows 212 total, 212 within SLA, and 0 breached on both surfaces; all priority rows display 48h. Production remains untouched.
+
+### 2026-07-21 - Docs & Help July staging changelog
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Publish a bilingual changelog covering user-facing staging changes since V4 Beta, including IT Support migration, modern Dashboard/Reporting, uniform 48-hour SLA, operational workflows, Cashflow, and deployment safeguards.
+- Risks: Release notes drifting from shipped behavior, stale article ordering, broken article deep links, and claims that imply unapproved production rollout.
+- Verification: TypeScript, focused changelog data test, production build, reviewer inspection, and authenticated staging QA after deployment.

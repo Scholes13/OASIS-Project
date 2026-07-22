@@ -21,13 +21,14 @@ class KnowledgeBaseService
      */
     public function createArticle(array $data, User $author, int $buId): KnowledgeArticle
     {
+        $this->assertCategoryBelongsToBusinessUnit($data['category_id'] ?? null, $buId);
         $slug = $this->generateSlug($data['title']);
 
         return KnowledgeArticle::create([
             'business_unit_id' => $buId,
             'title' => $data['title'],
             'slug' => $slug,
-            'content' => $data['content'] ?? '',
+            'content' => $this->sanitizeContent($data['content'] ?? ''),
             'category_id' => $data['category_id'] ?? null,
             'is_published' => $data['is_published'] ?? false,
             'author_id' => $author->id,
@@ -42,9 +43,16 @@ class KnowledgeBaseService
      */
     public function updateArticle(KnowledgeArticle $article, array $data): KnowledgeArticle
     {
+        $this->assertCategoryBelongsToBusinessUnit(
+            $data['category_id'] ?? $article->category_id,
+            (int) $article->business_unit_id
+        );
+
         $updateData = [
             'title' => $data['title'] ?? $article->title,
-            'content' => $data['content'] ?? $article->content,
+            'content' => isset($data['content'])
+                ? $this->sanitizeContent($data['content'])
+                : $article->content,
             'category_id' => $data['category_id'] ?? $article->category_id,
             'meta_description' => $data['meta_description'] ?? $article->meta_description,
             'tags' => $data['tags'] ?? $article->tags,
@@ -217,12 +225,36 @@ class KnowledgeBaseService
     {
         $article = KnowledgeArticle::findOrFail($articleId);
 
+        if ((int) $article->business_unit_id !== (int) $ticket->business_unit_id || ! $article->is_published) {
+            throw new Exception('Article must be published in the ticket business unit.');
+        }
+
         // Prevent duplicate links
         if ($ticket->knowledgeArticles()->where('knowledge_article_id', $articleId)->exists()) {
             return;
         }
 
         $ticket->knowledgeArticles()->attach($articleId);
+    }
+
+    protected function sanitizeContent(string $content): string
+    {
+        return trim(strip_tags($content));
+    }
+
+    protected function assertCategoryBelongsToBusinessUnit(?int $categoryId, int $businessUnitId): void
+    {
+        if ($categoryId === null) {
+            return;
+        }
+
+        $exists = KnowledgeCategory::whereKey($categoryId)
+            ->where('business_unit_id', $businessUnitId)
+            ->exists();
+
+        if (! $exists) {
+            throw new Exception('Knowledge category does not belong to the article business unit.');
+        }
     }
 
     /**

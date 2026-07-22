@@ -115,7 +115,7 @@ describe('Activity Admin DepartmentDetail', () => {
         })
 
         expect(screen.getByRole('heading', { name: 'Business & Administrative Services' })).toBeInTheDocument()
-        expect(screen.getByText('Completion rate')).toBeInTheDocument()
+        expect(screen.getByText(/Completion rate/i)).toBeInTheDocument()
         expect(screen.getByRole('heading', { name: 'Contributor balance' })).toBeInTheDocument()
         expect(screen.getByRole('heading', { name: 'Activity mix' })).toBeInTheDocument()
         expect(screen.getByRole('heading', { name: 'Task register' })).toBeInTheDocument()
@@ -132,7 +132,7 @@ describe('Activity Admin DepartmentDetail', () => {
         })
 
         fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'completed' } })
-        fireEvent.change(screen.getByLabelText('Activity Type'), { target: { value: '1' } })
+        fireEvent.change(screen.getByLabelText(/Activity type/i), { target: { value: '1' } })
         fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'Deploy' } })
 
         expect(router.get).not.toHaveBeenCalled()

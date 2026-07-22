@@ -5,6 +5,7 @@ namespace App\Actions\Modules\Purchasing\PurchaseRequest;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestService;
+use App\Services\Modules\Purchasing\Shared\PurchasingFileStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -21,6 +22,7 @@ class MarkOfflineApprovedAction
 {
     public function __construct(
         private PurchaseRequestService $purchaseRequestService,
+        private PurchasingFileStorage $fileStorage,
     ) {}
 
     /**
@@ -30,16 +32,17 @@ class MarkOfflineApprovedAction
      */
     public function execute(Request $request, PurchaseRequest $purchaseRequest, User $user): array
     {
+        $documentPath = null;
+
         try {
             // Handle file upload
-            $documentPath = null;
             $documentName = null;
             if ($request->hasFile('offline_approval_document')) {
                 $file = $request->file('offline_approval_document');
                 $documentName = $file->getClientOriginalName();
-                $documentPath = $file->store(
+                $documentPath = $this->fileStorage->store(
+                    $file,
                     'offline-approvals/purchase-requests/'.$purchaseRequest->id,
-                    'public'
                 );
             }
 
@@ -53,6 +56,13 @@ class MarkOfflineApprovedAction
             return ['ok' => true];
 
         } catch (\Exception $e) {
+            if ($documentPath) {
+                $this->fileStorage->deleteSafely($documentPath, [
+                    'pr_id' => $purchaseRequest->id,
+                    'context' => 'rolled-back-offline-approval',
+                ]);
+            }
+
             Log::error('Failed to mark purchase request as offline approved', [
                 'pr_id' => $purchaseRequest->id,
                 'pr_number' => $purchaseRequest->pr_number,

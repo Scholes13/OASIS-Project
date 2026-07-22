@@ -108,10 +108,9 @@ export default function Article({ article, relatedArticles }: ArticlePageProps) 
                             </header>
 
                             {/* Article Content */}
-                            <div 
-                                className="prose prose-sm md:prose-base max-w-none prose-headings:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
-                                dangerouslySetInnerHTML={{ __html: article.content }}
-                            />
+                            <div className="prose prose-sm md:prose-base max-w-none whitespace-pre-wrap break-words">
+                                {article.content}
+                            </div>
 
                             {/* Tags */}
                             {article.tags && article.tags.length > 0 && (

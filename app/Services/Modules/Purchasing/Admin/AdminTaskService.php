@@ -3,18 +3,25 @@
 namespace App\Services\Modules\Purchasing\Admin;
 
 use App\Models\Core\User;
+use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\Admin\AdminTask;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
-use App\Notifications\Purchasing\Admin\TaskAssigned;
-use App\Notifications\Purchasing\Admin\TaskAvailable;
+use App\Services\Modules\Purchasing\Shared\PurchasingDepartmentResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AdminTaskService
 {
+    protected AdminTaskNotificationService $notificationService;
+
     public function __construct(
-        protected PriceEfficiencyService $priceEfficiencyService
-    ) {}
+        protected PriceEfficiencyService $priceEfficiencyService,
+        protected PurchasingDepartmentResolver $purchasingDepartmentResolver,
+        ?AdminTaskNotificationService $notificationService = null,
+    ) {
+        $this->notificationService = $notificationService ?? app(AdminTaskNotificationService::class);
+    }
 
     /**
      * Create a new admin task from a taskable (PR or ST)
@@ -42,8 +49,18 @@ class AdminTaskService
                 'savings_percentage' => null,
             ]);
 
-            $this->notifyAssignedAdmin($task);
-            $this->broadcastAvailableTask($task);
+            DB::afterCommit(function () use ($task) {
+                try {
+                    $committedTask = AdminTask::query()->findOrFail($task->id);
+                    $this->notifyAssignedAdmin($committedTask);
+                    $this->broadcastAvailableTask($committedTask);
+                } catch (\Throwable $exception) {
+                    Log::error('Failed to send admin task notifications', [
+                        'task_id' => $task->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            });
 
             activity()
                 ->performedOn($task)
@@ -54,15 +71,46 @@ class AdminTaskService
         });
     }
 
+    public function createForStockRequest(StockRequest $stockRequest): AdminTask
+    {
+        return DB::transaction(function () use ($stockRequest) {
+            StockRequest::query()->lockForUpdate()->findOrFail($stockRequest->id);
+
+            $existingTask = AdminTask::query()
+                ->where('taskable_type', StockRequest::class)
+                ->where('taskable_id', $stockRequest->id)
+                ->first();
+
+            if ($existingTask) {
+                return $existingTask;
+            }
+
+            $department = $this->purchasingDepartmentResolver
+                ->resolveForBusinessUnit((int) $stockRequest->business_unit_id);
+
+            return $this->createTask(
+                $stockRequest,
+                $stockRequest->business_unit_id,
+                $department->id,
+            );
+        });
+    }
+
     /**
      * Start working on a task
      *
      *
      * @throws \Exception
      */
-    public function startTask(AdminTask $task): AdminTask
+    public function startTask(AdminTask $task, ?User $actor = null): AdminTask
     {
-        return DB::transaction(function () use ($task) {
+        $actor ??= auth()->user();
+        if (! $actor) {
+            throw new \DomainException('Authenticated purchasing admin is required.');
+        }
+        $this->assertActorCanMutate($task, $actor);
+
+        return DB::transaction(function () use ($task, $actor) {
             $task = AdminTask::where('id', $task->id)
                 ->lockForUpdate()
                 ->first();
@@ -75,7 +123,7 @@ class AdminTaskService
                 throw new \Exception('Task must be in pending_followup status to start');
             }
 
-            if ($task->assigned_admin_id !== auth()->id()) {
+            if ($task->assigned_admin_id !== $actor->id) {
                 throw new \Exception('Task must be assigned to you to start');
             }
 
@@ -92,7 +140,7 @@ class AdminTaskService
 
             activity()
                 ->performedOn($task)
-                ->causedBy(auth()->user())
+                ->causedBy($actor)
                 ->withProperties([
                     'followup_time_minutes' => $followupTimeMinutes,
                 ])
@@ -102,14 +150,30 @@ class AdminTaskService
         });
     }
 
+    public function updateStatus(AdminTask $task, User $actor, string $status): AdminTask
+    {
+        $this->assertActorCanMutate($task, $actor);
+
+        if ($status !== 'in_progress') {
+            throw new \DomainException('Tasks must be completed through the completion form.');
+        }
+
+        return $this->startTask($task, $actor);
+    }
+
     /**
      * Complete a task with realized price
      *
      *
      * @throws \Exception
      */
-    public function completeTask(AdminTask $task, float $realizedTotalPrice, ?string $notes = null): AdminTask
+    public function completeTask(AdminTask $task, float $realizedTotalPrice, ?string $notes = null, ?User $actor = null): AdminTask
     {
+        $actor ??= auth()->user();
+        if (! $actor) {
+            throw new \DomainException('Authenticated purchasing admin is required.');
+        }
+        $this->assertActorCanMutate($task, $actor);
         $task->loadMissing('taskable');
         $isStockRequest = $task->taskable instanceof StockRequest;
 
@@ -117,7 +181,7 @@ class AdminTaskService
             throw new \Exception('Realized price must be greater than zero');
         }
 
-        return DB::transaction(function () use ($task, $realizedTotalPrice, $notes) {
+        return DB::transaction(function () use ($task, $realizedTotalPrice, $notes, $actor) {
             $task = AdminTask::where('id', $task->id)
                 ->lockForUpdate()
                 ->with('taskable')
@@ -131,7 +195,7 @@ class AdminTaskService
                 throw new \Exception('Task must be in_progress status to complete');
             }
 
-            if ($task->assigned_admin_id !== auth()->id()) {
+            if ($task->assigned_admin_id !== $actor->id) {
                 throw new \Exception('Task must be assigned to you to complete');
             }
 
@@ -162,7 +226,7 @@ class AdminTaskService
 
             activity()
                 ->performedOn($task)
-                ->causedBy(auth()->user())
+                ->causedBy($actor)
                 ->withProperties([
                     'completion_time_minutes' => $completionTimeMinutes,
                     'realized_total_price' => $realizedTotalPrice,
@@ -183,6 +247,8 @@ class AdminTaskService
      */
     public function claimTask(AdminTask $task, int $adminId): AdminTask
     {
+        $actor = User::query()->findOrFail($adminId);
+        $this->assertActorCanMutate($task, $actor, requireOwnership: false);
         if ($task->assigned_admin_id !== null) {
             throw new \Exception('Task is already assigned');
         }
@@ -206,7 +272,16 @@ class AdminTaskService
                 'assigned_admin_id' => $adminId,
             ]);
 
-            $this->notifyAssignedAdmin($task);
+            DB::afterCommit(function () use ($task) {
+                try {
+                    $this->notifyAssignedAdmin($task);
+                } catch (\Throwable $exception) {
+                    Log::error('Failed to send claimed task notification', [
+                        'task_id' => $task->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            });
 
             activity()
                 ->performedOn($task)
@@ -217,19 +292,29 @@ class AdminTaskService
         });
     }
 
+    private function assertActorCanMutate(AdminTask $task, User $actor, bool $requireOwnership = true): void
+    {
+        $eligible = UserBusinessUnit::query()
+            ->where('user_id', $actor->id)
+            ->where('business_unit_id', $task->business_unit_id)
+            ->where('department_id', $task->department_id)
+            ->where('is_active', true)
+            ->where('is_purchasing_admin', true)
+            ->where('is_purchasing_readonly', false)
+            ->exists();
+
+        if (! $eligible) {
+            throw new \DomainException('You are not eligible to mutate this task.');
+        }
+
+        if ($requireOwnership && $task->assigned_admin_id !== $actor->id) {
+            throw new \DomainException('Task is not assigned to you.');
+        }
+    }
+
     protected function notifyAssignedAdmin(AdminTask $task): void
     {
-        if (! $task->assigned_admin_id) {
-            return;
-        }
-
-        $admin = User::query()->find($task->assigned_admin_id);
-
-        if (! $admin) {
-            return;
-        }
-
-        $admin->notify(new TaskAssigned($task->fresh(['taskable'])));
+        $this->notificationService->notifyAssignedAdmin($task);
     }
 
     /**
@@ -239,25 +324,6 @@ class AdminTaskService
      */
     protected function broadcastAvailableTask(AdminTask $task): void
     {
-        $recipients = User::query()
-            ->whereHas('businessUnits', function ($q) use ($task) {
-                $q->where('business_unit_id', $task->business_unit_id)
-                    ->where('department_id', $task->department_id)
-                    ->where('is_purchasing_admin', true)
-                    ->where('is_purchasing_readonly', false)
-                    ->where('is_active', true);
-            })
-            ->where('users.id', '!=', $task->assigned_admin_id ?? 0)
-            ->get();
-
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
-        $notification = new TaskAvailable($task->fresh(['taskable']));
-
-        foreach ($recipients as $recipient) {
-            $recipient->notify($notification);
-        }
+        $this->notificationService->broadcastAvailableTask($task);
     }
 }

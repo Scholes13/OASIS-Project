@@ -2,9 +2,11 @@
 
 namespace App\Services\Modules\Purchasing\StockRequest;
 
+use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\StockRequest\StockNumberReservation;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Core\UserAccessResolver;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Schema;
@@ -13,13 +15,13 @@ use Illuminate\Support\Facades\Schema;
  * Listing/query helpers for Stock Requests.
  *
  * Owns the index pipeline, reservation queries, listing transforms,
- * and show-page authorization helpers previously inlined in
- * StockRequestController. Behavior preserved verbatim.
+ * and show-page authorization helpers previously inlined in StockRequestController.
  */
 class StockRequestQueryService
 {
     public function __construct(
         private StockRequestDocumentService $documentService,
+        private UserAccessResolver $userAccessResolver,
     ) {}
 
     /**
@@ -35,7 +37,7 @@ class StockRequestQueryService
         ];
 
         $query = StockRequest::with([
-            'department:id,name,code',
+            'department:id,name,code,is_ga_stock_review_department',
             'user:id,name,email',
         ])
             ->withCount('items')
@@ -89,7 +91,7 @@ class StockRequestQueryService
         ];
 
         $query = StockRequest::with([
-            'department:id,name,code',
+            'department:id,name,code,is_ga_stock_review_department',
             'user:id,name,email',
         ])
             ->withCount('items')
@@ -178,7 +180,7 @@ class StockRequestQueryService
 
         $stockRequest->load([
             'businessUnit:id,name,code',
-            'department:id,name,code',
+            'department:id,name,code,is_ga_stock_review_department',
             'user:id,name,email',
             'items',
             "approvals.approver:{$approverColumns}",
@@ -210,30 +212,38 @@ class StockRequestQueryService
     {
         $isOwner = $st->user_id === $user->id;
         $isSuperAdmin = $user->isSuperAdmin();
+        $isCurrentBusinessUnit = (int) $st->business_unit_id === $currentBusinessUnitId;
         $currentApproval = $st->currentApproval();
-        $canApprove = $currentApproval
+        $canApprove = $isCurrentBusinessUnit
+            && $currentApproval
             && $currentApproval->approver_id === $user->id
             && $st->status === 'in_approval'
             && $currentApproval->status === 'pending';
-        $canResendApprovalEmail = $isOwner
+        $canResendApprovalEmail = $isCurrentBusinessUnit
+            && $isOwner
             && $st->status === 'in_approval'
             && $currentApproval
             && $currentApproval->status === 'pending';
-        $canGaReview = $st->status === 'ga_review'
+        $canGaReview = $isCurrentBusinessUnit
+            && $st->status === 'ga_review'
             && ($isSuperAdmin || $this->userHasGaReviewAssignment($user, $currentBusinessUnitId));
 
         return [
-            'edit' => $isOwner && $st->isEditable(),
-            'delete' => $isOwner && $st->status === 'draft',
-            'void' => ($isOwner || $isSuperAdmin) && $st->canBeVoided(),
-            'resubmit' => $isOwner && in_array($st->status, ['rejected', 'ga_rejected'], true),
+            'edit' => $isCurrentBusinessUnit && $isOwner && $st->isEditable(),
+            'delete' => $isCurrentBusinessUnit && $isOwner && $st->status === 'draft',
+            'void' => $isCurrentBusinessUnit && ($isOwner || $isSuperAdmin) && $st->canBeVoided(),
+            'resubmit' => $isCurrentBusinessUnit
+                && $isOwner
+                && in_array($st->status, ['rejected', 'ga_rejected'], true),
             'resendApprovalEmail' => $canResendApprovalEmail,
             'gaReviewApprove' => $canGaReview,
             'gaReviewReject' => $canGaReview,
             'approve' => $canApprove,
             'reject' => $canApprove,
             'downloadPdf' => true, // All users can download PDF
-            'markOfflineApproved' => in_array($st->status, ['submitted', 'in_approval']) && $isOwner,
+            'markOfflineApproved' => $isCurrentBusinessUnit
+                && in_array($st->status, ['submitted', 'in_approval'])
+                && $isOwner,
             'offlineApprovalDocument' => $st->offline_approval_document_path !== null
                 && $this->documentService->canAccessOfflineApprovalDocument($st, $user, $currentBusinessUnitId),
         ];
@@ -249,15 +259,14 @@ class StockRequestQueryService
             ->exists();
     }
 
-    /**
-     * Build the props for the Create form Inertia view.
-     */
     public function getCreateFormData(
         User $user,
         int $businessUnitId,
         int $departmentId,
         \App\Services\Modules\Purchasing\Shared\RequestFormDataProvider $formDataProvider,
     ): array {
+        $routesDirectlyToPurchasing = $this->routesDirectlyToPurchasing($businessUnitId, $departmentId);
+
         return [
             'mode' => 'create',
             'stockRequest' => null,
@@ -268,21 +277,22 @@ class StockRequestQueryService
                 ->pluck('businessUnit')
                 ->filter(),
             'availableApprovers' => $formDataProvider->getAvailableApprovers($user, $businessUnitId),
-            'requiresSupervisorApproval' => $user->getAccessLevel($businessUnitId) === 'staff',
+            'requiresSupervisorApproval' => $this->userAccessResolver
+                ->getAccessLevelInDepartment($user, $businessUnitId, $departmentId) === 'staff'
+                && ! $routesDirectlyToPurchasing,
+            'routesDirectlyToPurchasing' => $routesDirectlyToPurchasing,
             'currentBusinessUnitId' => $businessUnitId,
             'currentDepartmentId' => $departmentId,
         ];
     }
 
-    /**
-     * Build the props for the Edit form Inertia view.
-     */
     public function getEditFormData(
         User $user,
         StockRequest $stockRequest,
         \App\Services\Modules\Purchasing\Shared\RequestFormDataProvider $formDataProvider,
     ): array {
         $businessUnitId = $stockRequest->business_unit_id;
+        $routesDirectlyToPurchasing = $stockRequest->routes_directly_to_purchasing;
         $approverColumns = implode(',', $this->approverColumns());
 
         $stockRequest->load([
@@ -309,7 +319,10 @@ class StockRequestQueryService
                 ->pluck('businessUnit')
                 ->filter(),
             'availableApprovers' => $formDataProvider->getAvailableApprovers($user, $businessUnitId),
-            'requiresSupervisorApproval' => $user->getAccessLevel($businessUnitId) === 'staff',
+            'requiresSupervisorApproval' => $this->userAccessResolver
+                ->getAccessLevelInDepartment($user, $businessUnitId, $stockRequest->department_id) === 'staff'
+                && ! $routesDirectlyToPurchasing,
+            'routesDirectlyToPurchasing' => $routesDirectlyToPurchasing,
             'currentBusinessUnitId' => $businessUnitId,
             'currentDepartmentId' => $stockRequest->department_id,
         ];
@@ -324,5 +337,14 @@ class StockRequestQueryService
         }
 
         return $columns;
+    }
+
+    private function routesDirectlyToPurchasing(int $businessUnitId, int $departmentId): bool
+    {
+        return Department::query()
+            ->whereKey($departmentId)
+            ->where('business_unit_id', $businessUnitId)
+            ->where('is_ga_stock_review_department', true)
+            ->exists();
     }
 }

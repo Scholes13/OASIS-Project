@@ -2,6 +2,7 @@
 
 namespace App\Services\Modules\Purchasing\StockRequest;
 
+use App\Models\Core\BusinessUnit;
 use App\Models\Core\User;
 use App\Models\Core\UserBusinessUnit;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
@@ -9,6 +10,7 @@ use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\Shared\PdfGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -70,7 +72,9 @@ class StockRequestDocumentService
             compact('stockRequest', 'qrCodes'),
             [
                 'filename' => $filename,
-                'fallback_url' => route('stock-requests.pdf-public', $stockRequest),
+                'fallback_url' => URL::temporarySignedRoute('stock-requests.pdf-public', now()->addMinutes(10), [
+                    'stockRequest' => $stockRequest->id,
+                ]),
             ],
         );
     }
@@ -108,6 +112,10 @@ class StockRequestDocumentService
         User $user,
         int $currentBusinessUnitId,
     ): bool {
+        if (! $this->selectedContextContains($stockRequest, $currentBusinessUnitId)) {
+            return false;
+        }
+
         if ($user->isSuperAdmin()) {
             return true;
         }
@@ -130,6 +138,44 @@ class StockRequestDocumentService
 
         return $stockRequest->business_unit_id === $currentBusinessUnitId
             && $stockRequest->user_id === $user->id;
+    }
+
+    private function selectedContextContains(StockRequest $stockRequest, int $currentBusinessUnitId): bool
+    {
+        if ((int) $stockRequest->business_unit_id === $currentBusinessUnitId) {
+            return true;
+        }
+
+        $selectedBusinessUnit = BusinessUnit::find($currentBusinessUnitId);
+        $requestBusinessUnit = BusinessUnit::find($stockRequest->business_unit_id);
+
+        return $selectedBusinessUnit !== null
+            && $requestBusinessUnit !== null
+            && $selectedBusinessUnit->isParentOf($requestBusinessUnit);
+    }
+
+    public function canAccessDocument(StockRequest $stockRequest, User $user): bool
+    {
+        if (! $user->is_active) {
+            return false;
+        }
+
+        if ($user->isSuperAdmin() || $user->hasTopManagementAccess()) {
+            return true;
+        }
+
+        if ($user->isAdminInBuOrAncestor('is_purchasing_admin', $stockRequest->business_unit_id)) {
+            return true;
+        }
+
+        if ($stockRequest->approvals()->where('approver_id', $user->id)->exists()) {
+            return true;
+        }
+
+        return $stockRequest->user_id === $user->id
+            && $user->activeBusinessUnits()
+                ->where('business_unit_id', $stockRequest->business_unit_id)
+                ->exists();
     }
 
     /**

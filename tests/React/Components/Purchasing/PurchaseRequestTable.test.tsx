@@ -93,17 +93,17 @@ describe('PurchaseRequestTable Component', () => {
     expect(screen.getByText('PR-WNS-2025-002')).toBeInTheDocument();
   });
 
-  it('displays requester names', () => {
+  it('displays request purposes', () => {
     render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
 
-    const userNames = screen.getAllByText('Test User');
-    expect(userNames).toHaveLength(2);
+    expect(screen.getByText('Office supplies')).toBeInTheDocument();
+    expect(screen.getByText('Equipment purchase')).toBeInTheDocument();
   });
 
-  it('displays department names', () => {
+  it('displays department codes', () => {
     render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
 
-    const departments = screen.getAllByText('General Affairs');
+    const departments = screen.getAllByText('GA');
     expect(departments).toHaveLength(2);
   });
 
@@ -111,24 +111,24 @@ describe('PurchaseRequestTable Component', () => {
     render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
 
     const draftBadge = screen.getByText('Draft');
-    expect(draftBadge).toHaveClass('bg-gray-100');
+    expect(draftBadge).toHaveClass('text-gray-600');
 
     const approvedBadge = screen.getByText('Approved');
-    expect(approvedBadge).toHaveClass('bg-emerald-100');
+    expect(approvedBadge).toHaveClass('text-emerald-600');
   });
 
   it('displays formatted amounts', () => {
     render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
 
-    expect(screen.getByText(/1,000,000/)).toBeInTheDocument();
-    expect(screen.getByText(/2,500,000/)).toBeInTheDocument();
+    expect(screen.getByText('IDR 1.000.000')).toBeInTheDocument();
+    expect(screen.getByText('IDR 2.500.000')).toBeInTheDocument();
   });
 
   it('displays formatted dates', () => {
     render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
 
-    expect(screen.getByText(/Jan 15, 2025/)).toBeInTheDocument();
-    expect(screen.getByText(/Jan 16, 2025/)).toBeInTheDocument();
+    expect(screen.getByText('15 Januari 2025')).toBeInTheDocument();
+    expect(screen.getByText('16 Januari 2025')).toBeInTheDocument();
   });
 
   it('makes rows clickable', () => {
@@ -144,21 +144,26 @@ describe('PurchaseRequestTable Component', () => {
     });
   });
 
-  it('navigates to detail page when row is clicked', () => {
-    render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
+  it('reports the selected request when a row is clicked', () => {
+    const onRowClick = vi.fn();
+    render(
+      <PurchaseRequestTable
+        purchaseRequests={mockPurchaseRequests}
+        onRowClick={onRowClick}
+      />
+    );
 
     const firstRow = screen.getByText('PR-WNS-2025-001').closest('tr');
-    if (firstRow) {
-      fireEvent.click(firstRow);
-      // Inertia router.visit should be called
-      expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/purchase-requests/1');
-    }
+    expect(firstRow).not.toBeNull();
+    fireEvent.click(firstRow!);
+
+    expect(onRowClick).toHaveBeenCalledWith(mockPurchaseRequests[0]);
   });
 
-  it('displays empty state when no purchase requests', () => {
-    render(<PurchaseRequestTable purchaseRequests={[]} />);
+  it('renders no data rows when no purchase requests exist', () => {
+    const { container } = render(<PurchaseRequestTable purchaseRequests={[]} />);
 
-    expect(screen.getByText(/No purchase requests found/i)).toBeInTheDocument();
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(0);
   });
 
   it('applies hover styles to rows', () => {
@@ -168,19 +173,20 @@ describe('PurchaseRequestTable Component', () => {
 
     const rows = container.querySelectorAll('tbody tr');
     rows.forEach((row) => {
-      expect(row).toHaveClass('hover:bg-gray-50');
+      expect(row).toHaveClass('hover:bg-gray-50/50');
     });
   });
 
   it('displays all required columns', () => {
     render(<PurchaseRequestTable purchaseRequests={mockPurchaseRequests} />);
 
-    expect(screen.getByText('PR Number')).toBeInTheDocument();
-    expect(screen.getByText('Requester')).toBeInTheDocument();
-    expect(screen.getByText('Department')).toBeInTheDocument();
-    expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Amount')).toBeInTheDocument();
-    expect(screen.getByText('Date')).toBeInTheDocument();
+    expect(screen.getByText('DEPT')).toBeInTheDocument();
+    expect(screen.getByText('NO. PR')).toBeInTheDocument();
+    expect(screen.getByText('USED FOR')).toBeInTheDocument();
+    expect(screen.getByText('AMOUNT')).toBeInTheDocument();
+    expect(screen.getByText('DATE')).toBeInTheDocument();
+    expect(screen.getByText('STATUS')).toBeInTheDocument();
+    expect(screen.getByText('ACTIONS')).toBeInTheDocument();
   });
 
   it('renders different status badges correctly', () => {
@@ -195,11 +201,11 @@ describe('PurchaseRequestTable Component', () => {
 
     render(<PurchaseRequestTable purchaseRequests={prWithDifferentStatuses} />);
 
-    expect(screen.getByText('Draft')).toHaveClass('bg-gray-100');
-    expect(screen.getByText('Submitted')).toHaveClass('bg-blue-100');
-    expect(screen.getByText('In Approval')).toHaveClass('bg-amber-100');
-    expect(screen.getByText('Approved')).toHaveClass('bg-emerald-100');
-    expect(screen.getByText('Rejected')).toHaveClass('bg-red-100');
-    expect(screen.getByText('Voided')).toHaveClass('bg-gray-100');
+    expect(screen.getByText('Draft')).toHaveClass('text-gray-600');
+    expect(screen.getByText('Submitted')).toHaveClass('text-blue-600');
+    expect(screen.getByText('In Approval')).toHaveClass('text-blue-600');
+    expect(screen.getByText('Approved')).toHaveClass('text-emerald-600');
+    expect(screen.getByText('Rejected')).toHaveClass('text-red-600');
+    expect(screen.getByText('Voided')).toHaveClass('text-gray-500');
   });
 });

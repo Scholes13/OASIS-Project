@@ -219,11 +219,11 @@ class UpdateActivityTaskAction
                 $startedAt = now();
             }
         } elseif ($status === 'completed') {
-            if (($requiresStartCorrection || ! $task->started_at) && ! empty($validated['start_time'])) {
+            if (! empty($validated['start_time'])) {
                 $startedAt = Carbon::parse($submittedTaskDate->format('Y-m-d').' '.$validated['start_time'], config('app.timezone'));
             }
 
-            if (($requiresCompletionCorrection || ! $task->completed_at) && ! empty($validated['end_time'])) {
+            if (! empty($validated['end_time'])) {
                 $completedAt = Carbon::parse($completedDate.' '.$validated['end_time'], config('app.timezone'));
             }
 

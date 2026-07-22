@@ -41,6 +41,7 @@ export default function Create({
         setIsSubmitting(true);
         // Create FormData for file upload
         const formData = new FormData();
+        formData.append('submission_intent', isDraft ? 'draft' : 'submit');
 
         // Append basic fields
         formData.append('business_unit_id', data.business_unit_id);

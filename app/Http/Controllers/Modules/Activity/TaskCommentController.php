@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Modules\Activity\EmployeeTask;
 use App\Models\Modules\Activity\TaskComment;
 use App\Notifications\Activity\TaskCommentNotification;
+use App\Services\Modules\Activity\ActivityAuthorizationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class TaskCommentController extends Controller
 {
+    public function __construct(
+        protected ActivityAuthorizationService $authorizationService,
+    ) {}
+
     /**
      * Redirect back to the task detail modal so comments stay visible.
      */
@@ -26,6 +31,7 @@ class TaskCommentController extends Controller
      */
     public function store(Request $request, EmployeeTask $task): RedirectResponse
     {
+        $this->authorizeTaskTenant($request, $task);
         $validated = $request->validate([
             'body' => ['required', 'string', 'min:1', 'max:2000'],
         ]);
@@ -55,6 +61,7 @@ class TaskCommentController extends Controller
         // Notify all participants + creator except commenter
         $recipients = $task->participants
             ->merge([$task->creator])
+            ->filter()
             ->unique('id')
             ->reject(fn ($u) => $u->id === auth()->id());
 
@@ -70,6 +77,7 @@ class TaskCommentController extends Controller
      */
     public function update(Request $request, EmployeeTask $task, TaskComment $comment): RedirectResponse
     {
+        $this->authorizeTaskTenant($request, $task);
         // Check comment belongs to task
         if ($comment->employee_task_id !== $task->id) {
             abort(404);
@@ -108,6 +116,7 @@ class TaskCommentController extends Controller
      */
     public function destroy(EmployeeTask $task, TaskComment $comment): RedirectResponse
     {
+        $this->authorizeTaskTenant(request(), $task);
         // Check comment belongs to task
         if ($comment->employee_task_id !== $task->id) {
             abort(404);
@@ -126,5 +135,16 @@ class TaskCommentController extends Controller
         $comment->delete();
 
         return $this->redirectToTaskModal($task);
+    }
+
+    protected function authorizeTaskTenant(Request $request, EmployeeTask $task): void
+    {
+        $businessUnitId = (int) session('current_business_unit_id');
+        abort_unless(
+            $businessUnitId > 0
+            && (int) $task->business_unit_id === $businessUnitId
+            && $this->authorizationService->belongsToBusinessUnit($request->user(), $businessUnitId),
+            403,
+        );
     }
 }

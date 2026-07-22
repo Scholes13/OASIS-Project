@@ -82,7 +82,7 @@ class ActivitySummarySheetBuilder
             if ($isNumericValue) {
                 $sheet->setCellValueExplicit('B'.$rowIndex, (int) $value, DataType::TYPE_NUMERIC);
             } else {
-                $sheet->setCellValue('B'.$rowIndex, $value);
+                SpreadsheetText::set($sheet, 'B'.$rowIndex, $value);
             }
             $rowIndex++;
         }

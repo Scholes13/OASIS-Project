@@ -7,25 +7,8 @@ import TaskFormBasicFields from '@/components/activity/form/TaskFormBasicFields'
 import TaskFormModalFooter from '@/components/activity/form/TaskFormModalFooter';
 import TaskFormModalHeader from '@/components/activity/form/TaskFormModalHeader';
 import TaskFormModalTimeline from '@/components/activity/form/TaskFormModalTimeline';
+import { getDatePart, getTimePart, getTodayWibDate } from '@/lib/activityDateTime';
 import type { Task, ActivityType, User, TaskStatus, TaskPriority, TaskParticipantUser } from '@/types';
-
-const getTodayLocalDate = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-const getDatePart = (value?: string | null): string => {
-    if (!value) return '';
-    return value.includes('T') ? value.split('T')[0] : value;
-};
-
-const getTimePart = (value?: string | null): string => {
-    if (!value || !value.includes('T')) return '';
-    return value.split('T')[1]?.substring(0, 5) || '';
-};
 
 const getTaskFormSeed = (task: Task | null, fallbackTaskDate: string) => {
     if (!task) {
@@ -127,7 +110,7 @@ export function TaskFormModal({
 
     // Get server date from shared Inertia props to avoid timezone mismatch
     const { serverDate } = usePage().props as { serverDate?: string };
-    const todayLocal = serverDate || getTodayLocalDate();
+    const todayLocal = serverDate || getTodayWibDate();
     const defaultTaskDate = initialTaskDate || todayLocal;
     const originalStartedDate = getDatePart(task?.started_at);
     const originalCompletedDate = getDatePart(task?.completed_at);
@@ -138,7 +121,7 @@ export function TaskFormModal({
 
     useEffect(() => {
         if (open) {
-            const createTaskDate = initialTaskDate || getTodayLocalDate();
+            const createTaskDate = initialTaskDate || getTodayWibDate();
             setData(getTaskFormSeed(task, createTaskDate));
             if (!task) {
                 setCreateAnother(false);
@@ -241,7 +224,7 @@ export function TaskFormModal({
         method(url, {
             preserveScroll: true,
             onSuccess: () => {
-                const nextCreateSeedDate = data.task_date || initialTaskDate || getTodayLocalDate();
+                const nextCreateSeedDate = data.task_date || initialTaskDate || getTodayWibDate();
 
                 showToast.success(
                     isEditing ? 'Task updated' : 'Task created',

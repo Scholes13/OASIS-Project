@@ -9,6 +9,8 @@ use Illuminate\Support\Collection;
 
 class TicketSlaSettings extends Model
 {
+    public const DEFAULT_RESOLUTION_HOURS = 48;
+
     protected $table = 'ticket_sla_settings';
 
     protected $fillable = [
@@ -44,10 +46,8 @@ class TicketSlaSettings extends Model
     /**
      * Get the resolution hours for a specific business unit and priority.
      */
-    public static function getResolutionHours(int $buId, string $priority): ?int
+    public static function getResolutionHours(int $buId, string $priority): int
     {
-        return static::where('business_unit_id', $buId)
-            ->where('priority', $priority)
-            ->value('resolution_hours');
+        return self::DEFAULT_RESOLUTION_HOURS;
     }
 }

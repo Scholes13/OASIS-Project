@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Modules\Purchasing\PurchaseRequest;
 
 use App\Http\Controllers\Controller;
-use App\Models\Core\BusinessUnit;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
+use App\Services\Modules\Purchasing\AllRequests\PurchasingRequestScopeResolver;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestDocumentService;
 use App\Services\Modules\Purchasing\PurchaseRequest\PurchaseRequestQueryService;
@@ -15,7 +15,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PurchaseRequestController extends Controller
 {
@@ -26,6 +25,7 @@ class PurchaseRequestController extends Controller
         protected RequestFormDataProvider $formDataProvider,
         protected PurchaseRequestDocumentService $documentService,
         protected PurchaseRequestQueryService $queryService,
+        protected PurchasingRequestScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -64,61 +64,6 @@ class PurchaseRequestController extends Controller
     }
 
     /**
-     * Display all purchase requests in the current business unit.
-     * All users registered to a business unit can view all PRs in that unit.
-     * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
-     */
-    public function all(Request $request): Response
-    {
-        $user = Auth::user();
-        $businessUnitId = (int) session('current_business_unit_id');
-
-        // Verify user has access to this business unit
-        $userBusinessUnitIds = $user->getAccessibleBusinessUnitIds();
-
-        if (! $businessUnitId || ! in_array($businessUnitId, $userBusinessUnitIds)) {
-            return redirect()->route('purchase-requests.index')
-                ->with('error', 'You do not have access to this business unit.');
-        }
-
-        // For c_level/executive users, expand to include all descendant BUs
-        $filterBusinessUnitIds = [$businessUnitId];
-        if ($user->hasTopManagementAccess()) {
-            $bu = BusinessUnit::find($businessUnitId);
-            if ($bu) {
-                $filterBusinessUnitIds = $bu->getAccessibleBusinessUnits();
-            }
-        }
-
-        $purchaseRequests = $this->queryService->paginateForBusinessUnits(
-            $request,
-            $user,
-            $filterBusinessUnitIds,
-        );
-
-        // Get departments for filter dropdown (from all accessible BUs)
-        $departments = \App\Models\Core\Department::whereIn('business_unit_id', $filterBusinessUnitIds)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
-
-        return Inertia::render('Purchasing/PurchaseRequest/All', [
-            'purchaseRequests' => $purchaseRequests,
-            'filters' => [
-                'search' => $request->get('search', ''),
-                'status' => $request->get('status', ''),
-                'date_from' => $request->get('date_from', ''),
-                'date_to' => $request->get('date_to', ''),
-                'department_id' => $request->get('department_id', ''),
-            ],
-            'departments' => $departments,
-            'can' => [
-                'export' => $user->can('export-purchase-requests') || $user->isSuperAdmin(),
-            ],
-        ]);
-    }
-
-    /**
      * Show the form for creating a new purchase request.
      * Requirements: 3.1, 3.2
      */
@@ -148,9 +93,13 @@ class PurchaseRequestController extends Controller
             return back()->withInput()->with('error', $result['error']);
         }
 
+        $message = $request->isDraft()
+            ? 'Purchase request saved as draft.'
+            : 'Purchase request created successfully and submitted for approval.';
+
         return redirect()
             ->route('purchase-requests.show', $result['purchase_request'])
-            ->with('success', 'Purchase request created successfully and submitted for approval.');
+            ->with('success', $message);
     }
 
     /**
@@ -210,9 +159,13 @@ class PurchaseRequestController extends Controller
             return back()->withInput()->with('error', $result['error']);
         }
 
+        $message = $request->isDraft()
+            ? 'Purchase request saved as draft.'
+            : 'Purchase request updated successfully and resubmitted for approval.';
+
         return redirect()
             ->route('purchase-requests.show', $result['purchase_request'])
-            ->with('success', 'Purchase request updated successfully and resubmitted for approval.');
+            ->with('success', $message);
     }
 
     /**
@@ -223,8 +176,7 @@ class PurchaseRequestController extends Controller
     {
         $user = Auth::user();
 
-        // Validate business unit context
-        if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
+        if (! $this->scopeResolver->canAccess($user, (int) session('current_business_unit_id'), (int) $purchaseRequest->business_unit_id)) {
             abort(403, 'You do not have access to this purchase request.');
         }
 
@@ -468,9 +420,7 @@ class PurchaseRequestController extends Controller
             ->with('success', 'Purchase request has been marked as approved offline/manually.');
     }
 
-    /**
-     * Remove the specified purchase request.
-     */
+    /** Remove the specified purchase request. */
     public function destroy(PurchaseRequest $purchaseRequest)
     {
         if ($purchaseRequest->business_unit_id !== session('current_business_unit_id')) {
@@ -490,99 +440,5 @@ class PurchaseRequestController extends Controller
         return redirect()
             ->route('purchase-requests.index')
             ->with('success', 'Purchase request has been deleted.');
-    }
-
-    /**
-     * Generate PDF view for purchase request.
-     */
-    public function pdf(PurchaseRequest $purchaseRequest)
-    {
-        return $this->documentService->renderPdfView($purchaseRequest, public: false);
-    }
-
-    /**
-     * Generate PDF view for purchase request - Public access for browsershot.
-     */
-    public function pdfPublic(PurchaseRequest $purchaseRequest)
-    {
-        return $this->documentService->renderPdfView($purchaseRequest, public: true);
-    }
-
-    /**
-     * Download PDF via public route (no authentication required).
-     */
-    public function downloadPdfPublic(PurchaseRequest $purchaseRequest)
-    {
-        return $this->documentService->streamPdfDownload($purchaseRequest);
-    }
-
-    /**
-     * Download PDF for purchase request using configured method.
-     */
-    public function downloadPdf(PurchaseRequest $purchaseRequest)
-    {
-        // Directly call downloadPdfPublic to avoid redirect issues on hosting
-        return $this->downloadPdfPublic($purchaseRequest);
-    }
-
-    /**
-     * Stream the supporting document for a purchase request.
-     */
-    public function supportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
-    {
-        return $this->documentService->serveSupportingDocument(
-            $purchaseRequest,
-            Auth::user(),
-            (int) session('current_business_unit_id'),
-            download: false,
-        );
-    }
-
-    /**
-     * Download the supporting document for a purchase request.
-     */
-    public function downloadSupportingDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
-    {
-        return $this->documentService->serveSupportingDocument(
-            $purchaseRequest,
-            Auth::user(),
-            (int) session('current_business_unit_id'),
-            download: true,
-        );
-    }
-
-    /**
-     * Stream the offline approval document for an approved PR.
-     *
-     * Authorization is delegated to PurchaseRequestDocumentService and follows
-     * the PO 2026-05-26 widening: super admin, top management, purchasing admin
-     * in the PR's BU/ancestor BU, the assigned approver, and the PR creator
-     * (only when the PR is in the user's current BU context).
-     */
-    public function offlineApprovalDocument(PurchaseRequest $purchaseRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
-    {
-        return $this->documentService->serveOfflineApprovalDocument(
-            $purchaseRequest,
-            Auth::user(),
-            (int) session('current_business_unit_id'),
-        );
-    }
-
-    // ============================================
-    // Private Helper Methods
-    // ============================================
-
-    /**
-     * Get authorization props for show page.
-     * Requirements: 8.3, 8.7
-     */
-    private function getShowAuthorization(PurchaseRequest $pr, $user): array
-    {
-        return $this->queryService->getShowAuthorization(
-            $pr,
-            $user,
-            (int) session('current_business_unit_id'),
-            $this->documentService,
-        );
     }
 }

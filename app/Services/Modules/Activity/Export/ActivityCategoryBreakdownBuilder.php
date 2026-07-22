@@ -34,8 +34,8 @@ class ActivityCategoryBreakdownBuilder
 
         $row = 2;
         foreach ($this->aggregationService->buildCategoryBreakdown($tasks) as $item) {
-            $sheet->setCellValue('A'.$row, $item['category']);
-            $sheet->setCellValue('B'.$row, $item['subcategory']);
+            SpreadsheetText::set($sheet, 'A'.$row, $item['category']);
+            SpreadsheetText::set($sheet, 'B'.$row, $item['subcategory']);
             $sheet->setCellValueExplicit('C'.$row, (int) $item['count'], DataType::TYPE_NUMERIC);
             $sheet->setCellValue('D'.$row, $this->styleHelper->formatPercentage($item['percentage_of_category']));
             $sheet->setCellValue('E'.$row, $this->styleHelper->formatPercentage($item['percentage_of_report']));

@@ -42,14 +42,22 @@ interface TaskDetailProps extends PageProps {
 }
 
 // Format currency
-const formatCurrency = (amount: number | null | undefined) => {
-    if (amount === null || amount === undefined) return '-';
+const formatCurrency = (amount: number | string | null | undefined) => {
+    if (amount === null || amount === undefined || !Number.isFinite(Number(amount))) return '-';
+
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(Number(amount));
+};
+
+// Laravel serializes decimal casts as strings, while browser formatting needs a number.
+export const formatPercentage = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-';
+
+    return `${Number(value).toFixed(2)}%`;
 };
 
 // Format date
@@ -197,8 +205,10 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                             <p className="text-base text-gray-900">{task.business_unit?.name || '-'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">Department</label>
-                                            <p className="text-base text-gray-900">{task.department?.name || '-'}</p>
+                                            <label className="block text-sm font-medium text-gray-500 mb-1">Source Department</label>
+                                            <p className="text-base text-gray-900">
+                                                {task.taskable?.department?.name || task.department?.name || '-'}
+                                            </p>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-500 mb-1">Assigned To</label>
@@ -259,7 +269,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                                     <label className="block text-sm font-medium text-gray-500 mb-1">Savings Amount</label>
                                                     <p className={cn(
                                                         'text-lg font-semibold',
-                                                        task.savings_amount >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                                        Number(task.savings_amount) >= 0 ? 'text-emerald-600' : 'text-red-600'
                                                     )}>
                                                         {formatCurrency(task.savings_amount)}
                                                     </p>
@@ -270,9 +280,9 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                                     <label className="block text-sm font-medium text-gray-500 mb-1">Savings Percentage</label>
                                                     <p className={cn(
                                                         'text-lg font-semibold',
-                                                        task.savings_percentage >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                                        Number(task.savings_percentage) >= 0 ? 'text-emerald-600' : 'text-red-600'
                                                     )}>
-                                                        {task.savings_percentage?.toFixed(2)}%
+                                                        {formatPercentage(task.savings_percentage)}
                                                     </p>
                                                 </div>
                                             )}
@@ -361,7 +371,7 @@ export default function TaskDetail({ task }: TaskDetailProps) {
                                     <div className="pt-3 border-t border-gray-100">
                                         <a
                                             href={isPR
-                                                ? route('purchase-requests.pdf-public', { purchaseRequest: task.taskable_id })
+                                                ? route('purchase-requests.pdf', { purchaseRequest: task.taskable_id })
                                                 : route('stock-requests.pdf-public', { stockRequest: task.taskable_id })
                                             }
                                             target="_blank"

@@ -9,6 +9,7 @@ import ParticipantSelector from '@/components/activity/form/ParticipantSelector'
 import TaskClassificationCard from '@/components/activity/form/TaskClassificationCard';
 import TaskScheduleCard from '@/components/activity/form/TaskScheduleCard';
 import TaskSuccessModal from '@/components/activity/form/TaskSuccessModal';
+import { getDatePart, getTimePart, getTodayWibDate } from '@/lib/activityDateTime';
 import type { PageProps, Task, ActivityType, User, TaskStatus, TaskPriority } from '@/types';
 
 interface PrioritizedActivityType extends ActivityType {
@@ -134,7 +135,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
             .filter(id => !isNaN(id) && id > 0 && departmentUserIds.includes(id)) || [])
         : [];
 
-    const initialTaskDate = task?.task_date ? task.task_date.split('T')[0] : new Date().toISOString().split('T')[0];
+    const initialTaskDate = getDatePart(task?.task_date) || getTodayWibDate();
 
     const { data, setData, post, put, processing, errors } = useForm<TaskFormData>({
         task_title: task?.task_title || '',
@@ -144,11 +145,11 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
         status: defaultStatus,
         priority: task?.priority || 'medium',
         task_date: initialTaskDate,
-        due_date: task?.due_date ? task.due_date.split('T')[0] : '',
+        due_date: getDatePart(task?.due_date),
         participant_ids: initialParticipantIds,
-        start_time: task?.started_at ? task.started_at.split('T')[1]?.substring(0, 5) || '' : '',
-        end_time: task?.completed_at ? task.completed_at.split('T')[1]?.substring(0, 5) || '' : '',
-        completed_date: task?.completed_at ? task.completed_at.split('T')[0] : initialTaskDate,
+        start_time: getTimePart(task?.started_at),
+        end_time: getTimePart(task?.completed_at),
+        completed_date: getDatePart(task?.completed_at) || initialTaskDate,
     });
 
     const { data: backdateData, setData: setBackdateData, post: postBackdate, processing: backdateProcessing, errors: backdateErrors, reset: resetBackdate } = useForm<BackdateRequestData>({
@@ -211,7 +212,7 @@ export default function TaskForm({ task, activityTypes, departmentUsers = [], ba
         setCreatedTaskId(null);
         setCompletedDateManuallySet(false);
         // Reset form data
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getTodayWibDate();
         setData({
             task_title: '',
             task_description: '',

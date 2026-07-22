@@ -11,7 +11,29 @@ class StoreStockRequestRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+        $businessUnitId = (int) $this->input('business_unit_id', session('current_business_unit_id'));
+        $departmentId = (int) $this->input('department_id', session('current_department_id'));
+        $stockRequest = $this->route('stockRequest');
+
+        if (! $user || $businessUnitId !== (int) session('current_business_unit_id')) {
+            return false;
+        }
+
+        if ($stockRequest) {
+            if ($businessUnitId !== (int) $stockRequest->business_unit_id
+                || $departmentId !== (int) $stockRequest->department_id
+            ) {
+                return false;
+            }
+        } elseif ($departmentId !== (int) session('current_department_id')) {
+            return false;
+        }
+
+        return $user->isSuperAdmin() || $user->activeBusinessUnits()
+            ->where('business_unit_id', $businessUnitId)
+            ->where('department_id', $departmentId)
+            ->exists();
     }
 
     /**
@@ -46,7 +68,7 @@ class StoreStockRequestRequest extends FormRequest
             'items.*.item_description' => ['nullable', 'string', 'max:1000'],
             'items.*.quantity' => ['required', 'numeric', 'min:1'],
             'items.*.unit' => ['required', 'string', 'max:50'],
-            'items.*.image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'], // 2MB max
+            'items.*.image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'], // 2MB max
         ];
     }
 
@@ -101,6 +123,7 @@ class StoreStockRequestRequest extends FormRequest
             'items.*.unit.max' => 'Unit cannot exceed 50 characters.',
             'items.*.image.file' => 'Item image must be a file.',
             'items.*.image.mimes' => 'Item image must be a JPG, JPEG, or PNG file.',
+            'items.*.image.extensions' => 'Item image must use a JPG, JPEG, or PNG extension.',
             'items.*.image.max' => 'Item image cannot exceed 2MB.',
         ];
     }

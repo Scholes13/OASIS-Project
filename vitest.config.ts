@@ -22,6 +22,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@echo': path.resolve(__dirname, './resources/js/echo.ts'),
       '@': path.resolve(__dirname, './resources/js/inertia'),
     },
   },

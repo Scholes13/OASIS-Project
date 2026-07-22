@@ -5,6 +5,7 @@ namespace App\Exports\Modules\Ticket;
 use App\Models\Modules\Ticket\Ticket;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -181,20 +182,24 @@ class TicketExport
         foreach ($this->tickets as $ticket) {
             $resolutionTime = $this->formatResolutionTime($ticket);
 
-            $sheet->fromArray([
-                $no,
-                $ticket->ticket_number,
-                $ticket->title,
-                $ticket->requester?->name ?? '-',
-                $ticket->department?->name ?? '-',
-                $ticket->category?->name ?? 'Uncategorized',
-                ucfirst((string) $ticket->priority),
-                ucfirst(str_replace('_', ' ', (string) $ticket->status)),
-                $ticket->assignedUser?->name ?? 'Unassigned',
-                $ticket->created_at?->format('Y-m-d H:i:s'),
-                $ticket->resolved_at?->format('Y-m-d H:i:s') ?? '-',
-                $resolutionTime,
-            ], null, 'A'.$row);
+            $sheet->setCellValue('A'.$row, $no);
+            $stringValues = [
+                'B' => $ticket->ticket_number,
+                'C' => $ticket->title,
+                'D' => $ticket->requester?->name ?? '-',
+                'E' => $ticket->department?->name ?? '-',
+                'F' => $ticket->category?->name ?? 'Uncategorized',
+                'G' => ucfirst((string) $ticket->priority),
+                'H' => ucfirst(str_replace('_', ' ', (string) $ticket->status)),
+                'I' => $ticket->assignedUser?->name ?? 'Unassigned',
+                'J' => $ticket->created_at?->format('Y-m-d H:i:s') ?? '-',
+                'K' => $ticket->resolved_at?->format('Y-m-d H:i:s') ?? '-',
+                'L' => $resolutionTime,
+            ];
+
+            foreach ($stringValues as $column => $value) {
+                $sheet->setCellValueExplicit($column.$row, (string) $value, DataType::TYPE_STRING);
+            }
 
             // Color-code status column (H)
             $statusColor = $this->statusColor((string) $ticket->status);

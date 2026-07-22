@@ -1,3 +1,5 @@
+import type { Money } from './money';
+
 export type ActionOption = {
     code: string;
     label: string;
@@ -41,7 +43,7 @@ export type LineItem = {
     action_label: string;
     transaction_date: string;
     due_date: string | null;
-    amount: number;
+    amount: Money;
     no_dokumen: string | null;
     nama_vendor: string | null;
     description: string;
@@ -58,11 +60,11 @@ export type LineItem = {
 export type FinanceInput = {
     id: number;
     month: number;
-    cash_on_hand: number;
-    receivable_estimate: number;
-    upcoming_event_revenue_estimate: number;
-    capital_injection_estimate: number;
-    other_income: number;
+    cash_on_hand: Money;
+    receivable_estimate: Money;
+    upcoming_event_revenue_estimate: Money;
+    capital_injection_estimate: Money;
+    other_income: Money;
     creator_name?: string | null;
     creator_department_label?: string | null;
     updater_name?: string | null;
@@ -71,19 +73,19 @@ export type FinanceInput = {
 
 export type DailySummaryRow = {
     date: string;
-    plus: number;
-    minus: number;
-    net: number;
+    plus: Money;
+    minus: Money;
+    net: Money;
 };
 
 export type MonthlySummaryRow = {
     month: number;
-    plus: number;
-    minus: number;
-    finance_income: number;
-    opening_balance: number;
-    net: number;
-    closing_balance: number;
+    plus: Money;
+    minus: Money;
+    finance_income: Money;
+    opening_balance: Money;
+    net: Money;
+    closing_balance: Money;
     is_warning: boolean;
 };
 
@@ -99,11 +101,11 @@ export type DashboardFilters = {
 };
 
 export type DashboardSummary = {
-    total_balance: number;
-    inflow: number;
-    outflow: number;
-    finance_income: number;
-    net_cashflow: number;
+    total_balance: Money;
+    inflow: Money;
+    outflow: Money;
+    finance_income: Money;
+    net_cashflow: Money;
 };
 
 export interface CashflowProjectionPageProps {
@@ -169,7 +171,7 @@ export type LineItemFormData = {
     transaction_date: string;
     due_date: string;
     is_estimated_date: boolean;
-    amount: number;
+    amount: Money;
     description: string;
     keterangan: string;
     notes: string;
@@ -178,9 +180,9 @@ export type LineItemFormData = {
 export type FinanceFormData = {
     year: number;
     month: number;
-    cash_on_hand: number;
-    receivable_estimate: number;
-    upcoming_event_revenue_estimate: number;
-    capital_injection_estimate: number;
-    other_income: number;
+    cash_on_hand: Money;
+    receivable_estimate: Money;
+    upcoming_event_revenue_estimate: Money;
+    capital_injection_estimate: Money;
+    other_income: Money;
 };

@@ -122,7 +122,7 @@ class TicketController extends Controller
 
         $staff = $this->getItSupportStaff($scopedBuIds);
 
-        $articles = KnowledgeArticle::whereIn('business_unit_id', $scopedBuIds)
+        $articles = KnowledgeArticle::where('business_unit_id', $ticket->business_unit_id)
             ->where('is_published', true)
             ->orderBy('title')
             ->get(['id', 'title', 'slug']);
@@ -154,14 +154,14 @@ class TicketController extends Controller
             'attachments',
         ]);
 
-        $categories = TicketCategory::whereIn('business_unit_id', $scopedBuIds)
+        $categories = TicketCategory::where('business_unit_id', $ticket->business_unit_id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'color']);
 
         $staff = $this->getItSupportStaff($scopedBuIds);
 
-        $departments = Department::whereIn('business_unit_id', $scopedBuIds)
+        $departments = Department::where('business_unit_id', $ticket->business_unit_id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);

@@ -1,4 +1,5 @@
 import { FormEvent } from 'react';
+import { addDaysWibDate } from '@/lib/activityDateTime';
 
 interface BackdateRequestData {
     requested_date: string;
@@ -23,7 +24,7 @@ export default function BackdateRequestModal({
     onClose,
 }: BackdateRequestModalProps) {
     const minReasonLength = 10;
-    const maxRequestedDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const maxRequestedDate = addDaysWibDate(-2);
 
     return (
         <div className="fixed inset-0 z-[9999] overflow-y-auto">

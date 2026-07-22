@@ -15,10 +15,10 @@ class SlaService
      * @var array<string, int>
      */
     protected const DEFAULTS = [
-        'low' => 48,
-        'medium' => 24,
-        'high' => 8,
-        'critical' => 2,
+        'low' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
+        'medium' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
+        'high' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
+        'critical' => TicketSlaSettings::DEFAULT_RESOLUTION_HOURS,
     ];
 
     /**
@@ -30,13 +30,16 @@ class SlaService
     }
 
     /**
-     * Bulk update SLA settings for a business unit.
+     * Persist the uniform policy for a business unit.
      *
-     * @param  array<string, int>  $settings  Keyed by priority, value is resolution_hours
+     * The payload is retained for route compatibility, but values cannot
+     * override the organisation-wide 48-hour target.
+     *
+     * @param  array<string, int>  $settings
      */
     public function updateSettings(int $buId, array $settings): void
     {
-        foreach ($settings as $priority => $resolutionHours) {
+        foreach (self::DEFAULTS as $priority => $resolutionHours) {
             TicketSlaSettings::updateOrCreate(
                 [
                     'business_unit_id' => $buId,

@@ -26,6 +26,7 @@ export type ImportPreviewRow = {
     notes: string | null;
     is_estimated_date: boolean;
     match: { line_item_id: number } | null;
+    original?: Record<string, unknown> | null;
     changes: Array<{ field: string; old: unknown; new: unknown }>;
     errors: Array<{ field: string; message: string }>;
 };
@@ -33,4 +34,5 @@ export type ImportPreviewRow = {
 export type ImportPreviewPayload = {
     summary: ImportPreviewSummary;
     rows: ImportPreviewRow[];
+    preview_token: string;
 };

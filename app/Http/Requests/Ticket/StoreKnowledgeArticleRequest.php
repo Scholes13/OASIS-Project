@@ -4,6 +4,7 @@ namespace App\Http\Requests\Ticket;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class StoreKnowledgeArticleRequest extends FormRequest
 {
@@ -22,10 +23,17 @@ class StoreKnowledgeArticleRequest extends FormRequest
      */
     public function rules(): array
     {
+        $businessUnitId = (int) session('current_business_unit_id');
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
-            'category_id' => ['nullable', 'integer', 'exists:ticket_knowledge_categories,id'],
+            'category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('ticket_knowledge_categories', 'id')
+                    ->where('business_unit_id', $businessUnitId),
+            ],
             'is_published' => ['nullable', 'boolean'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'tags' => ['nullable', 'array'],

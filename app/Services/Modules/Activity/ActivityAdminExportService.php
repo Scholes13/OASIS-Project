@@ -3,6 +3,7 @@
 namespace App\Services\Modules\Activity;
 
 use App\Models\Modules\Activity\EmployeeTask;
+use App\Services\Modules\Activity\Export\SpreadsheetText;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -75,20 +76,20 @@ class ActivityAdminExportService
         $no = 1;
         foreach ($tasks as $task) {
             $sheet->setCellValue('A'.$row, $no);
-            $sheet->setCellValue('B'.$row, $task->department?->name ?? '-');
+            SpreadsheetText::set($sheet, 'B'.$row, $task->department?->name ?? '-');
             $sheet->setCellValue('C'.$row, $task->task_date?->format('Y-m-d'));
-            $sheet->setCellValue('D'.$row, $task->task_title);
-            $sheet->setCellValue('E'.$row, $task->activityType?->name ?? '-');
-            $sheet->setCellValue('F'.$row, $task->subActivity?->name ?? '-');
+            SpreadsheetText::set($sheet, 'D'.$row, $task->task_title);
+            SpreadsheetText::set($sheet, 'E'.$row, $task->activityType?->name ?? '-');
+            SpreadsheetText::set($sheet, 'F'.$row, $task->subActivity?->name ?? '-');
             $sheet->setCellValue('G'.$row, ucfirst(str_replace('_', ' ', $task->status)));
             $sheet->setCellValue('H'.$row, ucfirst($task->priority ?? 'medium'));
-            $sheet->setCellValue('I'.$row, $task->creator?->name ?? '-');
+            SpreadsheetText::set($sheet, 'I'.$row, $task->creator?->name ?? $task->created_by_name ?? '-');
             $sheet->setCellValue('J'.$row, $task->due_date?->format('Y-m-d'));
             $sheet->setCellValue('K'.$row, $task->started_at?->format('Y-m-d H:i'));
             $sheet->setCellValue('L'.$row, $task->completed_at?->format('Y-m-d H:i'));
             $sheet->setCellValue('M'.$row, $task->duration_minutes ?? '-');
             $sheet->setCellValue('N'.$row, $task->participants->count());
-            $sheet->setCellValue('O'.$row, $task->participants->pluck('name')->sort()->implode(', ') ?: '-');
+            SpreadsheetText::set($sheet, 'O'.$row, $task->participants->pluck('name')->sort()->implode(', ') ?: '-');
 
             $statusColor = match ($task->status) {
                 'completed' => 'D1FAE5', 'in_progress' => 'DBEAFE',
@@ -135,7 +136,7 @@ class ActivityAdminExportService
         foreach ($byDept as $deptName => $deptTasks) {
             $total = $deptTasks->count();
             $completed = $deptTasks->where('status', 'completed')->count();
-            $sheet->setCellValue('A'.$row, $deptName);
+            SpreadsheetText::set($sheet, 'A'.$row, $deptName);
             $sheet->setCellValue('B'.$row, $total);
             $sheet->setCellValue('C'.$row, $completed);
             $sheet->setCellValue('D'.$row, $deptTasks->where('status', 'in_progress')->count());
@@ -163,7 +164,7 @@ class ActivityAdminExportService
         $sheet->setCellValue('A4', 'Period:');
         $sheet->setCellValue('B4', ($dateFrom ?? '-').' to '.($dateTo ?? '-'));
         $sheet->setCellValue('A5', 'Business Unit:');
-        $sheet->setCellValue('B5', session('current_business_unit_name', '-'));
+        SpreadsheetText::set($sheet, 'B5', session('current_business_unit_name', '-'));
 
         $sheet->setCellValue('A7', 'Total Activities:');
         $sheet->setCellValue('B7', $tasks->count());

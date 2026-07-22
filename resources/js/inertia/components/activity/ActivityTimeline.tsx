@@ -1,26 +1,14 @@
 import * as React from "react"
 import { router, usePage } from "@inertiajs/react"
-import { format, isToday, isPast, isFuture, startOfDay, differenceInDays } from "date-fns"
-import { id as idLocale } from "date-fns/locale"
-import { motion, AnimatePresence } from "framer-motion"
 import {
   Calendar,
-  Clock,
-  Users,
-  User,
-  ChevronRight,
-  CheckCircle2,
-  Circle,
-  PlayCircle,
-  XCircle,
-  AlertTriangle,
-  ArrowRight,
   Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Badge, StatusBadge, ActivityTypeBadge } from "../ui/Badge"
+import { formatDateWib, getDatePart, getWibDateDiffInDays, isOverdueWib, isPastWibDate, isTodayWib } from "@/lib/activityDateTime"
 import { Button } from "../ui/button"
 import { TaskDetailModal } from "./TaskDetailModal"
+import TimelineItem from "./timeline/TimelineItem"
 import type { Task, PageProps } from "@/types"
 
 type ViewMode = "my" | "department"
@@ -49,12 +37,10 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
   const tasksWithDate = tasks.filter((t): t is Task & { due_date: string } => !!t.due_date)
   const tasksWithoutDate = tasks.filter(t => !t.due_date)
   
-  const sortedTasks = [...tasksWithDate].sort((a, b) => 
-    new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
-  )
+  const sortedTasks = [...tasksWithDate].sort((a, b) => b.due_date.localeCompare(a.due_date))
 
   sortedTasks.forEach((task) => {
-    const dateKey = format(new Date(task.due_date), "yyyy-MM-dd")
+    const dateKey = getDatePart(task.due_date)
     if (!grouped.has(dateKey)) {
       grouped.set(dateKey, [])
     }
@@ -70,17 +56,18 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
 }
 
 // Date header component
-function DateHeader({ date }: { date: Date }) {
-  const today = isToday(date)
-  const past = isPast(date) && !today
-  const daysAgo = differenceInDays(new Date(), date)
+function DateHeader({ dateKey }: { dateKey: string }) {
+  const today = isTodayWib(dateKey)
+  const past = isPastWibDate(dateKey) && !today
+  const daysDiff = getWibDateDiffInDays(dateKey) ?? 0
+  const daysAgo = Math.abs(daysDiff)
 
-  let label = format(date, "EEEE, dd MMMM yyyy", { locale: idLocale })
+  let label = formatDateWib(dateKey, { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
   if (today) label = "Today"
-  else if (daysAgo === 1) label = "Yesterday"
-  else if (daysAgo === -1) label = "Tomorrow"
-  else if (daysAgo > 0 && daysAgo <= 7) label = `${daysAgo} days ago`
-  else if (daysAgo < 0 && daysAgo >= -7) label = `In ${Math.abs(daysAgo)} days`
+  else if (daysDiff === -1) label = "Yesterday"
+  else if (daysDiff === 1) label = "Tomorrow"
+  else if (daysDiff < 0 && daysAgo <= 7) label = `${daysAgo} days ago`
+  else if (daysDiff > 0 && daysDiff <= 7) label = `In ${daysAgo} days`
 
   return (
     <div className="flex items-center gap-3 py-2">
@@ -94,7 +81,7 @@ function DateHeader({ date }: { date: Date }) {
             : "bg-blue-100 text-blue-600"
         )}
       >
-        {format(date, "dd")}
+        {formatDateWib(dateKey, { day: "2-digit" })}
       </div>
       <div>
         <p
@@ -103,146 +90,17 @@ function DateHeader({ date }: { date: Date }) {
             today ? "text-primary" : "text-slate-800"
           )}
         >
-          {today ? "Today" : format(date, "EEEE", { locale: idLocale })}
+          {today ? "Today" : formatDateWib(dateKey, { weekday: "long" })}
         </p>
         <p className="text-xs text-slate-500">
-          {format(date, "MMMM yyyy", { locale: idLocale })}
-          {!today && daysAgo !== 0 && (
+          {formatDateWib(dateKey, { month: "long", year: "numeric" })}
+          {!today && daysDiff !== 0 && (
             <span className="ml-2 text-slate-400">
-              ({daysAgo > 0 ? `${daysAgo}d ago` : `in ${Math.abs(daysAgo)}d`})
+              ({daysDiff < 0 ? `${daysAgo}d ago` : `in ${daysAgo}d`})
             </span>
           )}
         </p>
       </div>
-    </div>
-  )
-}
-
-// Status icon component
-function StatusIcon({ status }: { status: string }) {
-  const iconMap: Record<string, React.ReactNode> = {
-    planned: <Circle className="h-4 w-4 text-blue-500" />,
-    in_progress: <PlayCircle className="h-4 w-4 text-amber-500" />,
-    completed: <CheckCircle2 className="h-4 w-4 text-green-500" />,
-    cancelled: <XCircle className="h-4 w-4 text-gray-400" />,
-  }
-  return iconMap[status] || <Circle className="h-4 w-4 text-gray-400" />
-}
-
-// Timeline item component
-interface TimelineItemProps {
-  task: Task
-  isLast: boolean
-  onTaskClick?: (task: Task) => void
-  expanded?: boolean
-}
-
-function TimelineItem({ task, isLast, onTaskClick, expanded = false }: TimelineItemProps) {
-  const [isExpanded, setIsExpanded] = React.useState(expanded)
-  const overdue = task.due_date ? (isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && 
-    task.status !== "completed" && task.status !== "cancelled") : false
-
-  return (
-    <div className="relative pl-8 pb-6 last:pb-0">
-      {/* Timeline line */}
-      {!isLast && (
-        <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-gray-200" />
-      )}
-
-      {/* Timeline dot */}
-      <div
-        className={cn(
-          "absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center bg-white border-2",
-          task.status === "completed"
-            ? "border-green-500"
-            : task.status === "in_progress"
-            ? "border-amber-500"
-            : task.status === "cancelled"
-            ? "border-gray-300"
-            : overdue
-            ? "border-red-500"
-            : "border-blue-500"
-        )}
-      >
-        <StatusIcon status={task.status} />
-      </div>
-
-      {/* Content */}
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        className={cn(
-          "bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:bg-slate-50/50 hover:border-slate-300 transition-all cursor-pointer",
-          overdue && "border-red-200 bg-red-50/30"
-        )}
-        onClick={() => onTaskClick?.(task)}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <ActivityTypeBadge
-                name={task.activity_type?.name ?? "Unknown"}
-                color={task.activity_type?.color}
-              />
-              <StatusBadge status={task.status} />
-              {overdue && (
-                <Badge variant="danger">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Overdue
-                </Badge>
-              )}
-            </div>
-            <h4 className="font-medium text-gray-900 line-clamp-1">
-              {task.task_title}
-            </h4>
-          </div>
-          <ChevronRight
-            className={cn(
-              "h-5 w-5 text-gray-400 transition-transform",
-              isExpanded && "rotate-90"
-            )}
-          />
-        </div>
-
-        {/* Meta info */}
-        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>{task.due_date ? (format(new Date(task.due_date), "HH:mm", { locale: idLocale }) || "All day") : '-'}</span>
-          </div>
-          {(task as any).duration_minutes && (
-            <div className="flex items-center gap-1">
-              <ArrowRight className="h-3 w-3" />
-              <span>
-                {Math.floor((task as any).duration_minutes / 60)}h {(task as any).duration_minutes % 60}m
-              </span>
-            </div>
-          )}
-          {task.participants && task.participants.length > 0 && (
-            <div className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              <span>{task.participants.length} participant(s)</span>
-            </div>
-          )}
-        </div>
-
-        {/* Expanded details */}
-        <AnimatePresence>
-          {isExpanded && (task as any).task_details && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <p className="mt-3 pt-3 border-t border-slate-100 text-sm text-gray-600">
-                {(task as any).task_details}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
     </div>
   )
 }
@@ -383,7 +241,7 @@ export function ActivityTimeline({
 
                 return (
                   <div key={dateKey}>
-                    {showDateHeaders && dateKey !== "no-date" && <DateHeader date={new Date(dateKey)} />}
+                    {showDateHeaders && dateKey !== "no-date" && <DateHeader dateKey={dateKey} />}
                     {showDateHeaders && dateKey === "no-date" && (
                       <div className="flex items-center gap-3 py-2">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 text-sm font-bold">-</div>
@@ -458,8 +316,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
   return (
     <div className="space-y-3">
       {recentTasks.map((task) => {
-        const overdue = task.due_date ? (isPast(new Date(task.due_date)) && 
-          task.status !== "completed" && task.status !== "cancelled") : false
+        const overdue = isOverdueWib(task.due_date, task.status)
 
         return (
           <div
@@ -467,7 +324,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
             onClick={() => onTaskClick?.(task)}
           >
-            <StatusIcon status={task.status} />
+            <span className={cn("h-2.5 w-2.5 rounded-full", statusStyles[task.status]?.dot ?? "bg-gray-400")} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {task.task_title}
@@ -476,7 +333,7 @@ export function CompactTimeline({ tasks, limit = 5, onTaskClick }: CompactTimeli
                 "text-xs",
                 overdue ? "text-red-600" : "text-gray-500"
               )}>
-                {task.due_date ? format(new Date(task.due_date), "dd MMM", { locale: idLocale }) : '-'}
+                {task.due_date ? formatDateWib(task.due_date, { day: "2-digit", month: "short" }) : '-'}
               </p>
             </div>
           </div>

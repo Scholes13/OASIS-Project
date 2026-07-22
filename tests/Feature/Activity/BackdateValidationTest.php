@@ -40,6 +40,7 @@ class BackdateValidationTest extends TestCase
         ]);
         $this->user = User::factory()->create([
             'primary_department_id' => $this->department->id,
+            'global_role' => 'user',
         ]);
         $this->activityType = ActivityType::create([
             'code' => 'TEST',

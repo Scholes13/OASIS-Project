@@ -49,7 +49,7 @@ export default {
                 },
             },
             fontFamily: {
-                sans: ['Manrope', '"Plus Jakarta Sans"', 'Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['"Plus Jakarta Sans"', 'Inter', 'Figtree', ...defaultTheme.fontFamily.sans],
                 inter: ['Inter', ...defaultTheme.fontFamily.sans],
                 jakarta: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
                 manrope: ['Manrope', ...defaultTheme.fontFamily.sans],

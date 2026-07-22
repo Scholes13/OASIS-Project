@@ -3,10 +3,15 @@
 namespace App\Observers;
 
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Modules\Purchasing\StockRequest\StockRequestPostApprovalRouter;
 use Illuminate\Support\Facades\Log;
 
 class StockRequestObserver
 {
+    public function __construct(
+        private StockRequestPostApprovalRouter $postApprovalRouter,
+    ) {}
+
     /**
      * Handle the StockRequest "updated" event.
      * Moves ST to GA review when approval workflow is complete.
@@ -16,21 +21,21 @@ class StockRequestObserver
         // Check if status changed to 'approved'
         if ($stockRequest->isDirty('status') && $stockRequest->status === 'approved') {
             try {
-                $stockRequest->forceFill([
-                    'status' => 'ga_review',
-                    'ga_review_started_at' => now(),
-                ])->saveQuietly();
+                $this->postApprovalRouter->route($stockRequest);
 
-                Log::info('ST moved to GA review', [
+                Log::info('ST routed after department approval', [
                     'st_id' => $stockRequest->id,
                     'st_number' => $stockRequest->st_number,
+                    'status' => $stockRequest->status,
                 ]);
             } catch (\Exception $e) {
-                Log::error('Failed to create admin task for approved ST', [
+                Log::error('Failed to route approved ST', [
                     'st_id' => $stockRequest->id,
                     'st_number' => $stockRequest->st_number,
                     'error' => $e->getMessage(),
                 ]);
+
+                throw $e;
             }
         }
     }

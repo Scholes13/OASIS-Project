@@ -35,7 +35,7 @@ class CashflowFriendlyImportParserTest extends TestCase
         $this->assertSame('HR-02/202605/0016', $rows[0]['no_dokumen']);
         $this->assertSame('KASBON MEIDA', $rows[0]['nama_vendor']);
         $this->assertSame('PENGAJUAN KASBON MOVIEDAY IN TGL 19 MEI 26', $rows[0]['description']);
-        $this->assertSame(750000.0, $rows[0]['amount']);
+        $this->assertSame('750000.00', $rows[0]['amount']);
         $this->assertSame('KAS BON OPERASIONAL', $rows[0]['keterangan']);
         $this->assertSame('WNS', $rows[0]['business_unit_code']);
         $this->assertStringContainsString('No Dokumen: HR-02/202605/0016', $rows[0]['notes']);

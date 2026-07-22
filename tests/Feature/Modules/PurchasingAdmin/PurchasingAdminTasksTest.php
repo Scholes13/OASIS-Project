@@ -67,6 +67,78 @@ class PurchasingAdminTasksTest extends TestCase
     }
 
     #[Test]
+    public function tasks_page_includes_requesting_department_separately_from_queue_department(): void
+    {
+        config(['inertia.testing.ensure_pages_exist' => false]);
+
+        [$user, $businessUnit, $queueDepartment] = $this->createPurchasingAdminContext();
+        $sourceDepartment = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'GA',
+            'name' => 'General Affair',
+            'is_active' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestInApproval($user, $businessUnit, $sourceDepartment);
+
+        AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $queueDepartment->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 500000,
+        ]);
+
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $queueDepartment);
+
+        $this->get(route('purchasing.admin.tasks'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('tasks.data.0.department.name', 'Purchasing')
+                ->where('tasks.data.0.taskable.department.name', 'General Affair')
+                ->where('allTasks.0.taskable.department.name', 'General Affair')
+            );
+    }
+
+    #[Test]
+    public function tasks_page_includes_stock_request_source_department(): void
+    {
+        config(['inertia.testing.ensure_pages_exist' => false]);
+
+        [$user, $businessUnit, $queueDepartment] = $this->createPurchasingAdminContext();
+        $sourceDepartment = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'OPS',
+            'name' => 'Operations',
+            'is_active' => true,
+        ]);
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $sourceDepartment);
+
+        AdminTask::create([
+            'taskable_type' => StockRequest::class,
+            'taskable_id' => $stockRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $queueDepartment->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 0,
+        ]);
+
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $queueDepartment);
+
+        $this->get(route('purchasing.admin.tasks', ['type' => 'stock_request']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('tasks.data.0.department.name', 'Purchasing')
+                ->where('tasks.data.0.taskable.department.name', 'Operations')
+                ->where('allTasks.0.taskable.department.name', 'Operations')
+            );
+    }
+
+    #[Test]
     public function task_actions_delegate_to_admin_task_service(): void
     {
         config(['inertia.testing.ensure_pages_exist' => false]);
@@ -116,12 +188,12 @@ class PurchasingAdminTasksTest extends TestCase
 
             $mock->shouldReceive('startTask')
                 ->once()
-                ->withArgs(fn (AdminTask $task): bool => $task->id === $startTask->id)
+                ->withArgs(fn (AdminTask $task, User $actor): bool => $task->id === $startTask->id && $actor->is($user))
                 ->andReturn($startTask);
 
             $mock->shouldReceive('completeTask')
                 ->once()
-                ->withArgs(fn (AdminTask $task, float $realizedTotalPrice, ?string $notes): bool => $task->id === $completeTask->id && $realizedTotalPrice === 275000.0 && $notes === 'Task completed')
+                ->withArgs(fn (AdminTask $task, float $realizedTotalPrice, ?string $notes, User $actor): bool => $task->id === $completeTask->id && $realizedTotalPrice === 275000.0 && $notes === 'Task completed' && $actor->is($user))
                 ->andReturn($completeTask);
         });
 
@@ -175,6 +247,69 @@ class PurchasingAdminTasksTest extends TestCase
     }
 
     #[Test]
+    public function bas_admin_flag_does_not_route_purchase_request_away_from_strategic_sourcing(): void
+    {
+        [$user, $businessUnit, $basDepartment] = $this->createPurchasingAdminContext();
+        $basDepartment->update([
+            'code' => 'BAS',
+            'name' => 'Business & Administrative Services',
+        ]);
+        $strategicSourcing = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'SS',
+            'name' => 'Strategic Sourcing',
+            'is_active' => true,
+            'is_purchasing_department' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestInApproval($user, $businessUnit, $basDepartment);
+
+        $purchaseRequest->update([
+            'status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $this->assertDatabaseHas('admin_tasks', [
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $strategicSourcing->id,
+        ]);
+        $this->assertDatabaseMissing('admin_tasks', [
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'department_id' => $basDepartment->id,
+        ]);
+    }
+
+    #[Test]
+    public function bas_admin_flag_cannot_claim_strategic_sourcing_task(): void
+    {
+        [$user, $businessUnit, $basDepartment] = $this->createPurchasingAdminContext();
+        $strategicSourcing = Department::create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'SS',
+            'name' => 'Strategic Sourcing',
+            'is_active' => true,
+            'is_purchasing_department' => true,
+        ]);
+        $purchaseRequest = $this->createPurchaseRequestInApproval($user, $businessUnit, $basDepartment);
+        $task = AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => $purchaseRequest->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $strategicSourcing->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 500000,
+        ]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('You are not eligible to mutate this task.');
+
+        app(AdminTaskService::class)->claimTask($task, $user->id);
+    }
+
+    #[Test]
     public function ga_review_procurement_items_create_stock_request_admin_task(): void
     {
         config(['inertia.testing.ensure_pages_exist' => false]);
@@ -207,6 +342,8 @@ class PurchasingAdminTasksTest extends TestCase
             'id' => $stockRequest->id,
             'status' => 'ready_for_purchasing',
         ]);
+        $this->assertSame(3.0, (float) $item->fresh()->quantity);
+        $this->assertSame(300000.0, (float) $item->fresh()->total);
         $this->assertDatabaseHas('admin_tasks', [
             'taskable_type' => StockRequest::class,
             'taskable_id' => $stockRequest->id,
@@ -225,6 +362,229 @@ class PurchasingAdminTasksTest extends TestCase
             ->where('tasks.data.0.taskable_type', StockRequest::class)
             ->where('tasks.data.0.taskable_id', $stockRequest->id)
         );
+    }
+
+    #[Test]
+    public function stale_ga_review_decision_cannot_overwrite_completed_decision(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $department);
+        $item = StockItem::create([
+            'stock_request_id' => $stockRequest->id,
+            'item_order' => 1,
+            'item_name' => 'Printer toner',
+            'quantity' => 3,
+            'unit' => 'pcs',
+            'price' => 100000,
+            'total' => 300000,
+        ]);
+        $staleRequest = StockRequest::findOrFail($stockRequest->id);
+        $action = app(ProcessStockRequestGaReviewAction::class);
+
+        $action->approve($stockRequest, $user, [
+            'items' => [[
+                'id' => $item->id,
+                'ga_review_result' => 'need_procurement',
+                'warehouse_available_qty' => 1,
+                'procurement_quantity' => 2,
+            ]],
+        ]);
+
+        try {
+            $action->reject($staleRequest, $user, 'A stale rejection');
+            $this->fail('Stale GA decision should have been rejected.');
+        } catch (\DomainException $exception) {
+            $this->assertSame('Only stock requests waiting for GA review can be processed.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('stock_requests', [
+            'id' => $stockRequest->id,
+            'status' => 'ready_for_purchasing',
+            'ga_rejected_reason' => null,
+        ]);
+        $this->assertSame(1, AdminTask::query()
+            ->where('taskable_type', StockRequest::class)
+            ->where('taskable_id', $stockRequest->id)
+            ->count());
+    }
+
+    #[Test]
+    public function ga_review_rejects_allocation_that_contradicts_warehouse_result(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $department);
+        $item = StockItem::create([
+            'stock_request_id' => $stockRequest->id,
+            'item_order' => 1,
+            'item_name' => 'Printer toner',
+            'quantity' => 3,
+            'unit' => 'pcs',
+            'price' => 100000,
+            'total' => 300000,
+        ]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Warehouse stock items must be fulfilled entirely from warehouse stock.');
+
+        app(ProcessStockRequestGaReviewAction::class)->approve($stockRequest, $user, [
+            'items' => [[
+                'id' => $item->id,
+                'ga_review_result' => 'warehouse_stock',
+                'warehouse_available_qty' => 1,
+                'procurement_quantity' => 2,
+            ]],
+        ]);
+    }
+
+    #[Test]
+    public function ga_review_endpoint_accepts_valid_string_quantities_from_http_form(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $department->update(['is_ga_stock_review_department' => true]);
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $department);
+        $item = StockItem::create([
+            'stock_request_id' => $stockRequest->id,
+            'item_order' => 1,
+            'item_name' => 'Printer toner',
+            'quantity' => 3,
+            'unit' => 'pcs',
+            'price' => 100000,
+            'total' => 300000,
+        ]);
+
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $department);
+
+        $this->post(route('stock-requests.ga-review.approve', $stockRequest), [
+            'items' => [[
+                'id' => $item->id,
+                'ga_review_result' => 'warehouse_stock',
+                'warehouse_available_qty' => '3',
+                'procurement_quantity' => '0',
+            ]],
+        ])->assertSessionHas('success', 'Stock request GA review approved.');
+
+        $this->assertDatabaseHas('stock_requests', [
+            'id' => $stockRequest->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('stock_items', [
+            'id' => $item->id,
+            'ga_review_result' => 'warehouse_stock',
+            'warehouse_available_qty' => 3,
+        ]);
+    }
+
+    #[Test]
+    public function stock_request_task_creation_is_idempotent(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $department);
+
+        $service = app(AdminTaskService::class);
+        $firstTask = $service->createForStockRequest($stockRequest);
+        $secondTask = $service->createForStockRequest($stockRequest);
+
+        $this->assertTrue($firstTask->is($secondTask));
+        $this->assertSame(1, AdminTask::query()
+            ->where('taskable_type', StockRequest::class)
+            ->where('taskable_id', $stockRequest->id)
+            ->count());
+    }
+
+    #[Test]
+    public function stock_request_task_creation_rejects_ambiguous_purchasing_departments(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $stockRequest = $this->createStockRequestReadyForGaReview($user, $businessUnit, $department);
+        Department::factory()->create([
+            'business_unit_id' => $businessUnit->id,
+            'is_purchasing_department' => true,
+        ]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Exactly one Purchasing department must be configured');
+
+        app(AdminTaskService::class)->createForStockRequest($stockRequest);
+    }
+
+    #[Test]
+    public function stock_request_task_prefers_unique_strategic_sourcing_department(): void
+    {
+        [$user, $businessUnit, $legacyDepartment] = $this->createPurchasingAdminContext();
+        $stockRequest = $this->createStockRequestReadyForGaReview(
+            $user,
+            $businessUnit,
+            $legacyDepartment,
+        );
+        $strategicSourcing = Department::factory()->create([
+            'business_unit_id' => $businessUnit->id,
+            'code' => 'SS',
+            'name' => 'Strategic Sourcing',
+            'is_active' => true,
+            'is_purchasing_department' => true,
+        ]);
+
+        $task = app(AdminTaskService::class)->createForStockRequest($stockRequest);
+
+        $this->assertSame($strategicSourcing->id, $task->department_id);
+    }
+
+    #[Test]
+    public function unassigned_or_other_admin_cannot_move_or_complete_task(): void
+    {
+        [$owner, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $other = User::factory()->create();
+        UserBusinessUnit::create([
+            'user_id' => $other->id,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'position_id' => Position::where('department_id', $department->id)->firstOrFail()->id,
+            'is_primary' => true,
+            'is_active' => true,
+            'is_purchasing_admin' => true,
+        ]);
+        $task = AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => 9001,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'assigned_admin_id' => $owner->id,
+            'status' => 'in_progress',
+            'entered_at' => now()->subHour(),
+            'started_at' => now()->subMinutes(30),
+            'estimated_total_price' => 1000,
+        ]);
+
+        $this->actingAs($other);
+        $this->setPurchasingAdminSession($businessUnit, $department);
+        $this->put(route('purchasing.admin.tasks.update-status', $task), ['status' => 'done'])
+            ->assertSessionHas('error');
+        $this->post(route('purchasing.admin.tasks.complete', $task), ['realized_total_price' => 900])
+            ->assertSessionHas('error');
+        $this->assertSame('in_progress', $task->fresh()->status);
+    }
+
+    #[Test]
+    public function status_endpoint_rejects_skipping_pending_task_directly_to_done(): void
+    {
+        [$user, $businessUnit, $department] = $this->createPurchasingAdminContext();
+        $task = AdminTask::create([
+            'taskable_type' => PurchaseRequest::class,
+            'taskable_id' => 9002,
+            'business_unit_id' => $businessUnit->id,
+            'department_id' => $department->id,
+            'assigned_admin_id' => $user->id,
+            'status' => 'pending_followup',
+            'entered_at' => now(),
+            'estimated_total_price' => 1000,
+        ]);
+
+        $this->actingAs($user);
+        $this->setPurchasingAdminSession($businessUnit, $department);
+        $this->put(route('purchasing.admin.tasks.update-status', $task), ['status' => 'done'])
+            ->assertSessionHas('error', 'Tasks must be completed through the completion form.');
+        $this->assertSame('pending_followup', $task->fresh()->status);
     }
 
     /**

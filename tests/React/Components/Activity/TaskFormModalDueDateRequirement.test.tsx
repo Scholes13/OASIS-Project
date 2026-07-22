@@ -203,6 +203,47 @@ describe('TaskFormModal due date requirement', () => {
             expect(startTimeInput.value).toBe('08:30');
         });
 
+        it('pre-fills edit times in app timezone when API returns utc timestamps', async () => {
+            const task: Task = {
+                id: 1,
+                task_title: 'UTC Task',
+                task_description: null,
+                status: 'completed',
+                priority: 'medium',
+                due_date: '2026-04-15T00:00:00.000000Z',
+                task_date: '2026-04-13T00:00:00.000000Z',
+                started_at: '2026-04-13T01:30:00.000000Z',
+                completed_at: '2026-04-13T03:45:00.000000Z',
+                business_unit_id: 1,
+                department_id: 1,
+                activity_type_id: 1,
+                created_by: 1,
+                activity_type: { id: 1, code: 'TEST', name: 'Website', color: 'blue' },
+                creator: { id: 1, name: 'User', email: 'user@test.com', role: 'user' },
+                participants: [],
+                department: { id: 1, name: 'Test Dept', code: 'TD', business_unit_id: 1 },
+                created_at: '2026-04-13T01:00:00.000000Z',
+                updated_at: '2026-04-13T03:45:00.000000Z',
+            };
+
+            await act(async () => {
+                render(
+                    <TaskFormModal
+                        open={true}
+                        onClose={() => {}}
+                        task={task}
+                        activityTypes={[{ id: 1, code: 'TEST', name: 'Website', color: 'blue', sub_activities: [] }]}
+                        departmentUsers={[]}
+                        allowedDateRange={{ from: '2026-01-01', to: '2026-12-31' }}
+                    />
+                );
+            });
+
+            expect((screen.getByLabelText(/Start Time/i) as HTMLInputElement).value).toBe('08:30');
+            expect((screen.getByLabelText(/End Time/i) as HTMLInputElement).value).toBe('10:45');
+            expect(screen.getByLabelText(/Completed Date/i)).toHaveValue('2026-04-13');
+        });
+
         it('requires start time when creating a future dated in_progress task', async () => {
             const tomorrow = getTomorrowLocalDate();
 

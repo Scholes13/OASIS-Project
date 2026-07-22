@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Services\Modules\Purchasing\PurchaseRequest\ApprovalWorkflowService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,9 +22,10 @@ class ApprovalController extends Controller
     /**
      * Display pending approvals for the current user
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
+        $businessUnitId = $this->authorizedBusinessUnitId($request);
 
         $query = PrApproval::with([
             'purchaseRequest.user',
@@ -32,8 +34,8 @@ class ApprovalController extends Controller
         ])
             ->where('approver_id', $user->id)
             ->where('status', 'pending')
-            ->whereHas('purchaseRequest', function ($q) use ($request) {
-                $q->where('business_unit_id', $request->header('X-Business-Unit-ID'));
+            ->whereHas('purchaseRequest', function ($q) use ($businessUnitId) {
+                $q->where('business_unit_id', $businessUnitId);
             });
 
         // Apply filters
@@ -68,8 +70,9 @@ class ApprovalController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'assigned_at');
-        $sortOrder = $request->get('sort_order', 'asc');
+        $sortBy = in_array($request->get('sort_by'), ['assigned_at', 'due_date', 'step_order', 'created_at'], true)
+            ? $request->get('sort_by') : 'assigned_at';
+        $sortOrder = $request->get('sort_order') === 'desc' ? 'desc' : 'asc';
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
@@ -99,7 +102,7 @@ class ApprovalController extends Controller
     /**
      * Display the specified approval
      */
-    public function show(PrApproval $prApproval)
+    public function show(PrApproval $prApproval): JsonResponse
     {
         // Check if current user is the assigned approver
         if ($prApproval->approver_id !== Auth::id()) {
@@ -108,6 +111,7 @@ class ApprovalController extends Controller
                 'message' => 'Unauthorized to view this approval',
             ], 403);
         }
+        $this->authorizeBusinessUnit($prApproval);
 
         $prApproval->load([
             'purchaseRequest.user',
@@ -125,7 +129,7 @@ class ApprovalController extends Controller
     /**
      * Process approval action (approve/reject)
      */
-    public function process(Request $request)
+    public function process(Request $request): JsonResponse
     {
         $request->validate([
             'approval_id' => 'required|exists:pr_approvals,id',
@@ -134,6 +138,7 @@ class ApprovalController extends Controller
         ]);
 
         $prApproval = PrApproval::findOrFail($request->approval_id);
+        $this->authorizeBusinessUnit($prApproval);
 
         // Check if current user is the assigned approver
         if ($prApproval->approver_id !== Auth::id()) {
@@ -159,9 +164,10 @@ class ApprovalController extends Controller
         }
 
         try {
+            $action = $request->action === 'approve' ? 'approved' : 'rejected';
             $success = $this->workflowService->processApproval(
                 $prApproval,
-                $request->action,
+                $action,
                 $request->notes
             );
 
@@ -189,10 +195,17 @@ class ApprovalController extends Controller
                 ], 500);
             }
 
-        } catch (\Exception $e) {
+        } catch (\DomainException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to process approval: '.$e->getMessage(),
+                'message' => $e->getMessage(),
+            ], 409);
+        } catch (\Exception $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process approval.',
             ], 500);
         }
     }
@@ -200,8 +213,9 @@ class ApprovalController extends Controller
     /**
      * Approve a purchase request
      */
-    public function approve(Request $request, PrApproval $prApproval)
+    public function approve(Request $request, PrApproval $prApproval): JsonResponse
     {
+        $this->authorizeBusinessUnit($prApproval);
         $request->validate([
             'notes' => 'nullable|string|max:1000',
         ]);
@@ -247,10 +261,14 @@ class ApprovalController extends Controller
                 ], 500);
             }
 
+        } catch (\DomainException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
         } catch (\Exception $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to approve request: '.$e->getMessage(),
+                'message' => 'Failed to approve request.',
             ], 500);
         }
     }
@@ -258,8 +276,9 @@ class ApprovalController extends Controller
     /**
      * Reject a purchase request
      */
-    public function reject(Request $request, PrApproval $prApproval)
+    public function reject(Request $request, PrApproval $prApproval): JsonResponse
     {
+        $this->authorizeBusinessUnit($prApproval);
         $request->validate([
             'notes' => 'required|string|max:1000',
         ]);
@@ -305,10 +324,14 @@ class ApprovalController extends Controller
                 ], 500);
             }
 
+        } catch (\DomainException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 409);
         } catch (\Exception $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to reject request: '.$e->getMessage(),
+                'message' => 'Failed to reject request.',
             ], 500);
         }
     }
@@ -316,14 +339,15 @@ class ApprovalController extends Controller
     /**
      * Get approval statistics for the current user
      */
-    public function statistics(Request $request)
+    public function statistics(Request $request): JsonResponse
     {
         $user = Auth::user();
+        $businessUnitId = $this->authorizedBusinessUnitId($request);
 
         $startDate = $request->filled('start_date') ? Carbon::parse($request->start_date) : null;
         $endDate = $request->filled('end_date') ? Carbon::parse($request->end_date) : null;
 
-        $statistics = $this->workflowService->getApprovalStatistics($user, $startDate, $endDate);
+        $statistics = $this->workflowService->getApprovalStatistics($user, $businessUnitId, $startDate, $endDate);
 
         return response()->json([
             'success' => true,
@@ -334,9 +358,10 @@ class ApprovalController extends Controller
     /**
      * Get approval history for the current user
      */
-    public function history(Request $request)
+    public function history(Request $request): JsonResponse
     {
         $user = Auth::user();
+        $businessUnitId = $this->authorizedBusinessUnitId($request);
 
         $query = PrApproval::with([
             'purchaseRequest.user',
@@ -344,8 +369,8 @@ class ApprovalController extends Controller
         ])
             ->where('approver_id', $user->id)
             ->whereIn('status', ['approved', 'rejected'])
-            ->whereHas('purchaseRequest', function ($q) use ($request) {
-                $q->where('business_unit_id', $request->header('X-Business-Unit-ID'));
+            ->whereHas('purchaseRequest', function ($q) use ($businessUnitId) {
+                $q->where('business_unit_id', $businessUnitId);
             });
 
         // Apply filters
@@ -362,8 +387,9 @@ class ApprovalController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'responded_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortBy = in_array($request->get('sort_by'), ['responded_at', 'assigned_at', 'created_at', 'status'], true)
+            ? $request->get('sort_by') : 'responded_at';
+        $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortOrder);
 
         // Pagination
@@ -388,5 +414,24 @@ class ApprovalController extends Controller
                 'next' => $history->nextPageUrl(),
             ],
         ]);
+    }
+
+    private function authorizeBusinessUnit(PrApproval $approval): void
+    {
+        $businessUnitId = (int) $approval->purchaseRequest()->value('business_unit_id');
+        if ($businessUnitId !== $this->authorizedBusinessUnitId(request())) {
+            abort(403, 'You do not have access to this approval.');
+        }
+    }
+
+    private function authorizedBusinessUnitId(Request $request): int
+    {
+        $sessionBusinessUnitId = $request->hasSession() ? $request->session()->get('current_business_unit_id') : null;
+        $businessUnitId = (int) ($sessionBusinessUnitId ?: $request->header('X-Business-Unit-ID'));
+        if (! $businessUnitId || ! in_array($businessUnitId, $request->user()->getAccessibleBusinessUnitIds(), true)) {
+            abort(403, 'You do not have access to this business unit.');
+        }
+
+        return $businessUnitId;
     }
 }

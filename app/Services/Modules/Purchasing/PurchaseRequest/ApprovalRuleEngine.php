@@ -152,9 +152,11 @@ class ApprovalRuleEngine
     public function createApprovalSteps(PurchaseRequest $purchaseRequest, Collection $approvers): void
     {
         foreach ($approvers as $approverData) {
+            $approver = $approverData['user']->loadMissing(['primaryDepartment', 'primaryPosition']);
+
             PrApproval::create([
                 'purchase_request_id' => $purchaseRequest->id,
-                'approver_id' => $approverData['user']->id,
+                'approver_id' => $approver->id,
                 'step_order' => $approverData['step_order'],
                 'approval_type' => $approverData['approval_type'],
                 'status' => 'pending',
@@ -162,6 +164,15 @@ class ApprovalRuleEngine
                 'due_date' => $this->calculateDueDate($approverData['approval_type']),
                 'notes' => null,
                 'responded_at' => null,
+                'metadata' => [
+                    'approver_snapshot' => [
+                        'id' => $approver->id,
+                        'name' => $approver->name,
+                        'email' => $approver->email,
+                        'department' => $approver->primaryDepartment?->name,
+                        'position' => $approver->primaryPosition?->name,
+                    ],
+                ],
             ]);
         }
     }
@@ -172,10 +183,14 @@ class ApprovalRuleEngine
     public function buildWorkflowStructure(Collection $approvers): array
     {
         return $approvers->map(function ($approverData) {
+            $approver = $approverData['user']->loadMissing(['primaryDepartment', 'primaryPosition']);
+
             return [
-                'approver_id' => $approverData['user']->id,
-                'approver_name' => $approverData['user']->name,
-                'approver_email' => $approverData['user']->email,
+                'approver_id' => $approver->id,
+                'approver_name' => $approver->name,
+                'approver_email' => $approver->email,
+                'approver_department' => $approver->primaryDepartment?->name,
+                'approver_position' => $approver->primaryPosition?->name,
                 'step_order' => $approverData['step_order'],
                 'approval_type' => $approverData['approval_type'],
                 'reason' => $approverData['reason'],
@@ -250,11 +265,21 @@ class ApprovalRuleEngine
         if ($hasSpecialItems && $categoryType) {
             // Get approver role from config based on category type
             $approverRole = config("approval.special_category_approvers.{$categoryType}", 'it_manager');
+            $businessUnitIds = [];
+            $businessUnit = $purchaseRequest->businessUnit;
+            while ($businessUnit && ! in_array($businessUnit->id, $businessUnitIds, true)) {
+                $businessUnitIds[] = $businessUnit->id;
+                $businessUnit = $businessUnit->parent;
+            }
 
             return User::whereHas('roles', function ($query) use ($approverRole) {
                 $query->where('name', $approverRole);
             })
+                ->whereHas('activeBusinessUnits', fn ($query) => $query
+                    ->whereIn('business_unit_id', $businessUnitIds))
+                ->whereKeyNot($purchaseRequest->user_id)
                 ->where('is_active', true)
+                ->where('global_role', '!=', 'super_admin')
                 ->first();
         }
 

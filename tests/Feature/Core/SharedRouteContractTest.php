@@ -39,17 +39,27 @@ class SharedRouteContractTest extends TestCase
 
         $this->assertRouteAction(
             'stock-requests.offline-approval-document',
-            'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestController@offlineApprovalDocument'
+            'App\\Http\\Controllers\\Modules\\Purchasing\\StockRequest\\StockRequestDocumentController@offlineApprovalDocument'
+        );
+
+        $this->assertRouteAction(
+            'purchasing.all-requests',
+            'App\\Http\\Controllers\\Modules\\Purchasing\\PurchasingController@allRequests'
+        );
+
+        $this->assertRouteAction(
+            'purchase-requests.all',
+            'App\\Http\\Controllers\\Modules\\Purchasing\\PurchasingController@redirectLegacyAllRequests'
         );
 
         $this->assertRouteAction(
             'activity.backdate.approve',
-            'App\\Http\\Controllers\\Modules\\Activity\\ActivityInertiaController@approveBackdate'
+            'App\\Http\\Controllers\\Modules\\Activity\\ActivityBackdateController@approve'
         );
 
         $this->assertRouteAction(
             'activity.backdate.reject',
-            'App\\Http\\Controllers\\Modules\\Activity\\ActivityInertiaController@rejectBackdate'
+            'App\\Http\\Controllers\\Modules\\Activity\\ActivityBackdateController@reject'
         );
     }
 

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Modules\Activity;
 
-use App\Actions\Modules\Activity\BackdateApprovalAction;
 use App\Actions\Modules\Activity\CreateActivityTaskAction;
 use App\Actions\Modules\Activity\UpdateActivityTaskAction;
 use App\Http\Controllers\Controller;
@@ -16,7 +15,6 @@ use App\Services\Modules\Activity\ActivityExportService;
 use App\Services\Modules\Activity\ActivityMemberFocusService;
 use App\Services\Modules\Activity\ActivityTypePrioritizationService;
 use App\Services\Modules\Activity\ActivityVisualsBuilder;
-use App\Services\Modules\Activity\BackdateApprovalQueryService;
 use App\Services\Modules\Activity\BackdatePermissionService;
 use App\Services\Modules\Activity\ExecutiveOverviewService;
 use App\Services\Modules\Activity\TaskPresenter;
@@ -42,10 +40,8 @@ class ActivityInertiaController extends Controller
         protected ActivityVisualsBuilder $visualsBuilder,
         protected ExecutiveOverviewService $executiveOverview,
         protected TaskQueryBuilder $taskQueryBuilder,
-        protected BackdateApprovalQueryService $backdateQueryService,
         protected CreateActivityTaskAction $createTaskAction,
         protected UpdateActivityTaskAction $updateTaskAction,
-        protected BackdateApprovalAction $backdateApprovalAction
     ) {}
 
     /**
@@ -70,7 +66,7 @@ class ActivityInertiaController extends Controller
         $sanitizedDeptFilterId = null;
         $effectiveDepartmentId = $departmentId;
 
-        if ($user->can('view-department-analytics')) {
+        if ($user->can('view-activity-department-tasks')) {
             $subDepartments = $this->scopeResolver->resolveSubDepartments($departmentId);
             $sanitizedDeptFilterId = $this->scopeResolver->sanitizeDeptFilter(
                 request()->query('dept_filter'),
@@ -124,6 +120,11 @@ class ActivityInertiaController extends Controller
         $departmentId = $user->getCurrentDepartmentId();
 
         $scope = $request->get('scope', 'my');
+        if ($scope === 'department') {
+            $this->authorize('view-activity-department-tasks');
+        } else {
+            $scope = 'my';
+        }
         $filters = $this->taskQueryBuilder->resolveFilters($request, $buId, $departmentId, $user->id);
         $includeBreakdown = $request->boolean('with_breakdown', false);
 
@@ -164,6 +165,7 @@ class ActivityInertiaController extends Controller
                 'selectedTaskModal' => $selectedTaskModal,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
+                'canViewDepartmentTasks' => $user->can('view-activity-department-tasks'),
                 'teamMembers' => $teamMembers,
                 'byActivityType' => $byActivityType,
                 'departmentUsers' => Inertia::lazy(fn () => User::where('primary_department_id', $departmentId)
@@ -260,6 +262,12 @@ class ActivityInertiaController extends Controller
                 ->with('success', 'Task updated successfully.');
         }
 
+        if ($request->query() === []) {
+            return redirect()
+                ->route('activity.task.index')
+                ->with('success', 'Task updated successfully.');
+        }
+
         return $this->redirectToTaskIndex($result['task'], 'detail')
             ->with('success', 'Task updated successfully.');
     }
@@ -287,6 +295,7 @@ class ActivityInertiaController extends Controller
 
     public function department(Request $request): Response
     {
+        $this->authorize('view-activity-department-tasks');
         $user = Auth::user();
         $buId = session('current_business_unit_id');
         $departmentId = $user->getCurrentDepartmentId();
@@ -387,77 +396,17 @@ class ActivityInertiaController extends Controller
         ]);
     }
 
-    public function backdateRequests(): Response
-    {
-        abort_unless(config('features.backdate_approval'), 404);
-        $user = Auth::user();
-
-        return Inertia::render('Activity/Backdate/Requests', [
-            'requests' => $this->backdateQueryService->paginateUserRequests($user),
-            'activePermission' => $this->backdateService->checkUserPermission($user->id),
-            'hasPendingRequest' => $this->backdateQueryService->userHasPendingRequest($user),
-        ]);
-    }
-
-    public function backdateApprovals(Request $request): Response
-    {
-        abort_unless(config('features.backdate_approval'), 404);
-        $user = Auth::user();
-        $buId = session('current_business_unit_id');
-        $departmentId = $user->getCurrentDepartmentId();
-
-        $accessLevel = $user->getAccessLevel();
-        if (! in_array($accessLevel, ['department_head', 'super_admin', 'executive', 'general_manager'])) {
-            abort(403, 'Only department heads can access this page');
-        }
-
-        $statusFilter = $request->get('status', 'pending');
-
-        return Inertia::render('Activity/Backdate/Approvals', [
-            'requests' => $this->backdateQueryService->paginateApprovals($request, $user, $buId, $departmentId),
-            'pendingCount' => $this->backdateQueryService->pendingCount($user, $buId, $departmentId),
-            'statusFilter' => $statusFilter,
-        ]);
-    }
-
-    public function approveBackdate(int $id): RedirectResponse
-    {
-        abort_unless(config('features.backdate_approval'), 404);
-
-        $result = $this->backdateApprovalAction->approve($id, Auth::user());
-
-        return $result['ok']
-            ? back()->with('success', $result['message'])
-            : back()->with('error', $result['error']);
-    }
-
-    public function rejectBackdate(Request $request, int $id): RedirectResponse
-    {
-        abort_unless(config('features.backdate_approval'), 404);
-
-        $result = $this->backdateApprovalAction->reject($request, $id, Auth::user());
-
-        return $result['ok']
-            ? back()->with('success', $result['message'])
-            : back()->with('error', $result['error']);
-    }
-
-    public function submitBackdateRequest(Request $request): RedirectResponse
-    {
-        abort_unless(config('features.backdate_approval'), 404);
-
-        $result = $this->backdateApprovalAction->submit($request, Auth::user());
-
-        return $result['ok']
-            ? back()->with('success', $result['message'])
-            : back()->withErrors($result['errors']);
-    }
-
     public function export(Request $request)
     {
         $user = Auth::user();
         $buId = session('current_business_unit_id');
         $scope = $request->get('scope', 'my');
+
+        if ($scope === 'department') {
+            $this->authorize('view-activity-department-tasks');
+        } else {
+            $scope = 'my';
+        }
 
         try {
             $exportService = app(ActivityExportService::class);

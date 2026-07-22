@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
-import { Clock, Plus, CheckCircle, XCircle, AlertCircle, Eye } from 'lucide-react';
+import { Clock, Plus, CheckCircle, AlertCircle, Eye } from 'lucide-react';
 import { DataTable, type PaginationData } from '@/components/admin/DataTable';
 import { StatCard } from '@/components/admin/StatCard';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -15,31 +14,15 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/toast';
+import {
+    BackdateStatusBadge,
+    RequestDetailDialog,
+    type BackdatePermission,
+} from '@/components/activity/backdate/RequestDetailDialog';
 import { cn } from '@/lib/utils';
+import { formatDateTimeWib, formatDateWib } from '@/lib/activityDateTime';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { PageProps, User, Department } from '@/types';
-
-// Types
-interface BackdatePermission {
-    id: number;
-    user_id: number;
-    department_id: number;
-    business_unit_id: number;
-    requested_date: string;
-    reason: string;
-    status: 'pending' | 'approved' | 'rejected' | 'expired';
-    approved_by: number | null;
-    approved_at: string | null;
-    rejected_by: number | null;
-    rejected_at: string | null;
-    rejection_reason: string | null;
-    granted_until: string | null;
-    created_at: string;
-    updated_at: string;
-    approver?: User;
-    rejector?: User;
-    department?: Department;
-}
+import type { PageProps } from '@/types';
 
 interface BackdateRequestsProps extends PageProps {
     requests: {
@@ -53,25 +36,6 @@ interface BackdateRequestsProps extends PageProps {
     };
     activePermission: BackdatePermission | null;
     hasPendingRequest: boolean;
-}
-
-// Status Badge Component
-function BackdateStatusBadge({ status }: { status: BackdatePermission['status'] }) {
-    const config = {
-        pending: { variant: 'warning' as const, icon: Clock, label: 'Pending' },
-        approved: { variant: 'success' as const, icon: CheckCircle, label: 'Approved' },
-        rejected: { variant: 'danger' as const, icon: XCircle, label: 'Rejected' },
-        expired: { variant: 'default' as const, icon: AlertCircle, label: 'Expired' },
-    };
-
-    const { variant, icon: Icon, label } = config[status] || config.pending;
-
-    return (
-        <Badge variant={variant} className="inline-flex items-center gap-1">
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-        </Badge>
-    );
 }
 
 // Countdown Timer Component
@@ -112,6 +76,7 @@ export default function Requests({ requests, activePermission, hasPendingRequest
 
     // Form for submitting new request
     const { data, setData, post, processing, errors, reset } = useForm({
+        requested_date: '',
         reason: '',
     });
 
@@ -148,21 +113,21 @@ export default function Requests({ requests, activePermission, hasPendingRequest
 
     // Format date helper
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-GB', {
+        return formatDateWib(dateString, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
-        });
+        }, 'id-ID');
     };
 
     const formatDateTime = (dateString: string) => {
-        return new Date(dateString).toLocaleString('en-GB', {
+        return formatDateTimeWib(dateString, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-        });
+        }, 'id-ID');
     };
 
     // Table columns
@@ -318,6 +283,26 @@ export default function Requests({ requests, activePermission, hasPendingRequest
                 <DialogContent>
                     <form onSubmit={handleSubmitRequest}>
                         <div className="space-y-4">
+                            <div>
+                                <label htmlFor="requested_date" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Earliest task date <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    id="requested_date"
+                                    type="date"
+                                    value={data.requested_date}
+                                    max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
+                                    onChange={(event) => setData('requested_date', event.target.value)}
+                                    className={cn(
+                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary',
+                                        errors.requested_date ? 'border-red-300' : 'border-gray-300'
+                                    )}
+                                />
+                                {errors.requested_date && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.requested_date}</p>
+                                )}
+                            </div>
+
                             {/* Reason */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -373,7 +358,7 @@ export default function Requests({ requests, activePermission, hasPendingRequest
                     <Button
                         onClick={handleSubmitRequest}
                         loading={processing}
-                        disabled={data.reason.trim().length < 10}
+                        disabled={!data.requested_date || data.reason.trim().length < 10}
                         className="bg-primary hover:bg-blue-600 text-white"
                     >
                         Submit Request
@@ -381,144 +366,16 @@ export default function Requests({ requests, activePermission, hasPendingRequest
                 </DialogFooter>
             </Dialog>
 
-            {/* Request Detail Modal */}
-            <Dialog
+            <RequestDetailDialog
+                request={selectedRequest}
                 open={showDetailModal}
                 onClose={() => {
                     setShowDetailModal(false);
                     setSelectedRequest(null);
                 }}
-                className="max-w-2xl"
-            >
-                <DialogHeader
-                    onClose={() => {
-                        setShowDetailModal(false);
-                        setSelectedRequest(null);
-                    }}
-                >
-                    <DialogTitle>Request Details</DialogTitle>
-                </DialogHeader>
-                <DialogContent>
-                    {selectedRequest && (
-                        <div className="space-y-4">
-                            {/* Status */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Status
-                                </label>
-                                <BackdateStatusBadge status={selectedRequest.status} />
-                            </div>
-
-                            {/* Requested Date */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Requested Date
-                                </label>
-                                <p className="text-sm text-gray-900">
-                                    {formatDate(selectedRequest.requested_date)}
-                                </p>
-                            </div>
-
-                            {/* Reason */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Reason
-                                </label>
-                                <p className="text-sm text-gray-900">{selectedRequest.reason}</p>
-                            </div>
-
-                            {/* Submitted */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Submitted
-                                </label>
-                                <p className="text-sm text-gray-900">
-                                    {formatDateTime(selectedRequest.created_at)}
-                                </p>
-                            </div>
-
-                            {/* Approved Info */}
-                            {selectedRequest.status === 'approved' && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Approved By
-                                        </label>
-                                        <p className="text-sm text-gray-900">
-                                            {selectedRequest.approver?.name ?? 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Approved At
-                                        </label>
-                                        <p className="text-sm text-gray-900">
-                                            {selectedRequest.approved_at
-                                                ? formatDateTime(selectedRequest.approved_at)
-                                                : 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Granted Until
-                                        </label>
-                                        <p className="text-sm text-gray-900">
-                                            {selectedRequest.granted_until
-                                                ? formatDateTime(selectedRequest.granted_until)
-                                                : 'N/A'}
-                                        </p>
-                                    </div>
-                                </>
-                            )}
-
-                            {/* Rejected Info */}
-                            {selectedRequest.status === 'rejected' && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Rejected By
-                                        </label>
-                                        <p className="text-sm text-gray-900">
-                                            {selectedRequest.rejector?.name ?? 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Rejected At
-                                        </label>
-                                        <p className="text-sm text-gray-900">
-                                            {selectedRequest.rejected_at
-                                                ? formatDateTime(selectedRequest.rejected_at)
-                                                : 'N/A'}
-                                        </p>
-                                    </div>
-                                    {selectedRequest.rejection_reason && (
-                                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                            <label className="block text-sm font-medium text-red-800 mb-1">
-                                                Rejection Reason
-                                            </label>
-                                            <p className="text-sm text-red-700">
-                                                {selectedRequest.rejection_reason}
-                                            </p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    )}
-                </DialogContent>
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                            setShowDetailModal(false);
-                            setSelectedRequest(null);
-                        }}
-                    >
-                        Close
-                    </Button>
-                </DialogFooter>
-            </Dialog>
+                formatDate={formatDate}
+                formatDateTime={formatDateTime}
+            />
         </>
     );
 }

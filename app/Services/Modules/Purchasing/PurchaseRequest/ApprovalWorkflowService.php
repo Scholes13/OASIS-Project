@@ -5,7 +5,6 @@ namespace App\Services\Modules\Purchasing\PurchaseRequest;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PrApproval;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
-use App\Services\Modules\Purchasing\Shared\ApprovalAuthorityResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,18 +16,26 @@ class ApprovalWorkflowService
 
     protected ApprovalNotificationDispatcher $notifications;
 
+    protected ApprovalWorkflowBuilder $workflowBuilder;
+
     public function __construct(
         ?ApprovalRuleEngine $ruleEngine = null,
         ?ApprovalNotificationDispatcher $notifications = null,
-        ?ApprovalAuthorityResolver $authorityResolver = null,
+        ?\App\Services\Modules\Purchasing\Shared\ApprovalAuthorityResolver $authorityResolver = null,
     ) {
         // Allow direct `new ApprovalWorkflowService()` instantiation
         // (used by tests and legacy callers) while still supporting
         // container-resolved DI.  Lazy-default both collaborators so
         // we never depend on the container being booted.
         $this->ruleEngine = $ruleEngine
-            ?? new ApprovalRuleEngine($authorityResolver ?? new ApprovalAuthorityResolver);
+            ?? new ApprovalRuleEngine($authorityResolver ?? new \App\Services\Modules\Purchasing\Shared\ApprovalAuthorityResolver);
         $this->notifications = $notifications ?? new ApprovalNotificationDispatcher;
+        $this->workflowBuilder = new ApprovalWorkflowBuilder($this->ruleEngine, $this->notifications);
+    }
+
+    public function isEligibleApprover(PurchaseRequest $purchaseRequest, int $approverId): bool
+    {
+        return $this->workflowBuilder->isEligibleApprover($purchaseRequest, $approverId);
     }
 
     /**
@@ -36,53 +43,7 @@ class ApprovalWorkflowService
      */
     public function createWorkflow(PurchaseRequest $purchaseRequest): bool
     {
-        DB::transaction(function () use ($purchaseRequest) {
-            // Check if PR has existing custom approval workflow (preserved from JSON)
-            if ($purchaseRequest->approval_workflow && is_array($purchaseRequest->approval_workflow)) {
-                // Recreate workflow from preserved JSON
-                $this->recreateWorkflowFromJson($purchaseRequest);
-
-                return;
-            }
-
-            // Otherwise, determine approvers based on business rules (automatic workflow)
-            $approvers = $this->ruleEngine->resolveApproversForAmount(
-                $purchaseRequest,
-                (int) $purchaseRequest->total_amount,
-                $purchaseRequest->businessUnit,
-            );
-
-            if ($approvers->isEmpty()) {
-                throw new \Exception('No approvers found for this request');
-            }
-
-            // Create approval steps
-            $this->ruleEngine->createApprovalSteps($purchaseRequest, $approvers);
-
-            // Update PR workflow information
-            $purchaseRequest->update([
-                'approval_workflow' => $this->ruleEngine->buildWorkflowStructure($approvers),
-                'is_sequential_approval' => true,
-                'status' => 'in_approval',
-            ]);
-        });
-
-        // Send notifications AFTER transaction commits
-
-        // This prevents transaction rollback if notification fails
-        // TODO: Consider queueing this for better performance
-        try {
-            $this->notifications->notifyNextApprover($purchaseRequest);
-        } catch (\Exception $e) {
-            // Log notification failure but don't fail the workflow
-            Log::warning('Failed to send approval notification', [
-                'pr_id' => $purchaseRequest->id,
-                'pr_number' => $purchaseRequest->pr_number,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        return true;
+        return $this->workflowBuilder->create($purchaseRequest);
     }
 
     /**
@@ -95,105 +56,7 @@ class ApprovalWorkflowService
      */
     public function createWorkflowFromRequest(PurchaseRequest $purchaseRequest, array $approvalWorkflow, ?string $notes = null): bool
     {
-        DB::transaction(function () use ($purchaseRequest, $approvalWorkflow, $notes) {
-            // Build workflow structure for storage
-            $workflowData = [];
-            foreach ($approvalWorkflow as $index => $step) {
-                $approver = User::find($step['approver_id']);
-                if (! $approver) {
-                    throw new \Exception("Approver with ID {$step['approver_id']} not found");
-                }
-
-                // Block self-approval
-                if ((int) $step['approver_id'] === (int) $purchaseRequest->user_id) {
-                    throw new \Exception('Request creator cannot be assigned as an approver.');
-                }
-
-                $stepOrder = $index + 1;
-                $taskType = $step['task_type'] ?? 'approval';
-
-                $workflowData[] = [
-                    'approver_id' => $approver->id,
-                    'approver_name' => $approver->name,
-                    'approver_email' => $approver->email,
-                    'step_order' => $stepOrder,
-                    'approval_type' => $taskType,
-                    'reason' => $notes ?? 'Custom approval workflow',
-                    'due_date' => $this->ruleEngine->calculateDueDate($taskType)->toISOString(),
-                ];
-
-                // Create approval record
-                PrApproval::create([
-                    'purchase_request_id' => $purchaseRequest->id,
-                    'approver_id' => $approver->id,
-                    'step_order' => $stepOrder,
-                    'approval_type' => $taskType,
-                    'status' => 'pending',
-                    'assigned_at' => now(),
-                    'due_date' => $this->ruleEngine->calculateDueDate($taskType),
-                    'notes' => null,
-                    'responded_at' => null,
-                ]);
-            }
-
-            // Update PR workflow information
-            $purchaseRequest->update([
-                'approval_workflow' => $workflowData,
-                'is_sequential_approval' => true,
-                'status' => 'in_approval',
-            ]);
-        });
-
-        // Send notification to first approver AFTER transaction commits
-        try {
-            $this->notifications->notifyNextApprover($purchaseRequest);
-        } catch (\Exception $e) {
-            Log::warning('Failed to send approval notification', [
-                'pr_id' => $purchaseRequest->id,
-                'pr_number' => $purchaseRequest->pr_number,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        return true;
-    }
-
-    /**
-     * Recreate workflow from preserved approval_workflow JSON
-     * Used when resubmitting rejected PR to restore original custom workflow
-     */
-    protected function recreateWorkflowFromJson(PurchaseRequest $purchaseRequest): bool
-    {
-        $workflowData = $purchaseRequest->approval_workflow;
-
-        if (empty($workflowData)) {
-            throw new \Exception('No workflow data found to recreate');
-        }
-
-        // Recreate approval steps from JSON
-        foreach ($workflowData as $stepData) {
-            PrApproval::create([
-                'purchase_request_id' => $purchaseRequest->id,
-                'approver_id' => $stepData['approver_id'],
-                'step_order' => $stepData['step_order'],
-                'approval_type' => $stepData['approval_type'] ?? 'custom',
-                'status' => 'pending',
-                'assigned_at' => now(),
-                'due_date' => isset($stepData['due_date']) ? Carbon::parse($stepData['due_date']) : $this->ruleEngine->calculateDueDate('custom'),
-                'notes' => $stepData['reason'] ?? null,
-                'responded_at' => null,
-            ]);
-        }
-
-        // Update PR status
-        $purchaseRequest->update([
-            'status' => 'in_approval',
-        ]);
-
-        // Note: DB::commit() handled by parent createWorkflow() method
-        // Notification will be sent by parent after transaction commits
-
-        return true;
+        return $this->workflowBuilder->createFromRequest($purchaseRequest, $approvalWorkflow, $notes);
     }
 
     /**
@@ -209,25 +72,29 @@ class ApprovalWorkflowService
             );
         }
 
-        // Check if the assigned approver is still active
-        $approver = User::find($approval->approver_id);
-        if (! $approver || ! ($approver->is_active ?? true)) {
-            throw new \Exception('The assigned approver is no longer active. Please contact an administrator to reassign the approval.');
-        }
-
         $purchaseRequest = DB::transaction(function () use ($approval, $action, $notes) {
+            $lockedApproval = PrApproval::query()->lockForUpdate()->findOrFail($approval->id);
+            $purchaseRequest = PurchaseRequest::query()->lockForUpdate()->findOrFail($lockedApproval->purchase_request_id);
+
+            if ($lockedApproval->status !== 'pending' || $purchaseRequest->status !== 'in_approval') {
+                throw new \DomainException('This approval is no longer active.');
+            }
+
+            $currentApproval = $purchaseRequest->approvals()->where('status', 'pending')->orderBy('step_order')->lockForUpdate()->first();
+            if (! $currentApproval || $currentApproval->id !== $lockedApproval->id) {
+                throw new \DomainException('This approval is no longer the current step.');
+            }
+
+            if (! $this->isEligibleApprover($purchaseRequest, (int) $lockedApproval->approver_id)) {
+                throw new \DomainException('The assigned approver is no longer eligible.');
+            }
+
             // Update current approval
-            $approval->update([
+            $lockedApproval->update([
                 'status' => $action,
                 'notes' => $notes,
                 'responded_at' => now(),
             ]);
-
-            $purchaseRequest = $approval->purchaseRequest;
-
-            if (! $purchaseRequest) {
-                throw new \RuntimeException('Purchase request not found for approval ID: '.$approval->id);
-            }
 
             if ($action === 'approved') {
                 $this->handleApprovalStep($purchaseRequest);
@@ -237,6 +104,8 @@ class ApprovalWorkflowService
 
             return $purchaseRequest;
         });
+
+        $approval->refresh();
 
         // Dispatch event for auto-logging AFTER transaction commits
         // This allows the activity tracking module to automatically log the approval action
@@ -372,9 +241,15 @@ class ApprovalWorkflowService
     /**
      * Get approval statistics for a user
      */
-    public function getApprovalStatistics(User $user, ?Carbon $startDate = null, ?Carbon $endDate = null): array
-    {
-        $query = PrApproval::where('approver_id', $user->id);
+    public function getApprovalStatistics(
+        User $user,
+        int $businessUnitId,
+        ?Carbon $startDate = null,
+        ?Carbon $endDate = null,
+    ): array {
+        $query = PrApproval::where('approver_id', $user->id)
+            ->whereHas('purchaseRequest', fn ($purchaseRequest) => $purchaseRequest
+                ->where('business_unit_id', $businessUnitId));
 
         if ($startDate) {
             $query->where('responded_at', '>=', $startDate);

@@ -4,9 +4,10 @@ namespace App\Services\Modules\CashflowProjection\Import;
 
 use App\Models\Core\Department;
 use App\Models\Core\User;
+use App\Models\Modules\CashflowProjection\CashflowProjectionCycle;
 use App\Models\Modules\CashflowProjection\CashflowProjectionLineItem;
+use App\Services\Modules\CashflowProjection\CashflowMoney;
 use App\Services\Modules\CashflowProjection\CashflowProjectionScopeService;
-use App\Services\Modules\CashflowProjection\LinkedCycleMerger;
 use Illuminate\Http\UploadedFile;
 
 class CashflowImportPreviewService
@@ -15,13 +16,13 @@ class CashflowImportPreviewService
         protected CashflowFriendlyImportParser $parser,
         protected CashflowImportClassifier $classifier,
         protected CashflowProjectionScopeService $scopeService,
-        protected LinkedCycleMerger $linkedCycleMerger
+        protected CashflowImportTokenService $tokenService
     ) {}
 
     /**
      * @return array{summary: array<string, int>, rows: array<int, array<string, mixed>>}
      */
-    public function preview(UploadedFile $file, User $user, int $activeBusinessUnitId): array
+    public function preview(UploadedFile $file, User $user, int $activeBusinessUnitId, int $contextYear, int $contextMonth): array
     {
         $parsedRows = $this->parser->parse($file->getRealPath() ?: $file->path());
         $allowedDepartmentIds = $this->scopeService->allowedDepartments($user, $activeBusinessUnitId)->pluck('id')->all();
@@ -34,7 +35,63 @@ class CashflowImportPreviewService
         return [
             'summary' => $this->buildSummary($rows),
             'rows' => $rows,
+            'preview_token' => $this->tokenService->issue($rows, $user, $activeBusinessUnitId, $contextYear, $contextMonth),
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $signedRows
+     * @param  array<int, array<string, mixed>>  $candidateRows
+     * @return array{summary: array<string, int>, rows: array<int, array<string, mixed>>, preview_token: string}
+     */
+    public function review(
+        array $signedRows,
+        array $candidateRows,
+        string $previewToken,
+        User $user,
+        int $activeBusinessUnitId,
+        int $contextYear,
+        int $contextMonth,
+    ): array {
+        $claimKey = $this->tokenService->claim(
+            $previewToken,
+            $signedRows,
+            $user,
+            $activeBusinessUnitId,
+            $contextYear,
+            $contextMonth,
+        );
+
+        try {
+            $signedNumbers = collect($signedRows)->pluck('row_number')->sort()->values()->all();
+            $candidateNumbers = collect($candidateRows)->pluck('row_number')->sort()->values()->all();
+            abort_unless($signedNumbers === $candidateNumbers, 422, 'Row import berubah. Upload ulang file.');
+
+            $allowedDepartmentIds = $this->scopeService
+                ->allowedDepartments($user, $activeBusinessUnitId)
+                ->pluck('id')
+                ->all();
+            $rows = array_map(
+                fn (array $row): array => $this->previewRow($row, $user, $allowedDepartmentIds),
+                $candidateRows,
+            );
+
+            return [
+                'summary' => $this->buildSummary($rows),
+                'rows' => $rows,
+                'preview_token' => $this->tokenService->issue(
+                    $rows,
+                    $user,
+                    $activeBusinessUnitId,
+                    $contextYear,
+                    $contextMonth,
+                ),
+            ];
+        } catch (\Throwable $exception) {
+            $this->tokenService->release($claimKey);
+
+            throw $exception;
+        }
     }
 
     /**
@@ -46,6 +103,20 @@ class CashflowImportPreviewService
     {
         $classification = $this->classifier->classify($row);
         $errors = $classification['errors'];
+
+        foreach ([
+            'transaction_date' => 'Tanggal pembayaran wajib diisi.',
+            'description' => 'Deskripsi wajib diisi.',
+            'amount' => 'Nominal wajib diisi.',
+        ] as $field => $message) {
+            if ($row[$field] === null || $row[$field] === '') {
+                $errors[] = ['field' => $field, 'message' => $message];
+            }
+        }
+
+        if ($row['amount'] !== null && $row['amount'] !== '' && ! is_numeric($row['amount'])) {
+            $errors[] = ['field' => 'amount', 'message' => 'Nominal tidak valid.'];
+        }
         $department = $this->resolveDepartment((string) ($row['business_unit_code'] ?? ''), $classification['department_code']);
 
         if ($department && ! in_array($department->id, $allowedDepartmentIds, true)) {
@@ -67,8 +138,9 @@ class CashflowImportPreviewService
         $changes = [];
 
         if ($errors === [] && $department) {
-            if (isset($row['line_item_id']) && $row['line_item_id'] !== null) {
-                $matchedItem = CashflowProjectionLineItem::query()->find((int) $row['line_item_id']);
+            $lineItemId = data_get($row, 'match.line_item_id', $row['line_item_id'] ?? null);
+            if ($lineItemId !== null) {
+                $matchedItem = CashflowProjectionLineItem::query()->find((int) $lineItemId);
                 if (! $matchedItem || ! in_array((int) $matchedItem->department_id, $allowedDepartmentIds, true)) {
                     $errors[] = [
                         'field' => 'line_item_id',
@@ -77,8 +149,11 @@ class CashflowImportPreviewService
                     $status = 'need_review';
                 }
             } else {
-                $cycle = $this->linkedCycleMerger->findOrCreateCycle((int) $department->business_unit_id, (int) substr((string) $row['transaction_date'], 0, 4), $user->id);
-                $matchResult = $this->matchExistingLineItem($cycle->id, $department->id, (string) $row['description']);
+                $cycleId = CashflowProjectionCycle::query()
+                    ->where('business_unit_id', $department->business_unit_id)
+                    ->where('year', (int) substr((string) $row['transaction_date'], 0, 4))
+                    ->value('id');
+                $matchResult = $this->matchExistingLineItem($cycleId ? (int) $cycleId : null, $department->id, (string) $row['description']);
 
                 if ($matchResult['ambiguous']) {
                     $errors[] = [
@@ -111,7 +186,7 @@ class CashflowImportPreviewService
             'flow_type' => $classification['flow_type'],
             'transaction_date' => $row['transaction_date'],
             'due_date' => $row['due_date'],
-            'amount' => $row['amount'],
+            'amount' => is_numeric($row['amount']) ? CashflowMoney::normalize($row['amount']) : $row['amount'],
             'description' => $row['description'],
             'keterangan' => $row['keterangan'],
             'no_dokumen' => $row['no_dokumen'] ?? null,
@@ -119,6 +194,7 @@ class CashflowImportPreviewService
             'notes' => $row['notes'],
             'is_estimated_date' => $row['is_estimated_date'] ?? false,
             'match' => $matchedItem ? ['line_item_id' => $matchedItem->id] : null,
+            'original' => $matchedItem ? $this->lineItemValues($matchedItem) : null,
             'changes' => $changes,
             'errors' => $errors,
         ];
@@ -140,8 +216,12 @@ class CashflowImportPreviewService
     /**
      * @return array{item: CashflowProjectionLineItem|null, ambiguous: bool}
      */
-    private function matchExistingLineItem(int $cycleId, int $departmentId, string $description): array
+    private function matchExistingLineItem(?int $cycleId, int $departmentId, string $description): array
     {
+        if ($cycleId === null) {
+            return ['item' => null, 'ambiguous' => false];
+        }
+
         $normalizedDescription = $this->normalizeDescription($description);
 
         $matches = CashflowProjectionLineItem::query()
@@ -167,9 +247,11 @@ class CashflowImportPreviewService
             'transaction_date' => [$item->transaction_date?->format('Y-m-d'), $row['transaction_date']],
             'due_date' => [$item->due_date?->format('Y-m-d'), $row['due_date']],
             'is_estimated_date' => [(bool) $item->is_estimated_date, (bool) ($row['is_estimated_date'] ?? false)],
-            'amount' => [(float) $item->amount, (float) $row['amount']],
+            'amount' => [CashflowMoney::normalize($item->amount), CashflowMoney::normalize($row['amount'])],
             'description' => [$item->description, $row['description']],
             'keterangan' => [$item->keterangan, $row['keterangan']],
+            'no_dokumen' => [$item->no_dokumen, $row['no_dokumen'] ?? null],
+            'nama_vendor' => [$item->nama_vendor, $row['nama_vendor'] ?? null],
             'notes' => [$item->notes, $row['notes']],
         ];
 
@@ -181,6 +263,26 @@ class CashflowImportPreviewService
         }
 
         return $changes;
+    }
+
+    /** @return array<string, mixed> */
+    private function lineItemValues(CashflowProjectionLineItem $item): array
+    {
+        return [
+            'cycle_id' => $item->cycle_id,
+            'department_id' => $item->department_id,
+            'action_code' => $item->action_code,
+            'flow_type' => $item->flow_type,
+            'transaction_date' => $item->transaction_date?->format('Y-m-d'),
+            'due_date' => $item->due_date?->format('Y-m-d'),
+            'is_estimated_date' => (bool) $item->is_estimated_date,
+            'amount' => CashflowMoney::normalize($item->amount),
+            'description' => $item->description,
+            'keterangan' => $item->keterangan,
+            'no_dokumen' => $item->no_dokumen,
+            'nama_vendor' => $item->nama_vendor,
+            'notes' => $item->notes,
+        ];
     }
 
     private function normalizeDescription(string $description): string

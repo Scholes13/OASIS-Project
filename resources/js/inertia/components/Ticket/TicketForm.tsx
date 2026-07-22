@@ -8,6 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
+import {
+    DOCUMENT_FILE_ACCEPT,
+    DOCUMENT_FILE_EXTENSIONS,
+    DOCUMENT_FILE_LABEL,
+    isAllowedFileExtension,
+} from '@/lib/fileUploadPolicy';
 import type { TicketFormData, TicketPriority, TicketCategory } from '@/types';
 
 interface TicketFormProps {
@@ -63,6 +69,10 @@ export function TicketForm({
                 toast.warning('Maksimal 5 lampiran diperbolehkan');
                 break;
             }
+            if (!isAllowedFileExtension(file, DOCUMENT_FILE_EXTENSIONS)) {
+                toast.warning(`File ${file.name} ditolak. Format yang diizinkan: ${DOCUMENT_FILE_LABEL}`);
+                continue;
+            }
             if (file.size > 10 * 1024 * 1024) {
                 toast.warning(`File ${file.name} melebihi 10MB`);
                 continue;
@@ -70,8 +80,9 @@ export function TicketForm({
             validFiles.push(file);
         }
         
-        setAttachments(prev => [...prev, ...validFiles]);
-        setData('attachments', [...attachments, ...validFiles]);
+        const nextAttachments = [...attachments, ...validFiles];
+        setAttachments(nextAttachments);
+        setData('attachments', nextAttachments);
         
         // Reset input
         if (fileInputRef.current) {
@@ -172,7 +183,7 @@ export function TicketForm({
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="*/*"
+                    accept={DOCUMENT_FILE_ACCEPT}
                     onChange={handleFileChange}
                     className="hidden"
                 />
@@ -208,7 +219,9 @@ export function TicketForm({
                         <Paperclip className="w-4 h-4" />
                         Tambah Lampiran ({attachments.length}/5)
                     </button>
-                    <p className="text-xs text-gray-400">Maksimal 5 file, masing-masing max 10MB</p>
+                    <p className="text-xs text-gray-400">
+                        Maksimal 5 file, masing-masing 10MB. {DOCUMENT_FILE_LABEL}
+                    </p>
                 </div>
             </div>
 

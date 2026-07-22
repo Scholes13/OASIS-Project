@@ -13,6 +13,7 @@ import type {
     MonthlySummaryRow,
 } from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
+import { moneyToChartNumber } from './money';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -88,12 +89,13 @@ function monthsInScope(startDate: string, endDate: string): number[] {
     return months;
 }
 
-function formatSignedCurrency(value: number): string {
-    if (value === 0) {
+function formatSignedCurrency(value: number | string): string {
+    const numericValue = Number(value);
+    if (numericValue === 0) {
         return formatCurrency(0);
     }
 
-    return `${value > 0 ? '+' : '-'}${formatCurrency(Math.abs(value))}`;
+    return `${numericValue > 0 ? '+' : '-'}${formatCurrency(Math.abs(numericValue))}`;
 }
 
 function buildDailyRows(dailySummary: DailySummaryRow[], monthlySummary: MonthlySummaryRow[], compact: boolean): ChartRow[] {
@@ -107,21 +109,21 @@ function buildDailyRows(dailySummary: DailySummaryRow[], monthlySummary: Monthly
             currentMonth = month;
             const monthData = monthlySummary.find((m) => m.month === month);
             if (monthData) {
-                currentBalance = monthData.opening_balance + monthData.finance_income;
+                currentBalance = moneyToChartNumber(monthData.opening_balance) + moneyToChartNumber(monthData.finance_income);
             } else {
                 currentBalance = 0;
             }
         }
 
-        currentBalance += row.net;
+        currentBalance += moneyToChartNumber(row.net);
 
         return {
             key: row.date,
             label: compact
                 ? formatIsoDate(row.date, { day: '2-digit', month: 'short' })
                 : formatIsoDate(row.date, { day: '2-digit' }),
-            inflow: row.plus,
-            outflow: row.minus,
+            inflow: moneyToChartNumber(row.plus),
+            outflow: moneyToChartNumber(row.minus),
             closingBalance: currentBalance,
         };
     });
@@ -158,9 +160,9 @@ function buildMonthlyRows(monthlySummary: MonthlySummaryRow[], visibleMonths: nu
         .map((row) => ({
             key: String(row.month),
             label: formatMonthLabel(row.month),
-            inflow: row.plus + row.finance_income,
-            outflow: row.minus,
-            closingBalance: row.closing_balance,
+            inflow: moneyToChartNumber(row.plus) + moneyToChartNumber(row.finance_income),
+            outflow: moneyToChartNumber(row.minus),
+            closingBalance: moneyToChartNumber(row.closing_balance),
         }));
 }
 
@@ -257,7 +259,11 @@ export default function CashflowProjectionIndex({
     }, [dailyChartRows, monthlyRows, viewMode, weeklyRows]);
 
     const cards = useMemo<StatsCardItem[]>(() => {
-        const isBelowMinimumBalance = summary.total_balance < minimumBalanceThreshold;
+        const totalBalance = moneyToChartNumber(summary.total_balance);
+        const inflow = moneyToChartNumber(summary.inflow);
+        const outflow = moneyToChartNumber(summary.outflow);
+        const netCashflow = moneyToChartNumber(summary.net_cashflow);
+        const isBelowMinimumBalance = totalBalance < minimumBalanceThreshold;
 
         return [
             {
@@ -272,19 +278,19 @@ export default function CashflowProjectionIndex({
                 label: 'Period Inflow',
                 value: formatCurrency(summary.inflow),
                 caption: 'Operational cash inflow captured from projection entries.',
-                tone: summary.inflow > 0 ? 'positive' : 'neutral',
+                tone: inflow > 0 ? 'positive' : 'neutral',
             },
             {
                 label: 'Period Outflow',
                 value: formatCurrency(summary.outflow),
                 caption: 'Committed spend and outgoing cash for the selected window.',
-                tone: summary.outflow > summary.inflow ? 'negative' : 'neutral',
+                tone: outflow > inflow ? 'negative' : 'neutral',
             },
             {
                 label: 'Net Cashflow',
                 value: formatSignedCurrency(summary.net_cashflow),
                 caption: `${formatCurrency(summary.finance_income)} finance income included in this net position.`,
-                tone: summary.net_cashflow > 0 ? 'positive' : summary.net_cashflow < 0 ? 'negative' : 'neutral',
+                tone: netCashflow > 0 ? 'positive' : netCashflow < 0 ? 'negative' : 'neutral',
             },
         ];
     }, [minimumBalanceThreshold, summary.finance_income, summary.inflow, summary.net_cashflow, summary.outflow, summary.total_balance]);
@@ -368,7 +374,7 @@ export default function CashflowProjectionIndex({
                         periodTitle={periodTitle}
                         periodCaption={periodCaption}
                         filteredEntryCount={lineItems.length}
-                        financeIncome={summary.finance_income}
+                        financeIncome={moneyToChartNumber(summary.finance_income)}
                         draftMode={draftMode}
                         draftYear={draftYear}
                         draftMonth={draftMonth}

@@ -22,14 +22,14 @@ on:
         default: true
         type: boolean
       update_existing:
-        description: Update tickets that already exist by ticket number
+        description: Update records previously imported from this legacy source
         required: true
         default: false
         type: boolean
       limit:
         description: Optional ticket limit. Leave empty for all tickets.
         required: false
-        default: "10"
+        default: ""
         type: string
       business_unit:
         description: Target OASIS business unit code or id
@@ -41,11 +41,20 @@ on:
         required: true
         default: super@werkudara.com
         type: string
+      force_assignee:
+        description: Optional OASIS user email or id assigned to every imported ticket
+        required: false
+        default: ""
+        type: string
       fallback_department:
         description: Fallback OASIS department code or id
         required: true
         default: SYSADMIN
         type: string
+
+concurrency:
+  group: legacy-request-ticket-import-${{ inputs.target }}
+  cancel-in-progress: false
 
 jobs:
   import:
@@ -66,6 +75,7 @@ jobs:
           LIMIT: ${{ inputs.limit }}
           BUSINESS_UNIT: ${{ inputs.business_unit }}
           FALLBACK_USER: ${{ inputs.fallback_user }}
+          FORCE_ASSIGNEE: ${{ inputs.force_assignee }}
           FALLBACK_DEPARTMENT: ${{ inputs.fallback_department }}
           PRODUCTION_APP_PATH: ${{ secrets.CPANEL_APP_PATH }}
           CPANEL_PHP_BIN: ${{ secrets.CPANEL_PHP_BIN }}
@@ -76,13 +86,12 @@ jobs:
           key: ${{ secrets.CPANEL_SSH_KEY }}
           passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
           password: ${{ secrets.CPANEL_SSH_PASSWORD }}
-          envs: TARGET,DRY_RUN,COPY_ATTACHMENTS,UPDATE_EXISTING,LIMIT,BUSINESS_UNIT,FALLBACK_USER,FALLBACK_DEPARTMENT,PRODUCTION_APP_PATH,CPANEL_PHP_BIN
+          envs: TARGET,DRY_RUN,COPY_ATTACHMENTS,UPDATE_EXISTING,LIMIT,BUSINESS_UNIT,FALLBACK_USER,FORCE_ASSIGNEE,FALLBACK_DEPARTMENT,PRODUCTION_APP_PATH,CPANEL_PHP_BIN
           script: |
             set -euo pipefail
 
             PHP_BIN="${CPANEL_PHP_BIN:-php}"
             LEGACY_APP_PATH="/home/werkuda1/request.werkudara.com"
-            LEGACY_ENV="$LEGACY_APP_PATH/.env"
 
             if [ "$TARGET" = "production" ]; then
               APP_PATH="$PRODUCTION_APP_PATH"
@@ -95,23 +104,103 @@ jobs:
               exit 1
             fi
 
-            if [ ! -f "$LEGACY_ENV" ]; then
-              echo "Legacy request.werkudara.com .env was not found."
+            if [ ! -f "$LEGACY_APP_PATH/bootstrap/app.php" ] || [ ! -f "$LEGACY_APP_PATH/vendor/autoload.php" ]; then
+              echo "Legacy Laravel application bootstrap was not found."
               exit 1
             fi
 
-            read_env() {
-              "$PHP_BIN" -r '$env=parse_ini_file($argv[1], false, INI_SCANNER_RAW); echo $env[$argv[2]] ?? "";' "$LEGACY_ENV" "$1"
+            read_database_config() {
+              local laravel_path="$1"
+              (
+                cd "$laravel_path"
+                "$PHP_BIN" -r '
+                  require "vendor/autoload.php";
+                  $app = require "bootstrap/app.php";
+                  $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+                  $name = (string) config("database.default");
+                  foreach (["driver", "host", "port", "database", "username", "password"] as $key) {
+                      echo base64_encode((string) config("database.connections.{$name}.{$key}")).PHP_EOL;
+                  }
+                '
+              )
             }
 
-            LEGACY_DB_HOST="$(read_env DB_HOST)"
-            LEGACY_DB_PORT="$(read_env DB_PORT)"
-            LEGACY_DB_DATABASE="$(read_env DB_DATABASE)"
-            LEGACY_DB_USERNAME="$(read_env DB_USERNAME)"
-            LEGACY_DB_PASSWORD="$(read_env DB_PASSWORD)"
+            decode_config() {
+              printf '%s' "$1" | base64 --decode
+            }
+
+            mapfile -t LEGACY_CONFIG < <(read_database_config "$LEGACY_APP_PATH")
+            if [ "${#LEGACY_CONFIG[@]}" -ne 6 ]; then
+              echo "Legacy database configuration could not be bootstrapped."
+              exit 1
+            fi
+
+            LEGACY_DB_HOST="$(decode_config "${LEGACY_CONFIG[1]}")"
+            LEGACY_DB_PORT="$(decode_config "${LEGACY_CONFIG[2]}")"
+            LEGACY_DB_DATABASE="$(decode_config "${LEGACY_CONFIG[3]}")"
+            LEGACY_DB_USERNAME="$(decode_config "${LEGACY_CONFIG[4]}")"
+            LEGACY_DB_PASSWORD="$(decode_config "${LEGACY_CONFIG[5]}")"
 
             if [ -z "$LEGACY_DB_HOST" ]; then LEGACY_DB_HOST="127.0.0.1"; fi
             if [ -z "$LEGACY_DB_PORT" ]; then LEGACY_DB_PORT="3306"; fi
+
+            if [ "$DRY_RUN" != "true" ]; then
+              mapfile -t TARGET_CONFIG < <(read_database_config "$APP_PATH/current")
+              mapfile -t TARGET_STORAGE_CONFIG < <(
+                cd "$APP_PATH/current"
+                "$PHP_BIN" -r '
+                  require "vendor/autoload.php";
+                  $app = require "bootstrap/app.php";
+                  $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+                  echo base64_encode((string) config("filesystems.disks.local.root")).PHP_EOL;
+                '
+              )
+
+              if [ "${#TARGET_CONFIG[@]}" -ne 6 ] || [ "${#TARGET_STORAGE_CONFIG[@]}" -ne 1 ]; then
+                echo "Target backup configuration could not be bootstrapped."
+                exit 1
+              fi
+
+              TARGET_DB_DRIVER="$(decode_config "${TARGET_CONFIG[0]}")"
+              TARGET_DB_HOST="$(decode_config "${TARGET_CONFIG[1]}")"
+              TARGET_DB_PORT="$(decode_config "${TARGET_CONFIG[2]}")"
+              TARGET_DB_DATABASE="$(decode_config "${TARGET_CONFIG[3]}")"
+              TARGET_DB_USERNAME="$(decode_config "${TARGET_CONFIG[4]}")"
+              TARGET_DB_PASSWORD="$(decode_config "${TARGET_CONFIG[5]}")"
+              TARGET_LOCAL_ROOT="$(decode_config "${TARGET_STORAGE_CONFIG[0]}")"
+
+              if [ "$TARGET_DB_DRIVER" != "mysql" ] && [ "$TARGET_DB_DRIVER" != "mariadb" ]; then
+                echo "Automated backup supports only MySQL/MariaDB targets."
+                exit 1
+              fi
+              mkdir -p "$APP_PATH/shared/storage/app/private"
+              TARGET_LOCAL_ROOT_REAL="$(readlink -f "$TARGET_LOCAL_ROOT" || true)"
+              EXPECTED_LOCAL_ROOT_REAL="$(readlink -f "$APP_PATH/shared/storage/app/private" || true)"
+              if [ -z "$TARGET_LOCAL_ROOT_REAL" ] \
+                || [ "$TARGET_LOCAL_ROOT_REAL" != "$EXPECTED_LOCAL_ROOT_REAL" ]; then
+                echo "Target local attachment storage root is outside the expected shared storage path."
+                exit 1
+              fi
+              TARGET_LOCAL_ROOT="$TARGET_LOCAL_ROOT_REAL"
+
+              umask 077
+              BACKUP_DIR="$APP_PATH/shared/backups/legacy-ticket-import/$(date -u +%Y%m%dT%H%M%SZ)"
+              mkdir -p "$BACKUP_DIR"
+              MYSQL_PWD="$TARGET_DB_PASSWORD" mysqldump \
+                --single-transaction --quick --skip-lock-tables \
+                --host="$TARGET_DB_HOST" --port="$TARGET_DB_PORT" \
+                --user="$TARGET_DB_USERNAME" "$TARGET_DB_DATABASE" \
+                | gzip > "$BACKUP_DIR/database.sql.gz"
+              gzip -t "$BACKUP_DIR/database.sql.gz"
+
+              if [ -d "$TARGET_LOCAL_ROOT/ticket-attachments" ]; then
+                tar -czf "$BACKUP_DIR/ticket-attachments.tar.gz" -C "$TARGET_LOCAL_ROOT" ticket-attachments
+              else
+                tar -czf "$BACKUP_DIR/ticket-attachments.tar.gz" --files-from /dev/null
+              fi
+              test -s "$BACKUP_DIR/ticket-attachments.tar.gz"
+              echo "Target database and ticket attachment backups completed."
+            fi
 
             cd "$APP_PATH/current"
 
@@ -121,6 +210,7 @@ jobs:
               "--legacy-port=$LEGACY_DB_PORT"
               "--legacy-database=$LEGACY_DB_DATABASE"
               "--legacy-username=$LEGACY_DB_USERNAME"
+              "--legacy-password-stdin"
               "--business-unit=$BUSINESS_UNIT"
               "--fallback-user=$FALLBACK_USER"
               "--fallback-department=$FALLBACK_DEPARTMENT"
@@ -137,6 +227,10 @@ jobs:
               COMMAND+=("--update-existing")
             fi
 
+            if [ -n "${FORCE_ASSIGNEE:-}" ]; then
+              COMMAND+=("--force-assignee=$FORCE_ASSIGNEE")
+            fi
+
             if [ "$DRY_RUN" = "true" ]; then
               COMMAND+=("--dry-run")
             fi
@@ -145,4 +239,4 @@ jobs:
               COMMAND+=("--limit=$LIMIT")
             fi
 
-            LEGACY_TICKETING_DB_PASSWORD="$LEGACY_DB_PASSWORD" "${COMMAND[@]}"
+            printf '%s' "$LEGACY_DB_PASSWORD" | "${COMMAND[@]}"

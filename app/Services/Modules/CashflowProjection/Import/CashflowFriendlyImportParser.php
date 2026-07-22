@@ -2,6 +2,7 @@
 
 namespace App\Services\Modules\CashflowProjection\Import;
 
+use App\Services\Modules\CashflowProjection\CashflowMoney;
 use Carbon\CarbonImmutable;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -151,7 +152,7 @@ class CashflowFriendlyImportParser
         return null;
     }
 
-    private function parseAmount(mixed $value): float|string|null
+    private function parseAmount(mixed $value): ?string
     {
         $stringValue = $this->normalizeString($value);
         if ($stringValue === null) {
@@ -160,7 +161,11 @@ class CashflowFriendlyImportParser
 
         $normalized = str_replace([',', ' '], '', $stringValue);
 
-        return is_numeric($normalized) ? (float) $normalized : $stringValue;
+        try {
+            return CashflowMoney::normalize($normalized);
+        } catch (\InvalidArgumentException) {
+            return $stringValue;
+        }
     }
 
     private function parseInteger(mixed $value): ?int

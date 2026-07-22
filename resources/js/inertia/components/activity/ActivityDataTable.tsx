@@ -1,6 +1,5 @@
 import * as React from "react"
 import { Link, router, usePage } from "@inertiajs/react"
-import { ColumnDef } from "@tanstack/react-table"
 import {
     format,
     startOfWeek,
@@ -17,9 +16,9 @@ import {
     AlertTriangle,
     Download,
 } from "lucide-react"
-import { SortableHeader } from "../ui/data-table"
 import { openDownloadInSameTab } from "@/lib/download"
 import { cn } from "@/lib/utils"
+import { getTodayWibDate } from "@/lib/activityDateTime"
 import { formatDueDate, isOverdue, isWithinDateFilter, type DateFilter } from "@/lib/dateFilters"
 import DateFilterControl, { type DateFilterType, type DateRange } from "./datatable/DateFilter"
 import { type StatusFilter } from "./datatable/MetricCards"
@@ -46,11 +45,7 @@ interface ActivityDataTableProps {
 
 function canEditTask(task: Task, currentUserId: number | undefined): boolean {
     if (!currentUserId) return false
-    const isParticipant = task.participants?.some(p =>
-        p.user_id === currentUserId || p.id === currentUserId
-    )
-    const isCreator = task.created_by === currentUserId
-    return isParticipant || isCreator
+    return task.created_by === currentUserId
 }
 
 function RowActions({ task, visible, isReadOnly = false, onEditTask }: { task: Task; visible: boolean; isReadOnly?: boolean; onEditTask?: (task: Task) => void }) {
@@ -136,106 +131,6 @@ function RowActions({ task, visible, isReadOnly = false, onEditTask }: { task: T
     )
 }
 
-interface ColumnMeta {
-    viewMode: ViewMode
-    currentUserId: number | undefined
-    hasMultipleDepartments: boolean
-}
-
-const createColumns = (showActions: boolean): ColumnDef<Task>[] => {
-    const columns: ColumnDef<Task>[] = [
-        {
-            accessorKey: "task_title",
-            header: ({ column }) => <SortableHeader column={column} title="Activity" />,
-            cell: ({ row, table }) => {
-                const task = row.original
-                const overdue = isOverdue(task.due_date, task.status === "completed" || task.status === "cancelled" ? task.updated_at : null)
-                const meta = table.options.meta as ColumnMeta | undefined
-                const showDeptBadge = meta?.hasMultipleDepartments && task.department?.code
-                return (
-                    <div className="min-w-[200px] max-w-[320px]">
-                        <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900 truncate text-base">{task.task_title}</p>
-                            {showDeptBadge && (
-                                <span
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 flex-shrink-0"
-                                    title={task.department.name}
-                                >
-                                    {task.department.code}
-                                </span>
-                            )}
-                        </div>
-                        {overdue && (
-                            <span className="inline-flex items-center text-xs text-rose-500 mt-0.5 font-medium">
-                                <AlertTriangle className="h-3.5 w-3.5 mr-0.5" strokeWidth={2} />
-                                Overdue
-                            </span>
-                        )}
-                    </div>
-                )
-            },
-        },
-        {
-            accessorKey: "activity_type.name",
-            header: "Type",
-            cell: ({ row }) => {
-                const type = row.original.activity_type
-                return <TypeBadge name={type?.name ?? "—"} color={type?.color} />
-            },
-        },
-        {
-            accessorKey: "due_date",
-            header: ({ column }) => <SortableHeader column={column} title="Due Date" />,
-            cell: ({ row }) => {
-                const task = row.original
-                const overdue = isOverdue(task.due_date, task.status === "completed" || task.status === "cancelled" ? task.updated_at : null)
-                return (
-                    <span className={cn(
-                        "text-base",
-                        overdue ? "text-rose-600 font-medium" : "text-gray-600"
-                    )}>
-                        {formatDueDate(task.due_date)}
-                    </span>
-                )
-            },
-        },
-        {
-            accessorKey: "status",
-            header: "Status",
-            cell: ({ row, table }) => {
-                const meta = table.options.meta as ColumnMeta | undefined
-                const isReadOnly = meta?.viewMode === "department" && !canEditTask(row.original, meta?.currentUserId)
-                return <StatusDropdown task={row.original} isReadOnly={isReadOnly} />
-            },
-        },
-        {
-            accessorKey: "participants",
-            header: "Team",
-            cell: ({ row }) => <AvatarStack participants={row.original.participants || []} />,
-            enableSorting: false,
-        },
-    ]
-
-    if (showActions) {
-        columns.push({
-            id: "actions",
-            header: "",
-            cell: ({ row, table }) => {
-                const meta = table.options.meta as ColumnMeta | undefined
-                const isReadOnly = meta?.viewMode === "department" && !canEditTask(row.original, meta?.currentUserId)
-                return (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <RowActions task={row.original} visible={true} isReadOnly={isReadOnly} />
-                    </div>
-                )
-            },
-            enableSorting: false,
-        })
-    }
-
-    return columns
-}
-
 export function ActivityDataTable({
     tasks,
     stats,
@@ -263,9 +158,8 @@ export function ActivityDataTable({
         }
     }, [filters?.scope])
 
-    const { auth, availableDepartments } = usePage<PageProps>().props
+    const { auth } = usePage<PageProps>().props
     const currentUserId = auth?.user?.id
-    const hasMultipleDepartments = (availableDepartments as any[])?.length > 1
     const taskData = tasks?.data ?? []
 
     // Filter tasks by status and date only (viewMode is now handled by backend)
@@ -359,13 +253,13 @@ export function ActivityDataTable({
                                             : undefined,
                                         date_from: dateFilter === 'custom' && customRange.start
                                             ? format(customRange.start, 'yyyy-MM-dd')
-                                            : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')
+                                            : dateFilter === 'today' ? getTodayWibDate()
                                                 : dateFilter === 'week' ? format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
                                                     : dateFilter === 'month' ? format(startOfMonth(new Date()), 'yyyy-MM-dd')
                                                         : undefined,
                                         date_to: dateFilter === 'custom' && customRange.end
                                             ? format(customRange.end, 'yyyy-MM-dd')
-                                            : dateFilter === 'today' ? format(new Date(), 'yyyy-MM-dd')
+                                            : dateFilter === 'today' ? getTodayWibDate()
                                                 : dateFilter === 'week' ? format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
                                                     : dateFilter === 'month' ? format(endOfMonth(new Date()), 'yyyy-MM-dd')
                                                         : undefined,

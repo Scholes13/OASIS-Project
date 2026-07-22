@@ -71,7 +71,7 @@ class CashflowProjectionImportRowParser
             'due_date_raw' => $this->normalizeScalarForError($dueDateRaw),
             'is_estimated_date' => $this->parseBooleanValue($isEstimatedDateRaw),
             'is_estimated_date_raw' => $this->normalizeScalarForError($isEstimatedDateRaw),
-            'amount' => is_numeric($amountRaw) ? (float) $amountRaw : $this->normalizeScalarForError($amountRaw),
+            'amount' => $this->parseAmount($amountRaw),
             'description' => $description,
             'keterangan' => $keterangan,
             'notes' => $notes,
@@ -137,6 +137,15 @@ class CashflowProjectionImportRowParser
             'FALSE' => false,
             default => null,
         };
+    }
+
+    private function parseAmount(mixed $value): ?string
+    {
+        try {
+            return CashflowMoney::normalize($value);
+        } catch (\InvalidArgumentException) {
+            return $this->normalizeScalarForError($value);
+        }
     }
 
     public function cellValue(Cell $cell): mixed

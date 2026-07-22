@@ -4,10 +4,9 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AnimatePresence, motion } from 'framer-motion';
-import { format, isToday, isTomorrow } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
 import { AlertTriangle, Clock, MoreHorizontal, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDateWib, isOverdueWib, isTodayWib, isTomorrowWib } from '@/lib/activityDateTime';
 import type { Task } from '@/types';
 
 export type ViewMode = 'my' | 'department';
@@ -42,9 +41,7 @@ const priorityBadgeClass: Record<string, string> = {
 };
 
 function isOverdue(dueDate: string | null, status: string): boolean {
-    if (!dueDate) return false;
-    if (status === 'completed' || status === 'cancelled') return false;
-    return new Date(dueDate) < new Date();
+    return isOverdueWib(dueDate, status);
 }
 
 function canEditTask(task: Task, currentUserId: number | undefined): boolean {
@@ -57,10 +54,9 @@ function canEditTask(task: Task, currentUserId: number | undefined): boolean {
 
 function formatCardDueDate(dueDate: string | null): string {
     if (!dueDate) return 'No due date';
-    const parsed = new Date(dueDate);
-    if (isToday(parsed)) return 'Today';
-    if (isTomorrow(parsed)) return 'Tomorrow';
-    return format(parsed, 'dd MMM', { locale: idLocale });
+    if (isTodayWib(dueDate)) return 'Today';
+    if (isTomorrowWib(dueDate)) return 'Tomorrow';
+    return formatDateWib(dueDate, { day: '2-digit', month: 'short' });
 }
 
 function AvatarStack({ participants, max = 2 }: { participants: Task['participants']; max?: number }) {

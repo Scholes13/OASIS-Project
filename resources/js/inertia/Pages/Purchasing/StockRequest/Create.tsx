@@ -11,6 +11,7 @@ interface CreatePageProps extends PageProps {
     businessUnits: BusinessUnit[];
     availableApprovers: Approver[];
     requiresSupervisorApproval: boolean;
+    routesDirectlyToPurchasing: boolean;
     currentBusinessUnitId: number;
     currentDepartmentId: number;
 }
@@ -20,6 +21,7 @@ export default function Create({
     businessUnits,
     availableApprovers,
     requiresSupervisorApproval,
+    routesDirectlyToPurchasing,
     errors,
     currentBusinessUnit,
     currentBusinessUnitId,
@@ -171,6 +173,7 @@ export default function Create({
                         businessUnits={businessUnits}
                         availableApprovers={availableApprovers}
                         requiresSupervisorApproval={requiresSupervisorApproval}
+                        routesDirectlyToPurchasing={routesDirectlyToPurchasing}
                         onSubmit={handleSubmit}
                         initialData={initialData}
                     />

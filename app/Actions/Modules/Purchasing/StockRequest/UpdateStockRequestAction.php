@@ -7,10 +7,12 @@ use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use App\Models\Modules\Purchasing\StockRequest\StockItem;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
 use App\Services\Core\EmailNotificationService;
+use App\Services\Modules\Purchasing\Shared\PurchasingFileStorage;
+use App\Services\Modules\Purchasing\StockRequest\StockRequestApprovalWorkflowResolver;
+use App\Services\Modules\Purchasing\StockRequest\StockRequestPostApprovalRouter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Update an existing Stock Request: replace items, update fields, reset and
@@ -22,6 +24,9 @@ class UpdateStockRequestAction
 {
     public function __construct(
         private EmailNotificationService $emailService,
+        private StockRequestApprovalWorkflowResolver $approvalWorkflowResolver,
+        private StockRequestPostApprovalRouter $postApprovalRouter,
+        private PurchasingFileStorage $fileStorage,
     ) {}
 
     /**
@@ -34,10 +39,23 @@ class UpdateStockRequestAction
         StockRequest $stockRequest,
         User $user
     ): array {
+        $storedFilePaths = [];
+
         try {
             DB::beginTransaction();
 
+            $oldOfflineDocumentPath = $stockRequest->offline_approval_document_path;
+            $oldItemImagePaths = $stockRequest->items()->whereNotNull('image_path')->pluck('image_path')->all();
             [$offlineDocumentPath, $offlineDocumentName] = $this->resolveOfflineDocument($request, $stockRequest);
+            if ($offlineDocumentPath !== $oldOfflineDocumentPath) {
+                $storedFilePaths[] = $offlineDocumentPath;
+            }
+            $routesDirectlyToPurchasing = $stockRequest->submitted_at
+                ? $stockRequest->routes_directly_to_purchasing
+                : $this->approvalWorkflowResolver->routesDirectlyToPurchasing(
+                    $stockRequest->business_unit_id,
+                    $stockRequest->department_id,
+                );
 
             // Update stock request
             $stockRequest->update([
@@ -46,6 +64,10 @@ class UpdateStockRequestAction
                 'expected_date' => $request->expected_date,
                 'offline_approval_document_path' => $offlineDocumentPath,
                 'offline_approval_document_name' => $offlineDocumentName,
+                'routes_directly_to_purchasing' => $routesDirectlyToPurchasing,
+                'skips_ga_review' => $stockRequest->submitted_at
+                    ? $stockRequest->skips_ga_review
+                    : $routesDirectlyToPurchasing,
                 'last_modified_by' => $user->id,
             ]);
 
@@ -53,16 +75,21 @@ class UpdateStockRequestAction
             $stockRequest->items()->delete();
 
             // Create new items
-            $this->createItems($stockRequest, $request->items);
+            $this->createItems($stockRequest, $request->items, $storedFilePaths);
 
             $this->resetWorkflow($stockRequest);
 
-            $approvalWorkflow = $this->resolveInitialApprovalWorkflow($user, (int) $request->business_unit_id);
+            $approvalWorkflow = $this->approvalWorkflowResolver->resolve(
+                $user,
+                $stockRequest->business_unit_id,
+                $stockRequest->department_id,
+                $routesDirectlyToPurchasing,
+            );
 
             $stockRequest->update([
-                'status' => $approvalWorkflow === [] ? 'ga_review' : 'in_approval',
+                'status' => $approvalWorkflow === [] ? 'submitted' : 'in_approval',
                 'submitted_at' => $stockRequest->submitted_at ?? now(),
-                'ga_review_started_at' => $approvalWorkflow === [] ? now() : null,
+                'ga_review_started_at' => null,
                 'rejected_at' => null,
                 'ga_rejected_reason' => null,
             ]);
@@ -73,14 +100,31 @@ class UpdateStockRequestAction
                     $approvalWorkflow,
                     $request->approval_notes ?? null
                 );
+            } else {
+                $this->postApprovalRouter->route($stockRequest);
             }
 
             DB::commit();
 
+            $replacedFilePaths = $oldItemImagePaths;
+            if ($oldOfflineDocumentPath && $oldOfflineDocumentPath !== $offlineDocumentPath) {
+                $replacedFilePaths[] = $oldOfflineDocumentPath;
+            }
+            $this->fileStorage->deleteSafely($replacedFilePaths, [
+                'st_id' => $stockRequest->id,
+                'context' => 'replaced',
+            ]);
+
             return ['ok' => true, 'stock_request' => $stockRequest];
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+                $this->fileStorage->deleteSafely($storedFilePaths, [
+                    'st_id' => $stockRequest->id,
+                    'context' => 'rolled-back',
+                ]);
+            }
 
             Log::error('Failed to update stock request', [
                 'st_id' => $stockRequest->id,
@@ -110,28 +154,21 @@ class UpdateStockRequestAction
             return [$offlineDocumentPath, $offlineDocumentName];
         }
 
-        // Delete old document if exists
-        if ($offlineDocumentPath) {
-            Storage::disk('public')->delete($offlineDocumentPath);
-        }
-
         $file = $request->file('offline_approval_document');
 
-        return [
-            $file->store('stock-requests/offline-approvals', 'public'),
-            $file->getClientOriginalName(),
-        ];
+        return [$this->fileStorage->store($file, 'stock-requests/offline-approvals'), $file->getClientOriginalName()];
     }
 
     /**
      * Persist ST items and their optional images.
      */
-    private function createItems(StockRequest $stockRequest, array $items): void
+    private function createItems(StockRequest $stockRequest, array $items, array &$storedFilePaths): void
     {
         foreach ($items as $index => $itemData) {
             $imagePath = null;
             if (isset($itemData['image']) && $itemData['image'] instanceof UploadedFile) {
-                $imagePath = $itemData['image']->store('stock-requests/items', 'public');
+                $imagePath = $this->fileStorage->store($itemData['image'], 'stock-requests/items');
+                $storedFilePaths[] = $imagePath;
             }
 
             StockItem::create([
@@ -163,43 +200,6 @@ class UpdateStockRequestAction
         ]);
     }
 
-    private function resolveInitialApprovalWorkflow(User $user, int $businessUnitId): array
-    {
-        if ($user->getAccessLevel($businessUnitId) !== 'staff') {
-            return [];
-        }
-
-        $approvers = $this->resolveStaffApprovers($user, $businessUnitId);
-
-        if ($approvers->isEmpty()) {
-            throw new \Exception('HOD or Leader approver is required for staff stock requests.');
-        }
-
-        return $approvers
-            ->map(fn (User $approver) => [
-                'approver_id' => $approver->id,
-                'task_type' => 'department_lead',
-            ])
-            ->values()
-            ->all();
-    }
-
-    private function resolveStaffApprovers(User $user, int $businessUnitId)
-    {
-        return User::where('primary_department_id', $user->primary_department_id)
-            ->where('id', '!=', $user->id)
-            ->whereHas('activeBusinessUnits', function ($query) use ($businessUnitId) {
-                $query->where('business_unit_id', $businessUnitId)
-                    ->whereHas('position', function ($positionQuery) {
-                        $positionQuery->whereIn('level', ['leader', 'hod'])
-                            ->orWhereIn('access_level', ['team_leader', 'department_head']);
-                    });
-            })
-            ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$user->supervisor_id ?? 0])
-            ->orderBy('name')
-            ->get();
-    }
-
     /**
      * Create approval workflow records and notify the first approver.
      */
@@ -211,6 +211,13 @@ class UpdateStockRequestAction
                 throw new \Exception('Request creator cannot be assigned as an approver.');
             }
 
+            $approver = User::query()->find($step['approver_id']);
+            $assignment = $approver?->activeBusinessUnits()
+                ->where('business_unit_id', $stockRequest->business_unit_id)
+                ->where('department_id', $stockRequest->department_id)
+                ->with(['department:id,name,code', 'position:id,name'])
+                ->first();
+
             StockApproval::create([
                 'stock_request_id' => $stockRequest->id,
                 'approver_id' => $step['approver_id'],
@@ -218,6 +225,16 @@ class UpdateStockRequestAction
                 'approval_type' => $step['task_type'] ?? 'approval',
                 'status' => 'pending',
                 'notes' => $notes,
+                'metadata' => [
+                    'approver_snapshot' => [
+                        'id' => $approver?->id,
+                        'name' => $approver?->name,
+                        'email' => $approver?->email,
+                        'department' => $assignment?->department?->name,
+                        'department_code' => $assignment?->department?->code,
+                        'position' => $assignment?->position?->name,
+                    ],
+                ],
             ]);
         }
 
@@ -242,14 +259,24 @@ class UpdateStockRequestAction
                     return;
                 }
 
-                $this->emailService->sendStApprovalRequested($approval);
+                DB::afterCommit(function () use ($approval, $stockRequest) {
+                    try {
+                        $committedApproval = StockApproval::query()->findOrFail($approval->id);
+                        $this->emailService->sendStApprovalRequested($committedApproval);
 
-                Log::info('Stock request approver notification sent', [
-                    'st_number' => $stockRequest->st_number,
-                    'approver_id' => $approval->approver_id,
-                    'approver_name' => $approval->approver->name,
-                    'step_order' => $approval->step_order,
-                ]);
+                        Log::info('Stock request approver notification sent', [
+                            'st_number' => $stockRequest->st_number,
+                            'approver_id' => $approval->approver_id,
+                            'approver_name' => $approval->approver->name,
+                            'step_order' => $approval->step_order,
+                        ]);
+                    } catch (\Throwable $exception) {
+                        Log::error('Failed to send stock request approval notification', [
+                            'approval_id' => $approval->id,
+                            'error' => $exception->getMessage(),
+                        ]);
+                    }
+                });
             });
     }
 }

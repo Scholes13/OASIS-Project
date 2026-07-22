@@ -4,6 +4,7 @@ namespace App\Http\Requests\Ticket;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class UpdateTicketRequest extends FormRequest
 {
@@ -22,12 +23,27 @@ class UpdateTicketRequest extends FormRequest
      */
     public function rules(): array
     {
+        $ticket = $this->route('ticket');
+        $businessUnitId = (int) $ticket?->business_unit_id;
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'priority' => ['required', 'in:low,medium,high,critical'],
-            'category_id' => ['nullable', 'integer', 'exists:ticket_categories,id'],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('ticket_categories', 'id')
+                    ->where('business_unit_id', $businessUnitId)
+                    ->where('is_active', true),
+            ],
+            'department_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('departments', 'id')
+                    ->where('business_unit_id', $businessUnitId)
+                    ->where('is_active', true),
+            ],
             'follow_up_at' => ['nullable', 'date'],
         ];
     }

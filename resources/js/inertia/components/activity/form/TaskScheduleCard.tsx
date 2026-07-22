@@ -1,4 +1,5 @@
 import Time24Input from './Time24Input';
+import { formatDateTimeWib, getTodayWibDate } from '@/lib/activityDateTime';
 import type { TaskPriority, TaskStatus } from '@/types';
 
 interface TaskScheduleData {
@@ -63,7 +64,7 @@ export default function TaskScheduleCard({
     onCompletedDateManualChange,
     onRequestBackdate,
 }: TaskScheduleCardProps) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayWibDate();
     const isBackdate = data.task_date && data.task_date < today;
     const showTimeFields = data.status === 'completed' || (data.status === 'in_progress' && isBackdate);
 
@@ -89,7 +90,7 @@ export default function TaskScheduleCard({
                     {backdateEnabled && (
                         backdatePermission?.is_active ? (
                             <p className="mt-1 text-xs text-green-600">
-                                ✓ You can backdate up to {backdatePermission.requested_date} (expires {new Date(backdatePermission.granted_until).toLocaleString()})
+                                ✓ You can backdate up to {backdatePermission.requested_date} (expires {formatDateTimeWib(backdatePermission.granted_until)})
                             </p>
                         ) : (
                             <p className="mt-1 text-xs text-gray-500">

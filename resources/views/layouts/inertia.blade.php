@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-gray-50">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-background">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -8,10 +8,10 @@
         <title inertia>{{ config('app.name', 'Oasis') }}</title>
         <meta name="description" content="Enterprise Office Administration System">
 
-        <!-- Fonts: Manrope (primary) + Plus Jakarta Sans (fallback body) -->
+        <!-- Plus Jakarta Sans keeps dense product UI readable without system-font stiffness. -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link rel="dns-prefetch" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=manrope:400,500,600,700|plus-jakarta-sans:400,500,600,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -44,7 +44,7 @@
             .sidebar-minimized .main-content { margin-left: 4rem !important; }
         </style>
     </head>
-    <body class="h-full font-sans antialiased bg-gray-50">
+    <body class="h-full bg-background font-sans antialiased">
         {{-- React/Inertia App - Layout is handled by React AppLayout component --}}
         @inertia
     </body>

@@ -39,6 +39,15 @@ Start here, then follow the referenced files instead of adding new monolithic in
 ## Repo Notes
 - `SalesCrm` is deprecated and must remain disabled unless the Product Owner explicitly asks to restore it.
 
+## Database Safety (Mandatory)
+- Never run `php artisan migrate:fresh`, `php artisan migrate:refresh`, `php artisan migrate:reset`, or `php artisan db:wipe` against any local, staging, production, restored, or shared database.
+- Never drop, truncate, recreate, or replace an application database/schema unless the Product Owner gives explicit approval for that exact database and operation.
+- Before any database-backed test, verify the resolved database name is `numberwg_test` or another database whose name ends in `_test`. Abort when it resolves to `numberwg` or any non-test database.
+- Run database-backed tests serially. Parallel `RefreshDatabase` processes against one test database are forbidden.
+- `RefreshDatabase` is allowed only inside PHPUnit on an isolated `_test` database. Do not invoke fresh/reset/wipe commands manually, including with `APP_ENV=testing`.
+- Normal forward-only `php artisan migrate` is allowed after checking the target database and migration status. Prefer backups before data migrations.
+- Database restoration requires explicit Product Owner approval. Verify dump path, target database, and backup/recovery plan before restoring.
+
 ## Branch, PR, and Release Workflow
 
 This repository uses two review layers:

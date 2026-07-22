@@ -9,6 +9,8 @@ use App\Models\Core\User;
 use App\Models\Modules\CashflowProjection\CashflowProjectionAuditLog;
 use App\Models\Modules\CashflowProjection\CashflowProjectionCycle;
 use App\Models\Modules\CashflowProjection\CashflowProjectionLineItem;
+use App\Services\Modules\CashflowProjection\Import\CashflowImportTokenService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -82,18 +84,22 @@ class CashflowProjectionImportConfirmTest extends TestCase
             'updated_by' => $this->financeUser->id,
         ]);
 
+        $rows = [
+            $this->row('new', 'New HR row', '500000.00'),
+            array_merge($this->row('update', 'Existing HR row', '800000.00'), [
+                'match' => ['line_item_id' => $existing->id],
+                'original' => $this->original($existing),
+            ]),
+            array_merge($this->row('no_change', 'Existing HR row', '750000.00'), [
+                'match' => ['line_item_id' => $existing->id],
+            ]),
+        ];
+
         $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
             'context_year' => 2026,
             'context_month' => 5,
-            'rows' => [
-                $this->row('new', 'New HR row', 500000),
-                array_merge($this->row('update', 'Existing HR row', 800000), [
-                    'match' => ['line_item_id' => $existing->id],
-                ]),
-                array_merge($this->row('no_change', 'Existing HR row', 750000), [
-                    'match' => ['line_item_id' => $existing->id],
-                ]),
-            ],
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
         ]);
 
         $response->assertOk()
@@ -121,12 +127,12 @@ class CashflowProjectionImportConfirmTest extends TestCase
 
     public function test_confirm_rejects_unresolved_rows_without_mutating(): void
     {
+        $rows = [$this->row('need_review', 'Needs review', '100000.00')];
         $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
             'context_year' => 2026,
             'context_month' => 5,
-            'rows' => [
-                $this->row('need_review', 'Needs review', 100000),
-            ],
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
         ]);
 
         $response->assertUnprocessable()
@@ -137,14 +143,12 @@ class CashflowProjectionImportConfirmTest extends TestCase
 
     public function test_confirm_rejects_action_code_not_allowed_for_department(): void
     {
+        $rows = [array_merge($this->row('new', 'Tampered action', '500000.00'), ['action_code' => 'OUT_ACC_PAJAK'])];
         $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
             'context_year' => 2026,
             'context_month' => 5,
-            'rows' => [
-                array_merge($this->row('new', 'Tampered action', 500000), [
-                    'action_code' => 'OUT_ACC_PAJAK',
-                ]),
-            ],
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
         ]);
 
         $response->assertUnprocessable();
@@ -156,15 +160,12 @@ class CashflowProjectionImportConfirmTest extends TestCase
         $root = Department::create(['business_unit_id' => $this->businessUnit->id, 'code' => 'SM', 'name' => 'Sales Marketing', 'is_active' => true]);
         Department::create(['business_unit_id' => $this->businessUnit->id, 'parent_department_id' => $root->id, 'code' => 'BS', 'name' => 'Business Solutions', 'is_active' => true]);
 
+        $rows = [array_merge($this->row('new', 'Root row', '500000.00'), ['department_code' => 'SM', 'action_code' => 'OUT_SM_OPS'])];
         $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
             'context_year' => 2026,
             'context_month' => 5,
-            'rows' => [
-                array_merge($this->row('new', 'Root row', 500000), [
-                    'department_code' => 'SM',
-                    'action_code' => 'OUT_SM_OPS',
-                ]),
-            ],
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
         ]);
 
         $response->assertUnprocessable();
@@ -173,12 +174,12 @@ class CashflowProjectionImportConfirmTest extends TestCase
 
     public function test_confirm_allows_rows_outside_selected_context_month_because_payment_date_drives_period(): void
     {
+        $rows = [$this->row('new', 'Wrong month row', '500000.00')];
         $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
             'context_year' => 2026,
             'context_month' => 6,
-            'rows' => [
-                $this->row('new', 'Wrong month row', 500000),
-            ],
+            'preview_token' => $this->token($rows, 6),
+            'rows' => $rows,
         ]);
 
         $response->assertOk()
@@ -188,14 +189,14 @@ class CashflowProjectionImportConfirmTest extends TestCase
         ]);
     }
 
-    public function test_confirm_accepts_reviewed_sample_rows_from_different_page_month(): void
+    public function test_confirm_rejects_client_authored_reviewed_classification_rows(): void
     {
         Department::create(['business_unit_id' => $this->businessUnit->id, 'code' => 'ACC', 'name' => 'Accounting', 'is_active' => true]);
         Department::create(['business_unit_id' => $this->businessUnit->id, 'code' => 'TEP', 'name' => 'Tour & Event Planning', 'is_active' => true]);
         Department::create(['business_unit_id' => $this->businessUnit->id, 'code' => 'BAS', 'name' => 'Business Administrative Services', 'is_active' => true]);
 
         $rows = [
-            $this->row('new', 'PENGAJUAN KASBON MOVIEDAY IN TGL 19 MEI 26', 750000),
+            $this->row('new', 'PENGAJUAN KASBON MOVIEDAY IN TGL 19 MEI 26', '750000.00'),
             array_merge($this->row('new', 'TOPUP RESERVASI MG HOLIDAY', 4135000), ['department_code' => 'ACC', 'action_code' => 'OUT_ACC_PAJAK']),
             array_merge($this->row('new', 'WNS - IT - BIAYA PEMB TAGIHAN INTERNET IFORTE BULAN MEI', 4995000), ['department_code' => 'ACC', 'action_code' => 'OUT_ACC_PAJAK']),
             array_merge($this->row('new', 'WNS - TEP - FAMTRIP JCWF - BIAYA PEMB SERVICE FEE TIKET', 1000000), ['department_code' => 'TEP', 'action_code' => 'OUT_TEP_OPS']),
@@ -209,12 +210,193 @@ class CashflowProjectionImportConfirmTest extends TestCase
         $response = $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
             'context_year' => 2026,
             'context_month' => 6,
+            'preview_token' => $this->token($rows, 6),
             'rows' => $rows,
         ]);
 
-        $response->assertOk()
-            ->assertJsonPath('summary.created_rows', 9);
-        $this->assertDatabaseCount('cashflow_projection_line_items', 9);
+        $response->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+        $this->assertDatabaseCount('cashflow_projection_line_items', 0);
+    }
+
+    public function test_confirm_rejects_preview_row_action_or_flow_tampering(): void
+    {
+        $rows = [$this->row('new', 'Signed row', '100.00')];
+        $token = $this->token($rows);
+
+        foreach (['action_code' => 'OUT_ACC_PAJAK', 'flow_type' => 'in'] as $field => $value) {
+            $tamperedRows = $rows;
+            $tamperedRows[0][$field] = $value;
+
+            $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+                'context_year' => 2026,
+                'context_month' => 5,
+                'preview_token' => $token,
+                'rows' => $tamperedRows,
+            ])->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+        }
+
+        $this->assertDatabaseCount('cashflow_projection_line_items', 0);
+    }
+
+    public function test_confirm_rejects_tampered_preview_token_ciphertext(): void
+    {
+        $rows = [$this->row('new', 'Tampered token row', '100.00')];
+        $token = $this->token($rows);
+        $tamperedToken = ($token[0] === 'A' ? 'B' : 'A').substr($token, 1);
+
+        $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+            'context_year' => 2026,
+            'context_month' => 5,
+            'preview_token' => $tamperedToken,
+            'rows' => $rows,
+        ])->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+
+        $this->assertDatabaseCount('cashflow_projection_line_items', 0);
+    }
+
+    public function test_confirm_derives_flow_type_from_authoritative_action_metadata(): void
+    {
+        $rows = [array_merge($this->row('new', 'Wrong client flow', '0.03'), ['flow_type' => 'in'])];
+
+        $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+            'context_year' => 2026,
+            'context_month' => 5,
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('cashflow_projection_line_items', [
+            'description' => 'Wrong client flow',
+            'flow_type' => 'out',
+            'amount' => '0.03',
+        ]);
+    }
+
+    public function test_confirm_rejects_expired_preview_token(): void
+    {
+        CarbonImmutable::setTestNow('2026-07-12 10:00:00');
+        $rows = [$this->row('new', 'Expired row', '100.00')];
+        $token = $this->token($rows);
+        CarbonImmutable::setTestNow('2026-07-12 10:20:00');
+
+        try {
+            $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+                'context_year' => 2026,
+                'context_month' => 5,
+                'preview_token' => $token,
+                'rows' => $rows,
+            ])->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_confirm_rejects_successful_token_replay(): void
+    {
+        $rows = [$this->row('new', 'Replay protected row', '100.00')];
+        $payload = [
+            'context_year' => 2026,
+            'context_month' => 5,
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
+        ];
+
+        $this->actingAsFinanceUser()
+            ->postJson(route('cashflow-projection.entries.import-confirm'), $payload)
+            ->assertOk();
+
+        $this->actingAsFinanceUser()
+            ->postJson(route('cashflow-projection.entries.import-confirm'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('preview_token');
+
+        $this->assertDatabaseCount('cashflow_projection_line_items', 1);
+    }
+
+    public function test_confirm_requires_transaction_date_description_and_amount(): void
+    {
+        foreach (['transaction_date', 'description', 'amount'] as $field) {
+            $rows = [$this->row('new', 'Required value row', '100.00')];
+            unset($rows[0][$field]);
+
+            $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+                'context_year' => 2026,
+                'context_month' => 5,
+                'preview_token' => $this->token($rows),
+                'rows' => $rows,
+            ])->assertUnprocessable()->assertJsonValidationErrors("rows.0.$field");
+        }
+
+        $this->assertDatabaseCount('cashflow_projection_line_items', 0);
+    }
+
+    public function test_confirm_rejects_duplicate_update_targets_without_mutating(): void
+    {
+        $existing = $this->existingLineItem();
+        $update = array_merge($this->row('update', 'Updated row', '200.00'), [
+            'match' => ['line_item_id' => $existing->id],
+            'original' => $this->original($existing),
+            'changes' => [['field' => 'amount', 'old' => '100.00', 'new' => '200.00']],
+        ]);
+        $rows = [$update, array_merge($update, ['description' => 'Second update'])];
+
+        $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+            'context_year' => 2026,
+            'context_month' => 5,
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('cashflow_projection_line_items', ['id' => $existing->id, 'amount' => 100]);
+    }
+
+    public function test_confirm_rejects_entry_changed_after_preview(): void
+    {
+        $existing = $this->existingLineItem();
+        $rows = [array_merge($this->row('update', 'Updated row', '200.00'), [
+            'match' => ['line_item_id' => $existing->id],
+            'original' => $this->original($existing),
+            'changes' => [['field' => 'amount', 'old' => '100.00', 'new' => '200.00']],
+        ])];
+        $token = $this->token($rows);
+        $existing->update(['description' => 'Concurrent description']);
+
+        $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+            'context_year' => 2026,
+            'context_month' => 5,
+            'preview_token' => $token,
+            'rows' => $rows,
+        ])->assertConflict();
+
+        $this->assertDatabaseHas('cashflow_projection_line_items', [
+            'id' => $existing->id,
+            'amount' => 100,
+            'description' => 'Concurrent description',
+        ]);
+    }
+
+    public function test_confirm_moves_update_to_transaction_year_cycle(): void
+    {
+        $existing = $this->existingLineItem();
+        $rows = [array_merge($this->row('update', 'Existing row', '100.00'), [
+            'transaction_date' => '2027-01-02',
+            'match' => ['line_item_id' => $existing->id],
+            'original' => $this->original($existing),
+            'changes' => [['field' => 'transaction_date', 'old' => '2026-05-26', 'new' => '2027-01-02']],
+        ])];
+
+        $this->actingAsFinanceUser()->postJson(route('cashflow-projection.entries.import-confirm'), [
+            'context_year' => 2026,
+            'context_month' => 5,
+            'preview_token' => $this->token($rows),
+            'rows' => $rows,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('cashflow_projection_cycles', [
+            'business_unit_id' => $this->businessUnit->id,
+            'year' => 2027,
+        ]);
+        $this->assertSame(2027, $existing->fresh()->cycle->year);
     }
 
     private function actingAsFinanceUser(): self
@@ -228,7 +410,7 @@ class CashflowProjectionImportConfirmTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function row(string $status, string $description, float $amount): array
+    private function row(string $status, string $description, float|string $amount): array
     {
         return [
             'status' => $status,
@@ -245,5 +427,46 @@ class CashflowProjectionImportConfirmTest extends TestCase
             'nama_vendor' => 'KASBON MEIDA',
             'notes' => 'Import note',
         ];
+    }
+
+    private function existingLineItem(): CashflowProjectionLineItem
+    {
+        return CashflowProjectionLineItem::create([
+            'cycle_id' => $this->cycle->id,
+            'department_id' => $this->hrDepartment->id,
+            'flow_type' => 'out',
+            'action_code' => 'OUT_HR_OPS',
+            'transaction_date' => '2026-05-26',
+            'amount' => 100,
+            'description' => 'Existing row',
+            'source_type' => 'manual',
+            'created_by' => $this->financeUser->id,
+            'updated_by' => $this->financeUser->id,
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function original(CashflowProjectionLineItem $item): array
+    {
+        return [
+            'cycle_id' => $item->cycle_id,
+            'department_id' => $item->department_id,
+            'action_code' => $item->action_code,
+            'flow_type' => $item->flow_type,
+            'transaction_date' => $item->transaction_date?->format('Y-m-d'),
+            'due_date' => $item->due_date?->format('Y-m-d'),
+            'is_estimated_date' => (bool) $item->is_estimated_date,
+            'amount' => \App\Services\Modules\CashflowProjection\CashflowMoney::normalize($item->amount),
+            'description' => $item->description,
+            'keterangan' => $item->keterangan,
+            'no_dokumen' => $item->no_dokumen,
+            'nama_vendor' => $item->nama_vendor,
+            'notes' => $item->notes,
+        ];
+    }
+
+    private function token(array $rows, int $month = 5): string
+    {
+        return app(CashflowImportTokenService::class)->issue($rows, $this->financeUser, $this->businessUnit->id, 2026, $month);
     }
 }

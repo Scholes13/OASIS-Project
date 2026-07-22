@@ -30,6 +30,8 @@ class StockRequest extends Model
         'date_of_request',
         'expected_date',
         'status',
+        'routes_directly_to_purchasing',
+        'skips_ga_review',
         'submitted_at',
         'approved_at',
         'rejected_at',
@@ -54,6 +56,8 @@ class StockRequest extends Model
     protected $casts = [
         'date_of_request' => 'date',
         'expected_date' => 'date',
+        'routes_directly_to_purchasing' => 'boolean',
+        'skips_ga_review' => 'boolean',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',

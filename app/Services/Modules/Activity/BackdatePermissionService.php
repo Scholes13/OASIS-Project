@@ -9,6 +9,7 @@ use App\Notifications\Activity\BackdateRequestRejected;
 use App\Notifications\Activity\BackdateRequestSubmitted;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BackdatePermissionService
 {
@@ -18,35 +19,47 @@ class BackdatePermissionService
     public function requestPermission(array $data, User $user): BackdatePermission
     {
         // Check if user already has a pending request
-        $existingPending = BackdatePermission::forUser($user->id)
-            ->pending()
-            ->exists();
-
-        if ($existingPending) {
-            throw new \Exception('You already have a pending backdate request');
+        $businessUnitId = (int) session('current_business_unit_id');
+        if (! app(ActivityAuthorizationService::class)->belongsToBusinessUnit($user, $businessUnitId)) {
+            throw new \Exception('Invalid business unit context');
         }
 
-        // Use the requested_date from user input, or default to 7 days ago
-        $requestedDate = isset($data['requested_date'])
-            ? Carbon::parse($data['requested_date'])->startOfDay()
-            : now()->subDays(7)->startOfDay();
+        if (empty($data['requested_date'])) {
+            throw new \Exception('Requested date is required');
+        }
+
+        $requestedDate = Carbon::parse($data['requested_date'])->startOfDay();
 
         // Validate that requested_date is in the past
         if ($requestedDate->isAfter(now()->subDay()->startOfDay())) {
             throw new \Exception('Requested date must be at least 2 days ago (yesterday is already allowed by default)');
         }
 
-        $permission = BackdatePermission::create([
-            'user_id' => $user->id,
-            'department_id' => $user->getCurrentDepartmentId(),
-            'business_unit_id' => session('current_business_unit_id'),
-            'requested_date' => $requestedDate,
-            'reason' => $data['reason'],
-            'status' => 'pending',
-        ]);
+        $permission = DB::transaction(function () use ($data, $user, $businessUnitId, $requestedDate) {
+            User::query()->lockForUpdate()->findOrFail($user->id);
 
-        // Notify department heads
-        $this->notifyDepartmentHeads($permission);
+            $existingPending = BackdatePermission::forUser($user->id)
+                ->where('business_unit_id', $businessUnitId)
+                ->pending()
+                ->exists();
+
+            if ($existingPending) {
+                throw new \DomainException('You already have a pending backdate request');
+            }
+
+            $permission = BackdatePermission::create([
+                'user_id' => $user->id,
+                'department_id' => $user->getCurrentDepartmentId(),
+                'business_unit_id' => $businessUnitId,
+                'requested_date' => $requestedDate->toDateString(),
+                'reason' => $data['reason'],
+                'status' => 'pending',
+            ]);
+
+            DB::afterCommit(fn () => $this->notifyDepartmentHeadsSafely($permission));
+
+            return $permission;
+        });
 
         return $permission;
     }
@@ -100,13 +113,19 @@ class BackdatePermissionService
      */
     public function approveRequest(BackdatePermission $permission, User $approver): void
     {
-        if ($permission->status !== 'pending') {
-            throw new \Exception('Only pending requests can be approved');
-        }
-
         DB::transaction(function () use ($permission, $approver) {
+            User::query()->lockForUpdate()->findOrFail($permission->user_id);
+            $permission = BackdatePermission::query()
+                ->lockForUpdate()
+                ->findOrFail($permission->id);
+
+            if ($permission->status !== 'pending') {
+                throw new \DomainException('Only pending requests can be approved');
+            }
+
             // Expire any previous active permissions for the same user
             BackdatePermission::forUser($permission->user_id)
+                ->where('business_unit_id', $permission->business_unit_id)
                 ->active()
                 ->update(['status' => 'expired']);
 
@@ -120,10 +139,15 @@ class BackdatePermissionService
                 'approved_by' => $approver->id,
                 'approved_at' => now(),
                 'granted_until' => now()->addDays($grantDays)->endOfDay(),
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
             ]);
 
-            // Notify the requester
-            $permission->requester->notify(new BackdateRequestApproved($permission));
+            DB::afterCommit(fn () => $this->notifyRequesterSafely(
+                $permission,
+                new BackdateRequestApproved($permission),
+            ));
         });
     }
 
@@ -132,27 +156,67 @@ class BackdatePermissionService
      */
     public function rejectRequest(BackdatePermission $permission, User $rejector, string $reason): void
     {
-        if ($permission->status !== 'pending') {
-            throw new \Exception('Only pending requests can be rejected');
+        DB::transaction(function () use ($permission, $rejector, $reason) {
+            User::query()->lockForUpdate()->findOrFail($permission->user_id);
+            $permission = BackdatePermission::query()
+                ->lockForUpdate()
+                ->findOrFail($permission->id);
+
+            if ($permission->status !== 'pending') {
+                throw new \DomainException('Only pending requests can be rejected');
+            }
+
+            $permission->update([
+                'status' => 'rejected',
+                'approved_by' => null,
+                'approved_at' => null,
+                'granted_until' => null,
+                'rejected_by' => $rejector->id,
+                'rejected_at' => now(),
+                'rejection_reason' => $reason,
+            ]);
+
+            DB::afterCommit(fn () => $this->notifyRequesterSafely(
+                $permission,
+                new BackdateRequestRejected($permission),
+            ));
+        });
+    }
+
+    private function notifyDepartmentHeadsSafely(BackdatePermission $permission): void
+    {
+        try {
+            $this->notifyDepartmentHeads($permission);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to notify backdate request approvers', [
+                'permission_id' => $permission->id,
+                'error' => $exception->getMessage(),
+            ]);
         }
+    }
 
-        $permission->update([
-            'status' => 'rejected',
-            'rejected_by' => $rejector->id,
-            'rejected_at' => now(),
-            'rejection_reason' => $reason,
-        ]);
-
-        // Notify the requester
-        $permission->requester->notify(new BackdateRequestRejected($permission));
+    private function notifyRequesterSafely(BackdatePermission $permission, object $notification): void
+    {
+        try {
+            $permission->requester->notify($notification);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to notify backdate requester', [
+                'permission_id' => $permission->id,
+                'notification' => $notification::class,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**
      * Check if a user has active backdate permission
      */
-    public function checkUserPermission(int $userId): ?BackdatePermission
+    public function checkUserPermission(int $userId, ?int $businessUnitId = null): ?BackdatePermission
     {
+        $businessUnitId ??= (int) session('current_business_unit_id');
+
         return BackdatePermission::forUser($userId)
+            ->where('business_unit_id', $businessUnitId)
             ->active()
             ->first();
     }
@@ -189,7 +253,7 @@ class BackdatePermissionService
             ];
         }
 
-        $activePermission = $this->checkUserPermission($user->id);
+        $activePermission = $this->checkUserPermission($user->id, (int) session('current_business_unit_id'));
 
         if ($activePermission && $activePermission->isActive()) {
             // User has active permission - can backdate to requested_date

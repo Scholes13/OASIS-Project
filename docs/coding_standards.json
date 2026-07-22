@@ -149,8 +149,27 @@
     "general": {
       "preserve_existing_directory_structure": true,
       "forbid_dependency_changes_without_approval": true,
-      "forbid_destructive_git_commands_without_explicit_approval": true
+      "forbid_destructive_git_commands_without_explicit_approval": true,
+      "forbid_manual_database_reset_commands": true
     }
+  },
+  "database_safety": {
+    "forbidden_commands": [
+      "php artisan migrate:fresh",
+      "php artisan migrate:refresh",
+      "php artisan migrate:reset",
+      "php artisan db:wipe"
+    ],
+    "rules": [
+      "never drop, truncate, recreate, or replace an application database without explicit Product Owner approval for the exact target and operation",
+      "verify the resolved database name before every database-backed test",
+      "database-backed tests may use only numberwg_test or another database whose name ends in _test",
+      "run database-backed tests serially and never run parallel RefreshDatabase processes against one database",
+      "RefreshDatabase is allowed only inside PHPUnit on an isolated _test database",
+      "manual fresh, refresh, reset, and wipe commands remain forbidden even when APP_ENV is testing",
+      "normal forward-only migrations require target database and migration status checks",
+      "database restoration requires explicit Product Owner approval plus verified dump, target, and recovery plan"
+    ]
   },
   "file_size_limits": {
     "rule": "Files exceeding hard_cap MUST be split into focused modules in the next refactor pass. Generated files and pure constants/types/data files are exempted.",

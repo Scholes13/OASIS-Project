@@ -1,5 +1,6 @@
 import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isOverdueWib } from '@/lib/activityDateTime';
 import type { Task } from '@/types';
 
 const activityTypeColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -150,9 +151,7 @@ export default function CalendarEventRenderer({ event, view }: { event: any; vie
     const task = event.extendedProps.task as Task;
     const colors = getActivityColors(task.activity_type);
     const isMonthView = view === 'dayGridMonth';
-    const isOverdue = task.due_date
-        ? new Date(task.due_date) < new Date() && !['completed', 'cancelled'].includes(task.status)
-        : false;
+    const isOverdue = isOverdueWib(task.due_date, task.status);
 
     if (isMonthView) {
         return (

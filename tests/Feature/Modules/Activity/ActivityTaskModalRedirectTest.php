@@ -8,6 +8,7 @@ use App\Models\Core\Position;
 use App\Models\Core\User;
 use App\Models\Modules\Activity\ActivityType;
 use App\Models\Modules\Activity\EmployeeTask;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -67,6 +68,7 @@ class ActivityTaskModalRedirectTest extends TestCase
             'phone_number' => '081234567800',
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -109,6 +111,7 @@ class ActivityTaskModalRedirectTest extends TestCase
             'password' => bcrypt('password'),
             'primary_department_id' => $this->department->id,
             'primary_position_id' => $this->position->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -162,6 +165,7 @@ class ActivityTaskModalRedirectTest extends TestCase
             'password' => bcrypt('password'),
             'primary_department_id' => $this->otherDepartment->id,
             'primary_position_id' => $externalPosition->id,
+            'global_role' => 'user',
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -258,6 +262,44 @@ class ActivityTaskModalRedirectTest extends TestCase
         $this->assertStringStartsWith(route('activity.task.index'), $location);
         $this->assertStringContainsString('modal=create', $location);
         $this->assertStringContainsString('date=2026-03-31', $location);
+    }
+
+    public function test_full_update_persists_changed_completion_times_when_dates_are_unchanged(): void
+    {
+        $taskDate = Carbon::today(config('app.timezone'));
+        $this->task->update([
+            'task_date' => $taskDate->toDateString(),
+            'due_date' => null,
+            'status' => 'completed',
+            'started_at' => $taskDate->copy()->setTime(8, 0),
+            'completed_at' => $taskDate->copy()->setTime(9, 0),
+            'completed_by' => $this->user->id,
+            'duration_minutes' => 60,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->from(route('activity.task.index'))
+            ->put(route('activity.task.update', $this->task), [
+                'task_title' => 'Prepare board pack updated',
+                'task_description' => 'Collect and summarize materials',
+                'activity_type_id' => $this->activityType->id,
+                'sub_activity_id' => null,
+                'status' => 'completed',
+                'priority' => 'medium',
+                'task_date' => $taskDate->toDateString(),
+                'due_date' => null,
+                'participant_ids' => [],
+                'start_time' => '08:30',
+                'end_time' => '10:45',
+                'completed_date' => $taskDate->toDateString(),
+            ]);
+
+        $response->assertRedirect(route('activity.task.index'));
+
+        $this->task->refresh();
+        $this->assertSame('08:30', $this->task->started_at->timezone(config('app.timezone'))->format('H:i'));
+        $this->assertSame('10:45', $this->task->completed_at->timezone(config('app.timezone'))->format('H:i'));
+        $this->assertSame(135, $this->task->duration_minutes);
     }
 
     public function test_store_from_create_modal_redirects_back_to_task_index_without_modal_query(): void

@@ -8,17 +8,15 @@ use App\Models\Modules\Purchasing\StockRequest\StockApproval;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Builds the props for the combined PR + ST pending approvals listing
- * (the "Approvals" Inertia page).
- *
- * Owns the listing logic, business-unit hierarchy expansion, and PR/ST
- * payload transforms previously inlined in
- * {@see \App\Http\Controllers\Modules\Purchasing\PurchaseRequest\ApprovalController::index()}.
- * Behavior preserved verbatim.
- */
 class ApprovalListService
 {
+    private ApprovalListPayloadBuilder $payloadBuilder;
+
+    public function __construct(?ApprovalListPayloadBuilder $payloadBuilder = null)
+    {
+        $this->payloadBuilder = $payloadBuilder ?? new ApprovalListPayloadBuilder;
+    }
+
     /**
      * Build the full Inertia props payload for the approvals listing page.
      *
@@ -58,15 +56,7 @@ class ApprovalListService
         ];
     }
 
-    /**
-     * Get business unit IDs to filter approvals by.
-     *
-     * For c_level/executive users viewing from a parent BU, this returns
-     * the parent BU + all descendant BU IDs so they can see approvals
-     * from all child business units in one place.
-     *
-     * @return int[]
-     */
+    /** @return int[] */
     public function getFilterBusinessUnitIds(?int $businessUnitId, int $userId): array
     {
         if (! $businessUnitId) {
@@ -336,38 +326,11 @@ class ApprovalListService
      */
     private function transformPrApproval(PrApproval $approval, int $userId, bool $includeProcessableActions): array
     {
-        $can = $includeProcessableActions
-            ? [
-                'approve' => $this->canProcessApproval($approval, $userId),
-                'reject' => $this->canProcessApproval($approval, $userId),
-            ]
-            : ['approve' => false, 'reject' => false];
-
-        $payload = [
-            'id' => $approval->id,
-            'type' => 'PR',
-            'request_number' => $approval->purchaseRequest->pr_number,
-            'request_id' => $approval->purchaseRequest->id,
-            'used_for' => $approval->purchaseRequest->used_for,
-            'total_amount' => $approval->purchaseRequest->total_amount,
-            'currency' => $approval->purchaseRequest->currency ?? 'IDR',
-            'user' => $approval->purchaseRequest->user ?? ['id' => 0, 'name' => 'Unknown User', 'email' => ''],
-            'department' => $approval->purchaseRequest->department ?? ['id' => 0, 'name' => 'Unknown Department', 'code' => '-'],
-            'business_unit' => $approval->purchaseRequest->businessUnit ?? ['id' => 0, 'name' => 'Unknown BU', 'code' => '-'],
-            'step_order' => $approval->step_order,
-            'approval_type' => $approval->approval_type ?? $approval->task_type,
-            'status' => $approval->status,
-            'waiting_since' => $approval->created_at->toISOString(),
-            'can' => $can,
-        ];
-
-        if ($includeProcessableActions) {
-            $payload['created_at'] = $approval->created_at;
-        } else {
-            $payload['responded_at'] = $approval->responded_at;
-        }
-
-        return $payload;
+        return $this->payloadBuilder->transformPurchaseRequest(
+            $approval,
+            $includeProcessableActions && $this->canProcessApproval($approval, $userId),
+            $includeProcessableActions,
+        );
     }
 
     /**
@@ -375,39 +338,10 @@ class ApprovalListService
      */
     private function transformStApproval(StockApproval $approval, int $userId, bool $includeProcessableActions): array
     {
-        $totalAmount = $approval->stockRequest->items->sum('total');
-
-        $can = $includeProcessableActions
-            ? [
-                'approve' => $this->canProcessStockApproval($approval, $userId),
-                'reject' => $this->canProcessStockApproval($approval, $userId),
-            ]
-            : ['approve' => false, 'reject' => false];
-
-        $payload = [
-            'id' => $approval->id,
-            'type' => 'ST',
-            'request_number' => $approval->stockRequest->st_number,
-            'request_id' => $approval->stockRequest->id,
-            'used_for' => $approval->stockRequest->purpose,
-            'total_amount' => $totalAmount,
-            'currency' => 'IDR',
-            'user' => $approval->stockRequest->user ?? ['id' => 0, 'name' => 'Unknown User', 'email' => ''],
-            'department' => $approval->stockRequest->department ?? ['id' => 0, 'name' => 'Unknown Department', 'code' => '-'],
-            'business_unit' => $approval->stockRequest->businessUnit ?? ['id' => 0, 'name' => 'Unknown BU', 'code' => '-'],
-            'step_order' => $approval->step_order,
-            'approval_type' => $approval->approval_type ?? $approval->task_type,
-            'status' => $approval->status,
-            'waiting_since' => $approval->created_at->toISOString(),
-            'can' => $can,
-        ];
-
-        if ($includeProcessableActions) {
-            $payload['created_at'] = $approval->created_at;
-        } else {
-            $payload['responded_at'] = $approval->responded_at;
-        }
-
-        return $payload;
+        return $this->payloadBuilder->transformStockRequest(
+            $approval,
+            $includeProcessableActions && $this->canProcessStockApproval($approval, $userId),
+            $includeProcessableActions,
+        );
     }
 }

@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { List, Calendar, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { formatDateWib, getWibDateDiffInDays } from '@/lib/activityDateTime';
 
 interface TaskBasic {
     id: number;
@@ -84,8 +84,7 @@ export function TaskRoadmap({
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-base">
                             {tasks.map((task) => {
-                                const dueDate = parseISO(task.due_date);
-                                const daysDiff = differenceInDays(dueDate, new Date());
+                                const daysDiff = getWibDateDiffInDays(task.due_date) ?? 0;
                                 const isCritical = daysDiff <= 2 && daysDiff >= -1;
                                 
                                 return (
@@ -122,7 +121,7 @@ export function TaskRoadmap({
                                             <div className="flex items-center text-gray-600">
                                                 <Calendar className={cn("h-3.5 w-3.5 mr-1.5", isCritical ? "text-red-500" : "text-gray-400")} />
                                                 <span className={cn(isCritical ? "text-red-600 font-semibold" : "")}>
-                                                    {format(dueDate, 'MMM d')}
+                                                    {formatDateWib(task.due_date, { month: 'short', day: 'numeric' })}
                                                 </span>
                                             </div>
                                             {isCritical && (

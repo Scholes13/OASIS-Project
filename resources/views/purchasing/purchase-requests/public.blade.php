@@ -131,20 +131,24 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @foreach($purchaseRequest->items as $item)
+                            @php
+                                $isNotNeedPurchasing = ($item->ga_review_result ?? null) === 'warehouse_stock';
+                                $strikeStyle = $isNotNeedPurchasing ? 'text-decoration: line-through; color: #6b7280;' : '';
+                            @endphp
                             <tr>
                                 <td class="px-3 py-2">
                                     <div>
-                                        <div class="text-xs font-medium text-gray-900">{{ $item->item_name }}</div>
+                                        <div class="text-xs font-medium text-gray-900" style="{{ $strikeStyle }}">{{ $item->item_name }}</div>
                                         @if($item->item_description)
-                                            <div class="text-xs text-gray-500">{{ $item->item_description }}</div>
+                                            <div class="text-xs text-gray-500" style="{{ $strikeStyle }}">{{ $item->item_description }}</div>
                                         @endif
                                     </div>
                                 </td>
-                                <td class="px-3 py-2 text-xs text-gray-900">{{ $item->brand_name ?: '-' }}</td>
-                                <td class="px-3 py-2 text-xs text-gray-900">{{ $item->supplier_name ?: '-' }}</td>
-                                <td class="px-3 py-2 text-xs text-gray-900">{{ $item->quantity }} {{ $item->unit }}</td>
-                                <td class="px-3 py-2 text-xs text-gray-900">{{ $item->currency }} {{ number_format($item->unit_price, 0) }}</td>
-                                <td class="px-3 py-2 text-xs font-medium text-gray-900">{{ $item->currency }} {{ number_format($item->quantity * $item->unit_price, 0) }}</td>
+                                <td class="px-3 py-2 text-xs text-gray-900"><span style="{{ $strikeStyle }}">{{ $item->brand_name ?: '-' }}</span></td>
+                                <td class="px-3 py-2 text-xs text-gray-900"><span style="{{ $strikeStyle }}">{{ $item->supplier_name ?: '-' }}</span></td>
+                                <td class="px-3 py-2 text-xs text-gray-900"><span style="{{ $strikeStyle }}">{{ $item->quantity }} {{ $item->unit }}</span></td>
+                                <td class="px-3 py-2 text-xs text-gray-900"><span style="{{ $strikeStyle }}">{{ $item->currency }} {{ number_format($item->unit_price, 0) }}</span></td>
+                                <td class="px-3 py-2 text-xs font-medium text-gray-900"><span style="{{ $strikeStyle }}">{{ $item->currency }} {{ number_format($item->quantity * $item->unit_price, 0) }}</span></td>
                             </tr>
                             @endforeach
                         </tbody>

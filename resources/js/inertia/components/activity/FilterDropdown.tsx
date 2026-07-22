@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Popover, Transition } from '@headlessui/react';
 import { SlidersHorizontal } from 'lucide-react';
+import { getDatePart, getTodayWibDate } from '@/lib/activityDateTime';
 import type { TaskFilters, ActivityType } from '@/types';
 
 interface FilterDropdownProps {
@@ -32,8 +33,8 @@ export default function FilterDropdown({ filters, onChange, activityTypes, teamM
             search: '',
             activity_type_id: '',
             status: '',
-            date_from: threeMonthsAgo.toISOString().split('T')[0],
-            date_to: new Date().toISOString().split('T')[0],
+            date_from: getDatePart(threeMonthsAgo.toISOString()),
+            date_to: getTodayWibDate(),
             member_user_id: '',
             scope: localFilters.scope,
         };

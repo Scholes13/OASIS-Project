@@ -18,6 +18,7 @@ export interface SelectProps {
   error?: string
   className?: string
   label?: string
+  ariaLabel?: string
   required?: boolean
 }
 
@@ -30,6 +31,7 @@ export function Select({
   error,
   className,
   label,
+  ariaLabel,
   required,
 }: SelectProps) {
   const selectedOption = options.find((opt) => opt.value === value)
@@ -45,6 +47,7 @@ export function Select({
       <Listbox value={value ?? undefined} onChange={onChange} disabled={disabled}>
         <div className="relative">
           <Listbox.Button
+            aria-label={ariaLabel ?? label}
             className={cn(
               "relative w-full cursor-pointer rounded-md border bg-white py-2 pl-3 pr-10 text-left text-sm shadow-sm transition-colors",
               "focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary",

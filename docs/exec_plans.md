@@ -32,6 +32,256 @@
 
 ## Active Tasks
 
+### 2026-07-16 - CI/CD hygiene and deployment gates
+- Status: implemented; awaiting hosted workflow confirmation
+- Owner: PM Agent
+- Scope:
+  - remove the orphan `WGTicket` gitlink that causes checkout cleanup warnings while retaining local legacy source as ignored content,
+  - upgrade official GitHub actions to Node 24-compatible majors and tighten cache keys/concurrency,
+  - require successful CI for the exact immutable SHA before staging or production build/deploy, including manual dispatch,
+  - restrict `/release-main` to an exact command from trusted collaborators without changing its existing feature-branch release model.
+- Verification:
+  - all workflow YAML files passed `yaml-lint`; `git diff --check` passed,
+  - staging and production deploy graphs resolve one immutable SHA, poll its push CI result, and reuse it for checkout and release identity,
+  - `/release-main` command matching and actor association checks are enforced before workflow execution,
+  - final standards/security review passed; hosted CI and staging deploy remain final proof after push.
+
+### 2026-07-16 - CI isolated database compatibility
+- Status: fixed; hosted CI rerun in progress
+- Owner: PM Agent
+- Scope:
+  - keep destructive database guards strict while replacing CI SQLite `:memory:` with a disposable database path ending in `_test`,
+  - support both push workflows from `staging` and the existing `pull_request_target` workflow loaded from `main`,
+  - verify backend CI no longer fails before application tests because of the database reset guard.
+- Verification:
+  - database safety unit suites passed: 13 tests, 22 assertions,
+  - focused RefreshDatabase suite passed serially on `numberwg_test`: 16 tests, 98 assertions,
+  - PHP syntax, Pint, and `git diff --check` passed,
+  - first hosted rerun confirmed the reset guard blocker was removed and exposed three SQLite portability issues: legacy `pull_request_target` migration state, date persistence, and decimal formatting,
+  - migration state now resets when legacy `:memory:` is normalized, date-only persistence is explicit, and aggregate currency output is normalized to two decimals,
+  - cross-driver date verification now asserts the Eloquent date contract instead of raw driver storage representation,
+  - affected Activity and Purchasing portability suites passed serially on `numberwg_test`: 12 tests, 154 assertions; local PHP lacks `pdo_sqlite`, so final SQLite proof comes from the next GitHub-hosted rerun.
+
+### 2026-07-16 - Purchasing queue isolation from user access flags
+- Status: fixed and verified
+- Owner: PM Agent
+- Contract:
+  - PR and ST admin tasks resolve one operational Purchasing queue from department configuration, preferring the active Strategic Sourcing (`SS`) department,
+  - individual `is_purchasing_admin` flags grant module/operational eligibility only and never influence task destination,
+  - a BAS user flag cannot route tasks to BAS or authorize mutation of an SS task.
+- Verification:
+  - Purchasing Admin, AdminTask service, and PR workflow suites passed serially on `numberwg_test`: 32 tests, 178 assertions,
+  - regression coverage proves PR prefers active configured SS over a legacy BAS Purchasing department and a BAS admin flag cannot claim an SS task,
+  - PHP syntax, Pint, TypeScript, focused React tests, production build, and `git diff --check` passed; final standards review passed.
+
+### 2026-07-16 - Purchasing Admin source department attribution
+- Status: fixed and verified
+- Owner: PM Agent
+- Scope:
+  - make Purchasing Admin list, board, calendar, timeline, and detail show PR/ST requesting department instead of the purchasing queue department,
+  - preserve `admin_tasks.department_id` as the queue used for assignment, authorization, notifications, and reporting,
+  - add backend payload and frontend rendering regression coverage where source and queue departments differ.
+- Verification:
+  - Purchasing Admin feature suite passed on `numberwg_test`: 16 tests, 98 assertions,
+  - focused React suite passed: 2 tests; TypeScript, Pint, production build, and `git diff --check` passed,
+  - list, board, calendar, timeline, detail, and dashboard recent tasks use requesting department with queue fallback,
+  - authenticated browser QA was unavailable; payload and component tests reproduce distinct source and queue departments without mutating application data.
+
+### 2026-07-14 - Purchasing responsive date controls follow-up
+- Status: fixed and verified
+- Owner: PM Agent
+- Scope:
+  - remove duplicate custom/native calendar affordance from All Requests date filter,
+  - allow shared inputs and date controls to shrink inside responsive grid/flex containers,
+  - defer dense seven-column request layout until sufficient viewport width and keep smaller widths card-based,
+  - audit Purchasing UI for fixed-width overflow risks and verify focused React, TypeScript, production build, browser behavior, and standards.
+- Verification:
+  - focused All Requests React suite passed: 5 tests; TypeScript, production build, and `git diff --check` passed,
+  - browser QA passed at 390, 768, 1024, 1440, and 1536 CSS pixels with no root, row, or date-input horizontal overflow,
+  - date fields show one native calendar affordance each; no duplicate icon, clipping, console error, failed request, or HTTP error occurred,
+  - 1440 keeps card layout; 1536 uses the seven-column grid with 35.73 CSS pixels of right clearance around the longest status badge,
+  - final standards review passed without findings.
+- Follow-up:
+  - merge search, selects, date range, clear, and apply actions into one cohesive responsive toolbar instead of a visually detached date row.
+  - completed with one neutral toolbar surface, grouped requested-date control, compact clear action, responsive wrapping below `2xl`, and one-row layout at `2xl`.
+  - final browser QA passed at 390, 1536, and 1912 CSS pixels: root, form, result rows, date group, and both native date inputs have matching client/scroll widths; no clipping, overlap, console error, failed request, or HTTP error occurred.
+  - final React suite passed 6 tests; TypeScript, production build, `git diff --check`, accessibility semantics, file caps, and standards review passed.
+
+### 2026-07-14 - Purchasing All Requests canonical combined view
+- Status: fixed and verified
+- Owner: PM Agent
+- Contract:
+  - canonical `/purchasing/all-requests` combines Purchase Requests and Stock Requests with global pagination and stable sorting,
+  - legacy `/purchase-requests/all/list` redirects to the canonical route while preserving query parameters,
+  - staff read selected-BU records across request owners; super admin and top management also read permitted descendants,
+  - descendant detail remains read-only and mutation scope remains exact selected BU,
+  - filters use allowlisted status/type/sort/direction/per-page values and BU-scoped active departments.
+- Remediation:
+  - added dedicated filter Form Request and same-BU/cross-owner regression coverage,
+  - fixed authenticated PR PDF route and descendant capability parity,
+  - preserved non-IDR decimal precision and accessible filter/action labels,
+  - constrained wide table painting to its internal horizontal scroller and added missing flex `min-w-0`, removing mobile root overflow,
+  - removed nested main landmark, fixed multiline JSX standards, and brought `StockRequestQueryService` to the 350-line hard cap.
+- Verification:
+  - focused backend suite passed on `numberwg_test`: 5 tests, 126 assertions,
+  - focused React suites passed: 2 files, 9 tests; TypeScript, Pint, production build, and `git diff --check` passed,
+  - browser QA passed at 390x844 (`root 390/390`, table scroller `349/1100`, max internal scroll 751) and 1440x900 (`root 1440/1440`),
+  - authenticated route returned 200 with mixed PR/ST rows and zero console, page, or HTTP error responses,
+  - independent QA passed; final standards/security review passed without blockers.
+
+### 2026-07-14 - Purchasing authorization, race, and file-safety follow-up
+- Status: fixed and verified
+- Owner: PM Agent
+- Remediation:
+  - serialized Stock Request GA review and Activity Backdate decisions with locked state rechecks and mutually exclusive decision metadata,
+  - serialized Backdate submission/decisions through requester locks, moved notifications after commit, and isolated notification transport failures,
+  - enforced selected-BU context across PR API model routes, web/API approval routes, analytics, QR, and PR/ST evidence documents,
+  - scoped automatic/special and stored approvers to eligible PR business-unit hierarchy identities,
+  - made PR/ST create, update, and offline-evidence uploads reject failed adapter writes, clean rollback uploads, and delete replaced files only after commit,
+  - extracted Purchasing file storage and Admin Task notification services; affected services/actions now meet hard caps.
+- Verification:
+  - focused serial backend suites on `numberwg_test` passed: 75 tests, 308 assertions,
+  - analytics routes resolve to static controllers before dynamic approval binding,
+  - PHP syntax, Pint (149 files), `git diff --check`, file caps, and final bounded security/standards review passed,
+  - no migration, database reset, commit, push, or deploy was performed.
+
+### 2026-07-14 - Authenticated Stock Request public-PDF access
+- Status: fixed and verified
+- Owner: PM Agent
+- Root cause:
+  - audit hardening added `signed` middleware to `stock-requests.pdf-public`,
+  - authenticated Stock Request UI and direct owner workflow still generated the plain named route,
+  - signature middleware returned 403 before account ownership or BU access could be evaluated.
+- Contract:
+  - valid signed URL permits anonymous PDF rendering for QR/Browsershot capability flows,
+  - plain URL permits only an active authenticated owner with active matching BU assignment, assigned approver, scoped Purchasing Admin, super admin, or top management,
+  - anonymous, expired/tampered capability, inactive user, and unrelated user access remain forbidden.
+- User evidence:
+  - `sheilia@werkudara.com` is active user 90,
+  - Stock Request 31 (`ST.WNS/202607/025`) belongs to user 90 in WNS/GA,
+  - local authorization check returns allowed for Sheilia.
+- Verification:
+  - capability/access regression suite passed: 4 tests, 17 assertions,
+  - Stock Request show authorization parity passed: 2 tests, 48 assertions,
+  - live anonymous plain URL returned 403 and live temporary signed URL returned 200 with 93,901-byte HTML PDF view,
+  - focused security review passed without blockers; PHP syntax, Pint, route listing, file caps, and diff check passed.
+
+### 2026-07-14 - Database reset safety guard
+- Status: implemented and verified
+- Owner: PM Agent
+- Incident evidence:
+  - resolved local database is `numberwg`,
+  - `users` table exists but contains 0 rows,
+  - `migrations` contains 116 rows and every listed migration is marked `Ran`, consistent with a recreated schema but insufficient to attribute a specific command or process.
+- Protection:
+  - agent rules now forbid manual `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `db:wipe`, schema replacement, and unapproved database restoration,
+  - runtime guard blocks direct destructive Artisan reset commands,
+  - Laravel-internal reset is allowed only while PHPUnit runs against a database whose name ends in `_test`,
+  - base test case blocks `RefreshDatabase`, `DatabaseMigrations`, and `DatabaseTruncation` before setup when resolved database is not isolated `_test`,
+  - database-backed tests must run serially.
+- Verification:
+  - guard unit suite passed: 10 tests, 15 assertions,
+  - focused `RefreshDatabase` feature suite passed on `numberwg_test`: 3 tests, 12 assertions,
+  - PHP syntax, Pint check, coding-standards JSON parse, normal Artisan bootstrap, migration status, and diff check passed,
+  - no reset, wipe, restore, truncate, or destructive migration command was executed during verification.
+- Recovery:
+  - Product Owner approved restoring local `numberwg` from `C:\Users\Administrator\Downloads\werkuda1_oasis.sql` (SHA-256 `BBD0CD81781354AA58DCE81192C9BDF2C05503E983216E779FDEA6CF318DD64E`),
+  - pre-restore backup saved to `C:\Users\Administrator\Downloads\numberwg_pre_restore_20260714_113121.sql` (SHA-256 `D4B052C8E7C95A3F299C3D046FD2FF819482B8256048EFBAC1549096AD2E9665`),
+  - restore completed with 63 tables and 73 users; six pending migrations were applied forward-only,
+  - final state contains 122 migration records, no pending migrations, 63 tables passing `mysqlcheck`, and active `super@werkudara.com` plus `pramuji@werkudara.com` accounts.
+
+### 2026-07-12 - Cross-module audit remediation (24 findings)
+- Status: implemented; final QA and security/standards review in progress
+- Owner: PM Agent
+- Scope:
+  - Purchasing: signed public approval, PR API/web tenant isolation, approver authority, signed public PDFs, admin-task authorization, PR approval locking, draft persistence, GA quantity preservation, and hard-cap remediation.
+  - Activity: backdate approver authorization and BU scope, department task/report scope, participant isolation, history-preserving user deletion, comment tenant checks, formula-safe exports, valid backdate request contract, latest-comment visibility, and hard-cap remediation.
+  - Cashflow Projection: authorized linked-unit policy, server-derived import classification, decimal-safe monetary handling, and focused adversarial tests.
+  - IT Ticketing: sanitized knowledge content, safe requester article payload, same-BU references, reporting gate enforcement, formula-safe exports, recipient-safe notification URLs, and focused security tests.
+  - Shared completion gates: serial MySQL test execution, TypeScript, React tests, production build, Pint, route parity, runtime QA where available, and final security/standards review.
+- Constraints:
+  - preserve restored local `numberwg` data,
+  - use `numberwg_test` only for destructive test refreshes,
+  - keep SalesCrm disabled,
+  - do not commit, push, or deploy unless explicitly requested.
+- Implemented:
+  - secured Purchasing public capabilities, tenant/model/approver scope, approval concurrency, draft intent, admin task transitions, document access, and GA quantity separation,
+  - secured Activity backdate/report/task/participant/comment scopes, retained deletion history, neutralized spreadsheet formulas, fixed backdate date submission, and bounded modal comment history,
+  - secured Cashflow linked-unit access and import preview/confirm integrity while replacing float-sensitive money operations with checked decimal/minor-unit arithmetic,
+  - secured Ticket knowledge content/payloads, same-BU references, report exports, spreadsheet values, and recipient-specific notification links,
+  - split affected backend/frontend files below project hard caps without re-enabling SalesCrm.
+- Verification:
+  - focused Purchasing/Stock Request/Purchasing Admin backend suites passed: 105 tests, 583 assertions,
+  - full Activity scope passed: 117 tests, 484 assertions,
+  - full Cashflow Projection scope passed: 81 tests, 601 assertions,
+  - full Ticket scope passed: 47 tests, 151 assertions,
+  - final adversarial backend smoke passed: 38 tests, 140 assertions,
+  - combined focused React suite passed: 9 files, 56 tests; TypeScript and production build passed,
+  - Pint, changed PHP syntax checks, migration status, 296-route listing, and `git diff --check` passed,
+  - production build retains non-blocking existing warnings for stale Browserslist data and circular manual chunks; Headless UI tests retain a non-failing animation-polyfill warning.
+
+### 2026-07-10 - Stock Request GA submit failure
+- Status: implemented; DB-backed regression tests pending local MySQL availability
+- Owner: PM Agent
+- Evidence:
+  - Stock Request validation failures return 422 without Laravel exception logs, and browser logs recorded `Expected date must be on or after the request date.`
+  - Parent page submits through `router.post`, while child form owns disconnected `useForm` errors/processing state; field errors and loading state are therefore not rendered reliably.
+  - Staff access and approver lookup use first/primary user assignment instead of Stock Request business-unit/department context, which can misroute multi-department GA accounts.
+- Scope:
+  - connect server validation errors and request processing state to Stock Request form,
+  - prevent expected dates before request date in UI,
+  - resolve requester position and HOD/Leader approvers using submitted business unit and department,
+  - add focused regression coverage and run frontend/backend verification.
+- Implemented:
+  - connected Inertia validation errors and request processing state to the visible Stock Request form,
+  - constrained expected delivery date to the local request date and later,
+  - added exact BU/department assignment authorization for create and update requests,
+  - centralized create/update approval routing on submitted Stock Request department assignments,
+  - scoped General Manager access to the requested BU,
+  - returned `ga_rejected` resubmissions directly to GA review while preserving completed department approvals.
+- Verification:
+  - `vendor/bin/pint --dirty` passed,
+  - focused React test passed (3 tests), TypeScript passed, production build passed, route list preserved 19 Stock Request routes,
+  - final reviewer pass found no blocking code findings,
+  - focused QA passed form error/loading behavior by React test and static request-lifecycle inspection,
+  - MySQL-backed feature tests blocked before assertions because `127.0.0.1:3306` is unavailable locally.
+
+### 2026-07-10 - GA-origin Stock Request bypass
+- Status: implemented; final review passed, focused QA passed
+- Owner: PM Agent
+- Product rule:
+  - Stock Requests originating from a department with `is_ga_stock_review_department=true` skip Leader/HOD department approval for every requester, including staff,
+  - GA-origin requests also skip GA Review and enter `ready_for_purchasing` immediately,
+  - all GA-origin items are marked `need_procurement` with zero warehouse quantity,
+  - non-GA requests retain the existing department approval -> GA Review flow,
+  - PDF/public verification keeps requester signature only for new direct GA-origin submissions; no department or GA reviewer signature is fabricated.
+- Implementation:
+  - centralized idempotent Stock Request task creation in `AdminTaskService`,
+  - added `StockRequestPostApprovalRouter` for origin-department routing,
+  - reused task creation from normal GA review action,
+  - made authenticated approval decision + post-approval routing transactional,
+  - made GA-origin staff resolve to an empty department-approval workflow and route immediately to Purchasing Admin,
+  - persisted immutable `routes_directly_to_purchasing` snapshot so later department flag changes cannot rewrite request history,
+  - normalized each BU with Strategic Sourcing (`SS`) to one Purchasing destination and remediated active GA-origin requests,
+  - routed legacy GA-origin resubmissions directly to Purchasing inside a transaction,
+  - made create/update file uploads rollback-safe and delayed old-file deletion until commit,
+  - omitted Department Approval and GA Review steps from process UI for GA-origin requests,
+  - added explicit direct-to-Purchasing copy on the Stock Request form.
+- Verification:
+  - full Stock Request backend suite passed: 34 tests, 254 assertions,
+  - Purchasing Admin focused suite passed: 7 tests, 49 assertions,
+  - Admin Task service unit suite passed: 3 tests, 15 assertions,
+  - GA-origin staff endpoint flow passed with zero department approvals, immediate `ready_for_purchasing`, Purchasing task creation, and requester-only PDF QR data,
+  - rollback tests passed for failed create/update uploads, including preservation of previous offline approval documents,
+  - immutable route snapshot regression passed after changing department capability flag,
+  - non-GA approval still becomes `ga_review` with no Purchasing task,
+  - focused Stock Request React suite passed: 11 tests,
+  - TypeScript, production build, Pint, PHP syntax, diff check, and 19-route parity passed,
+  - signed public approval GET/POST, offline bypass denial, task idempotency, and ambiguous Purchasing configuration are covered,
+  - focused QA passed via MySQL-backed HTTP/Inertia tests and jsdom rendering; live browser console/network capture was unavailable,
+  - local migration completed: WNS now has one Purchasing destination (`SS`), and active `ST.WNS/202607/025` moved to `ready_for_purchasing` with skipped legacy approval and pending SS task,
+  - final reviewer recheck passed with no blocking findings.
+
 ### 2026-06-02 - Cashflow friendly import preview
 - Status: phase 5 implemented; full module review/QA pass pending
 - Owner: PM Agent
@@ -1696,3 +1946,65 @@ Use this shape for future updates:
 - Risks:
 - Verification:
 - Notes:
+
+### 2026-07-20 - Legacy request.werkudara.com ticket migration
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@viewer`, `@coder_backend`, `@qa`, `@reviewer`
+- Scope: Harden the legacy ticket importer and workflow, preserve tickets/comments/standalone and comment attachments, add safe idempotency/preflight behavior, and complete the staging migration. Any production migration requires a separate approved plan.
+- Risks: Native ticket-number collisions, unmapped users/departments, partial database/filesystem writes, missing legacy files, production concurrency, and rollback affecting concurrent writes.
+- Verification: Focused importer tests on an isolated `_test` database; PHP syntax and Pint; unlimited dry-run; full staging import; row/FK/file parity; idempotent rerun; authenticated Dashboard, Reporting, and ticket-detail QA.
+- Notes: Staging migration completed with 212 tickets, 412 comments, and 25 source attachments available for import. Eight standalone files and one comment attachment were physically missing at source and were explicitly warned/skipped. Idempotent rerun retained 212 unique legacy tickets. Production remains untouched and is outside this completed staging scope.
+
+### 2026-07-20 - Staging legacy ticket workload reassignment
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@qa`, `@reviewer`
+- Scope: Add an explicit importer/workflow option that assigns every selected legacy ticket to one validated OASIS account, then use it to place all staging legacy workload on `pramuji@werkudara.com`.
+- Risks: Invalid or ineligible target account, accidental reassignment of native tickets, production execution, and misleading dashboard results caused by the active date filter.
+- Verification: Focused importer regression test; Pint and syntax checks; staging dry-run with WNS/BAS; backup-backed update of only `request.werkudara.com` identities; idempotent rerun showing 212 existing tickets and forced assignee count.
+- Notes: Authenticated All Data QA shows all 212 imported tickets assigned to Pramuji Arif Yulianto (100% workload). Native and production tickets were not changed.
+
+### 2026-07-20 - IT Support dashboard period metrics
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Make period presets execute immediately, apply one consistent date-scoped query to totals/recent/workload, and replace the placeholder tracker data with real daily ticket counts.
+- Risks: Stale Inertia state, inconsistent date boundaries, misleading workload percentages, and database-specific date aggregation.
+- Verification: Backend service test for in/out-of-range tickets and Pramuji workload; React test for immediate 90-day navigation and rendered daily volume; build, Pint, review, staging deploy, and authenticated UAT.
+- Notes: The prior 90-day preset only changed local form state. Staging QA now confirms immediate preset navigation, visible real volume bars, and date-scoped totals/recent/workload from the same query.
+
+### 2026-07-20 - IT Support dashboard modern date filter
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Replace the crowded preset buttons and separate date inputs with a compact preset dropdown, a single human-readable date-range trigger, a custom-range popover, and one primary Apply action.
+- Risks: Presets no longer applying immediately, invalid custom ranges, cramped mobile wrapping, inaccessible popover/listbox controls, and stale filter state.
+- Verification: React coverage for immediate 90-day selection and custom-range submission; production frontend build; responsive/accessibility review; staging deploy and UAT.
+- Notes: The composition follows the official shadcn date-picker pattern (trigger plus popover) while reusing the repository's existing Headless UI and date-fns dependencies.
+
+### 2026-07-21 - IT Support reporting modern filter parity
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Align Reporting with the Dashboard's compact preset dropdown, custom range popover, immediate preset behavior, This Year/All Data options, and modern export actions.
+- Risks: Reporting and export periods diverging, presets updating only local state, stale custom-range drafts, and controls wrapping poorly at smaller widths.
+- Verification: Focused React coverage for preset/custom filtering and export period parity; TypeScript check; production frontend build; standards review; staging deploy and QA.
+- Notes: Dashboard and Reporting share the same filter component; staging QA confirms Today through All Data, custom Apply behavior, and Excel/PDF period parity.
+
+### 2026-07-21 - IT Support uniform 2 x 24 hour SLA policy
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_backend`, `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Standardize every ticket priority on the current 48-hour SLA policy and align Dashboard, Reporting, exports, defaults, seed data, settings UI, and existing staging configuration.
+- Risks: Historical reports changing under the corrected policy, existing per-BU settings overriding the default, missing settings causing Dashboard/Reporting drift, and irreversible configuration normalization.
+- Verification: Focused model, Dashboard, and Reporting SLA tests on an isolated `_test` database; PHP syntax/Pint; TypeScript/build; migration inspection; staging backup/migrate; all-data parity QA.
+- Notes: Reporting previously fell back to 2/8/24/48 hours while Dashboard treated missing settings as no deadline. Staging All Data QA now shows 212 total, 212 within SLA, and 0 breached on both surfaces; all priority rows display 48h. Production remains untouched.
+
+### 2026-07-21 - Docs & Help July product changelog
+- Status: completed
+- Owner: PM Agent
+- Delegates: `@coder_frontend`, `@qa`, `@reviewer`
+- Scope: Publish a bilingual, user-friendly changelog covering changes since V4 Beta, including IT Support migration, modern Dashboard/Reporting, uniform 48-hour SLA, detailed Purchase Request/approval and Stock Request fixes, Activity, Cashflow, and deployment safeguards.
+- Risks: Release notes drifting from shipped behavior, stale article ordering, broken article deep links, and claims that imply unapproved production rollout.
+- Verification: TypeScript, focused changelog data test, production build, reviewer inspection, and authenticated staging QA after deployment.

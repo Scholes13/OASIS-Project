@@ -84,6 +84,7 @@ describe('AppLayout', () => {
     // This ensures mobile gets full width (no sidebar margin)
     const mainWrapper = container.querySelector('.flex-1.flex-col');
     expect(mainWrapper).toBeInTheDocument();
+    expect(mainWrapper).toHaveClass('min-w-0');
 
     // Should not have non-responsive margin classes
     expect(mainWrapper).not.toHaveClass('ml-16');

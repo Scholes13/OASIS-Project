@@ -10,36 +10,36 @@
 @layer base {
     :root {
         /* Base */
-        --background: #ffffff;
-        --foreground: #1a1a2e;
+        --background: #f7f7f8;
+        --foreground: #18181b;
 
         /* Card */
         --card: #ffffff;
-        --card-foreground: #1a1a2e;
+        --card-foreground: #18181b;
 
         /* Primary */
         --primary: #16599c;
         --primary-foreground: #ffffff;
 
         /* Secondary */
-        --secondary: #eef6ff;
-        --secondary-foreground: #16599c;
+        --secondary: #f4f4f5;
+        --secondary-foreground: #27272a;
 
         /* Muted */
-        --muted: #eef6ff;
-        --muted-foreground: #64748b;
+        --muted: #f4f4f5;
+        --muted-foreground: #6b6b73;
 
         /* Accent */
-        --accent: #eef6ff;
-        --accent-foreground: #16599c;
+        --accent: #f4f4f5;
+        --accent-foreground: #27272a;
 
         /* Destructive */
         --destructive: #dc2626;
         --destructive-foreground: #ffffff;
 
         /* Border / Input / Ring */
-        --border: #00000014;
-        --input: #00000014;
+        --border: #e4e4e7;
+        --input: #d4d4d8;
         --ring: #16599c;
 
         /* Sidebar */
@@ -62,7 +62,7 @@
         --secondary-foreground: #eef6ff;
 
         --muted: #334155;
-        --muted-foreground: #94a3b8;
+        --muted-foreground: #a8b3c4;
 
         --accent: #1e3a5f;
         --accent-foreground: #eef6ff;
@@ -780,12 +780,13 @@
 
     body {
         @apply antialiased;
-        font-family: 'Manrope', 'Plus Jakarta Sans', Inter, Figtree, ui-sans-serif, system-ui, sans-serif;
+        font-family: 'Plus Jakarta Sans', Inter, Figtree, ui-sans-serif, system-ui, sans-serif;
         font-size: 0.875rem; /* 14px — standard SaaS Enterprise base */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         line-height: 1.5;
         letter-spacing: -0.01em; /* Slight tightening for modern feel */
+        font-feature-settings: 'liga' 1, 'calt' 1, 'tnum' 1;
         overflow-x: hidden;
     }
 

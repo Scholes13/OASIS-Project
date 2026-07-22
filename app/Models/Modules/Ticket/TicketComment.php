@@ -18,6 +18,8 @@ class TicketComment extends Model
         'user_id',
         'content',
         'is_private',
+        'import_source',
+        'import_id',
     ];
 
     protected $casts = [

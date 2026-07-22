@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { format, startOfYear, subDays } from 'date-fns';
 import { type ComponentProps } from 'react';
+import { router } from '@inertiajs/react';
 import Dashboard from '@/Pages/Ticket/Dashboard';
 import type { TicketDashboardMetrics, Ticket } from '@/types/ticket';
 
@@ -114,6 +117,10 @@ function makeMetrics(overrides: Partial<TicketDashboardMetrics> = {}): TicketDas
             { name: 'Alice', count: 5 },
             { name: 'Bob', count: 3 },
         ],
+        volume_by_day: [
+            { date: '2026-04-25', count: 4 },
+            { date: '2026-04-27', count: 6 },
+        ],
         avg_resolution_hours: 4.5,
         sla_breach_count: 2,
         recent_tickets: [
@@ -158,49 +165,178 @@ describe('Ticket Dashboard page', () => {
         }) as any;
     });
 
-    it('renders dashboard with summary cards', () => {
+    it('renders period totals, daily volume, and workload from the same metrics', () => {
         render(<Dashboard {...baseProps} />);
 
         expect(screen.getByText('Total Tickets')).toBeInTheDocument();
-        // Numbers may appear in multiple places (chart legend + summary cards)
         expect(screen.getAllByText('15').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Menunggu').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('5').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Dalam Proses').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('3').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Selesai').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('7').length).toBeGreaterThan(0);
+        expect(screen.getByText('25/04')).toBeInTheDocument();
+        expect(screen.getByText('27/04')).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: '4 tickets on 25/04' })).toBeVisible();
+        expect(screen.getByRole('img', { name: '6 tickets on 27/04' })).toHaveStyle({ height: '100%' });
+        expect(screen.getByText('Tickets across the latest 2 active days shown.')).toBeInTheDocument();
+        expect(screen.getByText('Alice')).toBeInTheDocument();
+        expect(screen.getByText('5 (33%)')).toBeInTheDocument();
     });
 
-    it('displays SLA breach count', () => {
+    it('flows dashboard cards in independent content-height columns', () => {
         render(<Dashboard {...baseProps} />);
 
-        expect(screen.getByText('SLA Breach')).toBeInTheDocument();
-        expect(screen.getByText('2')).toBeInTheDocument();
+        const primaryColumn = screen.getByTestId('ticket-dashboard-primary-column');
+        const secondaryColumn = screen.getByTestId('ticket-dashboard-secondary-column');
+
+        expect(within(primaryColumn).getByText('Ticket Volume Tracker')).toBeInTheDocument();
+        expect(within(primaryColumn).getByText('Ticket Status Board')).toBeInTheDocument();
+        expect(within(primaryColumn).queryByText('Recent Support Activity')).not.toBeInTheDocument();
+        expect(within(secondaryColumn).getByText('Recent Support Activity')).toBeInTheDocument();
+        expect(within(secondaryColumn).getByText('Team Workload')).toBeInTheDocument();
     });
 
-    it('renders recent tickets table', () => {
+    it('keeps a single active day visible at full chart height', () => {
+        render(
+            <Dashboard
+                {...baseProps}
+                metrics={makeMetrics({
+                    total: 3,
+                    volume_by_day: [{ date: '2026-04-27', count: 3 }],
+                })}
+            />
+        );
+
+        expect(screen.getByRole('img', { name: '3 tickets on 27/04' })).toHaveStyle({ height: '100%' });
+        expect(screen.getByText('Tickets across the latest 1 active day shown.')).toBeInTheDocument();
+    });
+
+    it('renders seven skewed active days with monotonic visible heights', () => {
+        const volumeByDay = [1, 2, 3, 4, 5, 12, 100].map((count, index) => ({
+            date: `2026-04-${String(index + 20).padStart(2, '0')}`,
+            count,
+        }));
+
+        render(
+            <Dashboard
+                {...baseProps}
+                metrics={makeMetrics({ total: 127, volume_by_day: volumeByDay })}
+            />
+        );
+
+        const bars = screen.getAllByRole('img', { name: /tickets on/ });
+        const heights = bars.map((bar) => Number.parseFloat(bar.style.height));
+
+        expect(bars).toHaveLength(7);
+        expect(heights).toEqual([...heights].sort((left, right) => left - right));
+        expect(heights[0]).toBeCloseTo(8.92);
+        expect(heights[6]).toBe(100);
+    });
+
+    it('renders current recent support activity', () => {
         render(<Dashboard {...baseProps} />);
 
-        expect(screen.getByText('Recent Tickets')).toBeInTheDocument();
+        expect(screen.getByText('Recent Support Activity')).toBeInTheDocument();
         expect(screen.getByText('TKT-2026-001')).toBeInTheDocument();
-        expect(screen.getByText('Network issue')).toBeInTheDocument();
+        expect(screen.getAllByText('Network issue').length).toBeGreaterThan(0);
         expect(screen.getByText('TKT-2026-002')).toBeInTheDocument();
-        expect(screen.getByText('Printer problem')).toBeInTheDocument();
+        expect(screen.getAllByText('Printer problem').length).toBeGreaterThan(0);
     });
 
-    it('shows Ticket and Priority columns in recent tickets table', () => {
+    it('applies a period preset immediately instead of only changing the date fields', async () => {
+        const user = userEvent.setup();
         render(<Dashboard {...baseProps} />);
 
-        // Check table headers
-        const headers = screen.getAllByRole('columnheader');
-        const headerTexts = headers.map(h => h.textContent);
-        expect(headerTexts).toContain('Ticket');
-        expect(headerTexts).toContain('Title');
-        expect(headerTexts).toContain('Requester');
-        expect(headerTexts).toContain('Status');
-        expect(headerTexts).toContain('Priority');
-        expect(headerTexts).toContain('SLA');
+        await user.click(screen.getByRole('button', { name: 'Select date period, current: Custom range' }));
+        await user.click(await screen.findByRole('option', { name: '90 Days' }));
+
+        const today = new Date();
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            {
+                date_from: format(subDays(today, 90), 'yyyy-MM-dd'),
+                date_to: format(today, 'yyyy-MM-dd'),
+            },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+        expect(screen.getByRole('button', { name: 'Select date period, current: 90 Days' })).toBeInTheDocument();
+    });
+
+    it('applies the This Year preset from the start of the current year', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        await user.click(screen.getByRole('button', { name: 'Select date period, current: Custom range' }));
+        await user.click(await screen.findByRole('option', { name: 'This Year' }));
+
+        const today = new Date();
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            {
+                date_from: format(startOfYear(today), 'yyyy-MM-dd'),
+                date_to: format(today, 'yyyy-MM-dd'),
+            },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+    });
+
+    it('applies All Data across the full supported database date range', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        await user.click(screen.getByRole('button', { name: 'Select date period, current: Custom range' }));
+        await user.click(await screen.findByRole('option', { name: 'All Data' }));
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            {
+                date_from: '1000-01-01',
+                date_to: format(new Date(), 'yyyy-MM-dd'),
+            },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+        expect(screen.getByRole('button', { name: 'Select date period, current: All Data' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Choose custom date range, current: All available data' })).toBeInTheDocument();
+        expect(screen.getByText('All available data')).toBeInTheDocument();
+    });
+
+    it('applies a custom range from the compact date filter', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        await user.click(screen.getByRole('button', { name: 'Choose custom date range, current: 01 Apr 2026 to 27 Apr 2026' }));
+        const startDate = await screen.findByLabelText('Start date');
+        const endDate = screen.getByLabelText('End date');
+
+        await user.clear(startDate);
+        await user.type(startDate, '2026-05-01');
+        await user.clear(endDate);
+        await user.type(endDate, '2026-06-30');
+        await user.click(screen.getByRole('button', { name: 'Apply date filter' }));
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/it-support.admin.dashboard',
+            { date_from: '2026-05-01', date_to: '2026-06-30' },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+        expect(screen.getByRole('button', { name: 'Choose custom date range, current: 01 May 2026 to 30 Jun 2026' })).toBeInTheDocument();
+    });
+
+    it('discards un-applied custom date drafts when the popover closes', async () => {
+        const user = userEvent.setup();
+        render(<Dashboard {...baseProps} />);
+
+        const rangeButton = screen.getByRole('button', { name: 'Choose custom date range, current: 01 Apr 2026 to 27 Apr 2026' });
+        await user.click(rangeButton);
+        const startDate = await screen.findByLabelText('Start date');
+
+        await user.clear(startDate);
+        await user.type(startDate, '2026-05-01');
+        expect(rangeButton).toHaveAccessibleName('Choose custom date range, current: 01 Apr 2026 to 27 Apr 2026');
+
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument());
+        await user.click(rangeButton);
+
+        expect(await screen.findByLabelText('Start date')).toHaveValue('2026-04-01');
+        expect(screen.getByLabelText('End date')).toHaveValue('2026-04-27');
+        expect(router.get).not.toHaveBeenCalled();
     });
 
     it('shows empty state when no recent tickets', () => {
@@ -211,6 +347,6 @@ describe('Ticket Dashboard page', () => {
             />
         );
 
-        expect(screen.getByText('No recent tickets')).toBeInTheDocument();
+        expect(screen.getByText('No recent activity')).toBeInTheDocument();
     });
 });

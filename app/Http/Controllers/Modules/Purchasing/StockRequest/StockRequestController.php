@@ -4,22 +4,22 @@ namespace App\Http\Controllers\Modules\Purchasing\StockRequest;
 
 use App\Http\Controllers\Controller;
 use App\Models\Modules\Purchasing\StockRequest\StockRequest;
+use App\Services\Modules\Purchasing\AllRequests\PurchasingRequestScopeResolver;
 use App\Services\Modules\Purchasing\Shared\RequestFormDataProvider;
-use App\Services\Modules\Purchasing\StockRequest\StockRequestDocumentService;
 use App\Services\Modules\Purchasing\StockRequest\StockRequestQueryService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class StockRequestController extends Controller
 {
     public function __construct(
         protected RequestFormDataProvider $formDataProvider,
-        protected StockRequestDocumentService $documentService,
         protected StockRequestQueryService $queryService,
+        protected PurchasingRequestScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -98,10 +98,6 @@ class StockRequestController extends Controller
         );
     }
 
-    /**
-     * Store a newly created stock request.
-     * Requirements: 6.2, 6.3
-     */
     public function store(
         \App\Http\Requests\Purchasing\StoreStockRequestRequest $request,
         \App\Actions\Modules\Purchasing\StockRequest\CreateStockRequestAction $action,
@@ -114,13 +110,9 @@ class StockRequestController extends Controller
 
         return redirect()
             ->route('stock-requests.show', $result['stock_request'])
-            ->with('success', 'Stock request created successfully and submitted for approval.');
+            ->with('success', 'Stock request created and submitted successfully.');
     }
 
-    /**
-     * Show the form for editing the specified stock request.
-     * Requirements: 6.2, 6.3
-     */
     public function editInertia(StockRequest $stockRequest): Response
     {
         $user = Auth::user();
@@ -145,10 +137,6 @@ class StockRequestController extends Controller
         );
     }
 
-    /**
-     * Update the specified stock request.
-     * Requirements: 6.2, 6.3
-     */
     public function update(
         \App\Http\Requests\Purchasing\StoreStockRequestRequest $request,
         StockRequest $stockRequest,
@@ -176,18 +164,14 @@ class StockRequestController extends Controller
 
         return redirect()
             ->route('stock-requests.show', $result['stock_request'])
-            ->with('success', 'Stock request updated successfully and resubmitted for approval.');
+            ->with('success', 'Stock request updated and resubmitted successfully.');
     }
 
-    /**
-     * Display the specified stock request.
-     * Requirements: 6.4
-     */
     public function showInertia(StockRequest $stockRequest): Response
     {
         $user = Auth::user();
 
-        if ($stockRequest->business_unit_id !== session('current_business_unit_id')) {
+        if (! $this->scopeResolver->canAccess($user, (int) session('current_business_unit_id'), (int) $stockRequest->business_unit_id)) {
             abort(403, 'You do not have access to this stock request.');
         }
 
@@ -331,9 +315,6 @@ class StockRequestController extends Controller
             ->with('success', 'Stock request has been marked as approved offline/manually.');
     }
 
-    /**
-     * Resubmit rejected stock request
-     */
     public function resubmit(
         StockRequest $stockRequest,
         \App\Actions\Modules\Purchasing\StockRequest\ResubmitStockRequestAction $action,
@@ -350,18 +331,22 @@ class StockRequestController extends Controller
             return back()->with('error', 'Only rejected stock requests can be resubmitted.');
         }
 
-        $action->execute($stockRequest);
+        try {
+            $action->execute($stockRequest);
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         return redirect()
             ->route('stock-requests.show', $stockRequest)
-            ->with('success', "Stock request {$stockRequest->st_number} has been resubmitted for approval.");
+            ->with('success', "Stock request {$stockRequest->st_number} has been resubmitted successfully.");
     }
 
     public function approveGaReview(
         Request $request,
         StockRequest $stockRequest,
         \App\Actions\Modules\Purchasing\StockRequest\ProcessStockRequestGaReviewAction $action,
-    ) {
+    ): RedirectResponse {
         $this->authorizeGaReview($stockRequest);
 
         $validated = $request->validate([
@@ -392,14 +377,18 @@ class StockRequestController extends Controller
         Request $request,
         StockRequest $stockRequest,
         \App\Actions\Modules\Purchasing\StockRequest\ProcessStockRequestGaReviewAction $action,
-    ) {
+    ): RedirectResponse {
         $this->authorizeGaReview($stockRequest);
 
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
         ]);
 
-        $action->reject($stockRequest, Auth::user(), $validated['reason']);
+        try {
+            $action->reject($stockRequest, Auth::user(), $validated['reason']);
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         return back()->with('success', 'Stock request GA review rejected.');
     }
@@ -473,42 +462,5 @@ class StockRequestController extends Controller
 
             return back()->with('error', 'Failed to resend approval email. Please try again or contact support.');
         }
-    }
-
-    /**
-     * Display PDF view for public access (no authentication required)
-     */
-    public function pdfPublic(StockRequest $stockRequest)
-    {
-        return $this->documentService->renderPdfView($stockRequest);
-    }
-
-    /**
-     * Download PDF for stock request (public access)
-     */
-    public function downloadPdfPublic(StockRequest $stockRequest)
-    {
-        return $this->documentService->streamPdfDownload($stockRequest);
-    }
-
-    /**
-     * Download PDF for stock request using configured method
-     */
-    public function downloadPdf(StockRequest $stockRequest)
-    {
-        // Directly call downloadPdfPublic to avoid redirect issues on hosting
-        return $this->downloadPdfPublic($stockRequest);
-    }
-
-    /**
-     * Stream the offline approval evidence for a stock request.
-     */
-    public function offlineApprovalDocument(StockRequest $stockRequest): BinaryFileResponse|\Illuminate\Http\RedirectResponse
-    {
-        return $this->documentService->serveOfflineApprovalDocument(
-            $stockRequest,
-            Auth::user(),
-            (int) session('current_business_unit_id'),
-        );
     }
 }

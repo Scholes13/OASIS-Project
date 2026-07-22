@@ -19,6 +19,10 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class TaskScopeResolver
 {
+    public function __construct(
+        protected ActivityAuthorizationService $authorizationService,
+    ) {}
+
     /**
      * Build the base query for "my" or "department" scoped task listings.
      */
@@ -34,10 +38,7 @@ class TaskScopeResolver
             });
         }
 
-        return $query->where(function ($taskQuery) use ($userId, $departmentId) {
-            $taskQuery->where('department_id', $departmentId)
-                ->orWhereHas('participants', fn ($participantQuery) => $participantQuery->where('user_id', $userId));
-        });
+        return $query->where('department_id', $departmentId);
     }
 
     /**
@@ -99,17 +100,9 @@ class TaskScopeResolver
      */
     public function canEditTask(EmployeeTask $task, ?User $user, mixed $businessUnitId): bool
     {
-        if (! $user || ! $businessUnitId || (int) $task->business_unit_id !== (int) $businessUnitId) {
-            return false;
-        }
-
-        if ((int) $task->created_by === (int) $user->id) {
-            return true;
-        }
-
-        return $task->participants()
-            ->where('user_id', $user->id)
-            ->exists();
+        return $user && $businessUnitId
+            ? $this->authorizationService->canEditTask($user, $task, (int) $businessUnitId)
+            : false;
     }
 
     /**
@@ -117,7 +110,9 @@ class TaskScopeResolver
      */
     public function canViewTask(EmployeeTask $task, ?User $user, mixed $businessUnitId): bool
     {
-        if (! $user || ! $businessUnitId || (int) $task->business_unit_id !== (int) $businessUnitId) {
+        if (! $user || ! $businessUnitId
+            || ! $this->authorizationService->belongsToBusinessUnit($user, $businessUnitId)
+            || (int) $task->business_unit_id !== (int) $businessUnitId) {
             return false;
         }
 
@@ -125,8 +120,14 @@ class TaskScopeResolver
             return true;
         }
 
+        if ($task->participants()->where('users.id', $user->id)->exists()) {
+            return true;
+        }
+
         $departmentId = $user->getCurrentDepartmentId();
 
-        return $departmentId !== null && (int) $task->department_id === (int) $departmentId;
+        return $departmentId !== null
+            && (int) $task->department_id === (int) $departmentId
+            && $this->authorizationService->canViewDepartmentTasks($user, (int) $businessUnitId);
     }
 }

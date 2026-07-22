@@ -2,12 +2,14 @@
 
 namespace App\Services\Modules\Purchasing\PurchaseRequest;
 
+use App\Models\Core\BusinessUnit;
 use App\Models\Core\User;
 use App\Models\Modules\Purchasing\PurchaseRequest\PurchaseRequest;
 use App\Services\Core\QrCodeService;
 use App\Services\Modules\Purchasing\Shared\PdfGenerationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -65,7 +67,9 @@ class PurchaseRequestDocumentService
             compact('purchaseRequest', 'qrCodes'),
             [
                 'filename' => $filename,
-                'fallback_url' => route('purchase-requests.pdf-public', $purchaseRequest),
+                'fallback_url' => URL::temporarySignedRoute('purchase-requests.pdf-public', now()->addMinutes(10), [
+                    'purchaseRequest' => $purchaseRequest->id,
+                ]),
             ],
         );
     }
@@ -133,7 +137,7 @@ class PurchaseRequestDocumentService
             ->where('approver_id', $user->id)
             ->exists();
 
-        if ($isAssignedApprover) {
+        if ($isAssignedApprover && $this->selectedContextContains($purchaseRequest, $currentBusinessUnitId)) {
             return true;
         }
 
@@ -150,6 +154,10 @@ class PurchaseRequestDocumentService
         User $user,
         int $currentBusinessUnitId,
     ): bool {
+        if (! $this->selectedContextContains($purchaseRequest, $currentBusinessUnitId)) {
+            return false;
+        }
+
         if ($user->isSuperAdmin()) {
             return true;
         }
@@ -172,6 +180,20 @@ class PurchaseRequestDocumentService
 
         return $purchaseRequest->business_unit_id === $currentBusinessUnitId
             && $purchaseRequest->user_id === $user->id;
+    }
+
+    private function selectedContextContains(PurchaseRequest $purchaseRequest, int $currentBusinessUnitId): bool
+    {
+        if ((int) $purchaseRequest->business_unit_id === $currentBusinessUnitId) {
+            return true;
+        }
+
+        $selectedBusinessUnit = BusinessUnit::find($currentBusinessUnitId);
+        $requestBusinessUnit = BusinessUnit::find($purchaseRequest->business_unit_id);
+
+        return $selectedBusinessUnit !== null
+            && $requestBusinessUnit !== null
+            && $selectedBusinessUnit->isParentOf($requestBusinessUnit);
     }
 
     /**

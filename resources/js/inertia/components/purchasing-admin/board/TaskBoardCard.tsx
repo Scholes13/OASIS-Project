@@ -112,7 +112,7 @@ export function TaskBoardCard({ task, isDragging, onTaskClick }: TaskBoardCardPr
 
             <p className="text-xs text-slate-500 line-clamp-1 mb-2 flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
-                {task.department?.name || 'Unknown'}
+                {task.taskable?.department?.name || task.department?.name || 'Unknown'}
             </p>
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100">

@@ -63,7 +63,7 @@ class ActivityExportFormatter
         foreach ($tasks as $task) {
             $participantData = $this->formatParticipantData($task);
 
-            $sheet->fromArray([
+            $sheet->fromArray(SpreadsheetText::sanitizeRow([
                 $no,
                 $task->task_date?->format('Y-m-d') ?? '-',
                 $task->task_title ?: 'Aktivitas tanpa judul',
@@ -73,7 +73,7 @@ class ActivityExportFormatter
                 $this->aggregationService->subCategoryName($task) ?? '-',
                 $this->aggregationService->statusLabel((string) $task->status),
                 ucfirst((string) ($task->priority ?? 'medium')),
-                $task->creator?->name ?? '-',
+                $task->creator?->name ?? $task->created_by_name ?? '-',
                 $task->department?->name ?? '-',
                 $task->due_date?->format('Y-m-d') ?? '-',
                 $task->started_at?->format('Y-m-d H:i') ?? '-',
@@ -83,7 +83,7 @@ class ActivityExportFormatter
                 $participantData['jumlah'],
                 $participantData['daftar'],
                 $participantData['ids'],
-            ], null, 'A'.$row);
+            ]), null, 'A'.$row);
 
             $sheet->getStyle('H'.$row)->applyFromArray([
                 'fill' => [
@@ -140,7 +140,7 @@ class ActivityExportFormatter
         foreach ($tasks as $task) {
             $participantData = $this->formatParticipantData($task);
 
-            $sheet->fromArray([
+            $sheet->fromArray(SpreadsheetText::sanitizeRow([
                 $task->id,
                 $task->task_date?->format('Y-m-d') ?? '',
                 $task->task_title ?: 'Aktivitas tanpa judul',
@@ -150,7 +150,7 @@ class ActivityExportFormatter
                 $this->aggregationService->subCategoryName($task) ?? '',
                 (string) $task->status,
                 (string) ($task->priority ?? ''),
-                $task->creator?->name ?? '',
+                $task->creator?->name ?? $task->created_by_name ?? '',
                 $task->department?->name ?? '',
                 $task->due_date?->format('Y-m-d') ?? '',
                 $task->started_at?->format('Y-m-d H:i') ?? '',
@@ -160,7 +160,7 @@ class ActivityExportFormatter
                 $participantData['jumlah'],
                 $participantData['daftar'],
                 $participantData['ids'],
-            ], null, 'A'.$row);
+            ]), null, 'A'.$row);
             $row++;
         }
 

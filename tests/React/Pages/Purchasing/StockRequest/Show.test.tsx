@@ -34,6 +34,8 @@ describe('StockRequest Show page', () => {
             date_of_request: '2026-04-17',
             expected_date: null,
             status: 'in_approval',
+            routes_directly_to_purchasing: false,
+            skips_ga_review: false,
             submitted_at: '2026-04-17T00:00:00Z',
             approved_at: null,
             rejected_at: null,
@@ -143,7 +145,7 @@ describe('StockRequest Show page', () => {
         expect(global.route).toHaveBeenCalledWith('stock-requests.offline-approval-document', {
             stockRequest: 7,
         });
-        expect(screen.getByTitle('View offline approval document')).toHaveAttribute(
+        expect(screen.getByTitle('View document')).toHaveAttribute(
             'href',
             '/stock-requests.offline-approval-document?stockRequest=7'
         );
@@ -161,5 +163,82 @@ describe('StockRequest Show page', () => {
         );
 
         expect(screen.queryByTitle('View offline approval document')).not.toBeInTheDocument();
+    });
+
+    it('omits department approval and GA review for requests originating from GA', () => {
+        render(
+            <Show
+                {...baseProps}
+                stockRequest={{
+                    ...baseProps.stockRequest,
+                    status: 'ready_for_purchasing',
+                    routes_directly_to_purchasing: true,
+                    skips_ga_review: true,
+                    approved_at: '2026-04-18T00:00:00Z',
+                    department: {
+                        ...baseProps.stockRequest.department,
+                        is_ga_stock_review_department: true,
+                    },
+                    admin_task: {
+                        id: 10,
+                        assigned_admin_id: null,
+                        status: 'pending_followup',
+                        entered_at: '2026-04-18T00:00:00Z',
+                        started_at: null,
+                        completed_at: null,
+                    },
+                }}
+            />
+        );
+
+        expect(screen.queryByText('General Affairs Review')).not.toBeInTheDocument();
+        expect(screen.queryByText('Department Approval')).not.toBeInTheDocument();
+        expect(screen.getAllByText('Purchasing Follow-up').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('In progress').length).toBeGreaterThan(0);
+    });
+
+    it('keeps historical department approval while omitting skipped GA review', () => {
+        render(
+            <Show
+                {...baseProps}
+                stockRequest={{
+                    ...baseProps.stockRequest,
+                    status: 'ready_for_purchasing',
+                    routes_directly_to_purchasing: false,
+                    skips_ga_review: true,
+                }}
+            />
+        );
+
+        expect(screen.getAllByText('Department Approval').length).toBeGreaterThan(0);
+        expect(screen.queryByText('General Affairs Review')).not.toBeInTheDocument();
+    });
+
+    it('uses approver snapshot when historical user relation is unavailable', () => {
+        render(
+            <Show
+                {...baseProps}
+                stockRequest={{
+                    ...baseProps.stockRequest,
+                    status: 'ready_for_purchasing',
+                    approvals: [{
+                        id: 55,
+                        approver_id: 99,
+                        step_order: 1,
+                        status: 'approved',
+                        notes: null,
+                        responded_at: '2026-04-18T00:00:00Z',
+                        approver: null,
+                        metadata: {
+                            approver_snapshot: {
+                                name: 'Historical Department Head',
+                            },
+                        },
+                    }],
+                }}
+            />
+        );
+
+        expect(screen.getAllByText('Historical Department Head').length).toBeGreaterThan(0);
     });
 });

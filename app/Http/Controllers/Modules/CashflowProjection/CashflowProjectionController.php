@@ -10,12 +10,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CashflowProjection\BulkDestroyCashflowProjectionLineItemsRequest;
 use App\Http\Requests\CashflowProjection\CashflowProjectionDashboardFilterRequest;
 use App\Http\Requests\CashflowProjection\ConfirmCashflowProjectionImportRequest;
-use App\Http\Requests\CashflowProjection\ImportCashflowProjectionEntriesRequest;
 use App\Http\Requests\CashflowProjection\PreviewCashflowProjectionImportRequest;
+use App\Http\Requests\CashflowProjection\ReviewCashflowProjectionImportRequest;
 use App\Http\Requests\CashflowProjection\StoreCashflowProjectionLineItemRequest;
 use App\Http\Requests\CashflowProjection\UpdateCashflowProjectionLineItemRequest;
 use App\Http\Requests\CashflowProjection\UpsertCashflowProjectionFinanceInputRequest;
-use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
 use App\Models\Modules\CashflowProjection\CashflowProjectionFinanceInput;
@@ -23,14 +22,12 @@ use App\Models\Modules\CashflowProjection\CashflowProjectionLineItem;
 use App\Models\Modules\CashflowProjection\CashflowProjectionLinkedUnit;
 use App\Services\Modules\CashflowProjection\CashflowDashboardComposer;
 use App\Services\Modules\CashflowProjection\CashflowExcelBuilder;
+use App\Services\Modules\CashflowProjection\CashflowLinkedUnitPolicy;
 use App\Services\Modules\CashflowProjection\CashflowProjectionAccessService;
-use App\Services\Modules\CashflowProjection\CashflowProjectionEntryImportService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionEntryImportTemplateService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionPayloadFormatter;
-use App\Services\Modules\CashflowProjection\CashflowProjectionScopePolicy;
 use App\Services\Modules\CashflowProjection\CashflowProjectionScopeService;
 use App\Services\Modules\CashflowProjection\CashflowProjectionTemplateService;
-use App\Services\Modules\CashflowProjection\CashflowSummaryCalculator;
 use App\Services\Modules\CashflowProjection\Import\CashflowImportConfirmService;
 use App\Services\Modules\CashflowProjection\Import\CashflowImportPreviewService;
 use App\Services\Modules\CashflowProjection\LinkedCycleMerger;
@@ -48,12 +45,9 @@ class CashflowProjectionController extends Controller
         protected CashflowProjectionAccessService $accessService,
         protected CashflowProjectionTemplateService $templateService,
         protected CashflowProjectionScopeService $scopeService,
-        protected CashflowProjectionScopePolicy $scopePolicy,
         protected CashflowProjectionEntryImportTemplateService $entryImportTemplateService,
         protected CashflowImportPreviewService $importPreviewService,
         protected CashflowImportConfirmService $importConfirmService,
-        protected CashflowProjectionEntryImportService $entryImportService,
-        protected CashflowSummaryCalculator $summaryCalculator,
         protected CashflowDashboardComposer $dashboardComposer,
         protected LinkedCycleMerger $linkedCycleMerger,
         protected CashflowExcelBuilder $excelBuilder,
@@ -61,7 +55,8 @@ class CashflowProjectionController extends Controller
         protected StoreCashflowLineItemAction $storeLineItemAction,
         protected UpdateCashflowLineItemAction $updateLineItemAction,
         protected DestroyCashflowLineItemAction $destroyLineItemAction,
-        protected UpsertFinanceInputAction $upsertFinanceInputAction
+        protected UpsertFinanceInputAction $upsertFinanceInputAction,
+        protected CashflowLinkedUnitPolicy $linkedUnitPolicy
     ) {}
 
     public function index(CashflowProjectionDashboardFilterRequest $request): Response|\Symfony\Component\HttpFoundation\Response
@@ -212,12 +207,11 @@ class CashflowProjectionController extends Controller
             ->where('host_business_unit_id', $businessUnitId)
             ->get();
 
-        $availableBusinessUnits = BusinessUnit::query()
-            ->where('is_active', true)
-            ->where('id', '!=', $businessUnitId)
-            ->whereNotIn('id', $linkedUnits->pluck('linked_business_unit_id'))
-            ->orderBy('name')
-            ->get(['id', 'code', 'name']);
+        $availableBusinessUnits = $this->linkedUnitPolicy->options(
+            $user,
+            $businessUnitId,
+            $linkedUnits->pluck('linked_business_unit_id')->all(),
+        );
 
         return Inertia::render('CashflowProjection/Settings', [
             'year' => $year,
@@ -366,6 +360,8 @@ class CashflowProjectionController extends Controller
             return back()->withErrors(['linked_business_unit_id' => 'Tidak bisa link ke business unit sendiri.']);
         }
 
+        abort_unless($this->linkedUnitPolicy->canLink($user, $businessUnitId, $linkedBuId), 403);
+
         CashflowProjectionLinkedUnit::query()->firstOrCreate(
             [
                 'host_business_unit_id' => $businessUnitId,
@@ -449,7 +445,9 @@ class CashflowProjectionController extends Controller
 
         $file = $request->file('file');
 
-        return response()->json($this->importPreviewService->preview($file, $user, $businessUnitId));
+        $result = $this->importPreviewService->preview($file, $user, $businessUnitId, (int) $request->integer('context_year'), (int) $request->integer('context_month'));
+
+        return response()->json($result);
     }
 
     public function confirmImport(ConfirmCashflowProjectionImportRequest $request): JsonResponse
@@ -464,6 +462,7 @@ class CashflowProjectionController extends Controller
 
         return response()->json($this->importConfirmService->confirm(
             $validated['rows'],
+            $validated['preview_token'],
             $user,
             $businessUnitId,
             (int) $validated['context_year'],
@@ -471,28 +470,23 @@ class CashflowProjectionController extends Controller
         ));
     }
 
-    public function importEntries(ImportCashflowProjectionEntriesRequest $request): RedirectResponse
+    public function reviewImport(ReviewCashflowProjectionImportRequest $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
         $businessUnitId = (int) session('current_business_unit_id');
 
         abort_unless($this->accessService->canManage($user, $businessUnitId), 403);
+        $validated = $request->validated();
 
-        $file = $request->file('file');
-
-        $result = $this->entryImportService->import(
-            $file->getRealPath() ?: $file->path(),
-            $file->getClientOriginalName(),
+        return response()->json($this->importPreviewService->review(
+            $validated['signed_rows'],
+            $validated['rows'],
+            $validated['preview_token'],
             $user,
-            $businessUnitId
-        );
-
-        return redirect()
-            ->route('cashflow-projection.entries', [
-                'year' => (int) $request->integer('context_year', (int) now()->format('Y')),
-                'month' => (int) $request->integer('context_month', (int) now()->format('n')),
-            ])
-            ->with('cashflow_import', $result);
+            $businessUnitId,
+            (int) $validated['context_year'],
+            (int) $validated['context_month'],
+        ));
     }
 }

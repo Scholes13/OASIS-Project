@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { StockRequestForm, STFormData } from '../../../components/purchasing/StockRequestForm';
 import { Department, BusinessUnit, Approver } from '../../../types/purchasing';
@@ -32,6 +32,7 @@ interface FormPageProps extends PageProps {
     businessUnits: BusinessUnit[];
     availableApprovers: Approver[];
     requiresSupervisorApproval: boolean;
+    routesDirectlyToPurchasing: boolean;
     currentBusinessUnitId: number;
     currentDepartmentId: number;
 }
@@ -43,12 +44,26 @@ export default function Form({
     businessUnits,
     availableApprovers,
     requiresSupervisorApproval,
+    routesDirectlyToPurchasing,
     currentBusinessUnit,
     currentBusinessUnitId,
     currentDepartmentId,
+    flash,
 }: FormPageProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
     const isEdit = mode === 'edit';
+
+    useEffect(() => {
+        if (!flash?.error) {
+            return;
+        }
+
+        toast.error('Stock request was not submitted', {
+            description: flash.error,
+            id: 'stock-request-submit-error',
+        });
+    }, [flash?.error]);
 
     // Handle form submission
     const handleSubmit = (data: STFormData) => {
@@ -57,6 +72,7 @@ export default function Form({
         }
 
         setIsSubmitting(true);
+        setValidationErrors({});
 
         const formData = new FormData();
 
@@ -110,6 +126,7 @@ export default function Form({
             },
             onError: (errors) => {
                 console.error('Form submission errors:', errors);
+                setValidationErrors(errors);
 
                 const firstError = Object.values(errors)[0];
                 if (typeof firstError === 'string') {
@@ -247,6 +264,9 @@ export default function Form({
                         businessUnits={businessUnits}
                         availableApprovers={availableApprovers}
                         requiresSupervisorApproval={requiresSupervisorApproval}
+                        routesDirectlyToPurchasing={routesDirectlyToPurchasing}
+                        errors={validationErrors}
+                        processing={isSubmitting}
                         onSubmit={handleSubmit}
                         isEdit={isEdit}
                     />

@@ -190,7 +190,9 @@ class CashflowProjectionImportValidator
                 ]);
             }
 
-            if (! is_numeric($row['amount']) || (float) $row['amount'] < 0) {
+            try {
+                CashflowMoney::normalize($row['amount']);
+            } catch (\InvalidArgumentException) {
                 $this->pushError($errors, $errorCount, [
                     'row' => $row['row_number'],
                     'column' => 'amount',

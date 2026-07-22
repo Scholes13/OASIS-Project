@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
+import { formatDateTimeWib, formatDateWib } from '@/lib/activityDateTime';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { PageProps, User, Department } from '@/types';
 
@@ -66,8 +67,8 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-const formatDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-const formatDateTime = (d: string) => new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const formatDate = (d: string) => formatDateWib(d, { day: '2-digit', month: 'short', year: 'numeric' }, 'id-ID');
+const formatDateTime = (d: string) => formatDateTimeWib(d, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }, 'id-ID');
 
 export default function BackdateApprovals({ requests, filters }: Props) {
     const { flash } = usePage<PageProps>().props;

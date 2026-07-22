@@ -30,6 +30,10 @@ export interface AdminTask {
         offline_approved_at?: string | null;
         offline_approval_document_path?: string | null;
         offline_approval_notes?: string | null;
+        department?: {
+            id: number;
+            name: string;
+        };
     };
     assigned_admin?: {
         id: number;

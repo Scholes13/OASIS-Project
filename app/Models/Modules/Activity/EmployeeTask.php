@@ -5,7 +5,7 @@ namespace App\Models\Modules\Activity;
 use App\Models\Core\BusinessUnit;
 use App\Models\Core\Department;
 use App\Models\Core\User;
-use App\Services\Modules\Activity\BackdatePermissionService;
+use App\Models\Modules\Activity\Concerns\FormatsEmployeeTask;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +16,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class EmployeeTask extends Model
 {
+    use FormatsEmployeeTask;
     use HasFactory;
     use LogsActivity;
 
@@ -370,66 +371,5 @@ class EmployeeTask extends Model
     public function canBeCancelled(): bool
     {
         return ! in_array($this->status, ['completed', 'cancelled']);
-    }
-
-    /**
-     * Get status badge color
-     */
-    public function getStatusBadgeColor(): string
-    {
-        return match ($this->status) {
-            'planned' => 'gray',
-            'in_progress' => 'blue',
-            'completed' => 'green',
-            'cancelled' => 'red',
-            default => 'gray',
-        };
-    }
-
-    /**
-     * Get status label
-     */
-    public function getStatusLabel(): string
-    {
-        return match ($this->status) {
-            'planned' => 'Planned',
-            'in_progress' => 'In Progress',
-            'completed' => 'Completed',
-            'cancelled' => 'Cancelled',
-            default => ucfirst($this->status),
-        };
-    }
-
-    /**
-     * Get formatted duration
-     */
-    public function getFormattedDuration(): string
-    {
-        if (! $this->duration_minutes) {
-            return '-';
-        }
-
-        $hours = floor($this->duration_minutes / 60);
-        $minutes = $this->duration_minutes % 60;
-
-        if ($hours > 0) {
-            return "{$hours}h {$minutes}m";
-        }
-
-        return "{$minutes}m";
-    }
-
-    /**
-     * Check if a user can backdate to a specific date
-     *
-     * @param  \Carbon\Carbon|string  $date  The date to check
-     * @param  User  $user  The user to check permission for
-     */
-    public static function canBackdateTo($date, User $user): bool
-    {
-        $backdateService = app(BackdatePermissionService::class);
-        $taskDate = $date instanceof \Carbon\Carbon ? $date : \Carbon\Carbon::parse($date);
-
-        return $backdateService->canCreateTaskWithDate($user, $taskDate);
     }
 }

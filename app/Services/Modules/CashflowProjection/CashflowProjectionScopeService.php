@@ -12,7 +12,8 @@ use Illuminate\Support\Collection;
 class CashflowProjectionScopeService
 {
     public function __construct(
-        protected CashflowProjectionAccessService $accessService
+        protected CashflowProjectionAccessService $accessService,
+        protected CashflowLinkedUnitPolicy $linkedUnitPolicy
     ) {}
 
     /**
@@ -34,6 +35,7 @@ class CashflowProjectionScopeService
             ->where('host_business_unit_id', $activeBusinessUnitId)
             ->pluck('linked_business_unit_id')
             ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id): bool => $this->linkedUnitPolicy->canLink($user, $activeBusinessUnitId, $id))
             ->all();
 
         return array_values(array_unique(array_merge([$activeBusinessUnitId], $linkedBusinessUnitIds)));

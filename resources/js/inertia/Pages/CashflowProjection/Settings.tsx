@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { monthOptions } from './constants';
 import type { CashflowProjectionSettingsPageProps, FinanceFormData } from './types';
 import { formatCurrency, formatMonthLabel } from './utils';
+import { addMoney } from './money';
 
 const inputClasses =
     'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
@@ -32,21 +33,21 @@ export default function CashflowProjectionSettings({
     const financeForm = useForm<FinanceFormData>({
         year,
         month: selectedMonth,
-        cash_on_hand: selectedFinanceInput?.cash_on_hand ?? 0,
-        receivable_estimate: selectedFinanceInput?.receivable_estimate ?? 0,
-        upcoming_event_revenue_estimate: selectedFinanceInput?.upcoming_event_revenue_estimate ?? 0,
-        capital_injection_estimate: selectedFinanceInput?.capital_injection_estimate ?? 0,
-        other_income: selectedFinanceInput?.other_income ?? 0,
+        cash_on_hand: selectedFinanceInput?.cash_on_hand ?? '0.00',
+        receivable_estimate: selectedFinanceInput?.receivable_estimate ?? '0.00',
+        upcoming_event_revenue_estimate: selectedFinanceInput?.upcoming_event_revenue_estimate ?? '0.00',
+        capital_injection_estimate: selectedFinanceInput?.capital_injection_estimate ?? '0.00',
+        other_income: selectedFinanceInput?.other_income ?? '0.00',
     });
 
     useEffect(() => {
         financeForm.setData('year', year);
         financeForm.setData('month', selectedMonth);
-        financeForm.setData('cash_on_hand', selectedFinanceInput?.cash_on_hand ?? 0);
-        financeForm.setData('receivable_estimate', selectedFinanceInput?.receivable_estimate ?? 0);
-        financeForm.setData('upcoming_event_revenue_estimate', selectedFinanceInput?.upcoming_event_revenue_estimate ?? 0);
-        financeForm.setData('capital_injection_estimate', selectedFinanceInput?.capital_injection_estimate ?? 0);
-        financeForm.setData('other_income', selectedFinanceInput?.other_income ?? 0);
+        financeForm.setData('cash_on_hand', selectedFinanceInput?.cash_on_hand ?? '0.00');
+        financeForm.setData('receivable_estimate', selectedFinanceInput?.receivable_estimate ?? '0.00');
+        financeForm.setData('upcoming_event_revenue_estimate', selectedFinanceInput?.upcoming_event_revenue_estimate ?? '0.00');
+        financeForm.setData('capital_injection_estimate', selectedFinanceInput?.capital_injection_estimate ?? '0.00');
+        financeForm.setData('other_income', selectedFinanceInput?.other_income ?? '0.00');
     }, [year, selectedMonth, selectedFinanceInput]);
 
     const handleFinanceSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -55,12 +56,7 @@ export default function CashflowProjectionSettings({
     };
 
     const totalFinanceIncome = useMemo(() => {
-        return (
-            financeForm.data.receivable_estimate +
-            financeForm.data.upcoming_event_revenue_estimate +
-            financeForm.data.capital_injection_estimate +
-            financeForm.data.other_income
-        );
+        return addMoney(financeForm.data.receivable_estimate, financeForm.data.upcoming_event_revenue_estimate, financeForm.data.capital_injection_estimate, financeForm.data.other_income);
     }, [financeForm.data]);
 
     return (
@@ -126,7 +122,9 @@ export default function CashflowProjectionSettings({
                                                 min={0}
                                                 className={inputClasses}
                                                 value={financeForm.data[key]}
-                                                onChange={(e) => financeForm.setData(key, Number(e.target.value))}
+                                                step="0.01"
+                                                max="9999999999999999.99"
+                                                onChange={(e) => financeForm.setData(key, e.target.value)}
                                             />
                                         </div>
                                     ))}
@@ -146,7 +144,7 @@ export default function CashflowProjectionSettings({
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="font-medium text-foreground">Total Tersedia</span>
                                             <span className="text-base font-bold text-[#16599c]">
-                                                {formatCurrency(financeForm.data.cash_on_hand + totalFinanceIncome)}
+                                                {formatCurrency(addMoney(financeForm.data.cash_on_hand, totalFinanceIncome))}
                                             </span>
                                         </div>
                                     </div>
@@ -199,12 +197,8 @@ export default function CashflowProjectionSettings({
                                             </tr>
                                         ) : (
                                             financeInputs.map((input) => {
-                                                const totalIncome =
-                                                    input.receivable_estimate +
-                                                    input.upcoming_event_revenue_estimate +
-                                                    input.capital_injection_estimate +
-                                                    input.other_income;
-                                                const grandTotal = input.cash_on_hand + totalIncome;
+                                                const totalIncome = addMoney(input.receivable_estimate, input.upcoming_event_revenue_estimate, input.capital_injection_estimate, input.other_income);
+                                                const grandTotal = addMoney(input.cash_on_hand, totalIncome);
 
                                                 return (
                                                     <tr key={input.id} className="border-b border-border/50 last:border-0">

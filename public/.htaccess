@@ -5,12 +5,12 @@
 
     RewriteEngine On
 
-    # Temporary domain migration redirects.
+    # Permanent domain migration redirects.
     RewriteCond %{HTTP_HOST} ^oasis\.werkudara\.com$ [NC]
-    RewriteRule ^(.*)$ https://oasis.werkudaragroup.com/$1 [R=302,L]
+    RewriteRule ^(.*)$ https://oasis.werkudaragroup.com/$1 [R=301,L]
 
     RewriteCond %{HTTP_HOST} ^staging\.oasis\.werkudara\.com$ [NC]
-    RewriteRule ^(.*)$ https://staging.oasis.werkudaragroup.com/$1 [R=302,L]
+    RewriteRule ^(.*)$ https://staging.oasis.werkudaragroup.com/$1 [R=301,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .

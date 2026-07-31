@@ -168,9 +168,14 @@ class ActivityInertiaController extends Controller
                 'canViewDepartmentTasks' => $user->can('view-activity-department-tasks'),
                 'teamMembers' => $teamMembers,
                 'byActivityType' => $byActivityType,
-                'departmentUsers' => Inertia::lazy(fn () => User::where('primary_department_id', $departmentId)
+                'departmentUsers' => Inertia::lazy(fn () => User::query()
+                    ->where('is_active', true)
                     ->where('id', '!=', $user->id)
+                    ->whereHas('activeBusinessUnits', fn ($query) => $query
+                        ->where('business_unit_id', $buId)
+                        ->where('department_id', $departmentId))
                     ->select(['id', 'name', 'email'])
+                    ->orderBy('name')
                     ->get()),
                 'backdatePermission' => Inertia::lazy(fn () => $this->backdateService->checkUserPermission($user->id)),
                 'allowedDateRange' => Inertia::lazy(fn () => $this->backdateService->getAllowedDateRange($user)),
@@ -179,7 +184,10 @@ class ActivityInertiaController extends Controller
                     $this->prioritizationService->getForUser($user)
                 )),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Keep the page usable while preserving enough context for the UI
+            // and the application log to diagnose the original failure.
+            report($e);
             $activityTypes = $this->presenter->getDepartmentActivityTypes($departmentId);
 
             return Inertia::render('Activity/Dashboard', [
@@ -194,6 +202,7 @@ class ActivityInertiaController extends Controller
                 'selectedTaskModal' => null,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
+                'canViewDepartmentTasks' => $user->can('view-activity-department-tasks'),
                 'teamMembers' => [],
                 'byActivityType' => [],
             ]);

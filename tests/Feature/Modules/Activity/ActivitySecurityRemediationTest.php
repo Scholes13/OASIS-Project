@@ -69,15 +69,15 @@ class ActivitySecurityRemediationTest extends TestCase
         $this->department->activityTypes()->attach($this->activityType->id, ['sort_order' => 1]);
     }
 
-    public function test_regular_staff_cannot_list_or_export_department_scope(): void
+    public function test_regular_staff_can_list_and_export_own_department_scope(): void
     {
         $this->asCurrent($this->staff)
             ->get(route('activity.task.index', ['scope' => 'department']))
-            ->assertForbidden();
+            ->assertOk();
 
         $this->asCurrent($this->staff)
             ->get(route('activity.task.export', ['scope' => 'department']))
-            ->assertForbidden();
+            ->assertOk();
     }
 
     public function test_forged_foreign_participant_is_rejected_and_participant_cannot_edit(): void

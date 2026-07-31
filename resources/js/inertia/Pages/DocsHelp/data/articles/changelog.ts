@@ -1,4 +1,5 @@
 import type { Article } from '../types';
+import { ChangelogV4BetaJuly31ActivityArticle } from './changelog/v4-beta-july-31-activity';
 import { ChangelogV4BetaJuly2026Article } from './changelog/v4-beta-july-2026';
 import { ChangelogV4BetaArticle } from './changelog/v4-beta';
 import { ChangelogV304Article } from './changelog/v3-0-4';
@@ -8,6 +9,7 @@ import { ChangelogV301Article } from './changelog/v3-0-1';
 import { ChangelogV3Article } from './changelog/v3';
 
 export const ChangelogArticles: Article[] = [
+    ChangelogV4BetaJuly31ActivityArticle,
     ChangelogV4BetaJuly2026Article,
     ChangelogV4BetaArticle,
     ChangelogV304Article,

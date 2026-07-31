@@ -135,11 +135,11 @@ class ActivityExportParticipantColumnsTest extends TestCase
         ], $headers);
     }
 
-    public function test_ordinary_staff_cannot_export_department_scope(): void
+    public function test_ordinary_staff_can_export_own_department_scope(): void
     {
         $this->actingAs($this->memberA)
             ->get(route('activity.task.export', ['scope' => 'department']))
-            ->assertForbidden();
+            ->assertOk();
     }
 
     public function test_export_data_mentah_sheet_includes_participant_columns(): void

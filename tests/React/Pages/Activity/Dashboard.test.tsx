@@ -429,6 +429,7 @@ describe('Activity Dashboard calendar click behavior', () => {
                 tasks={makeTasks(makeTask())}
                 activityTypes={[]}
                 filters={{ ...filters, scope: 'department' }}
+                canViewDepartmentTasks
                 teamMembers={[
                     { id: 2, name: 'Member A' },
                     { id: 3, name: 'Member B' },
@@ -440,6 +441,8 @@ describe('Activity Dashboard calendar click behavior', () => {
                 prioritizedActivityTypes={[]}
             />
         );
+
+        expect(screen.getByRole('button', { name: 'Team' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /filter/i }));
         fireEvent.change(screen.getByLabelText('Member'), { target: { value: '2' } });

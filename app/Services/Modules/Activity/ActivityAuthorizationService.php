@@ -25,18 +25,15 @@ class ActivityAuthorizationService
             return false;
         }
 
-        if ($user->isSuperAdmin() || in_array(
-            $user->getAccessLevel($businessUnitId),
-            ['team_leader', 'department_head', 'general_manager', 'executive', 'c_level'],
-            true,
-        )) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
+        // Every active department member may compare personal and team activity.
+        // The task query remains constrained to the selected BU and department.
         return $user->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
-            ->where('is_activity_admin', true)
-            ->where('is_activity_report_access', true)
+            ->whereNotNull('department_id')
             ->exists();
     }
 

@@ -135,26 +135,26 @@ class ActivityMemberFocusFilterTest extends TestCase
         $this->assertSame(1, $stats['total']);
     }
 
-    public function test_ordinary_staff_cannot_request_department_scope(): void
+    public function test_ordinary_staff_can_request_own_department_scope(): void
     {
         $this->actingAs($this->memberA)
             ->get(route('activity.task.index', ['scope' => 'department']))
-            ->assertForbidden();
+            ->assertOk();
 
         $this->actingAs($this->memberA)
             ->get(route('activity.task.export', ['scope' => 'department']))
-            ->assertForbidden();
+            ->assertOk();
     }
 
-    public function test_ordinary_staff_dashboard_does_not_receive_department_analytics(): void
+    public function test_ordinary_staff_dashboard_receives_own_department_analytics(): void
     {
         $response = $this->actingAs($this->memberA)
             ->get(route('activity.dashboard'))
             ->assertOk();
 
-        $this->assertNull($response->viewData('page')['props']['departmentStats']);
-        $this->assertNull($response->viewData('page')['props']['departmentVisuals']);
-        $this->assertSame([], $response->viewData('page')['props']['departmentMembers']);
+        $this->assertIsArray($response->viewData('page')['props']['departmentStats']);
+        $this->assertIsArray($response->viewData('page')['props']['departmentVisuals']);
+        $this->assertIsArray($response->viewData('page')['props']['departmentMembers']);
     }
 
     public function test_task_index_filters_by_participant_when_member_focus_active(): void

@@ -729,6 +729,14 @@
     </style>
 </head>
 <body>
+    @php
+        $requesterName = $stockRequest->user?->name
+            ?? $stockRequest->requester_name
+            ?? $stockRequest->last_modified_by_name
+            ?? 'Unknown';
+        $requesterDepartmentCode = $stockRequest->department?->code ?? 'N/A';
+    @endphp
+
     @if($stockRequest->isOfflineApproved())
         <!-- Offline Verification Watermark -->
         <div class="offline-watermark">VERIFIED OFFLINE</div>
@@ -749,10 +757,10 @@
                 @else
                     <div class="default-logo">
                         <div class="logo-circle">
-                            {{ substr($stockRequest->businessUnit->code ?? 'WG', 0, 2) }}
+                            {{ substr($stockRequest->businessUnit?->code ?? 'WG', 0, 2) }}
                         </div>
                         <div class="logo-text">
-                            {{ $stockRequest->businessUnit->name ?? 'WERKUDARA GROUP' }}
+                            {{ $stockRequest->businessUnit?->name ?? 'WERKUDARA GROUP' }}
                         </div>
                     </div>
                 @endif
@@ -820,12 +828,12 @@
                     <div class="info-row">
                         <span class="info-label">Created by</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $stockRequest->user->name }}</span>
+                        <span class="info-value">{{ $requesterName }}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Department of PR</span>
                         <span class="info-colon">:</span>
-                        <span class="info-value">{{ $stockRequest->department->code ?? 'N/A' }}</span>
+                        <span class="info-value">{{ $requesterDepartmentCode }}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Request No.</span>
@@ -975,8 +983,8 @@
                 @endif
 
                 <div class="approver-info">
-                    <div class="approver-name">{{ $stockRequest->user->name }}</div>
-                    <div class="approver-dept">{{ $stockRequest->department->code ?? 'BAS' }}</div>
+                    <div class="approver-name">{{ $requesterName }}</div>
+                    <div class="approver-dept">{{ $requesterDepartmentCode }}</div>
                 </div>
             </div>
 
@@ -991,6 +999,13 @@
                             'approval' => 'Approved by',
                             default => 'Approved by'
                         };
+                        $approverName = $approval->approver?->name
+                            ?? $approval->approver_name
+                            ?? data_get($approval->metadata, 'approver_snapshot.name')
+                            ?? 'Unknown';
+                        $approverDepartmentCode = data_get($approval->metadata, 'approver_snapshot.department_code')
+                            ?? $approval->approver?->primaryDepartment?->code
+                            ?? 'DEP';
                     @endphp
                     
                     <div class="approval-title">{{ $title }}</div>
@@ -1004,8 +1019,8 @@
                     @endif
 
                     <div class="approver-info">
-                        <div class="approver-name">{{ $approval->approver->name }}</div>
-                        <div class="approver-dept">{{ data_get($approval->metadata, 'approver_snapshot.department_code', $approval->approver->primaryDepartment->code ?? 'DEP') }}</div>
+                        <div class="approver-name">{{ $approverName }}</div>
+                        <div class="approver-dept">{{ $approverDepartmentCode }}</div>
                     </div>
                 </div>
             @endforeach
@@ -1032,7 +1047,7 @@
 
                     <div class="approver-info">
                         <div class="approver-name">{{ $gaReviewer->name }}</div>
-                        <div class="approver-dept">{{ $gaReviewer->primaryDepartment->code ?? 'GA' }}</div>
+                        <div class="approver-dept">{{ $gaReviewer->primaryDepartment?->code ?? 'GA' }}</div>
                     </div>
                 </div>
                 @endif
@@ -1056,7 +1071,7 @@
 
                     <div class="approver-info">
                         <div class="approver-name">{{ $purchasingAcknowledger->name }}</div>
-                        <div class="approver-dept">{{ $purchasingAcknowledger->primaryDepartment->code ?? 'PUR' }}</div>
+                        <div class="approver-dept">{{ $purchasingAcknowledger->primaryDepartment?->code ?? 'PUR' }}</div>
                     </div>
                 </div>
             @endif

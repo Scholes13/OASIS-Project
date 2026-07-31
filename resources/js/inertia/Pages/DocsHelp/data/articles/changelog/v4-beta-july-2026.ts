@@ -6,7 +6,7 @@ export const ChangelogV4BetaJuly2026Article: Article = {
     title: 'OASIS V4 Beta - IT Support, Purchasing & Workflow Update',
     description: 'Pembaruan Juni-Juli 2026 untuk IT Support, Purchase Request, approval, Stock Request, dashboard dan reporting, Activity, Cashflow, serta stabilitas sistem.',
     author: 'Pramuji Arif Y',
-    updatedAt: '2026-07-31',
+    updatedAt: '2026-07-21',
     popular: true,
     bilingual: true,
     toc: [
@@ -23,8 +23,8 @@ export const ChangelogV4BetaJuly2026Article: Article = {
         {
             type: 'callout',
             variant: 'info',
-            title: 'Update 31 Juli 2026',
-            body: '<span class="lang-id">Update ini merangkum fitur dan perbaikan OASIS sejak rilis V4 Beta tanggal 2 Juni 2026. Fokus utamanya adalah IT Support, perbaikan Purchase Request dan approval, penyelarasan laporan, penguatan workflow operasional, serta penyempurnaan filter Activity untuk seluruh anggota departemen.</span><span class="lang-en">This update summarizes OASIS features and fixes since the V4 Beta release on June 2, 2026. It focuses on IT Support, Purchase Request and approval fixes, reporting alignment, stronger operational workflows, and improved Activity filters for all department members.</span>',
+            title: 'Update 21 Juli 2026',
+            body: '<span class="lang-id">Update ini merangkum fitur dan perbaikan OASIS sejak rilis V4 Beta tanggal 2 Juni 2026. Fokus utamanya adalah IT Support, perbaikan Purchase Request dan approval, penyelarasan laporan, serta penguatan workflow operasional.</span><span class="lang-en">This update summarizes OASIS features and fixes since the V4 Beta release on June 2, 2026. It focuses on IT Support, Purchase Request and approval fixes, reporting alignment, and stronger operational workflows.</span>',
         },
         {
             type: 'heading',
@@ -40,7 +40,6 @@ export const ChangelogV4BetaJuly2026Article: Article = {
                 '<strong><span class="lang-id">SLA diseragamkan menjadi 2 x 24 jam</span><span class="lang-en">SLA is standardized at 2 x 24 hours</span></strong> <span class="lang-id">untuk seluruh prioritas agar Dashboard, Reporting, Excel, dan PDF menggunakan kebijakan yang sama.</span><span class="lang-en">for every priority so Dashboard, Reporting, Excel, and PDF use the same policy.</span>',
                 '<strong><span class="lang-id">Purchase Request, approval, dan Stock Request diperkuat</span><span class="lang-en">Purchase Request, approvals, and Stock Request are strengthened</span></strong> <span class="lang-id">melalui routing task yang tepat, approval paralel, riwayat approver yang stabil, handoff yang lebih jelas, dan status penyelesaian yang konsisten.</span><span class="lang-en">through correct task routing, parallel approvals, stable approver history, clearer handoffs, and consistent completion states.</span>',
                 '<strong><span class="lang-id">Cashflow dan Activity lebih nyaman digunakan</span><span class="lang-en">Cashflow and Activity are easier to use</span></strong> <span class="lang-id">dengan penyempurnaan chart, import workbook, tampilan waktu, navigasi task, dan responsivitas lintas perangkat.</span><span class="lang-en">with improved charts, workbook imports, time display, task navigation, and cross-device responsiveness.</span>',
-                '<strong><span class="lang-id">Filter Activity tersedia untuk staff</span><span class="lang-en">Activity filters are available to staff</span></strong> <span class="lang-id">sehingga seluruh anggota departemen dapat berpindah antara My Tasks dan Team serta memfokuskan daftar pada anggota tim yang relevan.</span><span class="lang-en">so all department members can switch between My Tasks and Team and focus the list on relevant team members.</span>',
             ],
         },
         {
@@ -134,7 +133,7 @@ export const ChangelogV4BetaJuly2026Article: Article = {
             items: [
                 {
                     label: '<span class="lang-id">Activity</span><span class="lang-en">Activity</span>',
-                    description: '<span class="lang-id">Update task biasa kembali ke halaman asal yang tepat, tampilan waktu diseragamkan, layout lintas modul diperkuat untuk layar kecil, dan filter My Tasks/Team dapat digunakan oleh seluruh anggota departemen.</span><span class="lang-en">Regular task updates return to the correct originating page, time display is standardized, cross-module layouts are improved for smaller screens, and all department members can use the My Tasks/Team filter.</span>',
+                    description: '<span class="lang-id">Update task biasa kembali ke halaman asal yang tepat, tampilan waktu diseragamkan, dan layout lintas modul diperkuat untuk layar kecil.</span><span class="lang-en">Regular task updates return to the correct originating page, time display is standardized, and cross-module layouts are improved for smaller screens.</span>',
                     color: 'amber',
                 },
                 {

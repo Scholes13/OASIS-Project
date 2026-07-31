@@ -7,7 +7,7 @@ describe('Docs & Help changelog', () => {
 
         expect(latest.id).toBe('changelog-v4-beta-july-2026');
         expect(latest.title).toBe('OASIS V4 Beta - IT Support, Purchasing & Workflow Update');
-        expect(latest.updatedAt).toBe('2026-07-21');
+        expect(latest.updatedAt).toBe('2026-07-31');
         expect(latest.bilingual).toBe(true);
         expect(latest.toc.map((item) => item.id)).toEqual([
             'overview',

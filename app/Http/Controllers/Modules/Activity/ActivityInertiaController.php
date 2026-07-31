@@ -184,7 +184,10 @@ class ActivityInertiaController extends Controller
                     $this->prioritizationService->getForUser($user)
                 )),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Keep the page usable while preserving enough context for the UI
+            // and the application log to diagnose the original failure.
+            report($e);
             $activityTypes = $this->presenter->getDepartmentActivityTypes($departmentId);
 
             return Inertia::render('Activity/Dashboard', [
@@ -199,6 +202,7 @@ class ActivityInertiaController extends Controller
                 'selectedTaskModal' => null,
                 'activityTypes' => $activityTypes,
                 'filters' => $filters,
+                'canViewDepartmentTasks' => $user->can('view-activity-department-tasks'),
                 'teamMembers' => [],
                 'byActivityType' => [],
             ]);

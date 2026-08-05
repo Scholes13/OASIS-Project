@@ -8,16 +8,7 @@ use App\Models\Core\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
-/**
- * Resolves cross-BU and cross-department access for a {@see User}, plus the
- * session-aware department helpers used by Inertia middleware and Activity
- * controllers.
- *
- * Extracted from {@see User} to keep the model under the 400-line cap.
- * Public method semantics mirror the legacy User methods exactly — User
- * proxies through this resolver via the service container so all existing
- * `$user->xxx(...)` call sites continue to work without modification.
- */
+/** Resolves cross-BU, department, and session-aware hierarchy access. */
 class UserHierarchyResolver
 {
     /**
@@ -119,11 +110,12 @@ class UserHierarchyResolver
 
         $accessLevel = $this->accessResolver->getAccessLevel($user);
 
-        if ($accessLevel === 'executive') {
+        if ($accessLevel === 'executive' || $this->accessResolver->hasTopManagementAccess($user)) {
             $businessUnitIds = $this->getAccessibleBusinessUnitIds($user);
 
             return Department::where('id', $departmentId)
                 ->whereIn('business_unit_id', $businessUnitIds)
+                ->where('is_active', true)
                 ->exists();
         }
 
@@ -133,12 +125,15 @@ class UserHierarchyResolver
             if (! empty($businessUnitIds)) {
                 return Department::where('id', $departmentId)
                     ->whereIn('business_unit_id', $businessUnitIds)
+                    ->where('is_active', true)
                     ->exists();
             }
         }
 
-        return $user->primary_department_id === (int) $departmentId
-            || $user->primary_department_id === $departmentId;
+        return $user->activeBusinessUnits()
+            ->where('department_id', (int) $departmentId)
+            ->whereHas('department', fn ($query) => $query->where('is_active', true))
+            ->exists();
     }
 
     /**
@@ -294,7 +289,7 @@ class UserHierarchyResolver
                 ->where('business_unit_id', $businessUnitId)
                 ->where('is_active', true)
                 ->exists();
-            if ($valid) {
+            if ($valid && $this->canAccessDepartment($user, (int) $currentDeptId)) {
                 return (int) $currentDeptId;
             }
         }
@@ -302,6 +297,7 @@ class UserHierarchyResolver
         $userAssignment = $user->activeBusinessUnits()
             ->where('business_unit_id', $businessUnitId)
             ->whereNotNull('department_id')
+            ->whereHas('department', fn ($query) => $query->where('is_active', true))
             ->first();
         if ($userAssignment) {
             return (int) $userAssignment->department_id;
@@ -312,7 +308,11 @@ class UserHierarchyResolver
             ->orderBy('name')
             ->first();
 
-        return $fallback?->id;
+        if ($fallback && $this->canAccessDepartment($user, $fallback->id)) {
+            return $fallback->id;
+        }
+
+        return null;
     }
 
     /**

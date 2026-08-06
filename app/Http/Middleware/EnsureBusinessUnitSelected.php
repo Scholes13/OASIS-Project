@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Core\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -64,14 +65,7 @@ class EnsureBusinessUnitSelected
                 }
             }
 
-            // Ensure department context is valid for the active BU
-            $activeBuId = (int) session('current_business_unit_id');
-            if ($activeBuId) {
-                $resolvedDeptId = $user->resolveDepartmentForBusinessUnit($activeBuId);
-                if (session('current_department_id') !== $resolvedDeptId) {
-                    session(['current_department_id' => $resolvedDeptId]);
-                }
-            }
+            $this->syncDepartmentContext($user, $request);
 
             // Make current context available to views
             view()->share([
@@ -165,6 +159,8 @@ class EnsureBusinessUnitSelected
             }
         }
 
+        $this->syncDepartmentContext($user, $request);
+
         // Make current business unit data available to all views
         view()->share([
             'currentBusinessUnitId' => session('current_business_unit_id'),
@@ -176,5 +172,39 @@ class EnsureBusinessUnitSelected
         ]);
 
         return $next($request);
+    }
+
+    private function syncDepartmentContext(User $user, Request $request): void
+    {
+        $businessUnitId = (int) session('current_business_unit_id');
+        $resolvedDepartmentId = $businessUnitId
+            ? $user->resolveDepartmentForBusinessUnit($businessUnitId)
+            : null;
+        $department = $resolvedDepartmentId
+            ? \App\Models\Core\Department::find($resolvedDepartmentId)
+            : null;
+        $hasValidDepartmentContext = $department
+            ? (int) session('current_department_id') === $department->id
+                && session('current_department_name') === $department->name
+                && session('current_department_code') === $department->code
+            : ! $request->session()->has('current_department_id')
+                && ! $request->session()->has('current_department_name')
+                && ! $request->session()->has('current_department_code');
+
+        if (! $hasValidDepartmentContext) {
+            if ($department) {
+                session([
+                    'current_department_id' => $department->id,
+                    'current_department_name' => $department->name,
+                    'current_department_code' => $department->code,
+                ]);
+            } else {
+                $request->session()->forget([
+                    'current_department_id',
+                    'current_department_name',
+                    'current_department_code',
+                ]);
+            }
+        }
     }
 }

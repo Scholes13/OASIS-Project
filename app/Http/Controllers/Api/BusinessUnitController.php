@@ -71,7 +71,23 @@ class BusinessUnitController extends Controller
 
         // Re-resolve department for the new BU using shared helper
         $resolvedDeptId = $user->resolveDepartmentForBusinessUnit($businessUnit->id);
-        session(['current_department_id' => $resolvedDeptId]);
+        $department = $resolvedDeptId
+            ? \App\Models\Core\Department::find($resolvedDeptId)
+            : null;
+
+        if ($department) {
+            session()->put([
+                'current_department_id' => $department->id,
+                'current_department_name' => $department->name,
+                'current_department_code' => $department->code,
+            ]);
+        } else {
+            session()->forget([
+                'current_department_id',
+                'current_department_name',
+                'current_department_code',
+            ]);
+        }
 
         // Save last active BU for next login (only if changed to save DB query)
         if ($user->last_active_business_unit_id !== $businessUnit->id) {

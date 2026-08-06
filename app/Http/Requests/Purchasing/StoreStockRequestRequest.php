@@ -30,10 +30,8 @@ class StoreStockRequestRequest extends FormRequest
             return false;
         }
 
-        return $user->isSuperAdmin() || $user->activeBusinessUnits()
-            ->where('business_unit_id', $businessUnitId)
-            ->where('department_id', $departmentId)
-            ->exists();
+        return $user->canAccessBusinessUnit($businessUnitId)
+            && $user->canAccessDepartment($departmentId);
     }
 
     /**

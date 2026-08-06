@@ -1,20 +1,8 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { showToast } from '@/components/ui/toast';
+import { cashflowCsrfHeaders, cashflowResponsePayload } from '@/lib/cashflowImportHttp';
 import type { ImportPreviewPayload, ImportPreviewRow } from '@/types/cashflowImport';
-
-function csrfToken(): string | null {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? null;
-}
-
-async function responseMessage(response: Response, fallback: string): Promise<string> {
-    try {
-        const payload = await response.json();
-        return typeof payload.message === 'string' ? payload.message : fallback;
-    } catch {
-        return fallback;
-    }
-}
 
 export function useCashflowImportPreview(year: number, selectedMonth: number) {
     const [preview, setPreview] = useState<ImportPreviewPayload | null>(null);
@@ -39,9 +27,9 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
         formData.append('file', data.file);
         formData.append('context_year', String(year));
         formData.append('context_month', String(selectedMonth));
-        const token = csrfToken();
+        const csrf = cashflowCsrfHeaders();
 
-        if (!token) {
+        if (!csrf) {
             setPreviewError('Session expired. Reload page and try again.');
             setPreviewProcessing(false);
             return;
@@ -50,13 +38,11 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
         try {
             const response = await fetch(route('cashflow-projection.entries.import-preview'), {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                headers: { 'Accept': 'application/json', ...csrf },
                 body: formData,
             });
 
-            if (!response.ok) throw new Error(await responseMessage(response, 'Preview import gagal. Periksa file lalu coba lagi.'));
-
-            setPreview(await response.json());
+            setPreview(await cashflowResponsePayload<ImportPreviewPayload>(response, 'Preview import gagal. Periksa file lalu coba lagi.'));
         } catch (error) {
             setPreviewError(error instanceof Error ? error.message : 'Preview import gagal.');
         } finally {
@@ -69,8 +55,8 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
 
         setConfirmProcessing(true);
         setPreviewError(null);
-        const token = csrfToken();
-        if (!token) {
+        const csrf = cashflowCsrfHeaders();
+        if (!csrf) {
             setPreviewError('Session expired. Reload page and try again.');
             setConfirmProcessing(false);
             return false;
@@ -79,13 +65,11 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
         try {
             const response = await fetch(route('cashflow-projection.entries.import-confirm'), {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...csrf },
                 body: JSON.stringify({ context_year: year, context_month: selectedMonth, preview_token: preview.preview_token, rows: preview.rows }),
             });
 
-            if (!response.ok) throw new Error(await responseMessage(response, 'Confirm import gagal. Selesaikan row yang perlu review.'));
-
-            const payload = await response.json();
+            const payload = await cashflowResponsePayload<{ summary: { created_rows: number; updated_rows: number; skipped_rows: number } }>(response, 'Confirm import gagal. Selesaikan row yang perlu review.');
             showToast.success(`Import berhasil: ${payload.summary.created_rows} dibuat, ${payload.summary.updated_rows} diperbarui, ${payload.summary.skipped_rows} tanpa perubahan.`);
             reset();
             router.reload({ only: ['lineItems'] });
@@ -100,8 +84,8 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
 
     const updatePreviewRow = async (rowNumber: number, row: ImportPreviewRow) => {
         if (!preview) return false;
-        const token = csrfToken();
-        if (!token) {
+        const csrf = cashflowCsrfHeaders();
+        if (!csrf) {
             setPreviewError('Session expired. Reload page and try again.');
             return false;
         }
@@ -113,7 +97,7 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
         try {
             const response = await fetch(route('cashflow-projection.entries.import-review'), {
                 method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...csrf },
                 body: JSON.stringify({
                     context_year: year,
                     context_month: selectedMonth,
@@ -123,9 +107,7 @@ export function useCashflowImportPreview(year: number, selectedMonth: number) {
                 }),
             });
 
-            if (!response.ok) throw new Error(await responseMessage(response, 'Review row gagal. Periksa data lalu coba lagi.'));
-
-            setPreview(await response.json());
+            setPreview(await cashflowResponsePayload<ImportPreviewPayload>(response, 'Review row gagal. Periksa data lalu coba lagi.'));
             return true;
         } catch (error) {
             setPreviewError(error instanceof Error ? error.message : 'Review row gagal.');

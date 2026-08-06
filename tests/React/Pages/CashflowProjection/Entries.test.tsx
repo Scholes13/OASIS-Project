@@ -247,6 +247,7 @@ describe('Cashflow Projection Entries page', () => {
         vi.clearAllMocks();
         global.fetch = vi.fn();
         pageFlashState.cashflow_import = undefined;
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
         document.querySelector('meta[name="csrf-token"]')?.remove();
         const csrfMeta = document.createElement('meta');
         csrfMeta.setAttribute('name', 'csrf-token');
@@ -302,6 +303,56 @@ describe('Cashflow Projection Entries page', () => {
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByText(/preview will classify department, action, flow, and update candidates/i)).toBeInTheDocument();
+    });
+
+    it('uses the fresh XSRF cookie instead of a stale meta token for import preview', async () => {
+        document.cookie = `XSRF-TOKEN=${encodeURIComponent('fresh-cookie-token')}; path=/`;
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+            ok: true,
+            headers: new Headers({ 'content-type': 'application/json' }),
+            json: async () => ({
+                preview_token: 'preview-token',
+                summary: { total_rows: 1, ready_rows: 1, new_rows: 1, update_rows: 0, no_change_rows: 0, need_review_rows: 0, invalid_rows: 0 },
+                rows: [],
+            }),
+        } as Response);
+
+        render(<Entries {...baseProps} />);
+        fireEvent.click(screen.getByRole('button', { name: /import excel/i }));
+        fireEvent.change(screen.getByLabelText(/excel file/i), {
+            target: { files: [new File(['spreadsheet'], 'trialcfc.xlsx')] },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /preview import/i }));
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                '/cashflow-projection.entries.import-preview',
+                expect.objectContaining({
+                    headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'fresh-cookie-token' }),
+                }),
+            );
+        });
+    });
+
+    it('shows a session-expired message when preview is redirected to HTML', async () => {
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            redirected: true,
+            headers: new Headers({ 'content-type': 'text/html; charset=UTF-8' }),
+        } as Response);
+
+        render(<Entries {...baseProps} />);
+        fireEvent.click(screen.getByRole('button', { name: /import excel/i }));
+        fireEvent.change(screen.getByLabelText(/excel file/i), {
+            target: { files: [new File(['spreadsheet'], 'trialcfc.xlsx')] },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /preview import/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/session expired\. reload page and try again/i)).toBeInTheDocument();
+        });
+        expect(screen.queryByText(/unexpected token/i)).not.toBeInTheDocument();
     });
 
     it('keeps entries full width and opens add projection in a modal', () => {
@@ -482,6 +533,7 @@ describe('Cashflow Projection Entries page', () => {
     });
 
     it('lets users review a need-review import row before confirming', async () => {
+        document.cookie = `XSRF-TOKEN=${encodeURIComponent('review-cookie-token')}; path=/`;
         const reviewRow = {
             row_number: 5,
             status: 'need_review',
@@ -543,7 +595,10 @@ describe('Cashflow Projection Entries page', () => {
         fireEvent.click(screen.getByRole('button', { name: /save reviewed row/i }));
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenLastCalledWith('/cashflow-projection.entries.import-review', expect.objectContaining({ method: 'POST' }));
+            expect(global.fetch).toHaveBeenLastCalledWith('/cashflow-projection.entries.import-review', expect.objectContaining({
+                method: 'POST',
+                headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'review-cookie-token' }),
+            }));
             expect(screen.getByRole('button', { name: /confirm ready rows/i })).toBeEnabled();
         });
         expect(screen.queryByRole('button', { name: /review row 5/i })).not.toBeInTheDocument();
@@ -551,6 +606,7 @@ describe('Cashflow Projection Entries page', () => {
     });
 
     it('confirms preview rows when all rows are ready', async () => {
+        document.cookie = `XSRF-TOKEN=${encodeURIComponent('confirm-cookie-token')}; path=/`;
         vi.mocked(global.fetch)
             .mockResolvedValueOnce({
                 ok: true,
@@ -592,7 +648,10 @@ describe('Cashflow Projection Entries page', () => {
         fireEvent.click(screen.getByRole('button', { name: /confirm ready rows/i }));
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenLastCalledWith('/cashflow-projection.entries.import-confirm', expect.objectContaining({ method: 'POST' }));
+            expect(global.fetch).toHaveBeenLastCalledWith('/cashflow-projection.entries.import-confirm', expect.objectContaining({
+                method: 'POST',
+                headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'confirm-cookie-token' }),
+            }));
         });
         expect(showToastSuccessMock).toHaveBeenCalledWith('Import berhasil: 1 dibuat, 0 diperbarui, 0 tanpa perubahan.');
     });
